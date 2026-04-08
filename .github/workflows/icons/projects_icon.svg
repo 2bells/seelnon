@@ -1,0 +1,7 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Classic Win95 Projects Icon Style -->
+  <path d="M4 8H12L14 10H28V26H4V8Z" fill="#FFFF00" stroke="black"/>
+  <circle cx="16" cy="18" r="4" fill="#808080" stroke="black"/>
+  <rect x="15" y="12" width="2" height="12" fill="#808080" stroke="black"/>
+  <rect x="10" y="17" width="12" height="2" fill="#808080" stroke="black"/>
+</svg>

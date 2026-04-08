@@ -1,0 +1,136 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Portfolio — Win95  Desktop</title>
+  
+  <!-- Preload key assets for faster initial load -->
+  <!-- Stylesheets -->
+  <link rel="preload" href="./styles.css" as="style">
+  <link rel="preload" href="./mascot.css" as="style">
+
+  <!-- Mascot GIFs -->
+  <link rel="preload" href="./gif/normal_maskot.gif" as="image">
+  <link rel="preload" href="./gif/fast_maskot.gif" as="image">
+
+  <!-- Desktop icons -->
+  <link rel="preload" href="./icons/pictures_icon.png" as="image">
+  <link rel="preload" href="./icons/videos_icon.png" as="image">
+  <link rel="preload" href="./icons/projects_icon.png" as="image">
+  <link rel="preload" href="./icons/about_me_icon.png" as="image">
+  <link rel="preload" href="./icons/ai_research_icon.png" as="image">
+
+  <!-- Sticker thumbnails -->
+  <link rel="preload" href="./Content/Projects/RTS_Game/RTS_thumbnail.jpg" as="image">
+  <link rel="preload" href="./Content/Images/image-board-export-1756292941378.png" as="image">
+  <link rel="preload" href="./Content/Videos/Unsubscribe_Trailer_thumbnail.jpg" as="image">
+
+  <!-- 'About Me' UI assets -->
+  <link rel="preload" href="./icons/about_me_ui_bg.png" as="image">
+  <link rel="preload" href="./icons/hp_bar_icon.png" as="image">
+  <link rel="preload" href="./icons/mp_bar_icon.png" as="image">
+  <link rel="preload" href="./icons/helmet_icon.png" as="image">
+  <link rel="preload" href="./icons/chest_icon.png" as="image">
+  <link rel="preload" href="./icons/gloves_icon.png" as="image">
+  <link rel="preload" href="./icons/boots_icon.png" as="image">
+  <link rel="preload" href="./icons/talent_icon_debug.png" as="image">
+  <link rel="preload" href="./icons/talent_icon_pixel.png" as="image">
+  <link rel="preload" href="./icons/talent_icon_coffee.png" as="image">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=VT323&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./mascot.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "fs": "./fs.js",
+      "about_me": "./about_me.js"
+    }
+  }
+  </script>
+  <!-- Preload JS modules -->
+  <link rel="modulepreload" href="./app.js">
+  <link rel="modulepreload" href="./fs.js">
+  <link rel="modulepreload" href="./mascot.js">
+  <link rel="modulepreload" href="./about_me.js">
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loading-box">
+      <div class="loading-header">
+        Portfolio 95
+      </div>
+      <div class="loading-content">
+        <p>Please wait while Portfolio 95 is starting up.</p>
+        <div class="progress-bar-container">
+          <div id="loading-progress" class="progress-bar"></div>
+        </div>
+        <p id="loading-file">Preparing to load assets...</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="desktop" aria-label="Desktop" role="application" tabindex="0"></div>
+
+  <div id="taskbar">
+    <button id="start-button" aria-haspopup="true" aria-expanded="false">
+      <div class="start-icon">
+        <span class="square"></span>
+        <span class="square"></span>
+        <span class="square"></span>
+        <span class="square"></span>
+      </div>
+      Start
+    </button>
+    <div id="taskbar-tasks" role="tablist" aria-label="Open windows"></div>
+    <div id="clock" aria-live="polite"></div>
+  </div>
+
+  <div id="start-menu" role="menu" aria-hidden="true">
+    <div class="start-header">Portfolio 95</div>
+    <button class="start-item" data-open="Pictures" role="menuitem">Pictures</button>
+    <button class="start-item" data-open="Videos" role="menuitem">Videos</button>
+    <button class="start-item" data-open="Projects" role="menuitem">Projects</button>
+    <button class="start-item" data-open="Blog" role="menuitem">Blog</button>
+    <button class="start-item" data-open="AI_research" role="menuitem">AI_research</button>
+    <hr />
+    <button class="start-item" data-open="About Me" role="menuitem">About Me</button>
+  </div>
+
+  <img id="mascot-gif" src="./gif/normal_maskot.gif" alt="Animated Mascot">
+  <div id="speech-bubble"></div>
+
+  <template id="window-template">
+    <div class="window" role="dialog" aria-modal="false">
+      <div class="titlebar">
+        <div class="title"></div>
+        <div class="controls">
+          <button class="btn-min" title="Minimize" aria-label="Minimize"></button>
+          <button class="btn-max" title="Maximize" aria-label="Maximize"></button>
+          <button class="btn-close" title="Close" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="content"></div>
+      <div class="resizer top-left" data-edge="tl"></div>
+      <div class="resizer top-right" data-edge="tr"></div>
+      <div class="resizer bottom-left" data-edge="bl"></div>
+      <div class="resizer bottom-right" data-edge="br"></div>
+      <div class="resizer right" data-edge="r"></div>
+      <div class="resizer left" data-edge="l"></div>
+      <div class="resizer top" data-edge="t"></div>
+      <div class="resizer bottom" data-edge="b"></div>
+    </div>
+  </template>
+
+  <template id="icon-template">
+    <div class="icon" tabindex="0">
+      <div class="icon-img"></div>
+      <div class="icon-label"></div>
+    </div>
+  </template>
+
+  <script type="module" src="./app.js"></script>
+  <script type="module" src="./mascot.js"></script>
+</body>
+</html>

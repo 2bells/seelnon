@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: comments
+    // Document ID: auto-generated
+    // Fields:
+    //   - postId: string (required) - ID of the blog post
+    //   - authorName: string (required) - Name of the commenter
+    //   - content: string (required, max 1000 chars) - Comment text
+    //   - createdAt: timestamp (required) - Creation time
+    //   - uid: string (required) - Auth UID of commenter
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "seelnon@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidComment(data) {
+      return data.postId is string &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() < 50 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 1000 &&
+             data.createdAt is timestamp &&
+             data.uid == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /comments/{commentId} {
+      // Allow anyone to read comments (public blog)
+      allow read: if true;
+      
+      // Allow authenticated users to create comments
+      allow create: if isAuthenticated() && isValidComment(request.resource.data);
+      
+      // Allow owners or admins to delete comments
+      allow delete: if isAdmin() || isOwner(resource.data.uid);
+      
+      // Comments are generally immutable in this simple implementation
+      allow update: if false;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+  }
+}

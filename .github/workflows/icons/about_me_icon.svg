@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Classic Win95 User Icon Style -->
+  <rect x="8" y="24" width="16" height="4" fill="#808080"/>
+  <rect x="6" y="20" width="20" height="4" fill="#000080"/>
+  <rect x="10" y="8" width="12" height="12" fill="#FFFF00"/>
+  <rect x="12" y="12" width="2" height="2" fill="#000000"/>
+  <rect x="18" y="12" width="2" height="2" fill="#000000"/>
+  <rect x="14" y="16" width="4" height="2" fill="#000000"/>
+  <!-- Border -->
+  <path d="M4 28V18H6V16H8V8H10V6H22V8H24V16H26V18H28V28H4Z" stroke="black" stroke-width="1"/>
+</svg>

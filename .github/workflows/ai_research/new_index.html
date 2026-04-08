@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Research Interface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="ai_styles.css">
+</head>
+<body>
+    <div id="root">
+        <header>
+            <h1>AI Research Archive</h1>
+            <p>Select a file to view research notes.</p>
+        </header>
+        <main>
+            <!-- Water pool ASCII background -->
+            <pre id="ascii-water-canvas" aria-hidden="true"></pre>
+            <!-- Node canvas, rendered on top of the water pool -->
+            <canvas id="node-canvas" aria-hidden="true"></canvas>
+
+            <nav id="file-browser">
+                <h2>// Research Logs</h2>
+                <ul>
+                    <!-- File links will be dynamically inserted here -->
+                </ul>
+            </nav>
+            <section id="content-viewer">
+                <h1 id="dynamic-heading"></h1>
+                <div id="text-content">
+                    <p>Awaiting selection...</p>
+                </div>
+            </section>
+        </main>
+        <footer>
+            <p>Status: <span id="status">Online</span></p>
+        </footer>
+    </div>
+    <script type="module" src="ai_app.js"></script>
+    <script type="module" src="water_pool.js"></script>
+</body>
+</html>
