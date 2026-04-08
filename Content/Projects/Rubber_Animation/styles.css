@@ -1,0 +1,220 @@
+:root{
+  --bg:#0b0d10;
+  --panel:#0f1316;
+  --text:#e6eef8;
+  --muted:#9aa6b2;
+  --accent:#4fb3ff;
+  font-family: "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+*{box-sizing:border-box}
+html,body,#app{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:28px;
+}
+main{width:100%;max-width:none}
+.workspace{
+  display:grid;
+  grid-template-columns: 260px 1fr 320px;
+  gap:16px;
+  align-items:start;
+  /* ensure sidebars and canvas align to viewport height */
+  align-content:start;
+  grid-auto-rows: 1fr;
+}
+.sidebar{
+  background:var(--panel);border:1px solid rgba(255,255,255,0.04);padding:12px;border-radius:8px;
+  display:flex;flex-direction:column;gap:10px;height:60vh;overflow:auto;
+  font-size:13px;color:var(--muted)
+}
+.sidebar h3{margin:0 0 6px 0;color:var(--text);font-size:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+header h1{font-size:18px;margin:0}
+.controls{display:flex;flex-direction:column;gap:12px}
+.control-item{display:flex;flex-direction:column;gap:6px}
+.control-title{color:var(--muted);font-size:13px;text-align:left}
+.control-row{display:flex;align-items:center;gap:10px}
+.control-row input[type="range"]{flex:1;margin:0}
+.control-row .val{min-width:44px;text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+label{font-size:13px;color:var(--muted);display:flex;flex-direction:row;align-items:center;gap:8px; }
+.controls label, .pin-controls label, label { justify-content:space-between; }
+label input[type="range"]{ flex:1; max-width:240px; margin:0 8px; }
+.val { min-width:48px;text-align:right;color:var(--text);font-variant-numeric:tabular-nums; }
+select#renderModeSelect{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.04);padding:6px;border-radius:6px}
+.btn{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:8px 10px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.04);color:var(--text)}
+button{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);cursor:pointer}
+
+.canvas-wrap{
+  position:relative;
+  background:#050708;display:flex;align-items:center;justify-content:center;border-radius:8px;overflow:hidden;
+  min-height:420px;height:60vh;cursor:crosshair;padding:0;border:1px solid rgba(255,255,255,0.03);
+}
+#canvas{display:block;max-width:100%;max-height:100%;background:#050608; image-rendering: auto; image-rendering: crisp-edges; -webkit-optimize-contrast: crisp-edges;}
+  
+.hint{
+  position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,0.04);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;
+  opacity:0.9;
+}
+.pin {
+  position:absolute;
+  width:14px;height:14px;border-radius:50%;
+  background:transparent;box-shadow:none;
+  transform:translate(-50%,-50%);pointer-events:none;
+  border:2px solid rgba(255,255,255,0.9);
+}
+footer{margin-top:12px;color:var(--muted);font-size:13px}
+.info{margin-top:12px;color:var(--muted);font-size:13px;background:transparent;padding:6px}
+.upload-btn{display:inline-flex;align-items:center;padding:8px 10px;border-radius:6px}
+.upload-btn input[type="file"]{ display:none; }
+/* nicely styled file chooser button */
+.upload-btn{
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.06);
+  padding:8px 12px; gap:8px; color:var(--text); font-weight:600;
+  display:inline-flex; align-items:center; border-radius:8px;
+}
+/* tiny subtle hover */
+.upload-btn:hover{ transform:translateY(0); box-shadow:0 6px 18px rgba(0,0,0,0.5); }
+
+.timeline{
+  position:static;
+  margin:16px 12px;
+  background:rgba(6,8,10,0.9);
+  padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:8px;
+}
+.timeline-controls{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+#timelineCanvas{width:100%;height:64px;background:transparent;border-radius:6px;cursor:pointer}
+
+.sidebar.right .controls{ overflow-x:hidden; }
+.sidebar.right .control-row input[type="range"],
+.sidebar.right label input[type="range"]{
+    flex: 0 1 160px;
+    max-width: 160px;
+}
+.sidebar.right .control-row .val,
+.sidebar.right .val { min-width:36px; }
+
+/* select styling for fps, track and export modal controls */
+#fpsSelect, #trackSelect, #exp-container, #exp-bitrate {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 8px 36px 8px 12px;
+  border-radius: 8px;
+  min-height: 36px;
+  font-size: 13px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='none'><path d='M5 7l5 5 5-5' stroke='%23E6EEF8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  transition: box-shadow .12s ease, border-color .12s ease;
+}
+#fpsSelect:focus, #trackSelect:focus, #exp-container:focus, #exp-bitrate:focus {
+  outline: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5), 0 0 0 3px rgba(79,179,255,0.08);
+  border-color: rgba(79,179,255,0.9);
+}
+
+/* Themed native dropdown options to match the app */
+#fpsSelect option,
+#trackSelect option,
+#exp-container option,
+#exp-bitrate option {
+  background: var(--panel);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+/* subtle hover/selection styling where supported */
+#fpsSelect option:hover,
+#trackSelect option:hover,
+#exp-container option:hover,
+#exp-bitrate option:hover {
+  background: rgba(79,179,255,0.10);
+  color: var(--text);
+}
+
+/* optgroup label styling */
+#fpsSelect optgroup[label],
+#trackSelect optgroup[label],
+#exp-container optgroup[label],
+#exp-bitrate optgroup[label] {
+  color: var(--muted);
+  font-weight:600;
+  padding:6px 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+}
+
+/* export modal container tweak */
+#export-modal { font-family:inherit; backdrop-filter: blur(6px); box-shadow:0 10px 40px rgba(0,0,0,0.6); }
+
+/* minimalist scrollbar */
+*::-webkit-scrollbar{ height:10px; width:10px; }
+*::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.06); border-radius:8px; }
+*::-webkit-scrollbar-thumb:hover{ background:rgba(255,255,255,0.12); }
+*{ scrollbar-color: rgba(255,255,255,0.06) transparent; scrollbar-width: thin; }
+
+/* Improve native dropdown appearance to avoid white native list/background outlines */
+select, #fpsSelect, #trackSelect, #exp-container, #exp-bitrate, #renderModeSelect {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: var(--panel);
+  color: var(--text);
+  border-color: rgba(255,255,255,0.06);
+}
+
+/* Hide native dropdown arrow on some engines while keeping our SVG arrow */
+select::-ms-expand { display: none; }
+
+/* Force option backgrounds in dropdown lists to match theme where browsers allow it */
+option {
+  background-color: var(--panel) !important;
+  color: var(--text) !important;
+}
+
+/* When a select is focused/opened, ensure no bright white outline appears */
+select:focus, select:active, #renderModeSelect:focus {
+  outline: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5), 0 0 0 3px rgba(79,179,255,0.08);
+  border-color: rgba(79,179,255,0.9);
+}
+
+/* On some platforms the dropdown popup still shows a white pane; we mitigate by nudging background-clip */
+select { background-clip: padding-box; }
+
+/* Pin controls should align with physics sliders: labels left, slider same width and numeric value on right */
+.pin-controls { display:flex; flex-direction:column; gap:10px; color:var(--muted); }
+.pin-controls .control-item { display:flex; flex-direction:column; gap:6px; }
+.pin-controls .control-title { text-align:left; color:var(--muted); font-size:13px; }
+.pin-controls .control-row { display:flex; align-items:center; gap:10px; }
+/* match physics slider sizing (same as .sidebar.right inputs) */
+.pin-controls .control-row input[type="range"],
+.pin-controls label input[type="range"]{ flex: 0 1 160px; max-width:160px; }
+/* numeric value alignment */
+.pin-controls .val { min-width:36px; text-align:right; color:var(--text); }
+
+/* Make Pin Mode and Hide Pins buttons styled like upload button for visual parity */
+#pinMode, #hidePinsBtn {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 8px 12px;
+  color: var(--text);
+  font-weight:600;
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+}
+/* subtle hover similar to upload button */
+#pinMode:hover, #hidePinsBtn:hover{ box-shadow:0 6px 18px rgba(0,0,0,0.5); transform:translateY(0); }

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MP4 Forensics — Metadata & Strings Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="topbar">
+    <div class="brand">MP4 Forensics</div>
+    <div class="actions">
+      <button id="export-json" class="btn" disabled>Download JSON Report</button>
+      <button id="clear" class="btn secondary">Clear</button>
+    </div>
+  </header>
+
+  <!-- Uploader -->
+  <main class="container">
+    <section id="dropzone" class="dropzone" tabindex="0" aria-label="Upload MP4 file by clicking or dropping">
+      <input id="file-input" type="file" accept="video/mp4,.mp4" hidden />
+      <div class="dz-inner">
+        <div class="dz-title">Drop an .mp4 file here</div>
+        <div class="dz-sub">or click to browse</div>
+        <div class="dz-hint">We analyze everything client-side. No uploads leave your device.</div>
+        <button id="choose-btn" class="btn" style="margin-top:16px; pointer-events:auto;">Choose File</button>
+      </div>
+    </section>
+
+    <section id="progress-wrap" class="progress-wrap" hidden>
+      <div class="progress-bar"><div id="progress" class="progress"></div></div>
+      <div id="progress-text" class="progress-text">Reading…</div>
+    </section>
+
+    <section id="summary" class="panel" hidden>
+      <h2>Summary</h2>
+      <div class="grid two">
+        <div>
+          <div class="label">File</div>
+          <div id="file-name" class="value mono"></div>
+          <div class="label">Size</div>
+          <div id="file-size" class="value mono"></div>
+          <div class="label">Duration</div>
+          <div id="duration" class="value mono"></div>
+          <div class="label">Brands</div>
+          <div id="brands" class="value mono"></div>
+        </div>
+        <div>
+          <div class="label">Codecs</div>
+          <div id="codecs" class="value mono"></div>
+          <div class="label">Software/Tool</div>
+          <div id="tool" class="value mono"></div>
+          <div class="label">Device</div>
+          <div id="device" class="value mono"></div>
+          <div class="label">Edited likelihood</div>
+          <div id="score" class="value mono"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="heuristics" class="panel" hidden>
+      <h2>Editing Likelihood — Evidence</h2>
+      <ul id="heuristics-list" class="bullets"></ul>
+    </section>
+
+    <section id="metadata" class="panel" hidden>
+      <h2>Metadata Tags</h2>
+      <div id="kv-metadata" class="kv"></div>
+    </section>
+
+    <section id="structure" class="panel" hidden>
+      <h2>Container Structure</h2>
+      <pre id="box-tree" class="mono pre"></pre>
+    </section>
+
+    <section id="strings" class="panel" hidden>
+      <h2>Readable Strings</h2>
+      <div class="controls">
+        <label>Min length
+          <input id="minlen" type="number" min="3" max="64" value="4" />
+        </label>
+        <label><input id="include-utf16" type="checkbox" checked /> Include UTF‑16LE</label>
+        <button id="rescan" class="btn small">Rescan</button>
+        <button id="download-strings" class="btn small" disabled>Download Strings</button>
+        <input id="search" class="mono" type="text" placeholder="Search strings…" aria-label="Search strings" />
+        <button id="search-prev" class="btn small" disabled>Prev</button>
+        <button id="search-next" class="btn small" disabled>Next</button>
+        <span id="search-count" class="mono" aria-live="polite"></span>
+      </div>
+      <pre id="strings-output" class="mono pre"></pre>
+
+      <h3 class="subsection-title">Potential Numerical Data / Coordinates</h3>
+      <pre id="numerical-output" class="mono pre"></pre>
+    </section>
+
+    <section id="raw" class="panel" hidden>
+      <h2>Raw Data — Context</h2>
+      <pre id="raw-dump" class="mono pre"></pre>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Client-side analysis using mp4box.js. No data leaves your browser.
+  </footer>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "mp4box": "https://esm.sh/mp4box@0.5.4?bundle"
+      }
+    }
+  </script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

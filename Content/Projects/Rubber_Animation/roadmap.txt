@@ -1,0 +1,60 @@
+Roadmap for Timeline / Keyframe System
+
+1) Fundamentals (this commit)
+- Add lightweight timeline UI (6s, default 24fps) with playback, playhead, frame selection, and hotkeys.
+- Expose window.timelineAPI with minimal hooks and keyframe storage placeholders.
+
+2) Core data model
+- Design track types: mouse, pins, sliders, custom actions.
+- Keyframe schema: frame, type, params (x,y,pinId,radius,value), easing (curve id or control points).
+- Support interpolation helpers (linear, ease-in/out, cubic-bezier).
+
+3) Recording & Editing
+- Implement record mode: capture mouse events (grab, move, release) as keyframes.
+- Support recording slider changes and pin placement/movement.
+- UI: record button, live preview during recording, ability to stop & trim.
+
+4) Tracks & Timeline UI
+- Multi-track UI: expand timeline to show stacked tracks with lane resizing.
+- Keyframe thumbnails and drag/drop for repositioning.
+- Context menus for keyframe properties, duplicate, delete, copy/paste.
+
+5) Playback & Export
+- Accurate playback engine driving main.js via timelineAPI.onFrame(frame,fps).
+- Support scrubbing, looping, and range selection.
+- Export to simple JSON animation format and to deterministic frame sequence (for rendering).
+
+6) Easing & Motion tools
+- Add easing editor per keyframe (preset list + custom bezier editor).
+- Motion path editor for mouse/pin tracks allowing curve-based motion and tangents.
+
+7) Pin & Mesh integration
+- Implement interpolation modes for pin transforms (position + radius).
+- Allow "area grab" keys that record influence radius and strength.
+- Add ability to preview mesh deformation at any frame (bake or realtime interpolation).
+
+8) Automation & Helpers
+- Add "auto-key" toggle: when enabled, changing sliders or pins creates keyframes automatically.
+- Add keyboard shortcuts legend and frame stepping utilities (jump to next keyframe etc).
+
+9) Performance & Baking
+- Optimize timeline playback for high fps and long timelines (frame caching/baking).
+- Implement offline renderer to produce PNG sequence.
+
+10) UX polish & collaboration
+- Undo/redo stack for timeline edits.
+- Snap to grid/frames, magnetize keyframes.
+- Timeline persistence (local storage / import-export).
+
+Notes / Priorities:
+- Immediate next steps: integrate timeline.onFrame with main animation loop, implement recording of mouse grab/move/release, and ability to create pin keyframes.
+- Keep API small and deterministic so later modules (recording, easing UI) can plug in.
+
+New: Inspect & manual keyframe authoring (future)
+- Add "Inspect keyframe" UI allowing manual edit of all properties (frame, type, params, control, value, easing).
+- Provide an easing editor entrypoint (preset list + ability to input bezier/control points).
+- Allow designing keyframes manually without recording (create/edit/delete inside inspector).
+- Implement as a separate large module (inspect.js) to keep timeline.js lightweight.
+- Expose window.timelineInspector.inspectKeyframe(trackId,index) and window.timelineInspector.createKeyframe(trackId,defaults).
+- Plan to persist inspector changes back into timelineData and emit redraw events.
+- Immediate preparation: create minimal inspect.js scaffolding that can open an inspector modal, read/write timeline data, and apply changes so future UI/easing tools can plug in.
