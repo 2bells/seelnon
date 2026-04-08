@@ -1,4 +1,4 @@
-import { state } from 'app/state';
+import { state } from 'app/state.js';
 
 const SAVE_KEY = 'endlessCanvasState';
 const SAVE_DELAY = 5000; // 5 seconds (changed from 2000)
