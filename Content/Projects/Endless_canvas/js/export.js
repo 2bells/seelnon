@@ -1,18 +1,18 @@
-import { state } from 'app/state.js';
+import { state } from './state.js';
 import {
     drawBackgroundPattern,
-} from 'app/canvas.js'; // Keep drawBackgroundPattern from canvas.js
+} from './canvas.js'; // Keep drawBackgroundPattern from canvas.js
 
 // Import drawing utilities
-import { hexToRgba, getPolygonPathData } from 'app/utils/drawing.js';
+import { hexToRgba, getPolygonPathData } from './utils/drawing.js';
 // Import d3-delaunay
-import { Delaunay } from 'd3-delaunay';
+import { Delaunay } from "https://cdn.skypack.dev/d3-delaunay@6";
 
 // Import brush drawing functions for export
-import { drawPenStroke } from 'app/brush/pen.js';
-import { drawWireframeStroke } from 'app/brush/wireframe.js';
-import { drawPixelStroke } from 'app/brush/pixel.js';
-import { drawSketchyStroke, drawAnimatedSketchyStroke } from 'app/brush/sketchy.js';
+import { drawPenStroke } from './brush/pen.js';
+import { drawWireframeStroke } from './brush/wireframe.js';
+import { drawPixelStroke } from './brush/pixel.js';
+import { drawSketchyStroke, drawAnimatedSketchyStroke } from './brush/sketchy.js';
 
 
 // This function will be called from canvas.js to render strokes on an offscreen canvas for PNG export
