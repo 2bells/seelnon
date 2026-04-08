@@ -1,0 +1,599 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>RTS RPS Game</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/aichat.css">
+  <style>
+    #main-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.1);
+      color: white;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+
+    .menu-container {
+      display: flex;
+      width: 100%;
+      height: 80%;
+      align-items: center;
+    }
+
+    .menu-section {
+      min-width: 75px;
+      width: 10%;
+      height: 100%;
+      padding: 10px;
+      margin: 0 10px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.65);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-y: auto;
+    }
+
+    /* Specific styles for the active map selection section to make it wider */
+    #map-selection.active {
+      min-width: 250px; /* Minimum width for the map selection section */
+      width: 23%; /* Take up more space */
+    }
+
+    .menu-button {
+      width: 100px;
+      padding: 8px;
+      margin: 5px 0;
+      font-size: 0.8em;
+      background: #4CAF50;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .menu-button:hover {
+      background: #45a049;
+    }
+
+    /* Game modes section */
+    .game-modes {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Map selection */
+    .map-selection {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .map-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      border: 2px solid #555;
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      transition: all 0.3s;
+    }
+
+    .map-option img {
+      width: 100px;
+      height: 75px;
+      object-fit: cover;
+      border-radius: 5px;
+      margin-bottom: 5px;
+    }
+
+    .map-option h4 {
+      margin: 3px 0;
+      color: #fff;
+      font-size: 0.9em;
+    }
+
+    .map-option p {
+      color: #aaa;
+      font-size: 0.75em;
+      margin: 3px 0;
+    }
+
+    .map-option.selected {
+      background: rgba(64, 173, 79, 0.2);
+      border-color: #4CAF50;
+      transform: scale(1.02);
+    }
+
+    /* Sub-menu states */
+    .sub-menu {
+      display: none;
+      opacity: 0;
+      transform: translateX(20px);
+      transition: all 0.3s ease;
+    }
+
+    .sub-menu.active {
+      display: flex;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* Options section */
+    .slider-container {
+      width: 100%;
+      margin: 5px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .slider-container input {
+      width: 80%;
+    }
+
+    /* Tutorial section */
+    .tutorial-content {
+      text-align: left;
+      padding: 0 10px;
+      font-size: 0.85em;
+    }
+
+    .tutorial-content ul {
+      padding-left: 15px;
+    }
+
+    .tutorial-content li {
+      margin: 5px 0;
+    }
+
+    /* Add to existing styles */
+    .leaderboard-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .leaderboard-section {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .leaderboard-row {
+      padding: 5px;
+      margin: 3px 0;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 5px;
+      transition: background 0.3s;
+      font-size: 0.8em;
+    }
+
+    .leaderboard-row:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .player-info,
+    .game-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .rank {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+
+    .username {
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .details,
+    .primary-info,
+    .secondary-info {
+      display: flex;
+      gap: 5px;
+      color: #aaa;
+      font-size: 0.8em;
+    }
+
+    .score {
+      color: #4CAF50;
+    }
+
+    .skill {
+      color: #2196F3;
+    }
+
+    .playstyle {
+      color: #FFC107;
+    }
+
+    .date {
+      color: #aaa;
+    }
+
+    .ai-comment {
+      font-style: italic;
+      color: #bbb;
+      margin-top: 3px;
+      font-size: 0.8em;
+    }
+
+    /* Game Multipliers Styling */
+    .game-multipliers {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      font-size: 0.9em;
+    }
+
+    .multiplier-container {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+      gap: 5px;
+    }
+
+    .multiplier-container label {
+      width: 80px;
+      text-align: right;
+      color: #ddd;
+    }
+
+    .multiplier-container input[type="range"] {
+      flex-grow: 1;
+      max-width: 100px;
+    }
+
+    .multiplier-container .multiplier-value {
+      width: 30px;
+      color: #4CAF50;
+    }
+
+    .difficulty-presets {
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .preset-btn {
+      margin: 3px;
+      padding: 5px 10px;
+      background: #666;
+      border: none;
+      border-radius: 4px;
+      color: #ddd;
+      cursor: not-allowed;
+      font-size: 0.85em;
+    }
+
+    .preset-btn:not([disabled]) {
+      background: #4CAF50;
+      cursor: pointer;
+    }
+
+    .preset-btn:not([disabled]):hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="backgroundCanvas" style="position: fixed; top: 0; left: 0; z-index: -1;"></canvas>
+
+  <div id="main-menu">
+    <div class="menu-container">
+      <!-- Main Menu - Always visible -->
+      <div class="menu-section" id="main-section">
+        <h1>RTS Game</h1>
+        <button class="menu-button" data-target="start-game">Start Game</button>
+        <button class="menu-button" data-target="options">Game Options</button>
+        <button class="menu-button" data-target="tutorial">Tutorial</button>
+        <button class="menu-button" id="show-leaderboard" style="display: none;">Leaderboard</button>
+        <ul style="text-align: left; display: none;">
+          <h4>Features:</h4>
+          <li>Fast pace RTS</li>
+          <p></p>
+          <li>GPT controls units</li>
+          <p></p>
+          <li>GPT controls leaderboad</li>
+          <p></p>
+          <li>GPT talks trash post game</li>
+          <p></p>
+          <li>GPT can play with YOU (Options)</li>
+          <p></p>
+          <li>Unit tiers on Map: Ages</li>
+        </ul>
+      </div>
+
+      <!-- Map Selection Sub-menu -->
+      <div class="menu-section sub-menu" id="map-selection">
+        <h2>Select Map</h2>
+        <div class="map-selection">
+          <div class="map-option" data-map="ages">
+            <img src="ages.jpg" alt="Ages Map">
+            <h4>Ages</h4>
+            <p>Units evolve through tiers over time, gaining power over time</p>
+          </div>
+          <div class="map-option" data-map="forest_nothing">
+            <img src="forest_nothing.jpg" alt="Forest Nothing Map">
+            <h4>Forest Nothing</h4>
+            <p>Dense forest where wood resources slow units to a crawl</p>
+          </div>
+          <div class="map-option" data-map="balanced">
+            <img src="balanced.jpg" alt="Balanced Map">
+            <h4>Balanced</h4>
+            <p>A symmetrical map with equal resources for both sides</p>
+          </div>
+          <div class="map-option" data-map="random">
+            <img src="random.jpg" alt="Random Map">
+            <h4>Random</h4>
+            <p>Randomized resource placement each game</p>
+          </div>
+          <div class="map-option" data-map="wetlands" style="display: none;">
+            <img src="maps/wetlands.jpg" alt="Wetlands Map">
+            <h4>Wetlands</h4>
+            <p>Features water terrain that slows unit movement</p>
+          </div>
+          <div class="map-option" data-map="mountain_pass" style="display: none;">
+            <img src="maps/mountain_pass.jpg" alt="Mountain Pass Map">
+            <h4>Mountain Pass</h4>
+            <p>Narrow passages with capturable walls</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Modes Sub-menu -->
+      <div class="menu-section sub-menu" id="start-game">
+        <h2>Game Mode</h2>
+        
+        <!-- Game Mode Buttons -->
+        <div class="game-modes">
+          <button class="mode-btn" data-mode="rps">All Shapes</button>
+          <button class="mode-btn" data-mode="circle">Circles</button>
+          <button class="mode-btn" data-mode="square">Squares</button>
+          <button class="mode-btn" data-mode="triangle">Triangles</button>
+        </div>
+      </div>
+
+      <!-- Options Sub-menu -->
+      <div class="menu-section sub-menu" id="options">
+        <h2>Game Options</h2>
+        <div class="slider-container">
+          <label for="game-pace">Game Pace:</label>
+          <input type="range" id="game-pace" min="50" max="400" value="100">
+          <span id="pace-value">100</span>
+        </div>
+        <div class="slider-container" style="display: none;">
+          <label for="ai-percentage">Enemy AI Control %:</label>
+          <input type="range" id="ai-percentage" min="0" max="100" value="75">
+          <span id="ai-percentage-value">75</span>
+        </div>
+        <div class="ai-toggle" style="display: none;">
+          <label for="use-ai">Use Enemy AI:</label>
+          <input type="checkbox" id="use-ai" checked>
+        </div>
+        <div class="ai-toggle" style="display: none;">
+          <label for="ai-plays-with-you">AI Plays With You:</label>
+          <input type="checkbox" id="ai-plays-with-you">
+        </div>
+
+        <!-- Game Multipliers -->
+        <div class="game-multipliers">
+          <h3>Game Multipliers</h3>
+          <div class="multiplier-container">
+            <label>Unit Spawn Time:</label>
+            <input type="range" id="spawn-time-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>Unit Damage:</label>
+            <input type="range" id="damage-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>Unit Cost:</label>
+            <input type="range" id="cost-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>Gold per Tile/s:</label>
+            <input type="range" id="gold-rate-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>Tile Capture Time:</label>
+            <input type="range" id="capture-time-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>Resource HP:</label>
+            <input type="range" id="resource-hp-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>Building Cost:</label>
+            <input type="range" id="building-cost-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>Building HP:</label>
+            <input type="range" id="building-hp-multiplier" min="0.1" max="5" step="0.1" value="1">
+            <span class="multiplier-value">1x</span>
+          </div>
+          <div class="multiplier-container">
+            <label>RPS Damage:</label>
+            <input type="range" id="rps-damage-multiplier" min="1" max="10" step="0.1" value="3">
+            <span class="multiplier-value">3x</span>
+          </div>
+
+          <!-- Preset Difficulties (for future use) -->
+          <div class="difficulty-presets" style="display: none;">
+            <h4>Difficulty Presets (Coming Soon)</h4>
+            <button class="preset-btn" data-difficulty="easy" disabled>Easy</button>
+            <button class="preset-btn" data-difficulty="normal" disabled>Normal</button>
+            <button class="preset-btn" data-difficulty="hard" disabled>Hard</button>
+            <button class="preset-btn" data-difficulty="insane" disabled>Insane</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tutorial Sub-menu -->
+      <div class="menu-section sub-menu" id="tutorial">
+        <h2>How to Play</h2>
+        <div class="tutorial-content">
+          <ul>
+            <li>Left-click or drag to select units</li>
+            <li>Right-click to move or attack</li>
+            <li>Gather 100 wood to auto build barracks</li>
+            <li>Capture tiles to gain passive gold</li>
+            <li>Having 50 gold autoproduces a unit</li>
+            <li>Use keyboard 1, 2, 3 to pick different units:
+              <ul>
+                <li>1 - Circles</li>
+                <li>2 - Squares</li>
+                <li>3 - Triangles</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading-screen" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000;">
+    <div style="text-align: center; color: white;">
+      <h2>Loading Game Assets</h2>
+      <div style="width: 300px; background: #333; border-radius: 10px; overflow: hidden; margin: 20px auto;">
+        <div id="loading-progress-bar" style="width: 0%; height: 20px; background: #4CAF50; transition: width 0.3s;"></div>
+      </div>
+      <p id="loading-progress-text">Loading assets: 0%</p>
+      <p id="loading-current-asset">Preparing to load...</p>
+    </div>
+  </div>
+
+  <div id="game-container" style="display: none;">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui">
+      <div id="resource-display">
+        <span>Player Gold: <span id="player-gold">500</span></span>
+        <span>Player Wood: <span id="player-wood">0</span></span>
+        <span>Enemy Gold: <span id="enemy-gold">500</span></span>
+        <span>Enemy Wood: <span id="enemy-wood">0</span></span>
+      </div>
+      <div id="timer-display">
+        <h3>Time: <span id="game-timer">0:00</span></h3>
+      </div>
+      <div id="unit-production">
+        <h3>Unit Production</h3>
+        <p>Selected Unit: <span id="unit-type">Circle</span> (<span id="unit-cost">50</span> Gold)</p>
+        <p id="unit-controls"></p>
+        <button id="produce-unit">Produce Unit</button>
+      </div>
+      <div id="building-info">
+        <h3>Production Building</h3>
+        <p>Cost: <span id="building-cost-wood">100</span> Wood + <span id="building-cost-gold">1</span> Gold</p>
+        <p>Can Build: <span id="can-build-production">No</span></p>
+        <p>Right-click to place building when resources are available</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-over" style="display: none;">
+    <h2>Game Over!</h2>
+    <p id="game-over-message"></p>
+    <p id="ai-trash-talk"></p>
+    <p id="respond-button" style="display: none;"></p>
+    <div id="game-score"></div>
+    <button id="back-to-menu-btn">Back to Menu</button>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuButtons = document.querySelectorAll('.menu-button');
+      const subMenus = document.querySelectorAll('.sub-menu');
+      let activeMenu = null;
+
+      menuButtons.forEach(button => {
+        if (button.id !== 'show-leaderboard') {
+          button.addEventListener('click', () => {
+            const targetId = button.getAttribute('data-target');
+            const targetMenu = document.getElementById(targetId);
+
+            // If the target menu is already active, close it
+            if (activeMenu === targetMenu) {
+              targetMenu.classList.remove('active');
+              if (targetId === 'start-game') {
+                document.getElementById('map-selection').classList.remove('active');
+              }
+              activeMenu = null;
+              return;
+            }
+
+            // Hide all sub-menus first
+            subMenus.forEach(menu => menu.classList.remove('active'));
+
+            if (targetId === 'start-game') {
+              // Show both map selection and game modes
+              document.getElementById('map-selection').classList.add('active');
+              targetMenu.classList.add('active');
+              activeMenu = targetMenu;
+            } else {
+              // Show just the targeted sub-menu
+              targetMenu.classList.add('active');
+              activeMenu = targetMenu;
+            }
+          });
+        }
+      });
+
+      // Map selection
+      const mapOptions = document.querySelectorAll('.map-option');
+      mapOptions.forEach(option => {
+        option.addEventListener('click', () => {
+          mapOptions.forEach(opt => opt.classList.remove('selected'));
+          option.classList.add('selected');
+        });
+      });
+    });
+
+    // Handle collapsible game score on game over screen
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('.collapsible-header')) {
+        const content = e.target.nextElementSibling;
+        if (content.style.maxHeight) {
+          content.style.maxHeight = null;
+          e.target.classList.remove('active');
+        } else {
+          content.style.maxHeight = content.scrollHeight + "px";
+          e.target.classList.add('active');
+        }
+      }
+    });
+  </script>
+</body>
+
+</html>
