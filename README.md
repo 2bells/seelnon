@@ -1,5 +1,5 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://i.pinimg.com/736x/86/66/93/8666936ac74630642322e0dad46afe3c.jpg" />
+<img width="200" height="475" alt="GHBanner" src="https://i.pinimg.com/736x/86/66/93/8666936ac74630642322e0dad46afe3c.jpg" />
 </div>
 
 # This is the thing that is very a thing
