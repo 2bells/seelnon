@@ -1,4 +1,4 @@
-import { hexToRgba, drawVariableWidthStrokePolygon } from 'app/utils/drawing.js';
+import { hexToRgba, drawVariableWidthStrokePolygon } from '../utils/drawing.js';
 
 export function drawPenStroke(context, stroke, isPreview = false, targetScale = 1) {
     // Handle single point strokes
