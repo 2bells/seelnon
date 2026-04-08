@@ -1,6 +1,6 @@
-import { state } from 'app/state';
-import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt } from 'app/canvas';
-import { scheduleSave } from 'app/storage';
+import { state } from 'app/state.js';
+import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt } from 'app/canvas.js';
+import { scheduleSave } from 'app/storage.js';
 
 function getPointerPos(event) {
     return {
