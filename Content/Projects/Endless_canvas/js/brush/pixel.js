@@ -1,4 +1,4 @@
-import { hexToRgba } from 'app/utils/drawing.js';
+import { hexToRgba } from '../utils/drawing.js';
 
 export function drawPixelStroke(context, stroke) {
     const pixelSize = stroke.pixelSize;
