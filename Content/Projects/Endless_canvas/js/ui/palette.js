@@ -1,4 +1,4 @@
-import { state } from 'app/state';
+import { state } from '../state.js';
 
 const defaultColors = [
     '#ffffff', '#c1c1c1', '#6f6f6f', '#000000',
