@@ -1,5 +1,5 @@
-import { Delaunay } from 'd3-delaunay';
-import { hexToRgba, drawVariableWidthStrokePolygon } from 'app/utils/drawing.js';
+import { Delaunay } from "https://cdn.skypack.dev/d3-delaunay@6";
+import { hexToRgba, drawVariableWidthStrokePolygon } from '../utils/drawing.js';
 
 export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview = false) {
     if (stroke.points.length < 3) {
