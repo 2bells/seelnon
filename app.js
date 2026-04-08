@@ -601,7 +601,10 @@ function openImage(currentPath) {
         applyTransform();
         if (currentWindowId) {
             const w = windows.get(currentWindowId);
-            if (w) w.el.querySelector('.title').textContent = newEntry.name;
+            if (w) {
+                w.el.querySelector('.title').textContent = newEntry.name;
+                w.taskBtn.textContent = newEntry.name;
+            }
         }
         prevBtn.disabled = currentIndex === 0;
         nextBtn.disabled = currentIndex === imageEntries.length - 1;
@@ -665,7 +668,10 @@ function openImage(currentPath) {
     // Update window title if window is already open
     if (currentWindowId) {
       const w = windows.get(currentWindowId);
-      if (w) w.el.querySelector('.title').textContent = newEntry.name;
+      if (w) {
+        w.el.querySelector('.title').textContent = newEntry.name;
+        w.taskBtn.textContent = newEntry.name;
+      }
     }
 
     // Disable/enable nav buttons
@@ -911,7 +917,10 @@ function openVideo(currentEntry) {
     // Update window title if window is already open
     if (currentWindowId) {
       const w = windows.get(currentWindowId);
-      if (w) w.el.querySelector('.title').textContent = newEntry.name;
+      if (w) {
+        w.el.querySelector('.title').textContent = newEntry.name;
+        w.taskBtn.textContent = newEntry.name;
+      }
     }
   }
 
@@ -1049,7 +1058,11 @@ function openVideo(currentEntry) {
     errorMsg.className = 'image-error-message';
     videoWrapper.appendChild(errorMsg);
     const w = windows.get(currentWindowId);
-    if (w) w.el.querySelector('.title').textContent = `${currentEntry.name} (Error)`;
+    if (w) {
+      const errorTitle = `${currentEntry.name} (Error)`;
+      w.el.querySelector('.title').textContent = errorTitle;
+      w.taskBtn.textContent = errorTitle;
+    }
     // Disable all controls on error
     seekBar.disabled = true;
     playPauseBtn.disabled = true;
@@ -1179,6 +1192,7 @@ function openHtml(entry) {
     const w = windows.get(windowId);
     if (w) {
         w.el.querySelector('.title').textContent = newEntry.name;
+        w.taskBtn.textContent = newEntry.name;
     }
 
     openBtn.onclick = (e) => {
