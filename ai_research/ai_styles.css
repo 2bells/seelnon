@@ -1,0 +1,286 @@
+:root {
+    --bg-color: #000000; /* Completely black background */
+    --primary-text-color: #CCCCCC; /* Light grey */
+    --secondary-text-color: #AAAAAA; /* Slightly darker grey for consistency */
+    --border-color: #CCCCCC; /* Light grey */
+    --accent-color: #CCCCCC; /* Light grey */
+    --accent-2: #CCCCCC; /* Light grey */
+    --hover-bg-color: transparent; /* Changed to transparent, text color will change */
+    --font-family: 'Roboto Mono', 'Space Mono', 'Courier New', 'Consolas', 'Monaco', monospace; /* Use new terminal fonts */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--primary-text-color);
+    font-family: var(--font-family);
+    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+
+header, footer {
+    flex-shrink: 0;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color); /* Kept solid border, user requested '-----' which isn't possible with CSS border, interpret as simple separator */
+    position: relative;
+    z-index: 3;
+    background-color: var(--bg-color);
+}
+
+footer {
+    border-bottom: none;
+    border-top: 1px solid var(--border-color); /* Kept solid border */
+    margin-top: auto;
+    color: var(--secondary-text-color);
+    font-size: 0.8em; /* Slightly smaller */
+}
+
+header h1 {
+    font-size: 1.2em; /* Slightly smaller for terminal feel */
+    color: var(--accent-color);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+header p {
+    color: var(--secondary-text-color);
+    font-size: 0.9em; /* Smaller for terminal feel */
+}
+
+main {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    flex-grow: 1;
+    overflow: hidden;
+    padding: 1rem;
+    position: relative;
+    gap: 0;
+}
+
+/* Water Pool ASCII Canvas - Terminal themed */
+#ascii-water-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    line-height: 8px;
+    letter-spacing: 0px;
+    white-space: pre;
+    background-color: var(--bg-color);
+    color: var(--primary-text-color); /* Use the new light blue */
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    transition: opacity 0s; /* NEW: No transition for opacity */
+}
+
+/* Node Canvas - Terminal themed overlay */
+#node-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: auto;
+    font-family: var(--font-family); /* Ensure node canvas uses the same terminal font */
+    font-size: 14px; /* A readable size for node labels if drawn directly */
+    transition: opacity 0s; /* NEW: No transition for opacity */
+}
+
+#file-browser {
+    grid-area: 1 / 1;
+    z-index: 2;
+    pointer-events: none;
+    border-right: none;
+    padding-right: 0;
+    background-color: var(--bg-color);
+    box-shadow: none; /* Removed glow/shadow */
+    overflow-y: auto;
+    display: none; /* Hidden by default, JS will change to flex when active */
+    flex-direction: column; /* To make its contents stack if it's a flex container */
+}
+
+#file-browser h2 {
+    font-size: 1.1em;
+    margin-bottom: 1rem;
+    color: var(--secondary-text-color);
+    text-transform: uppercase;
+}
+
+#file-browser ul {
+    list-style: none;
+}
+
+#file-browser li {
+    display: none; /* Hidden by default, JS will set to block line by line */
+}
+
+#file-browser li button {
+    background: none;
+    border: none;
+    color: var(--primary-text-color); /* Changed to primary text color */
+    font-family: var(--font-family);
+    text-align: left;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-size: 1em;
+    border-radius: 0;
+    border-left: 3px solid transparent;
+}
+
+#file-browser li button:hover {
+    background-color: transparent; /* Removed background color on hover */
+    color: var(--accent-color);
+    border-left-color: var(--accent-color);
+}
+
+#file-browser li button.active {
+    background-color: transparent; /* Removed background color for active state */
+    color: var(--accent-color);
+    border-left-color: var(--accent-color);
+}
+
+#content-viewer {
+    grid-area: 1 / 1;
+    z-index: 2;
+    pointer-events: none;
+    padding-left: 0;
+    background-color: var(--bg-color);
+    box-shadow: none; /* Removed glow/shadow */
+    overflow-y: auto;
+    display: none; /* Hidden by default, JS will change to flex when active */
+    flex-direction: column;
+}
+
+#dynamic-heading {
+    font-size: 1.2em;
+    margin-bottom: 1rem;
+    color: var(--accent-color);
+    font-weight: bold;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-color); /* Kept solid border */
+    padding-bottom: 0.5rem;
+}
+
+#dynamic-heading.typing::after {
+    content: '█';
+    animation: blink 1s step-end infinite;
+    color: var(--accent-color);
+}
+
+@keyframes blink {
+    from, to { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+#text-content {
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    flex-grow: 1;
+    line-height: 1.5;
+}
+
+#text-content.visible {
+}
+
+main.ui-active {
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+}
+
+main.ui-active #file-browser {
+    grid-column: 1 / 2;
+    pointer-events: auto;
+    border-right: 1px solid var(--border-color); /* Kept solid border */
+    padding-right: 2rem;
+    display: flex; /* Make visible immediately */
+}
+
+main.ui-active #content-viewer {
+    grid-column: 2 / 3;
+    pointer-events: auto;
+    padding-left: 0;
+    display: flex; /* Make visible immediately */
+}
+
+/* When UI is active, the water pool should dim and blur */
+main.ui-active #ascii-water-canvas {
+    opacity: 0.1;
+    filter: none; /* Removed blur filter */
+}
+/* Also, the node canvas should fade out, as content is in focus */
+main.ui-active #node-canvas {
+    opacity: 0;
+    pointer-events: none; /* Disable interaction with nodes when UI is active */
+}
+
+/* Terminal prompt styling */
+.prompt-line {
+    color: var(--secondary-text-color);
+}
+
+.command-line {
+    color: var(--primary-text-color);
+    margin-left: 1rem;
+}
+
+.comment-line {
+    color: #555555;
+    font-style: italic;
+}
+
+.status-indicator {
+    color: var(--secondary-text-color);
+    font-size: 0.8em;
+}
+
+/* Scrollbar styles for webkit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-color);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
+}
+
+/* Responsive font sizing */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.2em;
+    }
+    
+    #dynamic-heading {
+        font-size: 1em;
+    }
+    
+    #text-content {
+        font-size: 0.8em;
+    }
+}

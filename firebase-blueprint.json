@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Comment": {
+      "title": "Comment",
+      "description": "A blog post comment",
+      "type": "object",
+      "properties": {
+        "postId": {
+          "type": "string",
+          "description": "The ID of the blog post"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "The name of the commenter"
+        },
+        "content": {
+          "type": "string",
+          "description": "The comment text"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the comment was created"
+        },
+        "uid": {
+          "type": "string",
+          "description": "The Firebase Auth UID of the commenter"
+        }
+      },
+      "required": ["postId", "authorName", "content", "createdAt", "uid"]
+    }
+  },
+  "firestore": {
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Collection of blog post comments"
+    }
+  }
+}
