@@ -1,0 +1,412 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Art Editor & Puppet Tool</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .timeline-track-label {
+      min-width: 60px;
+      padding: 0 5px;
+      font-size: 0.9em;
+      color: #c0c0c0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid #444;
+      box-sizing: border-box;
+      cursor: pointer; 
+      transition: background-color 0.2s; 
+    }
+
+    .timeline-track-label:hover {
+      background-color: #383838;
+    }
+
+    .timeline-track-label.active-editing {
+      background-color: #4CAF50; 
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .master-track-label {
+      font-weight: bold;
+    }
+
+    .pin-frame-cell.pin-keyframe::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background-color: #ffcc00;
+      border-radius: 50%;
+      display: block;
+      display: none; 
+    }
+
+    .pin-frame-cell .easing-indicator {
+      width: 30px; 
+      height: 12px; 
+      position: static; 
+      transform: none; 
+      margin-top: 2px; 
+    }
+
+    .pin-frame-cell .easing-linear {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Cpath d='M5,45 L45,5' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E");
+    }
+    .pin-frame-cell .easing-easeInQuad, .pin-frame-cell .easing-easeInCubic, .pin-frame-cell .easing-easeInExpo {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Cpath d='M5,45 Q25,45 45,5' stroke='%23fff' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    }
+    .pin-frame-cell .easing-easeOutQuad, .pin-frame-cell .easing-easeOutCubic, .pin-frame-cell .easing-easeOutExpo {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Cpath d='M5,45 Q25,5 45,5' stroke='%23fff' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    }
+    .pin-frame-cell .easing-easeInOutQuad, .pin-frame-cell .easing-easeInOutCubic, .pin-frame-cell .easing-easeInOutExpo {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Cpath d='M5,45 C15,45 25,5 45,5' stroke='%23fff' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    }
+    .pin-frame-cell .easing-easeInBounce, .pin-frame-cell .easing-easeOutBounce, .pin-frame-cell .easing-easeInOutBounce {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Cpath d='M5,45 C15,45 15,5 25,5 C35,5 35,45 45,5' stroke='%23fff' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    }
+
+    .pixel-editor-settings-toolbar {
+      display: flex;
+    }
+
+    .save-load-modal .modal-content {
+        width: 500px;
+    }
+    .save-load-modal .form-group {
+        margin-bottom: 15px;
+    }
+    .save-load-modal input[type="text"] {
+        width: calc(100% - 16px);
+        padding: 8px;
+        background-color: #444;
+        border: 1px solid #666;
+        border-radius: 3px;
+        color: #e0e0e0;
+    }
+    .save-load-modal button {
+        margin-top: 10px;
+    }
+    .local-saves-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #555;
+        padding: 10px;
+        margin-bottom: 15px;
+        background-color: #2a2a2a;
+    }
+    .local-save-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        border-bottom: 1px solid #444;
+    }
+    .local-save-item:last-child {
+        border-bottom: none;
+    }
+    .local-save-item span {
+        flex-grow: 1;
+    }
+    .local-save-item button {
+        margin-left: 5px;
+        padding: 4px 8px;
+        font-size: 0.9em;
+    }
+    .local-save-item .load-btn { background-color: #4CAF50; }
+    .local-save-item .load-btn:hover { background-color: #45a049; }
+    .local-save-item .download-btn { background-color: #2196F3; }
+    .local-save-item .download-btn:hover { background-color: #1976D2; }
+    .local-save-item .delete-btn { background-color: #c0392b; }
+    .local-save-item .delete-btn:hover { background-color: #a93226; }
+
+    .export-save-load-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap; 
+    }
+    .save-load-controls {
+      display: flex;
+      gap: 8px;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "delaunator": "https://cdn.jsdelivr.net/npm/delaunator@5.0.0/+esm"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="application">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input type="file" id="imageUpload" accept="image/*" style="display: none">
+        <input type="file" id="spritesheetUploadForTimeline" accept="image/*" style="display: none">
+        <button id="uploadImage">Upload Image</button>
+        <button id="uploadSheet" class="green-button">Upload Sheet</button>
+        <button id="pinTool">Pin Tool</button>
+        <button id="moveTool">Move Tool</button>
+        <button id="removePinTool">Remove Pin</button>
+        <button id="clearPins">Clear Pins</button>
+        <button id="toggleWireframe" title="Toggle Wireframe">⿻</button>
+        <button id="togglePins" title="Toggle Pins">⚲</button>
+        <button id="toggleKeepMesh" title="Toggle Keep Mesh">⛓</button>
+      </div>
+      <div class="toolbar-right">
+        <button id="saveProjectBtn">Save Project</button>
+        <button id="loadProjectBtn">Load Project</button>        
+        <button id="loadSample">Test Sprite</button>
+
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div class="collapsible-section">
+        <div class="section-header">
+          <h3>Puppet Tool Viewport</h3>
+          <div class="viewport-controls">
+            <label for="puppetResolutionSelect" style="margin-left: 10px; margin-right: 5px;">Resolution:</label>
+            <select id="puppetResolutionSelect">
+              <option value="32">32x32</option>
+              <option value="64" selected>64x64</option>
+              <option value="128">128x128</option>
+              <option value="256">256x256</option>
+            </select>
+            <button id="undoPuppet" title="Undo Puppet Action (Ctrl+Z on tool)">↩</button>
+            <button id="redoPuppet" title="Redo Puppet Action (Ctrl+Y on tool)">↪</button>
+            <button id="zoomIn">+</button>
+            <button id="zoomOut">-</button>
+            <span id="zoomLevel">100%</span>
+          </div>
+          <button class="collapse-btn">▼</button>
+        </div>
+        <div class="section-content">
+          <div class="viewport">
+            <canvas id="spriteCanvas"></canvas>
+            <canvas id="pinCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-container">
+        <h3>Key Frame Animation</h3>
+        <div class="timeline-controls">
+          <div class="timeline-controls-left">
+            <button id="prevFrame">◀</button>
+            <span id="currentFrame">1</span> / <span id="totalFrames">16</span>
+            <button id="nextFrame">▶</button>
+
+            <span class="separator">|</span> 
+            <button id="addKeyframe">Add</button>
+            <button id="deleteKeyframe">Delete</button>
+            <button id="playAnimation">Play</button>
+            <select id="easingType">
+              <option value="linear">Linear</option>
+              <optgroup label="Ease In">
+                <option value="easeInQuad">Quad</option>
+                <option value="easeInCubic">Cubic</option>
+                <option value="easeInExpo">Expo</option>
+                <option value="easeInBounce">Bounce</option>
+              </optgroup>
+              <optgroup label="Ease Out">
+                <option value="easeOutQuad">Quad</option>
+                <option value="easeOutCubic">Cubic</option>
+                <option value="easeOutExpo">Expo</option>
+                <option value="easeOutBounce">Bounce</option>
+              </optgroup>
+              <optgroup label="Ease In-Out">
+                <option value="easeInOutQuad">Quad</option>
+                <option value="easeInOutCubic">Cubic</option>
+                <option value="easeInOutExpo">Expo</option>
+                <option value="easeInOutBounce">Bounce</option>
+              </optgroup>
+            </select>
+             <span class="separator">|</span> 
+            <button id="togglePinTracks">Pin Tracks</button>
+             <span class="separator">|</span> 
+            <button id="uploadKeyImage">Upload Key Image</button>
+            <button id="manageKeyImages">Manage</button>
+          </div>
+          <div class="timeline-controls-right">
+            <button id="bakeAnimation">Bake Animation</button>
+          </div>
+        </div>
+        <div class="timeline">
+        </div>   
+        <div class="timeline-sub-controls" style="margin-top: 10px;">
+            <label for="totalFramesInput" style="margin-top: 0px;">Total:</label>
+            <input type="number" id="totalFramesInput" min="1" max="128" value="16" style="width: 60px;">
+            <button id="setTotalFrames">Set</button>                
+          <!-- Timeline frames will be generated by JS -->
+        </div>
+      </div>
+
+      <div class="collapsible-section collapsed">
+        <div class="section-header">
+          <h3>Pixel Editor</h3>
+          <div class="editor-controls">
+            <input type="file" id="spritesheetUpload" accept="image/*" style="display: none">
+            <button id="uploadSpritesheet">Upload Spritesheet</button>
+            <button id="newSprite">New Sprite</button>
+            <button id="editorUndo" title="Undo Pixel Edit (Ctrl+Z)">↩</button>
+            <button id="editorRedo" title="Redo Pixel Edit (Ctrl+Shift+Z or Ctrl+Y)">↪</button>
+            <button id="editorZoomIn">+</button>
+            <button id="editorZoomOut">-</button>
+            <span id="editorZoomLevel">100%</span>
+          </div>
+          <button class="collapse-btn">▼</button>
+        </div>
+        <div class="section-content">
+          <div class="editor-workspace">
+            <div class="editor-canvas-container">
+              <canvas id="editorCanvas"></canvas>
+              <canvas id="editorOverlay"></canvas>
+            </div>
+            <div class="editor-tools">
+              <button id="drawTool" class="tool-button active" title="Draw (Q)">✏️</button>
+              <button id="eraseTool" class="tool-button" title="Erase (W)">❌</button>
+              <button id="fillTool" class="tool-button" title="Fill (E)">💦</button>
+              <button id="fillEraseTool" class="tool-button" title="Fill Erase (R)">⬜</button>
+              <button id="eyedropperTool" class="tool-button" title="Eyedropper (T)">👁️</button>
+              <div class="editor-options">
+                <label for="brushSize">Brush Size:</label>
+                <input type="range" id="brushSize" min="1" max="8" value="1">
+                <span id="brushSizeValue">1</span>
+              </div>
+              <div class="color-picker-container">
+                <input type="color" id="colorPicker" value="#000000">
+              </div>
+              <div class="color-palette" id="colorPalette"></div>
+            </div>
+          </div>
+          <div class="animation-frames" id="animationFrames">
+            <!-- Animation frames will go here -->
+          </div>
+          <div class="pixel-editor-settings-toolbar" id="pixelEditorSettingsToolbar">
+            <button id="toggleGrid" class="tool-button" title="Toggle Grid (G)">⌗</button>
+            <button id="toggleEditorBackground" class="tool-button" title="Toggle Editor Background View (B)">BG</button>
+            <input type="file" id="referenceImageUploadInput" accept="image/*" style="display: none">
+            <button id="uploadReferenceImageBtn" class="tool-button" title="Upload Reference Image">⬆</button>
+            <label for="referenceImageFrameCountInput" style="font-size: 0.8em; margin-left: 5px; margin-right: 3px;">Frames:</label>
+            <input type="number" id="referenceImageFrameCountInput" min="1" max="100" value="1" style="width: 40px; padding: 2px 4px; height: 28px; background-color: #444; border: 1px solid #666; color: #e0e0e0; border-radius: 3px;" title="Number of frames in reference spritesheet">
+            <input type="color" id="editorBackgroundColorPicker" value="#ffffff" title="Editor Background Color">
+            <div class="onion-skin-controls">
+              <label title="Toggle Onion Skin (O)">
+                <input type="checkbox" id="onionSkinToggle"> Onion Skin
+              </label>
+              <select id="onionSkinMode" title="Onion Skin Mode">
+                <option value="previous">Previous</option>
+                <option value="next">Next</option>
+              </select>
+              <label for="onionSkinOpacity">Opacity:</label>
+              <input type="range" id="onionSkinOpacity" min="0.0" max="1" step="0.05" value="0.5">
+              <span id="onionSkinOpacityValue">0.5</span>
+            </div>
+            <!-- Dynamically added animation controls and send to animate button will go here -->
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="status-bar">
+      <span id="status">Ready</span>
+    </div>
+  </div>
+
+  <div id="newSpriteModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>New Sprite</h2>
+      <div class="form-group">
+        <label for="spriteWidth">Width (pixels):</label>
+        <input type="number" id="spriteWidth" min="8" max="128" value="32">
+      </div>
+      <div class="form-group">
+        <label for="spriteHeight">Height (pixels):</label>
+        <input type="number" id="spriteHeight" min="8" max="128" value="32">
+      </div>
+      <div class="form-group">
+        <label for="spriteBackground">Background:</label>
+        <select id="spriteBackground">
+          <option value="transparent">Transparent</option>
+          <option value="white">White</option>
+          <option value="black">Black</option>
+        </select>
+      </div>
+      <button id="createSprite">Create</button>
+    </div>
+  </div>
+
+  <div id="keyImagesModal" class="modal">
+    <div class="modal-content wide-modal">
+      <span class="close-key-images">&times;</span>
+      <h2>Manage Key Images</h2>
+      <p>Assign uploaded images to specific frames in the timeline. Set frame to 0 for inactive.</p>
+      <div id="keyImagesListContainer">
+        <!-- Key images will be listed here by JS -->
+      </div>
+      <button id="addMoreKeyImages">Upload More Key Images</button>
+    </div>
+  </div>
+  <input type="file" id="keyImageUploadInput" accept="image/*" style="display: none" multiple>
+
+  <!-- Upload Sheet Modal -->
+  <div id="uploadSheetModal" class="modal">
+    <div class="modal-content">
+      <span class="close-upload-sheet">&times;</span>
+      <h2>Import Spritesheet</h2>
+      <div class="form-group">
+        <label for="sheetFrameWidth">Frame Width (pixels):</label>
+        <input type="number" id="sheetFrameWidth" min="8" max="128" value="64">
+      </div>
+      <div class="form-group">
+        <label for="sheetFrameHeight">Frame Height (pixels):</label>
+        <input type="number" id="sheetFrameHeight" min="8" max="128" value="64">
+      </div>
+      <div class="form-group">
+        <label for="sheetFrameCount">Total Frames:</label>
+        <input type="number" id="sheetFrameCount" min="1" max="128" value="16">
+      </div>
+      <button id="confirmUploadSheet">Confirm and Slice</button>
+    </div>
+  </div>
+
+  <!-- Save Project Modal -->
+  <div id="saveProjectModal" class="modal save-load-modal">
+    <div class="modal-content">
+      <span class="close-save-modal">&times;</span>
+      <h2>Save Project</h2>
+      <div class="form-group">
+        <label for="saveProjectName">Save Name:</label>
+        <input type="text" id="saveProjectName" placeholder="My Awesome Animation">
+      </div>
+      <button id="confirmSaveProject">Save to Browser</button>
+    </div>
+  </div>
+
+  <!-- Load Project Modal -->
+  <div id="loadProjectModal" class="modal save-load-modal">
+    <div class="modal-content">
+      <span class="close-load-modal">&times;</span>
+      <h2>Load Project</h2>
+      <h3>Local Saves</h3>
+      <div id="localSavesList" class="local-saves-list">
+        <p>No local saves found.</p>
+      </div>
+      <h3>Import from File</h3>
+      <div class="form-group">
+        <label for="importProjectFile">Select .json file:</label>
+        <input type="file" id="importProjectFile" accept=".json">
+      </div>
+      <button id="confirmLoadProjectFile">Load from File</button>
+    </div>
+  </div>
+
+  <script src="gif/dist/gif.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

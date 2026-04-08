@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brush Editor - Atelier</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+    <div id="brush-editor-app">
+        <header>
+            <h1>Brush Editor</h1>
+            <a href="index.html" class="back-link">← Back to Studio</a>
+        </header>
+
+        <main id="editor-container">
+            <!-- Brush List Panel -->
+            <div class="editor-panel" id="brushes-panel">
+                <h2>Brushes</h2>
+                <div id="brush-list">
+                    <!-- Brushes will be populated by JS -->
+                </div>
+                <div class="panel-actions">
+                    <button id="new-brush-btn" class="action-btn">+ New Brush</button>
+                    <button id="delete-brush-btn" class="action-btn danger">- Delete</button>
+                </div>
+            </div>
+
+            <!-- Brush Settings Panel -->
+            <div class="editor-panel" id="settings-panel">
+                <div class="settings-header">
+                    <input type="text" id="brush-name" placeholder="Brush Name">
+                </div>
+                <div class="settings-content">
+                    <div class="setting-group">
+                        <h3>General</h3>
+                        <div class="slider-control">
+                            <label for="brush-size">Size</label>
+                            <input type="range" id="brush-size" min="1" max="200" value="20">
+                            <span id="size-display">20</span>
+                        </div>
+                        <div class="slider-control">
+                            <label for="brush-opacity">Opacity</label>
+                            <input type="range" id="brush-opacity" min="0" max="100" value="100">
+                            <span id="opacity-display">100%</span>
+                        </div>
+                         <div class="select-control">
+                            <label for="blending-mode">Blending</label>
+                            <select id="blending-mode">
+                                <option value="source-over">Normal</option>
+                                <option value="multiply">Multiply</option>
+                                <option value="screen">Screen</option>
+                                <option value="overlay">Overlay</option>
+                                <option value="destination-out">Eraser</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3>Shape</h3>
+                         <div class="slider-control">
+                            <label for="shape-hardness">Hardness</label>
+                            <input type="range" id="shape-hardness" min="0" max="100" value="80">
+                            <span id="hardness-display">80%</span>
+                        </div>
+                        <div class="select-control">
+                           <label for="tip-shape">Tip Shape</label>
+                           <select id="tip-shape">
+                               <option value="round">Round</option>
+                               <option value="square">Square</option>
+                           </select>
+                       </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3>Dynamics (Pressure)</h3>
+                        <div class="slider-control">
+                            <label for="pressure-size">Size Jitter</label>
+                            <input type="range" id="pressure-size" min="0" max="100" value="50">
+                            <span id="pressure-size-display">50%</span>
+                        </div>
+                        <div class="slider-control">
+                            <label for="pressure-opacity">Opacity Jitter</label>
+                            <input type="range" id="pressure-opacity" min="0" max="100" value="0">
+                            <span id="pressure-opacity-display">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3>Stabilization</h3>
+                        <div class="slider-control">
+                            <label for="brush-smoothing">Smoothing</label>
+                            <input type="range" id="brush-smoothing" min="0" max="100" value="20">
+                            <span id="smoothing-display">20%</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3>Smudge</h3>
+                        <div class="slider-control">
+                            <label for="smudge-strength">Strength</label>
+                            <input type="range" id="smudge-strength" min="0" max="100" value="0">
+                            <span id="smudge-strength-display">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview and Actions Panel -->
+            <div class="editor-panel" id="preview-panel">
+                <h2>Preview</h2>
+                <div id="preview-canvas-container">
+                    <canvas id="preview-canvas"></canvas>
+                </div>
+                 <div class="panel-actions">
+                    <button id="import-brush-btn" class="action-btn">Import JSON</button>
+                    <button id="export-brush-btn" class="action-btn">Export JSON</button>
+                    <input type="file" id="import-file-input" style="display: none;" accept=".json">
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="editor/brush.js"></script>
+</body>
+</html>

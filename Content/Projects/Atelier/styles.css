@@ -1,0 +1,710 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #f8f9fa;
+    overflow: hidden;
+    height: 100vh;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Toolbar */
+#toolbar {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 20px;
+    background: white;
+    border-bottom: 1px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    user-select: none;
+}
+
+.tool-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tool-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #dee2e6;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.tool-btn:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.tool-btn svg {
+    pointer-events: none;
+}
+
+.tool-btn.active, .action-btn.active {
+    background: #495057;
+    color: white;
+    border-color: #495057;
+}
+
+.size-control, .opacity-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.size-control label, .opacity-control label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6c757d;
+    min-width: 30px;
+}
+
+.size-control input, .opacity-control input {
+    width: 80px;
+}
+
+#size-display, #opacity-display {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    min-width: 30px;
+}
+
+/* New Brush Selector Styles */
+#brush-selector {
+    display: flex;
+    gap: 8px;
+    padding: 4px;
+    background-color: #f1f3f5;
+    border-radius: 8px;
+    max-width: 300px;
+    overflow-x: auto;
+}
+
+.brush-btn {
+    min-width: 48px;
+    height: 48px;
+    border: 2px solid transparent;
+    background-color: white;
+    background-size: cover;
+    background-position: center;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 4px;
+    position: relative;
+}
+
+.brush-btn:hover {
+    border-color: #adb5bd;
+}
+
+.brush-btn.active {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.brush-preview-canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+}
+
+/* Draggable Panel Styles (for Color Picker, Image Manager, Image Viewer) */
+.draggable-panel {
+    position: absolute;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 900; /* Below loading, above everything else */
+    overflow: hidden; /* To keep border-radius on content */
+    min-width: 180px; /* Adjust as needed */
+    resize: both; /* Allow resizing */
+    overflow: auto; /* Show scrollbars if content overflows after resize */
+}
+
+.panel-header {
+    padding: 8px 12px;
+    background-color: #f1f3f5;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-header:active {
+    cursor: grabbing;
+}
+
+.panel-close-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    margin-left: 8px;
+    width: 20px; /* Make it clickable area larger */
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+
+.panel-close-btn:hover {
+    color: #dc3545;
+}
+
+.panel-content {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#main-color-picker-wrapper {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    align-self: center; /* Center the color input */
+}
+
+#main-color-picker {
+    width: 100%;
+    height: 100%;
+    border: none;
+    padding: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    background: none;
+    -webkit-appearance: none;
+}
+
+#main-color-picker::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+#main-color-picker::-webkit-color-swatch {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+#color-palette {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+}
+
+.color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.color-swatch:hover {
+    transform: scale(1.1);
+    border-color: #adb5bd;
+}
+
+.color-swatch.active {
+    border-color: #495057;
+    transform: scale(1.1);
+}
+
+.action-btn {
+    padding: 8px 12px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.action-btn.primary {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.action-btn.primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.action-btn:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+/* Image Manager Specific Styles */
+#image-manager-panel {
+    width: 280px;
+    left: 20px;
+    top: 100px;
+}
+
+#image-manager-panel .panel-content {
+    padding: 0; /* Remove padding for scrollable list */
+    overflow-y: auto;
+    flex: 1; /* Allow content to grow */
+}
+
+#image-inventory {
+    display: grid; /* Change to grid layout */
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Responsive grid */
+    gap: 8px;
+    padding: 8px; /* Added padding to the grid container */
+}
+
+.image-item {
+    position: relative; /* For actions overlay */
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background-color: #fdfdfd;
+    overflow: hidden; /* Hide overflowing parts of the image */
+    display: flex; /* Flexbox to center thumbnail */
+    align-items: center;
+    justify-content: center;
+    min-height: 100px; /* Fixed height for grid item */
+    cursor: pointer;
+}
+
+.image-item:hover {
+    background-color: #f1f3f5;
+}
+
+.image-item .thumbnail {
+    width: 100%;
+    height: 100%; /* Fill the item area */
+    border-radius: 4px; /* Match item border-radius */
+    object-fit: contain; /* Ensure entire image is visible */
+    background-color: #e9ecef; /* Placeholder background */
+    border: none; /* Remove border from thumbnail itself */
+}
+
+.image-item span {
+    flex-grow: 1;
+    font-size: 13px;
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.image-item-actions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Space between buttons */
+    background: rgba(0, 0, 0, 0.6); /* Dark overlay */
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none; /* Make click-through by default */
+}
+
+.image-item:hover .image-item-actions {
+    opacity: 1;
+    pointer-events: auto; /* Enable clicks on hover */
+}
+
+.image-item-actions button {
+    background: rgba(255, 255, 255, 0.9); /* Lighter button background */
+    color: #495057;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.image-item-actions button:hover {
+    background: white;
+}
+
+.image-item-actions .danger {
+    color: #dc3545;
+}
+
+.image-upload-area {
+    padding: 12px;
+    border-top: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+    display: flex;
+    gap: 8px; /* Arrange buttons horizontally */
+    justify-content: center; /* Center buttons if space allows */
+}
+
+#upload-image-btn {
+    flex-grow: 1;
+}
+
+/* Style for icon-only action buttons */
+.action-btn.icon-btn {
+    width: 40px; /* Fixed width for icons */
+    height: 40px; /* Fixed height for icons */
+    padding: 0; /* Remove padding */
+    display: flex; /* Center SVG */
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* Prevent shrinking in flex container */
+}
+
+/* Style for smaller icon buttons inside image-item-actions */
+.action-btn.mini-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%; /* Make them round */
+}
+
+/* Image Viewer Specific Styles (now applies to dynamically created panels) */
+.draggable-panel[id^="image-viewer-panel-"] { /* Target panels with ID starting with image-viewer-panel- */
+    width: 320px;
+    height: 240px; /* Default size, will resize with content */
+    right: 20px;
+    top: 100px;
+    display: flex; /* Flex container for header + content */
+    flex-direction: column;
+}
+
+.draggable-panel[id^="image-viewer-panel-"] .panel-header {
+    justify-content: flex-start; /* Align content to start */
+    gap: 8px;
+}
+
+.draggable-panel[id^="image-viewer-panel-"] .panel-header .image-viewer-panel-title {
+    flex-grow: 1; /* Allow title to take available space */
+}
+
+.draggable-panel[id^="image-viewer-panel-"] .panel-header .panel-close-btn {
+    margin-left: 8px; /* Remove auto, set fixed margin */
+}
+
+.draggable-panel[id^="image-viewer-panel-"] .panel-content {
+    flex-grow: 1;
+    padding: 0; /* Remove padding for canvas */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.draggable-panel[id^="image-viewer-panel-"] canvas {
+    max-width: 100%;
+    max-height: 100%;
+    display: block; /* Ensure canvas takes up space */
+    background-color: rgba(0, 0, 0, 0); /* Ensure transparent background unless image fills it */
+}
+
+.reset-view-btn,
+.pin-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    margin-left: 8px;
+    border-color: #ced4da;
+    background-color: #f8f9fa;
+}
+
+.pin-btn.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+/* Pinned state styles */
+.draggable-panel.pinned {
+    resize: none; /* Disable resizing when pinned */
+    pointer-events: none; /* Make it click-through for main canvas by default */
+}
+
+.draggable-panel.pinned .panel-header {
+    pointer-events: auto; /* Header itself should be interactive */
+    cursor: grab !important; /* Allow dragging of the header to unpin */
+}
+
+.draggable-panel.pinned .panel-close-btn,
+.draggable-panel.pinned .pin-btn { /* Pin and close buttons inside header */
+    pointer-events: auto;
+}
+
+.draggable-panel.pinned .panel-content {
+    pointer-events: auto; /* Content (image canvas) should also be interactive for eyedropper */
+}
+
+/* Specific rule for viewer canvas within pinned panel */
+.draggable-panel.pinned canvas[id^="image-viewer-canvas-"] {
+    pointer-events: auto; /* Allow mouse events for eyedropper */
+}
+
+/* Canvas Container */
+#canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+#main-canvas {
+    display: block;
+    /* cursor is now set dynamically via JS */
+}
+
+#zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+#zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #dee2e6;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+#zoom-controls button:hover {
+    background: #f8f9fa;
+}
+
+#zoom-level {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* Loading */
+#loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #495057;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 450px;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.modal-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-body .setting-group h3 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #868e96;
+    margin-bottom: 10px;
+}
+
+.modal-body .radio-group, .modal-body .checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.modal-body .radio-group label, .modal-body .checkbox-wrapper label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.modal-body .dimension-inputs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.modal-body .input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.modal-body .input-wrapper label {
+    font-size: 12px;
+    color: #495057;
+}
+
+.modal-body .input-wrapper input {
+    padding: 6px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100%;
+}
+
+.modal-body .input-wrapper span {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: #adb5bd;
+}
+
+.modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #toolbar {
+        padding: 8px 12px;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .tool-group {
+        gap: 8px;
+    }
+    
+    .size-control input, .opacity-control input {
+        width: 60px;
+    }
+    
+    #zoom-controls {
+        bottom: 12px;
+        right: 12px;
+    }
+
+    .draggable-panel {
+        /* On small screens, maybe position differently or make it less intrusive */
+        top: 60px !important; /* Force top to be visible */
+        left: 12px !important; /* Force left */
+        right: 12px; /* Stretch to fit */
+        width: auto !important; /* Allow width to adjust */
+        max-width: calc(100vw - 24px);
+    }
+}

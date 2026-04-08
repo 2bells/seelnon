@@ -1,0 +1,168 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Image Board</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <header class="toolbar">
+            <div class="toolbar-section">
+                <button id="importBtn" class="btn primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Import Images
+                </button>
+                <button id="addTextBtn" class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 7 4 4 20 4 20 7"/>
+                        <line x1="9" y1="20" x2="15" y2="20"/>
+                        <line x1="12" y1="4" x2="12" y2="20"/>
+                    </svg>
+                    Add Text
+                </button>
+                <button id="cropBtn" class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/>
+                        <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/>
+                    </svg>
+                    Crop
+                </button>
+                <button id="deleteBtn" class="btn danger">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        <line x1="10" y1="11" x2="10" y2="17"/>
+                        <line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                    Delete
+                </button>
+                <button id="saveBtn" class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save Board
+                </button>
+                <button id="loadBtn" class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                    Load Board
+                </button>
+                <button id="exportBtn" class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 14.899A7 7 0 0 1 7.5 7h.5c.784-3.568 3.33-5.064 6-5.5C17.398 1.137 20 2.66 20 7a6.996 6.996 0 0 1-4 6.201"/>
+                        <polyline points="16 16 20 12 16 8"/>
+                        <line x1="4" y1="21" x2="20" y2="21"/>
+                        <line x1="12" y1="12" x2="20" y2="12"/>
+                    </svg>
+                    Export PNG
+                </button>
+            </div>
+            <div class="toolbar-section">
+                <div class="zoom-controls">
+                    <button id="zoomOut" class="btn icon">−</button>
+                    <span id="zoomLevel" class="zoom-text">100%</span>
+                    <button id="zoomIn" class="btn icon">+</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-container">
+            <section class="canvas-container">
+                <canvas id="viewport" class="viewport"></canvas>
+                <div id="imageGrid" class="image-grid"></div>
+            </section>
+        </main>
+
+        <div id="inventoryPanel" class="floating-panel inventory-panel">
+            <div class="panel-header drag-handle">
+                <h3>Inventory</h3>
+                <button id="clearInventory" class="btn icon">🗑</button>
+            </div>
+            <div id="inventoryGrid" class="inventory-grid panel-content"></div>
+            <div class="resize-handle resize-nw"></div>
+            <div class="resize-handle resize-ne"></div>
+            <div class="resize-handle resize-sw"></div>
+            <div class="resize-handle resize-se"></div>
+            <div class="resize-handle resize-n"></div>
+            <div class="resize-handle resize-s"></div>
+            <div class="resize-handle resize-e"></div>
+            <div class="resize-handle resize-w"></div>
+        </div>
+
+        <div id="layersPanel" class="floating-panel layers-panel">
+            <div class="panel-header drag-handle">
+                <h3>Layers</h3>
+            </div>
+            <div id="layersList" class="layers-list panel-content"></div>
+            <div class="resize-handle resize-nw"></div>
+            <div class="resize-handle resize-ne"></div>
+            <div class="resize-handle resize-sw"></div>
+            <div class="resize-handle resize-se"></div>
+            <div class="resize-handle resize-n"></div>
+            <div class="resize-handle resize-s"></div>
+            <div class="resize-handle resize-e"></div>
+            <div class="resize-handle resize-w"></div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+    <input type="file" id="loadFileInput" style="display: none;" accept=".json">
+    
+    <div id="exportModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3>Export Board as PNG</h3>
+            <div class="form-group">
+                <label>Export Scale:</label>
+                <div class="scale-options">
+                    <label><input type="radio" name="exportScale" value="1" checked> x1</label>
+                    <label><input type="radio" name="exportScale" value="2"> x2</label>
+                    <label><input type="radio" name="exportScale" value="3"> x3</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="exportWidth">Width (px):</label>
+                <input type="number" id="exportWidth" value="1024">
+            </div>
+            <div class="form-group">
+                <label for="exportHeight">Height (px):</label>
+                <input type="number" id="exportHeight" value="768">
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="lockAspectRatio" checked>
+                <label for="lockAspectRatio">Lock Aspect Ratio</label>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="exportWithAlpha">
+                <label for="exportWithAlpha">Export with Transparency (Alpha)</label>
+            </div>
+            <div class="modal-buttons">
+                <button id="exportConfirmBtn" class="btn primary">Export</button>
+                <button id="exportCancelBtn" class="btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
