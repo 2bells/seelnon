@@ -10,6 +10,7 @@ import {
   onSnapshot, 
   serverTimestamp, 
   signInWithPopup, 
+  signOut,
   googleProvider,
   handleFirestoreError,
   OperationType
@@ -437,7 +438,7 @@ export async function openBlogWindow(title, openWindowFn) {
     `;
 
     container.querySelector('#logout-btn').addEventListener('click', async () => {
-      await auth.signOut();
+      await signOut(auth);
       renderCommentForm(postId, container);
     });
 
