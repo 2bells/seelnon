@@ -1,10 +1,10 @@
-import { init as initCanvas, startDrawingLoop, clearCanvas } from 'app/canvas';
-import { init as initEvents } from 'app/events';
-import { state } from 'app/state';
-import { loadState } from 'app/storage';
-import { init as initBrushEditor } from 'app/brush/editor';
-import { init as initColorPalette } from 'app/ui/palette';
-import { init as initExport } from 'app/export';
+import { init as initCanvas, startDrawingLoop, clearCanvas } from 'app/canvas.js';
+import { init as initEvents } from 'app/events.js';
+import { state } from 'app/state.js';
+import { loadState } from 'app/storage.js';
+import { init as initBrushEditor } from 'app/brush/editor.js';
+import { init as initColorPalette } from 'app/ui/palette.js';
+import { init as initExport } from 'app/export.js';
 
 function main() {
     const canvas = document.getElementById('drawing-canvas');
