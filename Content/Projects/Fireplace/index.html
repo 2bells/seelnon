@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bonfire Hourly Chime</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="atmosphere">
+        <div class="vignette"></div>
+        <div class="embers" id="embers"></div>
+    </div>
+
+    <main>
+        <header>
+            <h1 class="title">Bonfire Lit</h1>
+            <p class="subtitle">Hourly Rest</p>
+        </header>
+
+        <div class="bonfire-container">
+            <div class="bonfire" id="bonfire">
+                <div class="sword">
+                    <div class="hilt-grip"></div>
+                </div>
+                <div class="stones">
+                    <div class="stone"></div>
+                    <div class="stone"></div>
+                    <div class="stone"></div>
+                    <div class="stone"></div>
+                    <div class="stone"></div>
+                </div>
+                <div class="fire-layers">
+                    <pre id="ascii-fire-outer" class="fire-ascii outer"></pre>
+                    <pre id="ascii-fire-mid" class="fire-ascii mid"></pre>
+                    <pre id="ascii-fire-core" class="fire-ascii core"></pre>
+                </div>
+                <div class="logs">
+                    <div class="log"></div>
+                    <div class="log"></div>
+                    <div class="log"></div>
+                </div>
+                <div class="glow"></div>
+            </div>
+        </div>
+
+        <div class="ui-overlay">
+            <div class="time-section">
+                <div id="time-display" class="time">00:00</div>
+                <div id="countdown-display" class="countdown">Next lighting in 00:00</div>
+            </div>
+
+            <div class="controls">
+                <div class="volume-control">
+                    <label for="volume-slider">Volume</label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
+                </div>
+                
+                <div class="buttons">
+                    <button id="toggle-btn" class="btn-primary">Ignite</button>
+                    <button id="test-btn" class="btn-secondary">Rest</button>
+                    <button id="cycle-bg-btn" class="btn-secondary" title="Change Background">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                </div>
+
+                <div class="youtube-control">
+                    <input type="text" id="youtube-url" placeholder="Paste YouTube Link for Music...">
+                    <button id="load-yt-btn" class="btn-mini">Load</button>
+                </div>
+                <div id="yt-player-container" class="hidden">
+                    <iframe id="yt-player" width="0" height="0" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p id="status-text">The fire fades...</p>
+        </footer>
+    </main>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,494 @@
+:root {
+    --bg-color: #050505;
+    --fire-color: #f27d26;
+    --fire-glow: rgba(242, 125, 38, 0.4);
+    --ash-color: #2a2a2a;
+    --text-color: #d4af37;
+    --font-display: 'Cinzel', serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --intensity: 1;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-color);
+    background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1514539079130-25950c84af65?q=80&w=1920&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: var(--text-color);
+    font-family: var(--font-display);
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* ASCII Fire Styling */
+.fire-ascii {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    line-height: 6px;
+    pointer-events: none;
+    user-select: none;
+    white-space: pre;
+    text-align: center;
+}
+
+.fire-ascii.outer {
+    color: #ff4500; /* Red-Orange */
+    z-index: 4;
+}
+
+.fire-ascii.mid {
+    color: #f27d26; /* Orange */
+    z-index: 5;
+}
+
+.fire-ascii.core {
+    color: #ffcc00; /* Yellow */
+    z-index: 6;
+}
+
+body.is-kindled .fire-ascii {
+    animation: ascii-flicker 0.3s infinite alternate;
+}
+
+@keyframes ascii-flicker {
+    0% { opacity: 0.95; }
+    100% { opacity: 1; }
+}
+
+.atmosphere {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%);
+}
+
+.embers {
+    position: absolute;
+    inset: 0;
+}
+
+.ember {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--fire-color);
+    border-radius: 50%;
+    filter: blur(1px);
+    animation: float-up var(--duration) linear infinite;
+}
+
+@keyframes float-up {
+    0% { transform: translateY(100vh) translateX(0); opacity: 1; }
+    100% { transform: translateY(-10vh) translateX(var(--drift)); opacity: 0; }
+}
+
+main {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
+}
+
+.title {
+    font-size: 3rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.8;
+    text-shadow: 0 0 20px var(--fire-glow);
+}
+
+.subtitle {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    opacity: 0.4;
+}
+
+/* Bonfire Visuals */
+.bonfire-container {
+    height: 300px;
+    width: 300px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    position: relative;
+}
+
+.bonfire {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.bonfire:active {
+    transform: scale(1.1);
+}
+
+.fire {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 80px;
+    filter: blur(2px);
+}
+
+.flame {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--fire-color);
+    border-radius: 50% 50% 20% 20%;
+    transform-origin: bottom center;
+    mix-blend-mode: screen;
+}
+
+.flame-1 { animation: flicker 0.5s infinite alternate; opacity: 0.8; }
+.flame-2 { animation: flicker 0.7s infinite alternate-reverse; width: 80%; left: 10%; opacity: 0.6; }
+.flame-3 { animation: flicker 0.4s infinite alternate; width: 60%; left: 20%; background: #ffcc00; opacity: 0.4; }
+.flame-4 { animation: flicker 0.9s infinite alternate; width: 40%; left: 30%; background: #ffffff; opacity: 0.2; }
+
+@keyframes flicker {
+    0% { transform: scale(1) rotate(-2deg); }
+    100% { transform: scale(1.1, 1.2) rotate(2deg); }
+}
+
+.glow {
+    position: absolute;
+    bottom: -65px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 250px;
+    height: 300px;
+    background: radial-gradient(circle, var(--fire-glow) 0%, transparent 70%);
+    opacity: calc(0.15 * var(--intensity));
+    filter: blur(30px);
+    pointer-events: none;
+    transition: opacity 3s ease;
+}
+
+body.is-kindled .glow {
+    opacity: calc(0.6 * var(--intensity));
+    animation: glow-flicker 5s infinite alternate;
+}
+
+@keyframes glow-flicker {
+    0% { transform: translateX(-50%) scale(1); opacity: calc(0.4 * var(--intensity)); }
+    25% { transform: translateX(-50%) scale(1.05); opacity: calc(0.6 * var(--intensity)); }
+    50% { transform: translateX(-50%) scale(0.98); opacity: calc(0.5 * var(--intensity)); }
+    75% { transform: translateX(-50%) scale(1.1); opacity: calc(0.7 * var(--intensity)); }
+    100% { transform: translateX(-50%) scale(1.02); opacity: calc(0.55 * var(--intensity)); }
+}
+
+.sword {
+    position: absolute;
+    bottom: 5px;
+    left: 56%;
+    transform: translateX(-50%) rotate(-12deg);
+    transform-origin: bottom center; /* Pivot from the tip at the bottom */
+    width: 4.5px;
+    height: 126px; /* Scaled down by 25% */
+    background: linear-gradient(to top, 
+        #ff4400 0%,   /* Brighter orange at tip */
+        #ff8800 15%,  /* Vibrant orange */
+        #3d2b1f 35%,  /* Dark heated metal */
+        #1a1a1a 50%,  /* Cold metal */
+        #1a1a1a 100%
+    );
+    background-size: 100% 200%;
+    background-position: 0 65%; /* Clearly visible permanent heat glow at the tip */
+    z-index: 15;
+    border-radius: 1px 1px 2px 2px; /* Rounded tip at bottom */
+    filter: brightness(1);
+    transition: background-position 12s ease, filter 12s ease;
+}
+
+@keyframes blade-heat-up {
+    0% { background-position: 0 65%; filter: brightness(1); }
+    100% { background-position: 0 95%; filter: brightness(1.2); }
+}
+
+@keyframes blade-flicker {
+    0% { background-position: 0 95%; filter: brightness(1.2); }
+    25% { background-position: 0 92%; filter: brightness(1.3); }
+    50% { background-position: 0 88%; filter: brightness(1.1); }
+    75% { background-position: 0 94%; filter: brightness(1.4); }
+    100% { background-position: 0 95%; filter: brightness(1.2); }
+}
+
+body.is-kindled .sword {
+    animation: 
+        blade-heat-up 12s forwards ease-out,
+        blade-flicker 15s infinite ease-in-out 12s;
+}
+
+/* Crossguard - Simple Zweihänder style */
+.sword::after {
+    content: '';
+    position: absolute;
+    top: 27px; /* Scaled down by 25% */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 15px;
+    height: 3px;
+    background: #1a1a1a;
+    background-image: linear-gradient(to bottom, #222, #111);
+    border-radius: 1px;
+}
+
+/* Pommel Ring */
+.sword::before {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4.5px;
+    height: 4.5px;
+    border: 1.5px solid #1a1a1a;
+    border-radius: 50%;
+    background: transparent;
+}
+
+/* The actual hilt grip */
+.hilt-grip {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 3px;
+    height: 27px; /* Scaled down by 25% */
+    background: #1a1a1a;
+    background-image: repeating-linear-gradient(to bottom, 
+        #1a1a1a, 
+        #1a1a1a 2px, 
+        #2d1e14 2px, 
+        #2d1e14 4px
+    );
+    z-index: 16;
+}
+
+/* Remove separate Kindled filters as they are now handled by the .sword animation */
+body.is-kindled .sword::after,
+body.is-kindled .sword::before,
+body.is-kindled .hilt-grip {
+    /* Filter inherited from .sword */
+}
+
+.stones {
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 30px;
+    z-index: 20;
+}
+
+.stone {
+    position: absolute;
+    background: #1a1a1a;
+    border-radius: 40% 60% 50% 50%;
+    box-shadow: inset -2px -2px 5px rgba(0,0,0,0.5);
+}
+
+.stone:nth-child(1) { width: 20px; height: 15px; bottom: 0; left: 0; transform: rotate(10deg); }
+.stone:nth-child(2) { width: 25px; height: 18px; bottom: 2px; left: 25px; transform: rotate(-5deg); }
+.stone:nth-child(3) { width: 22px; height: 16px; bottom: 0; left: 55px; transform: rotate(15deg); }
+.stone:nth-child(4) { width: 28px; height: 20px; bottom: 1px; left: 85px; transform: rotate(-10deg); }
+.stone:nth-child(5) { width: 18px; height: 14px; bottom: 5px; left: 40px; transform: rotate(45deg); z-index: -1; }
+
+.logs {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 20px;
+    z-index: 21;
+}
+
+.log {
+    position: absolute;
+    background: #1a1a1a;
+    height: 8px;
+    width: 40px;
+    border-radius: 4px;
+}
+
+.log:nth-child(1) { bottom: 0; left: 10px; transform: rotate(10deg); }
+.log:nth-child(2) { bottom: 0; right: 10px; transform: rotate(-10deg); }
+.log:nth-child(3) { bottom: 4px; left: 30px; transform: rotate(80deg); width: 30px; }
+
+/* UI */
+.ui-overlay {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    width: 100%;
+}
+
+.time {
+    font-size: 4rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    opacity: 0.9;
+}
+
+.countdown {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    opacity: 0.5;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.volume-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 200px;
+}
+
+.volume-control label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.4;
+}
+
+input[type=range] {
+    -webkit-appearance: none;
+    background: transparent;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 2px;
+    background: rgba(212, 175, 55, 0.2);
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    background: var(--text-color);
+    cursor: pointer;
+    margin-top: -5px;
+}
+
+.buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+button {
+    background: transparent;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--text-color);
+    padding: 0.75rem 2rem;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary.active {
+    background: var(--text-color);
+    color: var(--bg-color);
+    box-shadow: 0 0 20px var(--fire-glow);
+}
+
+button:hover {
+    border-color: var(--text-color);
+    background: rgba(212, 175, 55, 0.05);
+}
+
+.youtube-control {
+    display: flex;
+    gap: 0.5rem;
+    width: 250px;
+    margin-top: 1rem;
+}
+
+#youtube-url {
+    flex: 1;
+    background: transparent;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    color: var(--text-color);
+    padding: 0.4rem 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+#youtube-url:focus {
+    border-color: var(--text-color);
+}
+
+.btn-mini {
+    background: transparent;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--text-color);
+    padding: 0.4rem 0.8rem;
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-mini:hover {
+    background: rgba(212, 175, 55, 0.1);
+    border-color: var(--text-color);
+}
+
+footer {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.3;
+}
+
+.hidden { display: none; }
