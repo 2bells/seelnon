@@ -1,4 +1,4 @@
-import { hexToRgba, drawVariableWidthStrokePolygon } from 'app/utils/drawing.js';
+import { hexToRgba, drawVariableWidthStrokePolygon } from '../utils/drawing.js';
 
 // Helper to generate the jittered passes for a sketchy stroke
 function _generateSketchyJitterPasses(stroke) {
