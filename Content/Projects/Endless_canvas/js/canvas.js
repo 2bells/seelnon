@@ -1,12 +1,12 @@
-import { state } from 'app/state';
-import { scheduleSave } from 'app/storage';
-import { hexToRgba, drawVariableWidthStrokePolygon } from 'app/utils/drawing';
+import { state } from 'app/state.js';
+import { scheduleSave } from 'app/storage.js';
+import { hexToRgba, drawVariableWidthStrokePolygon } from 'app/utils/drawing.js';
 
 // Import brush drawing functions
-import { drawPenStroke } from 'app/brush/pen';
-import { drawWireframeStroke } from 'app/brush/wireframe';
-import { drawPixelStroke } from 'app/brush/pixel';
-import { drawSketchyStroke, drawAnimatedSketchyStroke } from 'app/brush/sketchy';
+import { drawPenStroke } from 'app/brush/pen.js';
+import { drawWireframeStroke } from 'app/brush/wireframe.js';
+import { drawPixelStroke } from 'app/brush/pixel.js';
+import { drawSketchyStroke, drawAnimatedSketchyStroke } from 'app/brush/sketchy.js';
 
 let canvas;
 let ctx;
