@@ -13,7 +13,8 @@ import {
   signOut,
   googleProvider,
   handleFirestoreError,
-  OperationType
+  OperationType,
+  BYPASS_FIREBASE
 } from './firebase/firebase.js';
 
 export async function openBlogWindow(title, openWindowFn) {
@@ -166,6 +167,7 @@ export async function openBlogWindow(title, openWindowFn) {
           <div class="blog-post-content">
             <p>Click on a post from the timeline to read more.</p>
           </div>
+          ${BYPASS_FIREBASE ? '' : `
           <div class="comments-section">
             <h2 class="comments-header">Comments</h2>
             <div id="comment-form-container"></div>
@@ -173,6 +175,7 @@ export async function openBlogWindow(title, openWindowFn) {
               <div class="no-comments">Select a post to view comments.</div>
             </div>
           </div>
+          `}
         </div>
       </div>
       <aside class="blog-sidebar">
@@ -350,7 +353,9 @@ export async function openBlogWindow(title, openWindowFn) {
     postContentEl.scrollTop = 0;
 
     // Load Firebase Comments
-    initComments(post.id);
+    if (!BYPASS_FIREBASE) {
+      initComments(post.id);
+    }
   }
 
   let unsubscribeComments = null;
