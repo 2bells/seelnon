@@ -1,5 +1,5 @@
-import { state } from 'app/state.js';
-import { scheduleSave } from 'app/storage.js';
+import { state } from '../state.js';
+import { scheduleSave } from '../storage.js';
 
 function createBrushEditor() {
     const editor = document.createElement('div');
