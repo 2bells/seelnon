@@ -1,6 +1,7 @@
 import { FS } from "./fs.js";
 import { openAboutMeWindow } from "./about_me.js"; // Import the new about_me module
 import { openBlogWindow, preloadBlogPosts } from "./blog.js"; // Import the new blog module
+import { openWonderlandWindow } from "./wonderlands.js"; // Import the new wonderlands module
 import { initMascot, cleanupMascot } from "./mascot.js"; // NEW: Import initMascot and cleanupMascot
 
 const desktop = document.getElementById('desktop');
@@ -58,7 +59,7 @@ function createTaskButton(title, id) {
   return btn;
 }
 
-function openWindow({title, content, width=420, height=300, x=40, y=40}) {
+function openWindow({title, content, width=420, height=300, x=40, y=40, onClose=null}) {
   const tpl = document.getElementById('window-template');
   const node = tpl.content.firstElementChild.cloneNode(true);
   const id = `win_${++winCounter}`;
@@ -71,7 +72,7 @@ function openWindow({title, content, width=420, height=300, x=40, y=40}) {
 
   desktop.appendChild(node);
   const taskBtn = createTaskButton(title, id);
-  windows.set(id, { el: node, taskBtn, minimized: false, maximized: false, prev: null, title });
+  windows.set(id, { el: node, taskBtn, minimized: false, maximized: false, prev: null, title, onClose });
 
   wireWindow(id);
   focusWindow(id);
@@ -148,10 +149,12 @@ function wireWindow(id) {
     };
 
     const onDragUp = () => {
+      document.body.classList.remove('is-dragging-window');
       window.removeEventListener('mousemove', onDragMove);
       window.removeEventListener('mouseup', onDragUp);
     };
 
+    document.body.classList.add('is-dragging-window');
     window.addEventListener('mousemove', onDragMove);
     window.addEventListener('mouseup', onDragUp);
     e.preventDefault();
@@ -200,10 +203,12 @@ function wireWindow(id) {
       };
 
       const onResizeUp = () => {
+        document.body.classList.remove('is-dragging-window');
         window.removeEventListener('mousemove', onResizeMove);
         window.removeEventListener('mouseup', onResizeUp);
       };
 
+      document.body.classList.add('is-dragging-window');
       window.addEventListener('mousemove', onResizeMove);
       window.addEventListener('mouseup', onResizeUp);
       e.preventDefault();
@@ -266,6 +271,7 @@ function maximizeWindow(id) {
 function closeWindow(id) {
   const w = windows.get(id);
   if (!w) return;
+  if (w.onClose) w.onClose();
   w.el.remove();
   w.taskBtn.remove();
   windows.delete(id);
@@ -294,6 +300,7 @@ function makeDraggable(el, handle = el, onSingleClick = null, snapToGrid = false
     isDragging = true;
     moved = false;
     el.classList.add('dragging');
+    document.body.classList.add('is-dragging-window');
 
     const currentPos = e; // For mouse events, e is sufficient
     startX = currentPos.clientX;
@@ -329,6 +336,7 @@ function makeDraggable(el, handle = el, onSingleClick = null, snapToGrid = false
     if (!isDragging) return;
     isDragging = false;
     el.classList.remove('dragging');
+    document.body.classList.remove('is-dragging-window');
 
     window.removeEventListener('mousemove', onDragMove);
     window.removeEventListener('mouseup', onDragEnd);
@@ -1316,6 +1324,7 @@ async function openEntry(path) {
   }
   else if (entry.type === 'about') windowId = openAboutMeWindow(entry.name, openWindow); // Handle 'about' type
   else if (entry.type === 'blog') windowId = await openBlogWindow(entry.name, openWindow); // Handle 'blog' type
+  else if (entry.type === 'wonderland') windowId = await openWonderlandWindow(entry, openWindow); // Handle 'wonderland' type
 
   return windowId;
 }
