@@ -1,0 +1,21 @@
+{
+  "name": "Win95 Portfolio",
+  "short_name": "Win95",
+  "description": "A retro Windows 95 themed portfolio and blog.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#008080",
+  "theme_color": "#c0c0c0",
+  "icons": [
+    {
+      "src": "icons/projects_icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/projects_icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
