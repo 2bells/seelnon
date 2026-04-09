@@ -26,6 +26,11 @@ body {
   text-shadow: none; 
 }
 
+/* Fix for iframe lag during drag/resize */
+body.is-dragging-window iframe {
+  pointer-events: none !important;
+}
+
 /* Fallback for pixelated font */
 @font-face {
     font-family: 'Pixelated MS Sans Serif';
@@ -901,6 +906,31 @@ html {
 .blog-post-content p {
   margin-bottom: 20px;
   text-indent: 0;
+}
+
+.blog-post-content pre {
+  background: #000;
+  color: #fff;
+  padding: 15px;
+  border: 2px inset var(--win95-dark);
+  overflow-x: auto;
+  margin: 20px 0;
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.blog-post-content code {
+  background: #000;
+  color: #fff;
+  padding: 2px 4px;
+  font-family: 'VT323', monospace;
+}
+
+.blog-post-content pre code {
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .blog-post-content img {
