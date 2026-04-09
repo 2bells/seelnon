@@ -1,7 +1,7 @@
-# Exploring the Retro Aesthetic
+# Exploring the Retro
 
-Why Windows 95? There's something about the simplicity and the "clunky" charm of that era that I find incredibly inspiring. It was a time when the digital world felt like a new frontier, full of possibilities.
+<i style="color: #6a9955; font-family: monospace;">// Filler post</i>
 
-Recreating this aesthetic in modern web technologies is a fun exercise in constraints. It forces you to think about how to convey information clearly without the bells and whistles of modern UI design.
+Why Windows 95? Some things are better, when they get older.
 
-![Retro Computing](https://picsum.photos/seed/retro/600/400)
+![Image](https://i.pinimg.com/736x/86/66/93/8666936ac74630642322e0dad46afe3c.jpg)
