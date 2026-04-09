@@ -1,9 +1,17 @@
-# Video Production Workflow
+# Videos
 
-Video editing is a huge part of my creative process. I primarily use After Effects for my VFX work, but I'm always looking for ways to optimize my workflow.
+Kind of been doing a lot of animations and stuff... see that little fella down there... the one that says things and paints an empty canvas?
+Yeah, I drew the guy, animated the guy, gave him a state for secondary animation as well.. See how smooth it looks the brush wetness going away... Done by hand with After Effects
+Keyframes and hand crafted animations are usually the way to go.
+I don't do much classic animations, but overall make things move in a pleasant way to look at.
 
-One technique I've been perfecting is "logic-based editing," where I use scripts to automate repetitive tasks and allow for more abstract creative decisions.
+Been working with Yandex since 2014... and overall making video content for a long time...
+Right now interested in making games or interactive experiences of any kind... Interested to see how far that field will go.
 
-This short clip shows a package turnaround animation I created using these techniques. It's all about finding that perfect balance between technical precision and artistic expression.
+There are a lot of options, but I've been waiting for something where I can iterate and make things fast.. like really fast compared to just running Unity/UE/Godot...
+So something like Miliastra Wonderland in Genshin seems like a good place to practice some of my ideas.
+I will be sharing much more stuff with that as well, right now you can check a simple trailer for a game I did in MW.
 
-[video: dQw4w9WgXcQ]
+If you are interested in more professional work, I guess I can craft like a showreel. Never was my thing tbh. But you have my 'youtube showreel' from 12 years ago + - in the Video folder here.
+
+[video: 4CPDM8DnnXc]
