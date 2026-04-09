@@ -5,13 +5,10 @@
 
 So this is me... how did I ended up here? That's a long story.
 
-**Miliastra Wonderland**.
-
 ## Why am I Here?
 So you can safely watch me sleep. **Look**:
 
 ![Sleep](https://i.pinimg.com/originals/2f/98/02/2f980288e8ca52729281a9718fb9cfb8.gif)
 
-### Videos
 While I sleep, you can give me a nice music to listen to:
 [video: u1G44jN-gdE]
