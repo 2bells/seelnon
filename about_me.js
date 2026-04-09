@@ -5,7 +5,7 @@ export function openAboutMeWindow(title, openWindowFn) {
       text: `
         <p>Welcome! This is a rough overview of my 'character'.</p>
         <p>I like making stuff, tinkering with things and building up experiences with everything creative.</p>
-        <p>My journey led me to develop multiple skillsets. My main idea was to concentrate on understanding the concept of 'learning' itself, so I can explore and apply skills from other adjacent creative spheres and be ready to take on new frontiers when needed without fear, doubt, syndromes, with a clear mind and clear heart. Ready to fail.</p>
+        <p>My journey led me to develop multiple skillsets. My main idea was to concentrate on understanding the concept of 'learning' itself, so I can explore and apply skills from other adjacent creative spheres and be ready to go further, when needed. Without fear, doubt, syndromes, with a clear mind and clear heart. Ready to fail.</p>
         <p>Click on the equipment slots to learn more about my skills, strengths, and experience.</p>
         <p>Check my HP and MP for current vitality and focus levels!</p>
         <p class="subdued-text">(Those things are mostly my inner evaluations of myself, you can see them as 'self-proclaimed'.)</p>
@@ -16,9 +16,9 @@ export function openAboutMeWindow(title, openWindowFn) {
       text: `
         <p>My mind is a force of nature that knows how to work against me:</p>
         <ul>
-            <li><span class="highlight-text">Strategic Thinking & Problem Solving:</span> Overthinking is the best description to my core. Gets me out tough situations, finds creative solutions. Makes invisible problems visible. Sometimes it makes it hard to understand the reality of problems and their respective realms.</li>
-            <li><span class="highlight-text">Continuous Learning:</span> When not in burnout from previous work, I'm on a grind for everything new. I have problems with proper rest and understanding when it is time to stop and relax.</li>
-            <li><span class="highlight-text">Data Analysis & Visualization:</span> My mind sees the world as an ever expanding kaleidoscope. Wells of lights that contain meanings, languages, images, sounds, tastes, smells, touch itself. I search for strings that feel familiar to a situation and pull them out on the surface of my mind and decode them into something concrete, like this exact text that I’m writing right now. That allows me to work on a much deeper level with any task, person, idea, meaning than most others.</li>
+            <li><span class="highlight-text">Strategic Thinking & Problem Solving:</span> Overthinking is the best description to my core. Gets me out tough situations, finds creative solutions. But it can flip my reality into 40k Warhammer.</li>
+            <li><span class="highlight-text">Continuous Learning:</span> When not in burnout, I'm on a grind. I have problems with proper rest and understanding when it is time to stop and relax.</li>
+            <li><span class="highlight-text">Data Analysis & Visualization:</span> My mind sees the world as an ever expanding kaleidoscope. Wells of lights that contain meanings, languages, images, sounds, tastes, smells, touch itself. I search for strings that feel familiar to a situation and pull them out on the surface of my mind and decode them into something concrete, like this exact text that I’m writing right now. That allows me to work on a much deeper level with any task, person, idea or meaning itself.</li>
         </ul>
         <p class="subdued-text">(Intellect +9, Wisdom +13)</p>
       `
@@ -30,7 +30,7 @@ export function openAboutMeWindow(title, openWindowFn) {
         <ul>
             <li><span class="highlight-text">Video editing, VFX, Storyboarding: Started with Battlefield 3 (EA Russia), transitioned into creative agency 'Red Keds' and since 2014 a 'gun for hire' working with Yandex. + Freelance</li>
             <li><span class="highlight-text">Deadlines and stress:</span> I have an arrangement of breathing techniques with quick access to a flow state. Allows me to do very impressive short sprints, but has a side effect of compounding fatigue, that... has consequences to my health in general.</li>
-            <li><span class="highlight-text">Game Design, Arts, Logic:</span> I approach coding as an idea of 'logic artist' when concrete tasks are done as an art form derived from abstract thinking, rather than rules and 'common practices'. Could be hard to integrate into a team environment, as my ideas are usually 'out there' and work for me, but not for others. Solitude work for greater good is my home.</li>
+            <li><span class="highlight-text">Game Design, Arts, Logic:</span> I approach coding as an idea of being a 'logic artist'. Concrete solutions are derived from my abstract thinking, rather than rules and 'common practices'. Could be hard to integrate into a team environment, as my ideas are usually 'out there'. Works for me, but not always for the others.</li>
         </ul>
         <p class="subdued-text">(Endurance +4, Leadership -3)</p>
       `
@@ -42,7 +42,7 @@ export function openAboutMeWindow(title, openWindowFn) {
         <ul>
             <li><span class="highlight-text">Front-End:</span> If I can imagine it, I can make it (limitations apply).</li>
             <li><span class="highlight-text">Back-End:</span> please no.</li>
-            <li><span class="highlight-text">Software:</span> Just learn it 4head. I don't see software something of importantance. Inside of everdeveloping environment it is better to know fundamentals and re-apply them inside new environments. Mostly I stick to After Effects for now as a main tool for my job. But if anything else needed, it should be a not-that-painful transition</li>
+            <li><span class="highlight-text">Software:</span> just learn it.</li>
         </ul>
         <p class="subdued-text">(Dexterity +15, Craftsmanship +14)</p>
       `
@@ -69,7 +69,7 @@ export function openAboutMeWindow(title, openWindowFn) {
     talent2: {
       title: 'Talent: Abstract Vision',
       text: `
-        <p>I don't see things, I see substance of things. Sometimes works against me, but gives me top tier intuition, premonitions and a lot of fun future proof ideas</p>
+        <p>I don't see things, I see substance of things. Sometimes works against me, but gives me keys to many vaults.</p>
         <p class="subdued-text">Skill: Intuitive Empath, Rank S+</p>
       `
     },
