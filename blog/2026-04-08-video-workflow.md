@@ -1,11 +1,13 @@
 # Videos
 
-[icon: https://i.pinimg.com/1200x/6a/4c/84/6a4c84e0531968782b9a159f326e52e3.jpg]
+
 
 Kind of been doing a lot of animations and stuff... see that little fella down there... the one that says things and paints an empty canvas?
 Yeah, I drew the guy, animated the guy, gave him a state for secondary animation as well.. See how smooth it looks the brush wetness going away... Done by hand with After Effects
 Keyframes and hand crafted animations are usually the way to go.
 I don't do much classic animations, but overall make things move in a pleasant way to look at.
+
+[icon: https://i.pinimg.com/1200x/6a/4c/84/6a4c84e0531968782b9a159f326e52e3.jpg]
 
 Been working with Yandex since 2014... and overall making video content for a long time...
 Right now interested in making games or interactive experiences of any kind... Interested to see how far that field will go.
