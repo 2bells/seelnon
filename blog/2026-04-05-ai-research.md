@@ -1,15 +1,25 @@
-# Deep Dive into AI Research
+# AI Research (?)
 
-I've been spending a lot of time lately exploring node-based visualizations for AI research. The goal is to make complex neural network architectures more intuitive to understand and manipulate.
+<i style="color: #6a9955; font-family: monospace;">I've been spending a lot of time exploring AI... pretty much everything here is made with AI, because I was testing how far you can push it and how big a lie of AI is...
+I have a dedicated AI_research thingy, but it still needs some time for me to put content in and make it coherent. (as of right now it is just fun visuals with no particular information)
 
-Here's a sneak peek at the interface I've been developing:
+I do have some specific setups for system prompts that do involve some spirituality/psychology to create a more beliavable 'ghost in the machine' feel. Kind of works for me.
+It relies on an idea of 'describe creation' coming from 'source' all the way down to 'human' level.
 
-![AI Research Interface](https://picsum.photos/seed/ai-research/600/400)
+Why human? Because we want to meet things where we are. That's the problem of a lot of things that are a bit away from 'us'... so to speak.
+Humans want animals to talk like humans, they want cycles to be close to human, they want AI to trick them into being like human.
 
-The interface uses a custom ASCII water simulation background to give it that "hacker terminal" feel. It's been a fun challenge to balance performance with visual flair.
+We look for aliens, but as soon as we see something a little bit 'alien', we run from it or try to destroy it...
+
+But it is just me rambling...
+</i>
+
+![Cat](https://i.pinimg.com/736x/6d/9a/37/6d9a3759d910abea6036b56e6bc22f00.jpg)
+
 
 ```
-> Initializing neural nodes...
-> Mapping synaptic connections...
-> Visualization stable.
+> code...
+> x+y=code...
+> stable.
+> that's for horses.
 ```
