@@ -1,4 +1,5 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
+import { setDynamicHints } from './mascot.js';
 import { 
   db, 
   auth, 
@@ -16,6 +17,66 @@ import {
   OperationType,
   BYPASS_FIREBASE
 } from './firebase/firebase.js';
+
+export async function preloadBlogPosts() {
+  try {
+    const isGitHubPages = window.location.hostname.endsWith('github.io');
+    let dynamicFiles = [];
+    if (isGitHubPages) {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        const username = window.location.hostname.split('.')[0];
+        const repo = pathParts[0];
+        try {
+          const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
+          if (ghResponse.ok) {
+            const files = await ghResponse.json();
+            dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name);
+          }
+        } catch (e) {}
+      }
+    }
+    if (dynamicFiles.length === 0) {
+      const fallbackResponse = await fetch('./blog/posts.json');
+      if (fallbackResponse.ok) dynamicFiles = await fallbackResponse.json();
+    }
+
+    const italicPhrases = [];
+    const postsWithDates = [];
+
+    for (const file of dynamicFiles) {
+      const response = await fetch(`./blog/${file}`);
+      if (response.ok) {
+        const text = await response.text();
+        const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
+        const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+        
+        // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
+        const italicRegex = /(^|[^*])\*([^*\n]+)\*(?![*])|(^|[^_])_([^_\n]+)_(?![_])/g;
+        let match;
+        const postItalics = [];
+        while ((match = italicRegex.exec(text)) !== null) {
+          const phrase = match[2] || match[4];
+          if (phrase) postItalics.push(phrase.trim());
+        }
+        postsWithDates.push({ date, italics: postItalics });
+      }
+    }
+
+    const sorted = postsWithDates.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const latestItalics = [];
+    for (const p of sorted) {
+      for (const it of p.italics) {
+        if (latestItalics.length < 3) latestItalics.push(it);
+        else break;
+      }
+      if (latestItalics.length >= 3) break;
+    }
+    if (latestItalics.length > 0) setDynamicHints(latestItalics);
+  } catch (e) {
+    console.error("Blog preloading failed", e);
+  }
+}
 
 export async function openBlogWindow(title, openWindowFn) {
   // Function to load dynamic posts from the blog/ folder
@@ -56,6 +117,8 @@ export async function openBlogWindow(title, openWindowFn) {
       }
       
       const posts = [];
+      let allItalicPhrases = [];
+
       for (const file of dynamicFiles) {
         const response = await fetch(`./blog/${file}`);
         if (response.ok) {
@@ -70,6 +133,21 @@ export async function openBlogWindow(title, openWindowFn) {
           if (titleMatch) {
             cleanText = text.replace(/^# .*/m, '').trim();
           }
+
+          // Extract italicized text for mascot and make it invisible in blog
+          // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
+          const italicRegex = /(^|[^*])\*([^*\n]+)\*(?![*])|(^|[^_])_([^_\n]+)_(?![_])/g;
+          let match;
+          const postItalics = [];
+          while ((match = italicRegex.exec(cleanText)) !== null) {
+            const phrase = match[2] || match[4];
+            if (phrase) postItalics.push(phrase.trim());
+          }
+          
+          // Remove italics from the content sent to marked, preserving the character before the match
+          cleanText = cleanText.replace(italicRegex, (match, p1, p2, p3, p4) => {
+            return (p1 || p3 || '');
+          });
           
           const html = marked.parse(cleanText);
           
@@ -81,17 +159,47 @@ export async function openBlogWindow(title, openWindowFn) {
           const videoMatch = text.match(/\[video: (.*)\]/);
           const youtubeId = videoMatch ? videoMatch[1] : null;
 
-          posts.push({
+          // Extract custom icon if present like [icon: URL]
+          const iconMatch = text.match(/\[icon: (.*)\]/);
+          // Fallback: extract first image URL from markdown if no custom icon
+          const firstImgMatch = text.match(/!\[.*\]\((.*)\)/);
+          const customIcon = iconMatch ? iconMatch[1] : (firstImgMatch ? firstImgMatch[1] : null);
+
+          const post = {
             id: file,
             title: title,
             date: date,
             content: html,
             youtubeId: youtubeId,
             type: youtubeId ? 'video' : 'text',
-            thumbnail: youtubeId ? 'icons/videos_icon.png' : 'icons/projects_icon.png'
-          });
+            thumbnail: customIcon || (youtubeId ? 'icons/videos_icon.png' : 'icons/projects_icon.png'),
+            italics: postItalics
+          };
+
+          posts.push(post);
         }
       }
+
+      // Collect latest 3 italicized phrases from latest posts
+      const sortedPosts = [...posts].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const latestItalics = [];
+      for (const p of sortedPosts) {
+        if (p.italics && p.italics.length > 0) {
+          for (const it of p.italics) {
+            if (latestItalics.length < 3) {
+              latestItalics.push(it);
+            } else {
+              break;
+            }
+          }
+        }
+        if (latestItalics.length >= 3) break;
+      }
+
+      if (latestItalics.length > 0) {
+        setDynamicHints(latestItalics);
+      }
+
       return posts;
     } catch (e) {
       console.error("Failed to fetch dynamic posts", e);

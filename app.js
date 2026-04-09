@@ -1,6 +1,6 @@
 import { FS } from "./fs.js";
 import { openAboutMeWindow } from "./about_me.js"; // Import the new about_me module
-import { openBlogWindow } from "./blog.js"; // Import the new blog module
+import { openBlogWindow, preloadBlogPosts } from "./blog.js"; // Import the new blog module
 import { initMascot, cleanupMascot } from "./mascot.js"; // NEW: Import initMascot and cleanupMascot
 
 const desktop = document.getElementById('desktop');
@@ -1432,6 +1432,9 @@ function initializeApp() {
     
     // Init mascot
     initMascot();
+
+    // Preload blog posts to update mascot hints with latest italicized phrases
+    preloadBlogPosts();
 
     // Automatically open Blog on load
     const blogNode = FS.findByName('Blog');

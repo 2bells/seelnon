@@ -4,36 +4,32 @@ let currentHintIndex = -1;
 let isFastMascotAnimating = false;
 let mascotImgElement = null;
 let speechBubbleElement = null;
+let dynamicHints = [];
 
-const hints = [
-    "Welcome to the Portfolio 95 Desktop! Double-click icons to open them.",
-    "Need help? Try checking the 'About Me' section for more info!",
-    "Don't forget to explore 'Pictures', 'Videos', and 'Projects' for my work.",
-    "The 'Image Board' project is interactive, give it a try!",
-    "You can drag and resize windows just like in Windows 95.",
-    "Minimize windows to the taskbar if your desktop gets too cluttered.",
-    "The 'Concept Art Collage' in Pictures can be zoomed and panned!",
-    "Click the 'Start' button for more options, or to access all folders.",
-    "Did you know you can customize desktop icons by dragging them?",
-    "Look at the clock, it's always running on Win95 time!",
-    "I'm here to help you navigate this retro experience!"
+const staticHints = [
+    "Welcome to the Portfolio 95 Desktop! Double-click icons to open them."
 ];
 
 // Preload the fast mascot GIF
 const fastMascotPreload = new Image();
 fastMascotPreload.src = './gif/fast_maskot.gif';
 
+export function setDynamicHints(newHints) {
+    dynamicHints = newHints;
+}
+
 // Define functions in module scope
 function showRandomHint() {
-    if (!mascotImgElement || !speechBubbleElement || hints.length === 0 || isFastMascotAnimating) return;
+    const allHints = [...staticHints, ...dynamicHints];
+    if (!mascotImgElement || !speechBubbleElement || allHints.length === 0 || isFastMascotAnimating) return;
 
     let nextHintIndex;
     do {
-        nextHintIndex = Math.floor(Math.random() * hints.length);
-    } while (nextHintIndex === currentHintIndex && hints.length > 1);
+        nextHintIndex = Math.floor(Math.random() * allHints.length);
+    } while (nextHintIndex === currentHintIndex && allHints.length > 1);
 
     currentHintIndex = nextHintIndex;
-    speechBubbleElement.textContent = hints[currentHintIndex];
+    speechBubbleElement.textContent = allHints[currentHintIndex];
     speechBubbleElement.style.opacity = '1';
 
     clearTimeout(hintTimer);
