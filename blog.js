@@ -40,7 +40,6 @@ export async function openBlogWindow(title, openWindowFn) {
               dynamicFiles = files
                 .filter(f => f.name.endsWith('.md'))
                 .map(f => f.name);
-                console.warn("Gotcha");
             }
           } catch (ghErr) {
             console.warn("GitHub API fetch failed, falling back to posts.json", ghErr);
