@@ -149,15 +149,20 @@ export async function openBlogWindow(title, openWindowFn) {
             return (p1 || p3 || '');
           });
           
+          // Extract youtubeId if present in a comment or specific line like [video: ID]
+          const videoMatch = cleanText.match(/\[video: (.*)\]/);
+          const youtubeId = videoMatch ? videoMatch[1] : null;
+
+          // Remove video tag from content so it doesn't render as text
+          if (videoMatch) {
+            cleanText = cleanText.replace(/\[video: .*\]/g, '').trim();
+          }
+
           const html = marked.parse(cleanText);
           
           // Extract date from filename (YYYY-MM-DD)
           const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
           const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
-
-          // Extract youtubeId if present in a comment or specific line like [video: ID]
-          const videoMatch = text.match(/\[video: (.*)\]/);
-          const youtubeId = videoMatch ? videoMatch[1] : null;
 
           // Extract custom icon if present like [icon: URL]
           const iconMatch = text.match(/\[icon: (.*)\]/);
