@@ -30,8 +30,8 @@ export async function openBlogWindow(title, openWindowFn) {
         // GitHub Pages usually hosts at username.github.io/repo/
         // So the first part of the path is the repo name
         if (pathParts.length > 0) {
-          const username = window.location.hostname.split('.')[0];
-          const repo = pathParts[0];
+          const username = '2bells';
+          const repo = 'seelnon';
           try {
             // Fetch file list from GitHub API
             const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
@@ -40,6 +40,7 @@ export async function openBlogWindow(title, openWindowFn) {
               dynamicFiles = files
                 .filter(f => f.name.endsWith('.md'))
                 .map(f => f.name);
+                console.warn("Gotcha");
             }
           } catch (ghErr) {
             console.warn("GitHub API fetch failed, falling back to posts.json", ghErr);
