@@ -1,4 +1,4 @@
-import { marked } from 'marked';
+import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
 import { 
   db, 
   auth, 
