@@ -1,5 +1,7 @@
 # Videos
 
+[icon: https://i.pinimg.com/1200x/6a/4c/84/6a4c84e0531968782b9a159f326e52e3.jpg]
+
 Kind of been doing a lot of animations and stuff... see that little fella down there... the one that says things and paints an empty canvas?
 Yeah, I drew the guy, animated the guy, gave him a state for secondary animation as well.. See how smooth it looks the brush wetness going away... Done by hand with After Effects
 Keyframes and hand crafted animations are usually the way to go.
