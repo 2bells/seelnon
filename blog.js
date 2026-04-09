@@ -153,9 +153,15 @@ export async function openBlogWindow(title, openWindowFn) {
           const videoMatch = cleanText.match(/\[video: (.*)\]/);
           const youtubeId = videoMatch ? videoMatch[1] : null;
 
-          // Remove video tag from content so it doesn't render as text
+          // Extract custom icon if present like [icon: URL]
+          const iconMatch = cleanText.match(/\[icon: (.*)\]/);
+
+          // Remove video and icon tags from content so they don't render as text
           if (videoMatch) {
             cleanText = cleanText.replace(/\[video: .*\]/g, '').trim();
+          }
+          if (iconMatch) {
+            cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
           }
 
           const html = marked.parse(cleanText);
@@ -164,8 +170,6 @@ export async function openBlogWindow(title, openWindowFn) {
           const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
           const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
 
-          // Extract custom icon if present like [icon: URL]
-          const iconMatch = text.match(/\[icon: (.*)\]/);
           // Fallback: extract first image URL from markdown if no custom icon
           const firstImgMatch = text.match(/!\[.*\]\((.*)\)/);
           const customIcon = iconMatch ? iconMatch[1] : (firstImgMatch ? firstImgMatch[1] : null);
