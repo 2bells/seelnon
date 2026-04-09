@@ -18,34 +18,34 @@ import {
 } from './firebase/firebase.js';
 
 export async function openBlogWindow(title, openWindowFn) {
-  // Function to load dynamic posts from the blog/ folder
   async function fetchDynamicPosts() {
+    const username = '2bells';
+    const repo = 'seelnon';
+    // Use the Trees API to get EVERYTHING recursively
+    // 'main' or 'master' is usually the branch name
+    const treeUrl = `https://github.com{username}/${repo}/git/trees/main?recursive=1`;
+
     try {
-      let dynamicFiles = [];
-      
-      // Try to detect GitHub Pages environment for true automation
-      const isGitHubPages = window.location.hostname.endsWith('github.io');
-      if (isGitHubPages) {
-        const pathParts = window.location.pathname.split('/').filter(Boolean);
-        // GitHub Pages usually hosts at username.github.io/repo/
-        // So the first part of the path is the repo name
-        if (pathParts.length > 0) {
-          const username = '2bells';
-          const repo = 'seelnon';
-          try {
-            // Fetch file list from GitHub API
-            const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
-            if (ghResponse.ok) {
-              const files = await ghResponse.json();
-              dynamicFiles = files
-                .filter(f => f.name.endsWith('.md'))
-                .map(f => f.name);
-            }
-          } catch (ghErr) {
-            console.warn("GitHub API fetch failed, falling back to posts.json", ghErr);
-          }
-        }
+      const response = await fetch(treeUrl);
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Filter the flat list for:
+        // 1. Files inside the 'blog/' directory
+        // 2. Files ending in '.md'
+        return data.tree
+          .filter(file => file.path.startsWith('blog/') && file.path.endsWith('.md'))
+          .map(file => file.path); // Returns 'blog/folder/post.md'
       }
+    } catch (err) {
+      console.warn("Recursive fetch failed", err);
+    }
+    return [];
+  }
+
+  const posts = await fetchDynamicPosts();
+  console.log("Found nested posts:", posts);
+}
 
       // Fallback to posts.json if GitHub API failed or not on GitHub Pages
       if (dynamicFiles.length === 0) {
