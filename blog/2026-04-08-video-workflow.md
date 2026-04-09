@@ -14,4 +14,4 @@ I will be sharing much more stuff with that as well, right now you can check a s
 
 If you are interested in more professional work, I guess I can craft like a showreel. Never was my thing tbh. But you have my 'youtube showreel' from 12 years ago + - in the Video folder here.
 
-[video: 4CPDM8DnnXc]
+![video: 4CPDM8DnnXc]
