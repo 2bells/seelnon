@@ -1,4 +1,4 @@
-import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
+import { marked } from 'marked';
 import { 
   db, 
   auth, 
@@ -18,92 +18,49 @@ import {
 } from './firebase/firebase.js';
 
 export async function openBlogWindow(title, openWindowFn) {
-  // Static posts (hardcoded as fallback or legacy)
-  const staticPosts = [
-    {
-      id: 1,
-      title: "Welcome to my Blog!",
-      date: "2026-04-01",
-      content: `
-        <p>Welcome to the first entry of my Windows 95 themed blog! I've always been fascinated by the aesthetic of early computing, and I wanted to create a space that reflects that nostalgia while showcasing my modern projects.</p>
-        <p>This blog is built with vanilla JavaScript, HTML, and CSS, just like the rest of this site. No heavy frameworks, just pure 90s vibes.</p>
-        <img src="https://picsum.photos/seed/win95/600/400" alt="Win95 Aesthetic" referrerPolicy="no-referrer" style="width:100%; border:1px solid #000; margin: 20px 0;">
-        <p>Stay tuned for more updates on my creative journey, technical deep dives, and maybe some random thoughts along the way.</p>
-      `,
-      type: "text",
-      thumbnail: "icons/projects_icon.png"
-    },
-    {
-      id: 2,
-      title: "Deep Dive into AI Research",
-      date: "2026-04-05",
-      content: `
-        <p>I've been spending a lot of time lately exploring node-based visualizations for AI research. The goal is to make complex neural network architectures more intuitive to understand and manipulate.</p>
-        <p>Here's a sneak peek at the interface I've been developing:</p>
-        <img src="https://picsum.photos/seed/ai-research/600/400" alt="AI Research Interface" referrerPolicy="no-referrer" style="width:100%; border:1px solid #000; margin: 20px 0;">
-        <p>The interface uses a custom ASCII water simulation background to give it that "hacker terminal" feel. It's been a fun challenge to balance performance with visual flair.</p>
-        <div style="background: #000; color: #0f0; padding: 10px; font-family: monospace; border: 1px solid #0f0; margin: 10px 0;">
-          > Initializing neural nodes...<br>
-          > Mapping synaptic connections...<br>
-          > Visualization stable.
-        </div>
-      `,
-      type: "image",
-      thumbnail: "icons/ai_research_icon.png"
-    },
-    {
-      id: 3,
-      title: "Video Production Workflow",
-      date: "2026-04-08",
-      content: `
-        <p>Video editing is a huge part of my creative process. I primarily use After Effects for my VFX work, but I'm always looking for ways to optimize my workflow.</p>
-        <p>One technique I've been perfecting is "logic-based editing," where I use scripts to automate repetitive tasks and allow for more abstract creative decisions.</p>
-        <p>This short clip shows a package turnaround animation I created using these techniques. It's all about finding that perfect balance between technical precision and artistic expression.</p>
-      `,
-      type: "video",
-      youtubeId: "dQw4w9WgXcQ", // Example YouTube ID
-      thumbnail: "icons/videos_icon.png"
-    },
-    {
-      id: 4,
-      title: "Exploring the Retro Aesthetic",
-      date: "2026-03-20",
-      content: `
-        <p>Why Windows 95? There's something about the simplicity and the "clunky" charm of that era that I find incredibly inspiring. It was a time when the digital world felt like a new frontier, full of possibilities.</p>
-        <p>Recreating this aesthetic in modern web technologies is a fun exercise in constraints. It forces you to think about how to convey information clearly without the bells and whistles of modern UI design.</p>
-        <img src="https://picsum.photos/seed/retro/600/400" alt="Retro Computing" referrerPolicy="no-referrer" style="width:100%; border:1px solid #000; margin: 20px 0;">
-      `,
-      type: "text",
-      thumbnail: "icons/projects_icon.png"
-    },
-    {
-      id: 5,
-      title: "The Future of My Portfolio",
-      date: "2026-02-15",
-      content: `
-        <p>This portfolio is an ever-evolving project. I'm constantly adding new features, projects, and experiments. My goal is to create a space that is not just a showcase of my work, but an experience in itself.</p>
-        <p>Thanks for stopping by and exploring my digital world!</p>
-      `,
-      type: "text",
-      thumbnail: "icons/about_me_icon.png"
-    }
-  ];
-
   // Function to load dynamic posts from the blog/ folder
   async function fetchDynamicPosts() {
     try {
-      // In a real production environment on GitHub Pages, we can't "list" a directory via JS.
-      // We usually use a manifest.json or a naming convention.
-      // For now, let's look for a specific post we just created.
-      const dynamicFiles = [
-        '2026-04-10_new_horizons.md'
-      ];
+      let dynamicFiles = [];
+      
+      // Try to detect GitHub Pages environment for true automation
+      const isGitHubPages = window.location.hostname.endsWith('github.io');
+      if (isGitHubPages) {
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        // GitHub Pages usually hosts at username.github.io/repo/
+        // So the first part of the path is the repo name
+        if (pathParts.length > 0) {
+          const username = window.location.hostname.split('.')[0];
+          const repo = pathParts[0];
+          try {
+            // Fetch file list from GitHub API
+            const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
+            if (ghResponse.ok) {
+              const files = await ghResponse.json();
+              dynamicFiles = files
+                .filter(f => f.name.endsWith('.md'))
+                .map(f => f.name);
+            }
+          } catch (ghErr) {
+            console.warn("GitHub API fetch failed, falling back to posts.json", ghErr);
+          }
+        }
+      }
+
+      // Fallback to posts.json if GitHub API failed or not on GitHub Pages
+      if (dynamicFiles.length === 0) {
+        const fallbackResponse = await fetch('./blog/posts.json');
+        if (fallbackResponse.ok) {
+          dynamicFiles = await fallbackResponse.json();
+        }
+      }
       
       const posts = [];
       for (const file of dynamicFiles) {
         const response = await fetch(`./blog/${file}`);
         if (response.ok) {
           const text = await response.text();
+          
           // Extract title from first H1 if possible
           const titleMatch = text.match(/^# (.*)/m);
           const title = titleMatch ? titleMatch[1] : file.replace('.md', '');
@@ -143,7 +100,7 @@ export async function openBlogWindow(title, openWindowFn) {
   }
 
   const dynamicPosts = await fetchDynamicPosts();
-  const blogPosts = [...staticPosts, ...dynamicPosts].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const blogPosts = dynamicPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const blogContainer = document.createElement('div');
   blogContainer.className = 'blog-container';
