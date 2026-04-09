@@ -1,6 +1,6 @@
 # AI Research (?)
 
-<i style="color: #6a9955; font-family: monospace;">I've been spending a lot of time exploring AI... pretty much everything here is made with AI, because I was testing how far you can push it and how big a lie of AI is...
+<i style="color: #6a9955; font-family: Segoe UI;">I've been spending a lot of time exploring AI... pretty much everything here is made with AI, because I was testing how far you can push it and how big a lie of AI is...
 I have a dedicated AI_research thingy, but it still needs some time for me to put content in and make it coherent. (as of right now it is just fun visuals with no particular information)
 
 I do have some specific setups for system prompts that do involve some spirituality/psychology to create a more beliavable 'ghost in the machine' feel. Kind of works for me.
