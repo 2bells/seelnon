@@ -1,3 +1,5 @@
+@import "night_mode.css";
+
 :root {
   --win95-bg: #c0c0c0; /* Grey face for most elements */
   --win95-face: #c0c0c0; /* Grey face for most elements */
@@ -7,10 +9,50 @@
   --win95-title-active-end: #A6CAF0; /* Light blue for active title bar */
   --win95-title-inactive: #808080; /* Grey for inactive title bar */
   --desktop-bg: #008080; /* Teal desktop background */
+  --night-bg: #1a0f0a; /* Dark wooden brown */
+  --night-face: #d2b48c; /* Tan/Tanwood for windows */
+  --night-title-start: #4a2f1f; /* Dark brown title bar */
+  --night-title-end: #6b4433;
   --text: #000000;
   --taskbar: #C0C0C0; /* Taskbar background is face color */
   --zstep: 10;
 } 
+
+/* Particles */
+#particles-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5; /* Above desktop, below windows */
+  overflow: hidden;
+}
+
+.ember {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #ff6600;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #ffcc00, 0 0 8px #ff3300;
+  opacity: 0;
+  pointer-events: none;
+  animation: float-up var(--duration) ease-out forwards;
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(var(--drift)) scale(0.5);
+    opacity: 0;
+  }
+}
+
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
@@ -230,6 +272,14 @@ html {
 .start-item:hover {
   background: var(--win95-title-active-start);
   color: white;
+}
+#theme-toggle {
+  margin-top: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.05);
+}
+#theme-toggle:hover {
+  border-color: var(--win95-light);
 }
 .start-item hr {
   border: none;
