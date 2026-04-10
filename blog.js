@@ -20,6 +20,7 @@ import {
 
 export async function preloadBlogPosts() {
   try {
+    const ghResponse = await fetch(`https://github.com{username}/${repo}/contents/blog?cb=${new Date().getTime()}`);
     const isGitHubPages = window.location.hostname.endsWith('github.io');
     let dynamicFiles = [];
     if (isGitHubPages) {
