@@ -2,6 +2,7 @@ import { FS } from "./fs.js";
 import { openAboutMeWindow } from "./about_me.js"; // Import the new about_me module
 import { openBlogWindow, preloadBlogPosts } from "./blog.js"; // Import the new blog module
 import { openWonderlandWindow } from "./wonderlands.js"; // Import the new wonderlands module
+import { openMiliastraPrimeWindow } from "./wonderlands/miliastra_prime/wonderland_miliastra.js"; // Import specialized Miliastra renderer
 import { initMascot, cleanupMascot } from "./mascot.js"; // NEW: Import initMascot and cleanupMascot
 
 const desktop = document.getElementById('desktop');
@@ -485,8 +486,8 @@ function openFolder(path) {
   wrap.style.flexDirection = 'column';
   wrap.style.height = '100%'; // Ensure wrap takes full height of content area
 
-  // NEW: Add synopsis block for Projects, Pictures, and Videos folders
-  if (folder.path === '/Projects' || folder.path === '/Pictures' || folder.path === '/Videos') {
+  // NEW: Add synopsis block for Projects, Pictures, Videos, and Wonderlands folders
+  if (folder.path === '/Projects' || folder.path === '/Pictures' || folder.path === '/Videos' || folder.path === '/Wonderlands') {
     const synopsisBlock = document.createElement('div');
     synopsisBlock.className = 'projects-synopsis-block'; // Reusing class for consistent styling
     let synopsisText = '';
@@ -496,6 +497,8 @@ function openFolder(path) {
       synopsisText = `Here's a collection of images I've worked on or found inspiring.`;
     } else if (folder.path === '/Videos') {
       synopsisText = `A collection of videos I've created or worked on, including trailers and short animations.`;
+    } else if (folder.path === '/Wonderlands') {
+      synopsisText = `Special interactive environments and development journals for my major projects.`;
     }
     synopsisBlock.innerHTML = synopsisText;
     wrap.appendChild(synopsisBlock);
@@ -505,8 +508,8 @@ function openFolder(path) {
   list.className = 'file-list'; // Assign class
   wrap.appendChild(list); // Append to wrap
 
-  // NEW: Add a specific class for Projects, Pictures, and Videos folders to allow custom styling (big thumbnails)
-  if (folder.path === '/Projects' || folder.path === '/Pictures' || folder.path === '/Videos') {
+  // NEW: Add a specific class for Projects, Pictures, Videos, and Wonderlands folders to allow custom styling (big thumbnails)
+  if (folder.path === '/Projects' || folder.path === '/Pictures' || folder.path === '/Videos' || folder.path === '/Wonderlands') {
     list.classList.add('projects-folder-list');
   }
 
@@ -1324,9 +1327,72 @@ async function openEntry(path) {
   }
   else if (entry.type === 'about') windowId = openAboutMeWindow(entry.name, openWindow); // Handle 'about' type
   else if (entry.type === 'blog') windowId = await openBlogWindow(entry.name, openWindow); // Handle 'blog' type
-  else if (entry.type === 'wonderland') windowId = await openWonderlandWindow(entry, openWindow); // Handle 'wonderland' type
+  else if (entry.type === 'wonderland') {
+    if (entry.path === '/Wonderlands/Guns Brooms Rockets') {
+      windowId = await openMiliastraPrimeWindow(entry, openWindow);
+    } else {
+      windowId = await openWonderlandWindow(entry, openWindow);
+    }
+  }
 
   return windowId;
+}
+
+// Night Mode & Particles
+let nightModeEnabled = false;
+let particleInterval = null;
+
+function toggleNightMode() {
+    nightModeEnabled = !nightModeEnabled;
+    document.body.classList.toggle('night-mode', nightModeEnabled);
+    
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.textContent = nightModeEnabled ? 'Lights On' : 'Night Mode';
+    }
+
+    if (nightModeEnabled) {
+        startParticles();
+    } else {
+        stopParticles();
+    }
+}
+
+function startParticles() {
+    if (particleInterval) return;
+    const container = document.getElementById('particles-container');
+    if (!container) return;
+
+    particleInterval = setInterval(() => {
+        if (!nightModeEnabled) return;
+        createEmber(container);
+    }, 400);
+}
+
+function stopParticles() {
+    if (particleInterval) {
+        clearInterval(particleInterval);
+        particleInterval = null;
+    }
+    const container = document.getElementById('particles-container');
+    if (container) container.innerHTML = '';
+}
+
+function createEmber(container) {
+    const ember = document.createElement('div');
+    ember.className = 'ember';
+    
+    const startX = Math.random() * 100;
+    const drift = (Math.random() - 0.5) * 300;
+    const duration = 4 + Math.random() * 4;
+    
+    ember.style.left = startX + 'vw';
+    ember.style.bottom = '-10px';
+    ember.style.setProperty('--drift', drift + 'px');
+    ember.style.setProperty('--duration', duration + 's');
+    
+    container.appendChild(ember);
+    setTimeout(() => ember.remove(), duration * 1000);
 }
 
 // NEW: Preloading and Initialization logic
@@ -1375,11 +1441,19 @@ function initializeApp() {
     // For module scripts at the end of <body>, this is often unnecessary, but provides extra robustness.
     startBtn = document.getElementById('start-button');
     startMenu = document.getElementById('start-menu');
+    const themeToggle = document.getElementById('theme-toggle');
 
     // Attach event listeners
     nowClock();
     setInterval(nowClock, 15000);
     startBtn.addEventListener('click', () => toggleStart());
+    
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            toggleNightMode();
+            toggleStart(false);
+        });
+    }
     document.addEventListener('click', (e) => {
       if (!startMenu.contains(e.target) && e.target !== startBtn) {
         startMenu.setAttribute('aria-hidden', 'true');
@@ -1390,11 +1464,7 @@ function initializeApp() {
       const btn = e.target.closest('.start-item');
       if (!btn) return;
 
-      if (btn.id === 'theme-toggle') {
-        document.body.classList.toggle('dark-mode');
-        toggleStart(false);
-        return;
-      }
+      if (btn.id === 'theme-toggle') return; // Handled by separate listener
 
       e.preventDefault(); // Prevent text selection on click
       const name = btn.dataset.open;

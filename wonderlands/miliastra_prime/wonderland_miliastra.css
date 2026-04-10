@@ -1,0 +1,568 @@
+/* Guns Brooms Rockets Wonderland UI - Modern Vibe */
+.miliastra-window {
+    background: #0a0a14;
+    color: #fff;
+    font-family: 'Noto Sans', sans-serif;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.miliastra-window.state-wip {
+    filter: sepia(0.3) contrast(1.1);
+}
+
+.miliastra-window.state-wip::after {
+    content: "WORK IN PROGRESS";
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    color: #ffd700;
+    opacity: 0.3;
+    pointer-events: none;
+    letter-spacing: 10px;
+    z-index: 5;
+}
+
+.miliastra-window.state-released {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.miliastra-sidebar {
+    width: 60px;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    gap: 20px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.miliastra-sidebar-icon {
+    width: 32px;
+    height: 32px;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.miliastra-sidebar-icon:hover, .miliastra-sidebar-icon.active {
+    opacity: 1;
+}
+
+.miliastra-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 30px;
+    overflow: hidden; /* Fix: Main area should not scroll horizontally */
+    position: relative;
+}
+
+.miliastra-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.miliastra-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.miliastra-content-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 30px;
+    height: calc(100% - 100px);
+    overflow-y: auto; /* Scroll here instead of main */
+    padding-right: 10px;
+}
+
+.miliastra-left-col {
+    position: relative; /* Ensure absolute children like dots stay within */
+    display: flex;
+    flex-direction: column;
+}
+
+.miliastra-carousel {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+}
+
+.miliastra-carousel img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none; /* Prevent interaction when hidden */
+}
+
+.miliastra-carousel img.active {
+    opacity: 1;
+    pointer-events: auto; /* Allow interaction when active */
+}
+
+.miliastra-video-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none; /* Prevent interaction when hidden */
+}
+
+.miliastra-video-slide.active {
+    opacity: 1;
+    pointer-events: auto; /* Allow interaction when active */
+}
+
+/* Carousel Arrows */
+.miliastra-carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    z-index: 20;
+    transition: all 0.2s;
+    opacity: 0; /* Hidden by default, show on hover */
+}
+
+.miliastra-carousel:hover .miliastra-carousel-arrow {
+    opacity: 1;
+}
+
+.miliastra-carousel-arrow:hover {
+    background: #ffd700;
+    color: #000;
+}
+
+.miliastra-carousel-arrow-left {
+    left: 10px;
+}
+
+.miliastra-carousel-arrow-right {
+    right: 10px;
+}
+
+.miliastra-carousel-nav {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.miliastra-carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+}
+
+.miliastra-carousel-dot.active {
+    background: #fff;
+}
+
+.miliastra-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.miliastra-stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.miliastra-stat-icon {
+    width: 40px;
+    height: 40px;
+    background: #ffd700;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-weight: bold;
+}
+
+.miliastra-stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.miliastra-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.miliastra-stat-label {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.miliastra-description-box {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: 400px;
+}
+
+.miliastra-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.miliastra-section-title::before {
+    content: '✦';
+    color: #ffd700;
+}
+
+.miliastra-description-text {
+    font-size: 15px;
+    line-height: 1.5;
+    opacity: 0.9;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.miliastra-rank-ladder {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.miliastra-rank-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.miliastra-rank-item:last-child {
+    border-bottom: none;
+}
+
+.miliastra-rank-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.miliastra-rank-number {
+    font-weight: 700;
+    width: 20px;
+}
+
+.miliastra-rank-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #444;
+}
+
+.miliastra-rank-points {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.miliastra-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: auto;
+    padding-top: 20px;
+}
+
+.miliastra-btn {
+    padding: 12px 30px;
+    border-radius: 24px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.1s;
+}
+
+.miliastra-btn:active {
+    transform: scale(0.95);
+}
+
+.miliastra-btn-match {
+    background: #4ecca3;
+    color: #1a1a2e;
+}
+
+.miliastra-btn-create {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.miliastra-tag-section {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.miliastra-tag-item {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+
+.miliastra-tag-item:hover {
+    background: rgba(78, 204, 163, 0.1);
+    border-color: #4ecca3;
+}
+
+.miliastra-hashtags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.miliastra-hashtag {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffd700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+/* Sliding Log Panel (AI Research Style) */
+.miliastra-log-panel {
+    position: absolute;
+    top: 0;
+    right: -450px;
+    width: 450px;
+    height: 100%;
+    background: rgba(10, 10, 20, 0.98);
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    transition: right 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -20px 0 50px rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+.miliastra-log-panel.open {
+    right: 0;
+}
+
+.miliastra-log-header {
+    padding: 20px;
+    background: #000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'VT323', monospace;
+    letter-spacing: 1px;
+}
+
+.miliastra-log-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 25px;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    line-height: 1.5;
+    color: #fff;
+}
+
+.miliastra-log-timeline {
+    padding: 15px 20px;
+    display: flex;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-x: auto;
+}
+
+.miliastra-timeline-node {
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s;
+}
+
+.miliastra-timeline-node:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+.miliastra-timeline-node.active {
+    background: #ffd700;
+    color: #000;
+    border-color: #ffd700;
+}
+
+.miliastra-tag-label {
+    opacity: 0.5;
+}
+
+.miliastra-tag-value {
+    color: #4ecca3;
+}
+
+/* Journal Layout */
+.miliastra-journal-layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 20px;
+    height: calc(100% - 100px);
+}
+
+.miliastra-journal-sidebar {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.miliastra-log-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.miliastra-log-item {
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.7;
+    transition: all 0.2s;
+    border-left: 2px solid transparent;
+    margin-bottom: 5px;
+}
+
+.miliastra-log-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.miliastra-log-item.active {
+    background: rgba(78, 204, 163, 0.1);
+    opacity: 1;
+    border-left-color: #4ecca3;
+    color: #4ecca3;
+}
+
+.miliastra-journal-main {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 30px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Media Layout */
+.miliastra-media-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.miliastra-media-card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.miliastra-video-embed {
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.miliastra-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.miliastra-gallery-grid img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.miliastra-gallery-grid img:hover {
+    transform: scale(1.05);
+    border-color: #4ecca3;
+}

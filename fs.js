@@ -94,10 +94,10 @@ export const FS = (() => {
   html('Fireplace', 'Content/Projects/Fireplace/index.html', '/Projects', { icon: 'Content/Projects/Fireplace/Fireplace_Thumbnail.jpg', description: 'A way to remember an hour.' });  
 
   // Wonderlands
-  wonderland('Miliastra Prime', 'wonderlands/miliastra_prime/index.html', '/Wonderlands', { 
+  wonderland('Guns Brooms Rockets', 'wonderlands/miliastra_prime/index.html', '/Wonderlands', { 
     description: 'The core of the Miliastra project.',
     updatesUrl: 'wonderlands/miliastra_prime/updates.md',
-    thumbnail: 'https://picsum.photos/seed/miliastra/400/300'
+    icon: 'wonderlands/miliastra_prime/GBR_Cover.jpg'
   });
 
 
