@@ -102,7 +102,7 @@ export const FS = (() => {
   wonderland('Országház', 'wonderlands/orszaghaz/index.html', '/Wonderlands', { 
     description: 'Building.',
     updatesUrl: 'wonderlands/orszaghaz/updates.md',
-    icon: 'https://avatars.mds.yandex.net/i?id=0b2cf640211c6f941219cafacc01dd41_sr-5147303-images-thumbs&n=13'
+    icon: "https://avatars.mds.yandex.net/i?id=0b2cf640211c6f941219cafacc01dd41_sr-5147303-images-thumbs&n=13"
   });
 
   // Assign custom icons - corrected paths to be relative to the root index.html
