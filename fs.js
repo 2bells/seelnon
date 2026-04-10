@@ -25,6 +25,10 @@ export const FS = (() => {
     const e = { type: 'html', name, url, path: makePath(parent, name), icon: null, ...opts };
     addChild(parent, e); return e;
   }
+  function wonderland(name, url, parent, opts={}) {
+    const e = { type: 'wonderland', name, url, path: makePath(parent, name), icon: null, ...opts };
+    addChild(parent, e); return e;
+  }
 
   function addChild(parentPath, node) {
     const p = get(parentPath);
@@ -61,6 +65,7 @@ export const FS = (() => {
   const pics = folder('Pictures', '/', { desktopShortcut: true });
   const vids = folder('Videos', '/', { desktopShortcut: true });
   const projs = folder('Projects', '/', { desktopShortcut: true });
+  const wonderlands = folder('Wonderlands', '/', { desktopShortcut: true });
   const blog = folder('Blog', '/', { desktopShortcut: true, type: 'blog' }); // New 'Blog' entry
   const aboutMe = folder('About Me', '/', { desktopShortcut: true, type: 'about' }); // New 'About Me' entry
   // Path for aiResearchApp is already relative, but can be simplified for consistency if in root
@@ -88,11 +93,19 @@ export const FS = (() => {
   html('Video Analysis', 'Content/Projects/Video_Analysis/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to analyze a video.' });  
   html('Fireplace', 'Content/Projects/Fireplace/index.html', '/Projects', { icon: 'Content/Projects/Fireplace/Fireplace_Thumbnail.jpg', description: 'A way to remember an hour.' });  
 
+  // Wonderlands
+  wonderland('Miliastra Prime', 'wonderlands/miliastra_prime/index.html', '/Wonderlands', { 
+    description: 'The core of the Miliastra project.',
+    updatesUrl: 'wonderlands/miliastra_prime/updates.md',
+    thumbnail: 'https://picsum.photos/seed/miliastra/400/300'
+  });
+
 
   // Assign custom icons - corrected paths to be relative to the root index.html
   pics.icon = 'icons/pictures_icon.png';
   vids.icon = 'icons/videos_icon.png';
   projs.icon = 'icons/projects_icon.png';
+  wonderlands.icon = 'icons/chest_icon.png';
   blog.icon = 'icons/projects_icon.png';
   aboutMe.icon = 'icons/about_me_icon.png';
   aiResearchApp.icon = 'icons/ai_research_icon.png'; // Kept as png as it's a specific app icon

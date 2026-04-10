@@ -1,0 +1,57 @@
+/* Terminal Markdown Styles for Wonderlands (Black & White) */
+.markdown-body-terminal-bw h1, 
+.markdown-body-terminal-bw h2, 
+.markdown-body-terminal-bw h3 {
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  font-family: 'VT323', monospace;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.markdown-body-terminal-bw p {
+  margin-bottom: 1em;
+  color: #fff;
+  opacity: 0.9;
+}
+
+.markdown-body-terminal-bw a {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.markdown-body-terminal-bw code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.markdown-body-terminal-bw ul {
+  list-style-type: '>> ';
+  padding-left: 20px;
+}
+
+.markdown-body-terminal-bw li {
+  margin-bottom: 0.5em;
+}
+
+.markdown-body-terminal-bw blockquote {
+  border-left: 2px solid #fff;
+  padding-left: 15px;
+  font-style: italic;
+  opacity: 0.6;
+  margin: 1.5em 0;
+}
+
+.blinking-cursor {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { opacity: 1; }
+  50% { opacity: 0; }
+}
