@@ -1,4 +1,5 @@
 export async function openMiliastraPrimeWindow(entry, openWindowFn) {
+    console.trace("Who called me?"); // This will print the full call stack in the browser console
     const container = document.createElement('div');
     container.className = 'miliastra-window';
 
