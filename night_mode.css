@@ -1,0 +1,271 @@
+/* Night Mode Styles */
+body.night-mode {
+  --win95-face: #3d2b1f; /* Mid-tone wood face */
+  --win95-dark: #1a0f0a; /* Dark wood shadow */
+  --win95-light: #5c4033; /* Lighter wood highlight */
+  --win95-title-active-start: #8b6a4a; /* Golden-tan hue override */
+  --text: #e0d0c0; /* Parchment/Light tan text for better readability */
+  --taskbar: #3d2b1f;
+  --desktop-bg: #1a0f0a; /* Darker desktop background */
+  background-color: var(--night-bg);
+}
+
+body.night-mode #desktop {
+  background: radial-gradient(circle at bottom right, rgba(255, 150, 50, 0.15) 0%, rgba(0, 0, 0, 0) 40%),
+              linear-gradient(to bottom, #1a0f0a, #0d0705);
+}
+
+/* Night Mode Windows */
+body.night-mode .window,
+body.night-mode .start-menu,
+body.night-mode #start-menu {
+  background-color: var(--win95-face);
+  color: var(--text);
+  border-top-color: var(--win95-light);
+  border-left-color: var(--win95-light);
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .titlebar {
+  background: linear-gradient(to right, var(--night-title-start), var(--night-title-end));
+  color: #f5f5dc; /* Creamy title text */
+  border-bottom: 1px solid var(--win95-dark);
+}
+
+body.night-mode .window .content {
+  background-color: #2a1a12; /* Slightly lighter than desktop for contrast */
+  color: var(--text);
+}
+
+body.night-mode .file-list {
+  background-color: #2a1a12;
+  border-color: var(--win95-dark);
+}
+
+/* Fix for specific content areas like Wonderlands that use --desktop-bg */
+body.night-mode .wonderlands-container,
+body.night-mode .wonderland-viewport {
+  background-color: #004040; /* Muted teal for night mode */
+}
+
+body.night-mode #taskbar {
+  background-color: var(--win95-face);
+  border-top-color: var(--win95-light);
+  border-left-color: var(--win95-light);
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .task-btn {
+  background-color: var(--win95-face);
+  color: var(--text);
+  border-top-color: var(--win95-light);
+  border-left-color: var(--win95-light);
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .task-btn:hover {
+  background-color: var(--win95-light);
+}
+
+body.night-mode .task-btn.active {
+  background-color: var(--win95-dark);
+  color: #ffffff;
+  border-top-color: var(--win95-dark);
+  border-left-color: var(--win95-dark);
+  border-right-color: var(--win95-light);
+  border-bottom-color: var(--win95-light);
+}
+
+/* Night Mode Blog Overrides */
+body.night-mode .blog-main {
+  background: #1a0f0a;
+  color: #e0d0c0;
+  border-right-color: #4a2f1f;
+}
+
+body.night-mode .blog-masthead {
+  border-bottom-color: #e0d0c0;
+}
+
+body.night-mode .blog-masthead-title,
+body.night-mode .blog-post-title {
+  color: #f5f5dc;
+}
+
+body.night-mode .blog-masthead-meta {
+  border-top-color: #e0d0c0;
+  color: #e0d0c0;
+}
+
+body.night-mode .blog-post-date,
+body.night-mode .post-item-date {
+  color: #836453; /* Very dark brown to "punch through" like an engraving */
+  opacity: 0.9;
+}
+
+body.night-mode .post-list-item.active .post-item-date {
+  color: #e0d0c0; /* Brighten on active items since the background is dark */
+  opacity: 1;
+}
+
+body.night-mode .blog-post-content {
+  color: #e0d0c0;
+}
+
+body.night-mode .blog-sidebar {
+  background: #2a1a12;
+  border-left-color: #4a2f1f;
+}
+
+body.night-mode .start-header {
+  color: #a68b6a; /* Muted tan for header */
+  border-bottom-color: var(--win95-light);
+}
+
+body.night-mode .start-item {
+  color: var(--text);
+}
+
+body.night-mode #start-button {
+  color: var(--text);
+}
+
+body.night-mode #start-button .start-icon .square {
+  background-color: var(--text);
+}
+
+/* "Timid" Window Controls */
+body.night-mode .controls button {
+  background-color: #4a2f1f; /* Darker, desaturated wood-tone */
+  color: #a68b6a; /* Muted tan icons */
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+  border-top-color: #5c4033;
+  border-left-color: #5c4033;
+  border-right-color: #1a0f0a;
+  border-bottom-color: #1a0f0a;
+}
+
+body.night-mode .controls button:hover {
+  opacity: 1;
+}
+
+body.night-mode .controls .btn-close {
+  background-color: #4a2f1f; /* Redesigned to be subdued */
+  color: #a68b6a;
+}
+
+body.night-mode .controls button:active {
+  border-top-color: #1a0f0a;
+  border-left-color: #1a0f0a;
+  border-right-color: #5c4033;
+  border-bottom-color: #5c4033;
+}
+
+/* Night Mode Stickers */
+body.night-mode .sticker {
+  background-color: #3d2b1f;
+  color: #e0d0c0;
+  border-color: #5c4033;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+body.night-mode .sticker .title {
+  color: #f5f5dc;
+}
+
+body.night-mode .sticker .open {
+  background-color: #1a0f0a;
+  color: #e0d0c0;
+  border-color: #5c4033;
+}
+
+body.night-mode .sticker.video-sticker,
+body.night-mode .sticker.image-board-sticker,
+body.night-mode .sticker.rts-game-sticker {
+  background-color: #3d2b1f;
+}
+
+body.night-mode #theme-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--win95-light);
+  color: #f5f5dc;
+}
+
+body.night-mode #theme-toggle:hover {
+  background: var(--win95-title-active-start);
+  color: #ffffff;
+}
+
+/* Ensure desktop icons are readable in night mode */
+body.night-mode .icon-label {
+  color: #e0d0c0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+body.night-mode .icon:focus .icon-label, 
+body.night-mode .icon:hover .icon-label {
+  background-color: #4a2f1f;
+  color: #ffffff;
+}
+
+/* Improved Readability for "About Me" */
+body.night-mode .about-me-content .content-title,
+body.night-mode .about-me-content .highlight-text,
+body.night-mode .about-me-content li::before {
+  color: #f5f5dc; /* Warm, creamy parchment color */
+}
+
+body.night-mode .about-me-content .subdued-text,
+body.night-mode .about-me-content .placeholder-text {
+  color: #a68b6a; /* Brighter tan for better readability */
+}
+
+/* Night Mode Blog & Timeline Improvements */
+body.night-mode .post-list-item:hover {
+  background-color: var(--win95-light);
+  color: var(--text);
+}
+
+body.night-mode .post-list-item.active {
+  background-color: var(--win95-dark);
+  color: #ffffff;
+}
+
+body.night-mode .timeline-grid-container,
+body.night-mode .timeline-header,
+body.night-mode .timeline-controls button {
+  background-color: #2a1a12;
+  color: var(--text);
+  border-color: var(--win95-dark);
+}
+
+body.night-mode .timeline-square {
+  background: #3d2b1f;
+  border-color: #1a0f0a;
+}
+
+body.night-mode .timeline-square.has-post {
+  background: #a68b6a; /* Muted tan instead of bright parchment */
+  border-color: #a68b6a;
+}
+
+/* Night Mode Viewer Controls */
+body.night-mode .image-viewer-nav button {
+  background-color: var(--win95-face);
+  color: var(--text);
+  border-top-color: var(--win95-light);
+  border-left-color: var(--win95-light);
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .image-viewer-nav button:active {
+  border-top-color: var(--win95-dark);
+  border-left-color: var(--win95-dark);
+  border-right-color: var(--win95-light);
+  border-bottom-color: var(--win95-light);
+}
