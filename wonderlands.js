@@ -188,7 +188,56 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             child.style.color = i === index ? '#000' : '#fff';
         });
 
-        const html = marked.parse(logs[index]);
+        let mdContent = logs[index];
+        const videoMatch = mdContent.match(/\[video: (.*)\]/);
+        let youtubeId = null;
+        let isShort = false;
+        
+        if (videoMatch) {
+            const videoInput = videoMatch[1].trim();
+            const shortsMatch = videoInput.match(/youtube\.com\/shorts\/([^/?#&]+)/);
+            const watchMatch = videoInput.match(/[?&]v=([^/?#&]+)/);
+            const embedMatch = videoInput.match(/youtube\.com\/embed\/([^/?#&]+)/);
+            const shortUrlMatch = videoInput.match(/youtu\.be\/([^/?#&]+)/);
+
+            if (shortsMatch) {
+                isShort = true;
+                youtubeId = shortsMatch[1];
+            } else if (watchMatch) {
+                youtubeId = watchMatch[1];
+            } else if (embedMatch) {
+                youtubeId = embedMatch[1];
+            } else if (shortUrlMatch) {
+                youtubeId = shortUrlMatch[1];
+            } else {
+                youtubeId = videoInput; // Assume it's just the ID
+            }
+            mdContent = mdContent.replace(/\[video: .*\]/g, '').trim();
+        }
+
+        let html = marked.parse(mdContent);
+        
+        if (youtubeId) {
+            const containerStyle = isShort 
+                ? "margin: 20px auto; border: 1px solid #fff; max-width: 280px; aspect-ratio: 9/16;"
+                : "margin: 20px 0; border: 1px solid #fff; aspect-ratio: 16/9;";
+            
+            html += `
+                <div class="video-container" style="${containerStyle}">
+                    <iframe 
+                        width="100%" 
+                        height="100%" 
+                        src="https://www.youtube.com/embed/${youtubeId}" 
+                        title="YouTube video player" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        referrerpolicy="strict-origin-when-cross-origin" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            `;
+        }
+
         typeText(html);
     }
 
