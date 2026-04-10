@@ -1,0 +1,87 @@
+EU:       11914665472
+ASIA:     7746003208
+America:  7604227517
+TW HK KO: 7824907324
+
+
+
+
+Shoot gun, use broom, jump with rocket launcher.
+Challenge the pit!
+
+Power Ups have permanent effects, picking them defines your build.
+
+Difficulty could be adjusted by using Stone Lever.
+Co-op should be possible, so if stage is too difficult, it is possible to have 8 people in the pit.
+
+
+
+
+
+For male model, to have proper gun placement: walk into male GUN FIX booth (For shotgun/rocket launcher).
+________________________
+
+Power ups: 
+
+Yellow = Crit Rate/DMG MAX for 9 seconds + permanent 10 crit rate/20 crit damage.
+Red = ATK MAX for 9 seconds + permanent 20% atk.
+Green = Invincibility for 9 second + permanent +50% HP +1000hp recovery.
+Blue = Max jump for 9 seconds + permanent movement speed increase.
+________________________
+There is a true/secret ending.
+________________________
+
+#My1stWonderland #singleplayer #co-op #arena #shooter #movement #fast-paced
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Shoot gun, use broom, jump with rocket launcher.
+
+Difficulty could be adjusted by using the Stone Lever.
+Co-op should be possible, so if stage is too difficult, it is possible to have 8 people in the pit.
+
+For male model, to have proper gun placement: use male GUN FIX booth (For shotgun/rocket launcher).
+Power ups: 
+Yellow = Crit Rate/DMG MAX for 9 seconds + permanent 10 crit rate/20 crit damage
+Red = ATK MAX for 9 seconds + permanent 20% atk
+Green = Invincibility for 9 second + permanent +50% HP +1000hp recovery
+Blue = Max jump for 9 seconds + permanent movement speed increase
+
+There is a true/secret ending.
+
+
+
+
+#My1stWonderland #singleplayer #co-op #arena #shooter #movement #fast-paced
+
+
+
+
+
+Fixed the bug, when enemies of level over 200 couldn't spawn. Right now if enemies reach such level, only Boars will be spawning to reward the player for achieving such hight of performance!
