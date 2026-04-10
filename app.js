@@ -1327,11 +1327,7 @@ async function openEntry(path) {
   }
   else if (entry.type === 'about') windowId = openAboutMeWindow(entry.name, openWindow); // Handle 'about' type
   else if (entry.type === 'blog') windowId = await openBlogWindow(entry.name, openWindow); // Handle 'blog' type
-  else if (entry.type === 'wonderland') {
-    if (entry.path === '/Wonderlands/Guns Brooms Rockets') {
-      windowId = await openMiliastraPrimeWindow(entry, openWindow);
-    } else {
-      windowId = await openWonderlandWindow(entry, openWindow);
+  else if (entry.type === 'wonderland') windowId = await openWonderlandWindow(entry, openWindow);
     }
   }
 
