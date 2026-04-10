@@ -28,7 +28,7 @@ export async function preloadBlogPosts() {
         const username = window.location.hostname.split('.')[0];
         const repo = pathParts[0];
         try {
-          const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog?cb=${new Date().getTime()}`);
+          const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
           if (ghResponse.ok) {
             const files = await ghResponse.json();
             dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name);
@@ -95,7 +95,7 @@ export async function openBlogWindow(title, openWindowFn) {
           const repo = pathParts[0];
           try {
             // Fetch file list from GitHub API
-            const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog?cb=${new Date().getTime()}`);
+            const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
             if (ghResponse.ok) {
               const files = await ghResponse.json();
               dynamicFiles = files
@@ -151,7 +151,29 @@ export async function openBlogWindow(title, openWindowFn) {
           
           // Extract youtubeId if present in a comment or specific line like [video: ID]
           const videoMatch = cleanText.match(/\[video: (.*)\]/);
-          const youtubeId = videoMatch ? videoMatch[1] : null;
+          let youtubeId = null;
+          let isShort = false;
+          
+          if (videoMatch) {
+            const videoInput = videoMatch[1].trim();
+            const shortsMatch = videoInput.match(/youtube\.com\/shorts\/([^/?#&]+)/);
+            const watchMatch = videoInput.match(/[?&]v=([^/?#&]+)/);
+            const embedMatch = videoInput.match(/youtube\.com\/embed\/([^/?#&]+)/);
+            const shortUrlMatch = videoInput.match(/youtu\.be\/([^/?#&]+)/);
+
+            if (shortsMatch) {
+              isShort = true;
+              youtubeId = shortsMatch[1];
+            } else if (watchMatch) {
+              youtubeId = watchMatch[1];
+            } else if (embedMatch) {
+              youtubeId = embedMatch[1];
+            } else if (shortUrlMatch) {
+              youtubeId = shortUrlMatch[1];
+            } else {
+              youtubeId = videoInput; // Assume it's just the ID
+            }
+          }
 
           // Extract custom icon if present like [icon: URL]
           const iconMatch = cleanText.match(/\[icon: (.*)\]/);
@@ -180,6 +202,7 @@ export async function openBlogWindow(title, openWindowFn) {
             date: date,
             content: html,
             youtubeId: youtubeId,
+            isShort: isShort,
             type: youtubeId ? 'video' : 'text',
             thumbnail: customIcon || (youtubeId ? 'icons/videos_icon.png' : 'icons/projects_icon.png'),
             italics: postItalics
@@ -385,11 +408,16 @@ export async function openBlogWindow(title, openWindowFn) {
     
     let contentHtml = post.content;
     if (post.youtubeId) {
+      const isShort = post.isShort;
+      const containerStyle = isShort 
+        ? "margin: 20px auto; border: 2px solid var(--win95-dark); max-width: 315px; aspect-ratio: 9/16;"
+        : "margin: 20px 0; border: 2px solid var(--win95-dark); aspect-ratio: 16/9;";
+      
       contentHtml += `
-        <div class="video-container" style="margin: 20px 0; border: 2px solid var(--win95-dark);">
+        <div class="video-container" style="${containerStyle}">
           <iframe 
             width="100%" 
-            height="450" 
+            height="100%" 
             src="https://www.youtube.com/embed/${post.youtubeId}" 
             title="YouTube video player" 
             frameborder="0" 
