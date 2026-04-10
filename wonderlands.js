@@ -1,6 +1,7 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
 
 export async function openWonderlandWindow(entry, openWindowFn) {
+    console.log("Entry data:", entry); 
     const container = document.createElement('div');
     container.className = 'wonderland-container';
     container.style.cssText = `
