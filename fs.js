@@ -99,7 +99,11 @@ export const FS = (() => {
     updatesUrl: 'wonderlands/miliastra_prime/updates.md',
     icon: 'wonderlands/miliastra_prime/GBR_Cover.jpg'
   });
-
+  wonderland('Országház', 'wonderlands/orszaghaz/index.html', '/Wonderlands', { 
+    description: 'Building.',
+    updatesUrl: 'wonderlands/orszaghaz/updates.md',
+    icon: 'wonderlands/miliastra_prime/GBR_Cover.jpg'
+  });
 
   // Assign custom icons - corrected paths to be relative to the root index.html
   pics.icon = 'icons/pictures_icon.png';
