@@ -7,7 +7,7 @@ export async function openMiliastraPrimeWindow(entry, openWindowFn) {
         const link = document.createElement('link');
         link.id = 'miliastra-css';
         link.rel = 'stylesheet';
-        link.href = './wonderlands/miliastra_prime/wonderland_miliastra.css';
+        link.href = './wonderlands/orszaghaz/orszaghaz.css';
         document.head.appendChild(link);
     }
 
@@ -313,7 +313,7 @@ export async function openMiliastraPrimeWindow(entry, openWindowFn) {
     if (logs.length > 0) selectLog(logs.length - 1);
 
     const windowId = openWindowFn({
-        title: `Guns Brooms Rockets - Dev Journal`,
+        title: `Orszaghaz - Dev Journal`,
         content: container,
         width: 1100,
         height: 750,
