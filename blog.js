@@ -20,7 +20,6 @@ import {
 
 export async function preloadBlogPosts() {
   try {
-    const ghResponse = await fetch(`https://github.com{username}/${repo}/contents/blog?cb=${new Date().getTime()}`);
     const isGitHubPages = window.location.hostname.endsWith('github.io');
     let dynamicFiles = [];
     if (isGitHubPages) {
@@ -29,7 +28,7 @@ export async function preloadBlogPosts() {
         const username = window.location.hostname.split('.')[0];
         const repo = pathParts[0];
         try {
-          const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
+          const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog?cb=${new Date().getTime()}`);
           if (ghResponse.ok) {
             const files = await ghResponse.json();
             dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name);
