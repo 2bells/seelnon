@@ -13,6 +13,7 @@
   <!-- Preload key assets for faster initial load -->
   <!-- Stylesheets -->
   <link rel="preload" href="./styles.css" as="style">
+  <link rel="preload" href="./night_mode.css" as="style">
   <link rel="preload" href="./mascot.css" as="style">
 
   <!-- Mascot GIFs -->
@@ -42,10 +43,19 @@
   <link rel="preload" href="./icons/talent_icon_debug.png" as="image">
   <link rel="preload" href="./icons/talent_icon_pixel.png" as="image">
   <link rel="preload" href="./icons/talent_icon_coffee.png" as="image">
+
+  <!-- Guns Brooms Rockets assets -->
+  <link rel="preload" href="./wonderlands/miliastra_prime/GBR_Cover.jpg" as="image">
+  <link rel="preload" href="./wonderlands/miliastra_prime/1.jpg" as="image">
+  <link rel="preload" href="./wonderlands/miliastra_prime/2.jpg" as="image">
+  <link rel="preload" href="./wonderlands/miliastra_prime/3.jpg" as="image">
+  <link rel="preload" href="./wonderlands/miliastra_prime/4.jpg" as="image">
+  <link rel="preload" href="./wonderlands/miliastra_prime/GBR_loading.jpg" as="image">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=VT323&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./night_mode.css" />
   <link rel="stylesheet" href="./wonderlands.css" />
   <link rel="stylesheet" href="./mascot.css" />
   <script type="importmap">
@@ -104,8 +114,10 @@
     <button class="start-item" data-open="AI_research" role="menuitem">AI_research</button>
     <hr />
     <button class="start-item" data-open="About Me" role="menuitem">About Me</button>
+    <button class="start-item" id="theme-toggle" role="menuitem">Night Mode</button>
   </div>
 
+  <div id="particles-container"></div>
   <img id="mascot-gif" src="./gif/normal_maskot.gif" alt="Animated Mascot">
   <div id="speech-bubble"></div>
 
