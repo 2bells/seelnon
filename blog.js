@@ -95,7 +95,7 @@ export async function openBlogWindow(title, openWindowFn) {
           const repo = pathParts[0];
           try {
             // Fetch file list from GitHub API
-            const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
+            const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog?cb=${new Date().getTime()}`);
             if (ghResponse.ok) {
               const files = await ghResponse.json();
               dynamicFiles = files
