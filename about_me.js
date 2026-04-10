@@ -30,7 +30,7 @@ export function openAboutMeWindow(title, openWindowFn) {
         <ul>
             <li><span class="highlight-text">Video editing, VFX, Storyboarding: Started with Battlefield 3 (EA Russia), transitioned into creative agency 'Red Keds' and since 2014 a 'gun for hire' working with Yandex. + Freelance</li>
             <li><span class="highlight-text">Deadlines and stress:</span> I have an arrangement of breathing techniques with quick access to a flow state. Allows me to do very impressive short sprints, but has a side effect of compounding fatigue, that... has consequences to my health in general.</li>
-            <li><span class="highlight-text">Game Design, Arts, Logic:</span> I approach coding as an idea of being a 'logic artist'. Concrete solutions are derived from my abstract thinking, rather than rules and 'common practices'. Could be hard to integrate into a team environment, as my ideas are usually 'out there'. Works for me, but not always for the others.</li>
+            <li><span class="highlight-text">Game Design, Arts, Logic:</span> I approach design as a 'logic artist'. Concrete solutions are derived from my abstract thinking, rather than rules and 'common practices'. Could be hard to integrate into a team environment, as my ideas are usually 'out there'. Works for me, but not always for the others.</li>
         </ul>
         <p class="subdued-text">(Endurance +4, Leadership -3)</p>
       `
@@ -48,12 +48,12 @@ export function openAboutMeWindow(title, openWindowFn) {
       `
     },
     legs: {
-      title: 'Legs: I usually stand, but I know when to run.',
+      title: 'Legs: I usually just stand there, menacingly.',
       text: `
-        <p>Only moving forward, I don't have a time machine:</p>
+        <p>Only moving forward, that's how time works:</p>
         <ul>
             <li><span class="highlight-text">Adaptability:</span> I know how to solve, survive or outlive the problem of... any kind (limitations apply).</li>
-            <li><span class="highlight-text">Growth Mindset:</span> What doesn't kill you, does a poor job, now I'm the one with more experience under my belt. ggs.</li>
+            <li><span class="highlight-text">Growth Mindset:</span> What doesn't kill you, does a poor job and just gives me more experience. ggs tho.</li>
             <li><span class="highlight-text">Global Perspective:</span> With my legs planted well, I can allow my mind to be ever present. The better my flower pot, the better my mind flowers.</li>
         </ul>
         <p class="subdued-text">(Agility +4, Globality +9)</p>
