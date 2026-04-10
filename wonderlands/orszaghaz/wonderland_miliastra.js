@@ -7,14 +7,14 @@ export async function openMiliastraPrimeWindow(entry, openWindowFn) {
         const link = document.createElement('link');
         link.id = 'miliastra-css';
         link.rel = 'stylesheet';
-        link.href = './wonderlands/orszaghaz/orszaghaz.css';
+        link.href = './wonderlands/orszaghaz/wonderland_miliastra.css';
         document.head.appendChild(link);
     }
 
     // Fetch TAG.txt
     let tagContent = '';
     try {
-        const res = await fetch('./wonderlands/miliastra_prime/TAG.txt');
+        const res = await fetch('./wonderlands/orszaghaz/TAG.txt');
         if (res.ok) {
             tagContent = await res.text();
         }
