@@ -89,7 +89,7 @@ export async function openMiliastraPrimeWindow(entry, openWindowFn) {
                         <div>
                             <h1 class="miliastra-title">Guns Brooms Rockets</h1>
                             <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: 0.5; margin-top: 4px;">
-                                <span>QDG_jamal3</span>
+                                <span>seelnon</span>
                                 <span>•</span>
                                 <span id="miliastra-version-label">DEV_JOURNAL</span>
                                 <span id="miliastra-version-badge" style="background: #e91e63; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">v1.0.4</span>
