@@ -296,12 +296,12 @@
 }
 
 .wonderland-btn:hover {
-    background: #d0d0d0;
+    background: #616161;
 }
 
 .wonderland-btn:active {
     border-color: #808080 #ffffff #ffffff #808080;
-    padding: 7px 11px 5px 13px;
+    padding: 2px 3px 1px 3px;
 }
 
 .blinking-cursor {
