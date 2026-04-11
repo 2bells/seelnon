@@ -266,14 +266,14 @@
 }
 
 .wonderland-timeline-node:hover {
-    border-color: #ffd700;
-    color: #ffd700;
+    border-color: #b0b0b0;
+    color: #b0b0b0;
 }
 
 .wonderland-timeline-node.active {
-    background: #ffd700;
+    background: #b0b0b0;
     color: #000;
-    border-color: #ffd700;
+    border-color: #b0b0b0;
 }
 
 .wonderland-btn {
@@ -323,14 +323,13 @@
     background: #673ab7;
     background-size: cover;
     background-position: center;
-    border: 2px solid rgba(255, 255, 255, 0.2);
     flex-shrink: 0;
 }
 
 /* ASCII WIP Liner */
 .wonderland-wip-banner {
     width: 100%;
-    color: #ffd700;
+    color: #b0b0b0;
     font-family: 'VT323', monospace;
     font-size: 16px;
     margin-bottom: 30px;
