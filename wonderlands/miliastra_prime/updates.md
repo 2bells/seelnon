@@ -43,7 +43,7 @@ VERSION: v1.0.3
 DATE: 2026-04-15
 STATUS: OPTIMIZING
 BG_COLOR: #0a0a14
-MEDIA: CORE_REACTOR, wonderlands/miliastra_prime/3.jpg, PATCH_DEMO, VOID_GATE, wonderlands/miliastra_prime/4.jpg, wonderlands/miliastra_prime/GBR_Cover.jpg, TRAILER
+MEDIA: wonderlands/miliastra_prime/3.jpg, wonderlands/miliastra_prime/4.jpg, wonderlands/miliastra_prime/GBR_Cover.jpg, TRAILER
 DESCRIPTION: Visual fidelity increased by 40%. Memory leak in the water pool simulation patched. Sector ready for public peeking. Final optimizations for the Guns Brooms Rockets experience are complete.
 WIP_TEXT: ----ALMOST DONE---
 SHOW_WIP: true
