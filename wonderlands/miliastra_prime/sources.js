@@ -2,7 +2,7 @@ export default {
     version: "v1.0.1",
     themeColor: "#4ecca3",
     avatarColor: "#2d3436",
-    avatar: "https://picsum.photos/seed/miliastra/100/100",
+    avatar: "https://i.pinimg.com/736x/4c/18/8f/4c188f028ec53efc8e34aea4a575f334.jpg",
     videos: {
         "TRAILER": "YERFXEsvH_k",
         "PATCH_DEMO": "N75uN9ioY-s"
@@ -13,10 +13,10 @@ export default {
     },
     wipStatuses: ["wip", "forging", "stabilizing"],
     labels: {
-        journal: "SECTOR_LOG",
-        logs: "ACCESS_TERMINAL",
-        terminal: "[ SECTOR_STABILIZATION_LOGS ]",
+        journal: "DEV_PROGRESS",
+        logs: "DEV_LOGS",
+        terminal: "[ STABILIZATION_LOGS ]",
         description: "Sector Data Archive",
-        wip: "STABILIZING SECTOR"
+        wip: "WORK IN BROOMS"
     }
 };
