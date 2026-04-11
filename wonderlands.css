@@ -163,6 +163,25 @@
     padding-right: 10px;
 }
 
+.wonderland-description-text p {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.wonderland-description-text p:last-child {
+    margin-bottom: 0;
+}
+
+.wonderland-description-text a, .wonderland-log-content a {
+    color: #ffd700;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+}
+
+.wonderland-description-text a:hover, .wonderland-log-content a:hover {
+    opacity: 0.8;
+}
+
 .wonderland-tag-section {
     margin-top: 20px;
     display: grid;
@@ -211,7 +230,7 @@
     right: -450px;
     width: 450px;
     height: 100%;
-    background: rgba(10, 10, 20, 0.98);
+    background: rgba(0, 0, 0, 0.98);
     border-left: 1px solid rgba(255, 255, 255, 0.2);
     transition: right 0.5s cubic-bezier(0.19, 1, 0.22, 1);
     z-index: 100;
