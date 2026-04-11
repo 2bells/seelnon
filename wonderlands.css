@@ -277,19 +277,38 @@
 }
 
 .wonderland-btn {
-    padding: 12px 30px;
-    border-radius: 24px;
-    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 0;
+    font-weight: normal;
     cursor: pointer;
-    border: none;
-    transition: transform 0.1s;
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    background: #c0c0c0;
+    color: #000;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    text-transform: uppercase;
 }
 
 .wonderland-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: #d0d0d0;
+}
+
+.wonderland-btn:active {
+    border-color: #808080 #ffffff #ffffff #808080;
+    padding: 7px 11px 5px 13px;
+}
+
+.blinking-cursor {
+    animation: blink-cursor 1s step-end infinite;
+}
+
+@keyframes blink-cursor {
+    50% { opacity: 0; }
 }
 
 .wonderland-rank-avatar {
@@ -297,6 +316,10 @@
     height: 48px;
     border-radius: 50%;
     background: #673ab7;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
 }
 
 /* ASCII WIP Liner */
@@ -321,15 +344,14 @@
 
 /* Terminal Prompt */
 .terminal-prompt {
-    margin-top: 20px;
+    margin-top: 30px;
     color: #ffd700;
-    font-weight: bold;
-    animation: blink-prompt 1s step-end infinite;
-}
-
-@keyframes blink-prompt {
-    from, to { opacity: 1; }
-    50% { opacity: 0; }
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 14px;
+    opacity: 0.6;
+    text-align: left;
 }
 
 .markdown-body-terminal-bw blockquote {
