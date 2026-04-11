@@ -1,7 +1,10 @@
 VERSION: v0.0.1
 DATE: 2026-04-09
 STATUS: SCHEMING
-MEDIA: wonderlands/miliastra_prime/GBR_loading.jpg
+BG_COLOR: #000000
+WIP_TEXT: BUILD THE THING
+SHOW_WIP: true
+MEDIA: IMAGE_1
 DESCRIPTION: Building looked at me weirdly.
 ---
 # Sector: Orszaghaz
@@ -14,11 +17,11 @@ DESCRIPTION: Building looked at me weirdly.
 VERSION: v1.0.2
 DATE: 2026-04-10
 STATUS: EXPANDING
-MEDIA: wonderlands/miliastra_prime/1.jpg, wonderlands/miliastra_prime/2.jpg
-DESCRIPTION: Gravity wells successfully implemented. Wonderland engine calibrated to 98% efficiency. Communication link with Mascot established. The environment is reacting positively to the new parameters.
+MEDIA: IMAGE_2, IMAGE_3
+DESCRIPTION: That's him, the building!
 ---
-# Sector: Guns Brooms Rockets
-## Status: EXPANDING
+# Sector: Orszaghaz
+## Status: Building
 
 ### New Developments
 - **[2026-04-10]** Gravity wells successfully implemented.
