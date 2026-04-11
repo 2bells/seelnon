@@ -8,9 +8,10 @@ let dynamicHints = [];
 
 const staticHints = [
     "Welcome! Double-click icons to open them. It is Windows after all.",
+    "Start -> Night Mode -> You are welcome.",
     "Check my Art, Videos, Blog, I did a lot of stuff in my days.",
     "Blog is a fun place, trust",
-    "About Me section is here to give you more insight into.. me",
+    "About Me section is where to get more insight into.. me",
     "Wonderlands suppose to be about Miliastra in Genshin",
     "Some 'me' things are too hard to explain, just judge me",
 ];
