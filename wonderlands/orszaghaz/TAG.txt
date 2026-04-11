@@ -1,7 +1,7 @@
-EU:       Work_in_progress
-ASIA:     Work_in_progress
-America:  Work_in_progress
-TW HK KO: Work_in_progress
+EU:       00000000000
+ASIA:     00000000000
+America:  00000000000
+TW HK KO: 00000000000
 
 
 #My1stBuilding #singleplayer #build #ave #walking
