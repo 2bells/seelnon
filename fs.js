@@ -96,7 +96,7 @@ export const FS = (() => {
 
   // Wonderlands
   wonderland('Guns Brooms Rockets', 'wonderlands/miliastra_prime/TAG.txt', '/Wonderlands', { 
-    description: 'The core of the Miliastra project.',
+    description: 'shoot + broom + explode = fun.',
     updatesUrl: 'wonderlands/miliastra_prime/updates.md',
     icon: 'wonderlands/miliastra_prime/GBR_Cover.jpg'
   });
