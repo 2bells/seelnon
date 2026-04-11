@@ -7,12 +7,12 @@ let speechBubbleElement = null;
 let dynamicHints = [];
 
 const staticHints = [
-    "Welcome to the Portfolio! Double-click icons to open them.",
+    "Welcome! Double-click icons to open them. It is Windows after all.",
     "Check my Art, Videos, Blog, I did a lot of stuff in my days.",
-    "Blog is the fun place, trust",
+    "Blog is a fun place, trust",
     "About Me section is here to give you more insight into.. me",
     "Wonderlands suppose to be about Miliastra in Genshin",
-    "Some stuff things about me are too hard to explain, just judge me",
+    "Some 'me' things are too hard to explain, just judge me",
 ];
 
 // Preload the fast mascot GIF
