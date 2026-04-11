@@ -2,6 +2,7 @@ export default {
     version: "v1.0.1",
     themeColor: "#4ecca3",
     avatarColor: "#2d3436",
+    avatar: "https://picsum.photos/seed/miliastra/100/100",
     videos: {
         "TRAILER": "YERFXEsvH_k",
         "PATCH_DEMO": "N75uN9ioY-s"
