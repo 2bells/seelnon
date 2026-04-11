@@ -285,14 +285,14 @@
 }
 
 .wonderland-timeline-node:hover {
-    border-color: #b0b0b0;
-    color: #b0b0b0;
+    border-color: #ffd700;
+    color: #ffd700;
 }
 
 .wonderland-timeline-node.active {
-    background: #b0b0b0;
+    background: #ffd700;
     color: #000;
-    border-color: #b0b0b0;
+    border-color: #ffd700;
 }
 
 .wonderland-btn {
