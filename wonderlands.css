@@ -300,8 +300,12 @@
 }
 
 .wonderland-btn:active {
-    border-color: #808080 #ffffff #ffffff #808080;
-    padding: 2px 3px 1px 3px;
+    padding: 8px 16px; 
+    background: #fff; 
+    color: #000;
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.2);
+    border: 2px solid #fff; 
 }
 
 .blinking-cursor {
