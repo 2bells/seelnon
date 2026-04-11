@@ -100,10 +100,15 @@ export const FS = (() => {
     updatesUrl: 'wonderlands/miliastra_prime/updates.md',
     icon: 'wonderlands/miliastra_prime/GBR_Cover.jpg'
   });
-  wonderland('Országház', 'wonderlands/orszaghaz/TAG.html', '/Wonderlands', { 
+  wonderland('Országház', 'wonderlands/orszaghaz/TAG.txt', '/Wonderlands', { 
     description: 'Building.',
     updatesUrl: 'wonderlands/orszaghaz/updates.md',
     icon: "https://avatars.mds.yandex.net/i?id=0b2cf640211c6f941219cafacc01dd41_sr-5147303-images-thumbs&n=13"
+  });  
+    wonderland('League of GUN', 'wonderlands/league_of_gun/TAG.txt', '/Wonderlands', { 
+    description: 'League, but FPS.',
+    updatesUrl: 'wonderlands/league_of_gun/updates.md',
+    icon: "wonderlands/league_of_gun/cover.jpg"
   });  
 
 
