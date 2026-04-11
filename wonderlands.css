@@ -277,20 +277,21 @@
 }
 
 .wonderland-btn {
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 0;
-    font-weight: normal;
+    font-weight: 700;
     cursor: pointer;
-    border: 2px solid;
-    border-color: #ffffff #808080 #808080 #ffffff;
-    background: #c0c0c0;
-    color: #000;
+    border: 2px solid #fff;
+    transition: transform 0.1s, box-shadow 0.1s;
+    background: #000;
+    color: #fff;
     font-family: 'VT323', monospace;
     font-size: 18px;
     letter-spacing: 1px;
+    box-shadow: 4px 4px 0 rgba(255, 255, 255, 0.2);
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     text-transform: uppercase;
 }
 
