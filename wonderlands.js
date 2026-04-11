@@ -114,7 +114,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         tagLines.forEach(line => {
             if (line.includes(':')) {
                 const [key, value] = line.split(':').map(s => s.trim());
-                if (value && /^\d+$/.test(value)) {
+                if (value) {
                     guids[key] = value;
                 }
             }
@@ -130,7 +130,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
     // Clean description
     let description = tagContent
         ? tagContent
-            .replace(/EU:.*\n?|ASIA:.*\n?|America:.*\n?|TW HK KO:.*\n?/g, '')
+            .replace(/EU:.*\n?|ASIA:.*\n?|America:.*\n?|TW HK KO:.*\n?|CN:.*\n?/g, '')
             .replace(/#\w+/g, '')
             .replace(/_{5,}/g, '')
             .trim()
