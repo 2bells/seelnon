@@ -410,7 +410,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         }
 
         versionBadge.textContent = log.meta.version || `v1.0.${index + 1}`;
-        descText.textContent = log.meta.description || description;
+        descText.innerHTML = marked.parse(log.meta.description || description);
         updateCarousel(index);
         typeLog(logHtml);
     }
