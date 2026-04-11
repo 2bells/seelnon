@@ -15,6 +15,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
     // Derive base path from URL
     const basePath = entry.url.substring(0, entry.url.lastIndexOf('/') + 1);
+    const uniqueId = Math.random().toString(36).substring(2, 9);    
 
     // Load per-wonderland config (sources.js)
     let config = {
@@ -37,13 +38,14 @@ export async function openWonderlandWindow(entry, openWindowFn) {
     };
 
     try {
-        // Use a cache-busting or absolute path if needed, but relative should work in Vite
-        const configModule = await import(`${basePath}sources.js`);
+        // Use a relative path prefix for Vite and deep merge labels
+        const configModule = await import(`./${basePath}sources.js`);
         if (configModule && configModule.default) {
-            config = { ...config, ...configModule.default };
+            const newLabels = { ...config.labels, ...(configModule.default.labels || {}) };
+            config = { ...config, ...configModule.default, labels: newLabels };
         }
     } catch (e) {
-        console.warn(`No sources.js found for ${entry.name}, using defaults.`, e);
+        console.warn(`[Wonderlands] No sources.js found for ${entry.name} at ./${basePath}sources.js, using defaults.`, e);
     }
 
     // Helper to render video slide
@@ -145,21 +147,21 @@ export async function openWonderlandWindow(entry, openWindowFn) {
                         <h1 class="wonderland-title">${entry.name}</h1>
                         <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: 0.5; margin-top: 4px;">
                             <span>${config.labels.journal}</span>
-                            <span id="wonderland-version-badge" style="background: ${config.themeColor}; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">${config.version}</span>
+                            <span class="wonderland-version-badge" style="background: ${config.themeColor}; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">${config.version}</span>
                         </div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    ${isHtmlExperience ? `<button class="wonderland-btn" id="wonderland-refresh-experience" title="Reload Experience">⟳</button>` : ''}
-                    <button class="wonderland-btn" id="wonderland-log-toggle">${config.labels.logs} <span class="blinking-cursor">_</span></button>
+                    ${isHtmlExperience ? `<button class="wonderland-btn wonderland-refresh-experience" title="Reload Experience">⟳</button>` : ''}
+                    <button class="wonderland-btn wonderland-log-toggle">${config.labels.logs} <span class="blinking-cursor">_</span></button>
                 </div>
             </header>
-            <div id="wonderland-wip-banner" class="wonderland-wip-banner" style="display: none;"></div>
+            <div class="wonderland-wip-banner" style="display: none;"></div>
             <div class="wonderland-content-grid">
                 <div class="wonderland-left-col">
-                    <div class="wonderland-carousel" id="wonderland-stage-container">
+                    <div class="wonderland-carousel wonderland-stage-container">
                         ${isHtmlExperience 
-                            ? `<iframe id="wonderland-experience-iframe" src="${entry.url}" style="width:100%; height:100%; border:none; background:#000;"></iframe>`
+                            ? `<iframe class="wonderland-experience-iframe" src="${entry.url}" style="width:100%; height:100%; border:none; background:#000;"></iframe>`
                             : `<!-- Carousel injected here -->`
                         }
                     </div>
@@ -180,7 +182,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
                 <div class="wonderland-right-col">
                     <div class="wonderland-description-box">
                         <h2 class="wonderland-section-title">${config.labels.description}</h2>
-                        <div class="wonderland-description-text" id="wonderland-desc-text">${marked.parse(description)}</div>
+                        <div class="wonderland-description-text wonderland-desc-text">${marked.parse(description)}</div>
                     </div>
 
                     <div class="wonderland-hashtags">
@@ -190,15 +192,15 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             </div>
 
             <!-- Sliding Log Panel -->
-            <div class="wonderland-log-panel" id="wonderland-log-panel">
+            <div class="wonderland-log-panel">
                 <div class="wonderland-log-header">
                     <span>${config.labels.terminal}</span>
-                    <button style="background:none; border:none; color:#fff; cursor:pointer;" id="wonderland-log-close">X</button>
+                    <button style="background:none; border:none; color:#fff; cursor:pointer;" class="wonderland-log-close">X</button>
                 </div>
-                <div class="wonderland-log-timeline" id="wonderland-log-timeline">
+                <div class="wonderland-log-timeline">
                     <!-- Nodes generated here -->
                 </div>
-                <div class="wonderland-log-content markdown-body-terminal-bw" id="wonderland-log-display">
+                <div class="wonderland-log-content markdown-body-terminal-bw wonderland-log-display">
                     <!-- Content typed here -->
                 </div>
             </div>
@@ -209,20 +211,20 @@ export async function openWonderlandWindow(entry, openWindowFn) {
     let currentLogIndex = -1;
     let isTyping = false;
 
-    // Elements
-    const logPanel = container.querySelector('#wonderland-log-panel');
-    const logToggle = container.querySelector('#wonderland-log-toggle');
-    const logClose = container.querySelector('#wonderland-log-close');
-    const logTimeline = container.querySelector('#wonderland-log-timeline');
-    const logDisplay = container.querySelector('#wonderland-log-display');
-    const descText = container.querySelector('#wonderland-desc-text');
-    const versionBadge = container.querySelector('#wonderland-version-badge');
-    const stageContainer = container.querySelector('#wonderland-stage-container');
-    const refreshBtn = container.querySelector('#wonderland-refresh-experience');
+   // Elements
+    const logPanel = container.querySelector('.wonderland-log-panel');
+    const logToggle = container.querySelector('.wonderland-log-toggle');
+    const logClose = container.querySelector('.wonderland-log-close');
+    const logTimeline = container.querySelector('.wonderland-log-timeline');
+    const logDisplay = container.querySelector('.wonderland-log-display');
+    const descText = container.querySelector('.wonderland-desc-text');
+    const versionBadge = container.querySelector('.wonderland-version-badge');
+    const stageContainer = container.querySelector('.wonderland-stage-container');
+    const refreshBtn = container.querySelector('.wonderland-refresh-experience');
 
     if (refreshBtn) {
         refreshBtn.onclick = () => {
-            const iframe = container.querySelector('#wonderland-experience-iframe');
+            const iframe = container.querySelector('.wonderland-experience-iframe');
             if (iframe) iframe.src = iframe.src;
         };
     }
@@ -366,7 +368,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         }
 
         // NEW: WIP Banner visibility and text control
-        const wipBanner = container.querySelector('#wonderland-wip-banner');
+        const wipBanner = container.querySelector('.wonderland-wip-banner');
         const status = (log.meta.status || "").toLowerCase();
         const wipOverride = log.meta.wip_text;
         const showWip = log.meta.show_wip !== undefined ? log.meta.show_wip === 'true' : config.wipStatuses.includes(status);
@@ -432,6 +434,16 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             window.removeEventListener('keydown', handleKeyProgression);
             return;
         }
+        // Only progress if this window is the top-most (focused) one
+        const winEl = container.closest('.window');
+        if (winEl && winEl.style.zIndex !== document.body.dataset.topZ) {
+            // We need a way to track top Z, but for now let's just check if it's the last child of desktop
+            const desktop = document.getElementById('desktop');
+            const windows = Array.from(desktop.querySelectorAll('.window'));
+            const topWin = windows.sort((a, b) => parseInt(b.style.zIndex || 0) - parseInt(a.style.zIndex || 0))[0];
+            if (winEl !== topWin) return;
+        }
+
         if (logPanel.classList.contains('open') && !isTyping && currentLogIndex < logs.length - 1) {
             selectLog(currentLogIndex + 1);
         }
