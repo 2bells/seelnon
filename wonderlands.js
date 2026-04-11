@@ -180,7 +180,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
                 <div class="wonderland-right-col">
                     <div class="wonderland-description-box">
                         <h2 class="wonderland-section-title">${config.labels.description}</h2>
-                        <div class="wonderland-description-text" id="wonderland-desc-text">${description}</div>
+                        <div class="wonderland-description-text" id="wonderland-desc-text">${marked.parse(description)}</div>
                     </div>
 
                     <div class="wonderland-hashtags">
