@@ -1,7 +1,7 @@
 VERSION: v1.0.1
 DATE: 2026-04-09
 STATUS: FORGING
-BG_COLOR: #ffffff
+BG_COLOR: #000000
 MEDIA: wonderlands/miliastra_prime/GBR_loading.jpg
 DESCRIPTION: Initial sector stabilization complete. [link](https://youtube.com), but the boundaries are still fluid. Atmospheric simulation initialized and core reactor reached 100% capacity.
 ---
@@ -20,7 +20,7 @@ DESCRIPTION: Initial sector stabilization complete. [link](https://youtube.com),
 VERSION: v1.0.2
 DATE: 2026-04-10
 STATUS: WIP
-BG_COLOR: #ffffff
+BG_COLOR: #000000
 MEDIA: wonderlands/miliastra_prime/1.jpg, wonderlands/miliastra_prime/2.jpg
 DESCRIPTION: Gravity wells successfully implemented. Wonderland engine calibrated to 98% efficiency. Communication link with Mascot established. The environment is reacting positively to the new parameters.
 ---
