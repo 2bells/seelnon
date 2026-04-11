@@ -21,6 +21,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         trailerId: "",
         videos: {}, // NEW: Support for multiple named videos
         images: {}, // NEW: Support for multiple named images
+        avatar: "", // NEW: Support for avatar image
         version: "v1.0.0",
         themeColor: "#e91e63",
         avatarColor: "#673ab7",
@@ -139,7 +140,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         <main class="wonderland-main">
             <header class="wonderland-header">
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <div class="wonderland-rank-avatar" style="background-color: ${config.avatarColor};"></div>
+                    <div class="wonderland-rank-avatar" style="background-color: ${config.avatarColor}; ${config.avatar ? `background-image: url(${config.avatar.startsWith('http') ? config.avatar : basePath + config.avatar});` : ''}"></div>
                     <div>
                         <h1 class="wonderland-title">${entry.name}</h1>
                         <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: 0.5; margin-top: 4px;">
@@ -150,7 +151,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
                 </div>
                 <div style="display: flex; gap: 10px;">
                     ${isHtmlExperience ? `<button class="wonderland-btn" id="wonderland-refresh-experience" title="Reload Experience">⟳</button>` : ''}
-                    <button class="wonderland-btn" id="wonderland-log-toggle">${config.labels.logs}</button>
+                    <button class="wonderland-btn" id="wonderland-log-toggle">${config.labels.logs} <span class="blinking-cursor">_</span></button>
                 </div>
             </header>
             <div id="wonderland-wip-banner" class="wonderland-wip-banner" style="display: none;"></div>
@@ -342,7 +343,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         const isLast = currentLogIndex === logs.length - 1;
         const prompt = document.createElement('div');
         prompt.className = 'terminal-prompt';
-        prompt.textContent = isLast ? '--- end of log ---' : '--- press any key to continue ---';
+        prompt.textContent = isLast ? '--- END OF LOG ---' : '--- PRESS ANY KEY TO CONTINUE ---';
         logDisplay.appendChild(prompt);
         logDisplay.scrollTop = logDisplay.scrollHeight;
         
