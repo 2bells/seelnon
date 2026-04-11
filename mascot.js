@@ -12,7 +12,7 @@ const staticHints = [
     "Blog is the fun place, trust",
     "About Me section is here to give you more insight into.. me",
     "Wonderlands suppose to be about Miliastra in Genshin",
-    "Some stuff is hard to explain, just judge me",
+    "Some stuff things about me are too hard to explain, just judge me",
 ];
 
 // Preload the fast mascot GIF
