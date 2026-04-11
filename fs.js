@@ -90,6 +90,7 @@ export const FS = (() => {
   html('Game Assets Creator', 'Content/Projects/Game_Assets_Creator/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to quickly create game assets.' });  
   html('Pixel Mesh Animator', 'Content/Projects/Pixel_Mesh_Animator/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to animate pixel art, works great with GAC.' });  
   html('Rubber Animation', 'Content/Projects/Rubber_Animation/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to animate fluid pictures.' });  
+  html('Video Analysis', 'Content/Projects/Video_Analysis/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to analyze a video.' });    
   html('Fireplace', 'Content/Projects/Fireplace/index.html', '/Projects', { icon: 'Content/Projects/Fireplace/Fireplace_Thumbnail.jpg', description: 'A way to remember an hour.' });  
 
 
