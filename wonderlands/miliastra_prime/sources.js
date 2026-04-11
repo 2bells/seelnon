@@ -2,7 +2,7 @@ export default {
     version: "v1.0.1",
     themeColor: "#4ecca3",
     avatarColor: "#2d3436",
-    avatar: "https://i.pinimg.com/736x/4c/18/8f/4c188f028ec53efc8e34aea4a575f334.jpg",
+    avatar: "https://i.pinimg.com/736x/f8/64/0e/f8640ee0307499dfe8b82872ebf8ef8a.jpg",
     videos: {
         "TRAILER": "YERFXEsvH_k",
         "PATCH_DEMO": "N75uN9ioY-s"
@@ -16,7 +16,7 @@ export default {
         journal: "DEV_PROGRESS",
         logs: "DEV_LOGS",
         terminal: "[ STABILIZATION_LOGS ]",
-        description: "Sector Data Archive",
+        description: "Wonderland Description",
         wip: "WORK IN BROOMS"
     }
 };
