@@ -35,7 +35,8 @@ export async function preloadBlogPosts() {
         const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
         
         // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
-        const italicRegex = /(^|[^*])\*([^*\n]+)\*(?![*])|(^|[^_])_([^_\n]+)_(?![_])/g;
+        // Also avoids intra-word underscores (e.g., snake_case) and handles single-character italics
+        const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
         let match;
         const postItalics = [];
         while ((match = italicRegex.exec(text)) !== null) {
@@ -119,7 +120,8 @@ export async function openBlogWindow(title, openWindowFn) {
 
           // Extract italicized text for mascot and make it invisible in blog
           // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
-          const italicRegex = /(^|[^*])\*([^*\n]+)\*(?![*])|(^|[^_])_([^_\n]+)_(?![_])/g;
+          // Also avoids intra-word underscores (e.g., snake_case) and handles single-character italics
+          const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
           let match;
           const postItalics = [];
           while ((match = italicRegex.exec(cleanText)) !== null) {
