@@ -2,7 +2,7 @@ VERSION: v0.0.2
 DATE: 2025-12-09
 STATUS: CONTEMPLATING
 BG_COLOR: #000000
-MEDIA: wonderlands/miliastra_prime/GBR_loading.jpg
+MEDIA: wonderlands/league_of_gun/3.jpg, wonderlands/league_of_gun/4.jpg, wonderlands/league_of_gun/1.jpg, wonderlands/league_of_gun/2.jpg, TRAILER
 DESCRIPTION: Found exact placements for League towers.
 ---
 # Sector: League of GUN
