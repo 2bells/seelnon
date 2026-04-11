@@ -4,7 +4,7 @@ export default {
     avatarColor: "#2d3436",
     avatar: "https://picsum.photos/seed/miliastra/100/100",
     videos: {
-        "TRAILER": "YERFXEsvH_k",
+        "TRAILER": "-TQWngv-i24",
         "PATCH_DEMO": "N75uN9ioY-s"
     },
     images: {
