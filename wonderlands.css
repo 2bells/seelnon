@@ -329,7 +329,7 @@
 /* ASCII WIP Liner */
 .wonderland-wip-banner {
     width: 100%;
-    color: #b0b0b0;
+    color: #ffd700;
     font-family: 'VT323', monospace;
     font-size: 16px;
     margin-bottom: 30px;
@@ -349,7 +349,7 @@
 /* Terminal Prompt */
 .terminal-prompt {
     margin-top: 30px;
-    color: #ffd700;
+    color: #b0b0b0;
     font-weight: normal;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -359,7 +359,7 @@
 }
 
 .markdown-body-terminal-bw blockquote {
-    border-left: 4px solid #ffd700;
+    border-left: 4px solid #b0b0b0;
     padding-left: 15px;
     margin: 15px 0;
     color: #aaa;
