@@ -91,19 +91,14 @@ export const FS = (() => {
   html('Pixel Mesh Animator', 'Content/Projects/Pixel_Mesh_Animator/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to animate pixel art, works great with GAC.' });  
   html('Rubber Animation', 'Content/Projects/Rubber_Animation/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to animate fluid pictures.' });  
   html('Video Analysis', 'Content/Projects/Video_Analysis/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to analyze a video.' });  
-  html('Fireplace', 'Content/Projects/Fireplace/index.html', '/Projects', { icon: 'Content/Projects/Fireplace/Fireplace_Thumbnail.jpg', description: 'A way to remember an hour.' });  
 
   // Wonderlands
-  wonderland('Guns Brooms Rockets', 'wonderlands/miliastra_prime/index.html', '/Wonderlands', { 
-    description: 'Shoot, broom, explode, the fun.',
+  wonderland('Guns Brooms Rockets', 'wonderlands/miliastra_prime/TAG.txt', '/Wonderlands', { 
+    description: 'The core of the Miliastra project.',
     updatesUrl: 'wonderlands/miliastra_prime/updates.md',
     icon: 'wonderlands/miliastra_prime/GBR_Cover.jpg'
   });
-  wonderland('Országház', 'wonderlands/orszaghaz/index.html', '/Wonderlands', { 
-    description: 'Building.',
-    updatesUrl: 'wonderlands/orszaghaz/updates.md',
-    icon: "https://avatars.mds.yandex.net/i?id=0b2cf640211c6f941219cafacc01dd41_sr-5147303-images-thumbs&n=13"
-  });
+
 
   // Assign custom icons - corrected paths to be relative to the root index.html
   pics.icon = 'icons/pictures_icon.png';
