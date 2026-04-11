@@ -1,57 +1,301 @@
-/* Terminal Markdown Styles for Wonderlands (Black & White) */
-.markdown-body-terminal-bw h1, 
-.markdown-body-terminal-bw h2, 
-.markdown-body-terminal-bw h3 {
-  color: #fff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-  margin-top: 1.2em;
-  margin-bottom: 0.5em;
-  font-family: 'VT323', monospace;
-  text-transform: uppercase;
-  letter-spacing: 2px;
+/* Generic Wonderland Dashboard Styles */
+.wonderland-window {
+    background: #0a0a14;
+    color: #fff;
+    font-family: 'Noto Sans', sans-serif;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
 }
 
-.markdown-body-terminal-bw p {
-  margin-bottom: 1em;
-  color: #fff;
-  opacity: 0.9;
+.wonderland-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 30px;
+    overflow: hidden;
+    position: relative;
 }
 
-.markdown-body-terminal-bw a {
-  color: #fff;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+.wonderland-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.markdown-body-terminal-bw code {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 2px 4px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
+.wonderland-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin: 0;
 }
 
-.markdown-body-terminal-bw ul {
-  list-style-type: '>> ';
-  padding-left: 20px;
+.wonderland-content-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 30px;
+    height: calc(100% - 100px);
+    overflow-y: auto;
+    padding-right: 10px;
 }
 
-.markdown-body-terminal-bw li {
-  margin-bottom: 0.5em;
+.wonderland-left-col {
+    position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
-.markdown-body-terminal-bw blockquote {
-  border-left: 2px solid #fff;
-  padding-left: 15px;
-  font-style: italic;
-  opacity: 0.6;
-  margin: 1.5em 0;
+.wonderland-carousel {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
 }
 
-.blinking-cursor {
-  animation: blink 1s step-end infinite;
+.wonderland-carousel img, .wonderland-video-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none;
 }
 
-@keyframes blink {
-  from, to { opacity: 1; }
-  50% { opacity: 0; }
+.wonderland-carousel img.active, .wonderland-video-slide.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.wonderland-carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    z-index: 20;
+    transition: all 0.2s;
+    opacity: 0;
+}
+
+.wonderland-carousel:hover .wonderland-carousel-arrow {
+    opacity: 1;
+}
+
+.wonderland-carousel-arrow:hover {
+    background: #ffd700;
+    color: #000;
+}
+
+.wonderland-carousel-arrow-left { left: 10px; }
+.wonderland-carousel-arrow-right { right: 10px; }
+
+.wonderland-carousel-nav {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.wonderland-carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+}
+
+.wonderland-carousel-dot.active { background: #fff; }
+
+.wonderland-description-box {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: 400px;
+}
+
+.wonderland-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wonderland-section-title::before {
+    content: '✦';
+    color: #ffd700;
+}
+
+.wonderland-description-text {
+    font-size: 15px;
+    line-height: 1.5;
+    opacity: 0.9;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.wonderland-tag-section {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.wonderland-tag-item {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+
+.wonderland-tag-item:hover {
+    background: rgba(78, 204, 163, 0.1);
+    border-color: #4ecca3;
+}
+
+.wonderland-hashtags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.wonderland-hashtag {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffd700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+/* Sliding Log Panel */
+.wonderland-log-panel {
+    position: absolute;
+    top: 0;
+    right: -450px;
+    width: 450px;
+    height: 100%;
+    background: rgba(10, 10, 20, 0.98);
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    transition: right 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -20px 0 50px rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+.wonderland-log-panel.open { right: 0; }
+
+.wonderland-log-header {
+    padding: 20px;
+    background: #000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'VT323', monospace;
+    letter-spacing: 1px;
+}
+
+.wonderland-log-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 25px;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    line-height: 1.5;
+    color: #fff;
+}
+
+.wonderland-log-timeline {
+    padding: 15px 20px;
+    display: flex;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-x: auto;
+}
+
+.wonderland-timeline-node {
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s;
+}
+
+.wonderland-timeline-node:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+.wonderland-timeline-node.active {
+    background: #ffd700;
+    color: #000;
+    border-color: #ffd700;
+}
+
+.wonderland-btn {
+    padding: 12px 30px;
+    border-radius: 24px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.1s;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.wonderland-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.wonderland-rank-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #673ab7;
 }

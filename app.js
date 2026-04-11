@@ -2,7 +2,6 @@ import { FS } from "./fs.js";
 import { openAboutMeWindow } from "./about_me.js"; // Import the new about_me module
 import { openBlogWindow, preloadBlogPosts } from "./blog.js"; // Import the new blog module
 import { openWonderlandWindow } from "./wonderlands.js"; // Import the new wonderlands module
-import { openMiliastraPrimeWindow } from "./wonderlands/miliastra_prime/wonderland_miliastra.js"; // Import specialized Miliastra renderer
 import { initMascot, cleanupMascot } from "./mascot.js"; // NEW: Import initMascot and cleanupMascot
 
 const desktop = document.getElementById('desktop');
@@ -1100,6 +1099,7 @@ function openHtml(entry) {
   const frame = document.createElement('iframe');
   frame.style.width = '100%';
   frame.style.height = '100%';
+  frame.style.border = 'none';
   frame.setAttribute('title', entry.name);
 
   const wrap = document.createElement('div');
@@ -1107,81 +1107,30 @@ function openHtml(entry) {
   wrap.style.display = 'grid';
   wrap.style.gridTemplateRows = '28px 1fr';
   const bar = document.createElement('div');
+  bar.className = 'image-viewer-nav'; // Use same class as image viewer for consistent styling
   bar.style.display = 'flex';
   bar.style.gap = '6px';
   bar.style.alignItems = 'center'; // Center items vertically in the bar
   
   const openBtn = document.createElement('button');
   openBtn.textContent = 'Open in new tab';
+  openBtn.className = 'open-tab-btn';
   
   const prevBtn = document.createElement('button');
   prevBtn.textContent = 'Previous';
+  prevBtn.className = 'prev-btn';
 
   const nextBtn = document.createElement('button');
   nextBtn.textContent = 'Next';
+  nextBtn.className = 'next-btn';
 
   const titleSpan = document.createElement('span');
+  titleSpan.className = 'image-title-nav'; // Use same class for consistent styling
   titleSpan.style.flexGrow = '1';
   titleSpan.style.textAlign = 'center';
   titleSpan.style.fontWeight = 'bold';
   titleSpan.style.fontSize = '16px';
   titleSpan.style.userSelect = 'none';
-
-  // Helper function to apply Win95 button styles
-  const applyWin95ButtonStyles = (btn) => {
-    Object.assign(btn.style, {
-        backgroundColor: 'var(--win95-face)',
-        border: '2px solid',
-        borderTopColor: 'var(--win95-light)',
-        borderLeftColor: 'var(--win95-light)',
-        borderRightColor: 'var(--win95-dark)',
-        borderBottomColor: 'var(--win95-dark)',
-        boxShadow: '1px 1px #000',
-        cursor: 'pointer',
-        padding: '2px 8px',
-        fontSize: '16px',
-        fontFamily: `'VT323', 'Pixelated MS Sans Serif', 'MS Sans Serif', 'Noto Sans', system-ui, sans-serif`
-    });
-    btn.addEventListener('mousedown', () => {
-        if (btn.disabled) return;
-        Object.assign(btn.style, {
-            borderTopColor: 'var(--win95-dark)',
-            borderLeftColor: 'var(--win95-dark)',
-            borderRightColor: 'var(--win95-light)',
-            borderBottomColor: 'var(--win95-light)',
-            boxShadow: 'none'
-        });
-    });
-    btn.addEventListener('mouseup', () => {
-        if (btn.disabled) return;
-        Object.assign(btn.style, {
-            borderTopColor: 'var(--win95-light)',
-            borderLeftColor: 'var(--win95-light)',
-            borderRightColor: 'var(--win95-dark)',
-            borderBottomColor: 'var(--win95-dark)',
-            boxShadow: '1px 1px #000'
-        });
-    });
-    // Add disabled styles
-    Object.defineProperty(btn, 'disabled', {
-        get: function() { return this.hasAttribute('disabled'); },
-        set: function(value) {
-            if (value) {
-                this.setAttribute('disabled', '');
-                this.style.opacity = '0.6';
-                this.style.cursor = 'not-allowed';
-                this.style.boxShadow = 'none';
-            } else {
-                this.removeAttribute('disabled');
-                this.style.opacity = '1';
-                this.style.cursor = 'pointer';
-                this.style.boxShadow = '1px 1px #000';
-            }
-        }
-    });
-  };
-
-  [openBtn, prevBtn, nextBtn].forEach(applyWin95ButtonStyles);
 
   bar.appendChild(openBtn);
   bar.appendChild(prevBtn);
@@ -1249,6 +1198,7 @@ function openAiResearchTerminal(entry) {
 
   const iframe = document.createElement('iframe');
   iframe.src = entry.url; // entry.url is now a correct relative path
+  iframe.style.border = 'none';
   iframe.setAttribute('title', entry.name);
   wrapper.appendChild(iframe);
 
@@ -1328,11 +1278,7 @@ async function openEntry(path) {
   else if (entry.type === 'about') windowId = openAboutMeWindow(entry.name, openWindow); // Handle 'about' type
   else if (entry.type === 'blog') windowId = await openBlogWindow(entry.name, openWindow); // Handle 'blog' type
   else if (entry.type === 'wonderland') {
-    if (entry.path === '/Wonderlands/Guns Brooms Rockets') {
-      windowId = await openMiliastraPrimeWindow(entry, openWindow);
-    } else {
-      windowId = await openWonderlandWindow(entry, openWindow);
-    }
+    windowId = await openWonderlandWindow(entry, openWindow);
   }
 
   return windowId;

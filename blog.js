@@ -1,22 +1,5 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
 import { setDynamicHints } from './mascot.js';
-import { 
-  db, 
-  auth, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  serverTimestamp, 
-  signInWithPopup, 
-  signOut,
-  googleProvider,
-  handleFirestoreError,
-  OperationType,
-  BYPASS_FIREBASE
-} from './firebase/firebase.js';
 
 export async function preloadBlogPosts() {
   try {
@@ -264,15 +247,6 @@ export async function openBlogWindow(title, openWindowFn) {
           <div class="blog-post-content">
             <p>Click on a post from the timeline to read more.</p>
           </div>
-          ${BYPASS_FIREBASE ? '' : `
-          <div class="comments-section">
-            <h2 class="comments-header">Comments</h2>
-            <div id="comment-form-container"></div>
-            <div id="comments-list-container" class="comments-list">
-              <div class="no-comments">Select a post to view comments.</div>
-            </div>
-          </div>
-          `}
         </div>
       </div>
       <aside class="blog-sidebar">
@@ -435,143 +409,8 @@ export async function openBlogWindow(title, openWindowFn) {
       el.classList.toggle('active', el.dataset.id === postId.toString());
     });
 
-    // Cusdis Integration - Fix for flashing/disappearing
-    const cusdisEl = blogContainer.querySelector('#cusdis_thread');
-    if (cusdisEl) {
-      // Clear previous content to avoid flashing old comments
-      cusdisEl.innerHTML = ''; 
-      
-      cusdisEl.dataset.pageId = post.id.toString();
-      cusdisEl.dataset.pageTitle = post.title;
-      cusdisEl.dataset.pageUrl = window.location.origin + window.location.pathname + '#blog-' + post.id;
-      
-      // Re-render Cusdis
-      if (window.CUSDIS) {
-        window.CUSDIS.renderTo(cusdisEl);
-      }
-    }
-
     // Scroll to top of content
     postContentEl.scrollTop = 0;
-
-    // Load Firebase Comments
-    if (!BYPASS_FIREBASE) {
-      initComments(post.id);
-    }
-  }
-
-  let unsubscribeComments = null;
-
-  function initComments(postId) {
-    const formContainer = blogContainer.querySelector('#comment-form-container');
-    const listContainer = blogContainer.querySelector('#comments-list-container');
-
-    // Unsubscribe from previous post's comments
-    if (unsubscribeComments) unsubscribeComments();
-
-    // Render Form
-    renderCommentForm(postId, formContainer);
-
-    // Listen for comments
-    const q = query(
-      collection(db, 'comments'),
-      where('postId', '==', postId.toString()),
-      orderBy('createdAt', 'desc')
-    );
-
-    unsubscribeComments = onSnapshot(q, (snapshot) => {
-      listContainer.innerHTML = '';
-      if (snapshot.empty) {
-        listContainer.innerHTML = '<div class="no-comments">No comments yet. Be the first to speak!</div>';
-        return;
-      }
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const date = data.createdAt?.toDate() ? data.createdAt.toDate().toLocaleString() : 'Just now';
-        
-        const commentItem = document.createElement('div');
-        commentItem.className = 'comment-item';
-        commentItem.innerHTML = `
-          <div class="comment-meta">
-            <span class="comment-author">${data.authorName}</span>
-            <span class="comment-date">${date}</span>
-          </div>
-          <div class="comment-body">${data.content}</div>
-        `;
-        listContainer.appendChild(commentItem);
-      });
-    }, (error) => {
-      // If we get a permission error, it might be because the collection doesn't exist yet or rules
-      // handleFirestoreError(error, OperationType.LIST, 'comments');
-      console.warn("Comment loading error:", error);
-      listContainer.innerHTML = '<div class="no-comments">Comments currently unavailable.</div>';
-    });
-  }
-
-  function renderCommentForm(postId, container) {
-    const user = auth.currentUser;
-
-    if (!user) {
-      container.innerHTML = `
-        <div class="comment-form">
-          <div class="comment-form-title">Post a Comment</div>
-          <div class="comment-form-actions">
-            <span class="comment-auth-notice">You must be logged in to comment.</span>
-            <button class="comment-btn" id="login-btn">Login with Google</button>
-          </div>
-        </div>
-      `;
-      container.querySelector('#login-btn').addEventListener('click', async () => {
-        try {
-          await signInWithPopup(auth, googleProvider);
-          renderCommentForm(postId, container);
-        } catch (error) {
-          console.error("Login failed", error);
-        }
-      });
-      return;
-    }
-
-    container.innerHTML = `
-      <div class="comment-form">
-        <div class="comment-form-title">Post a Comment as ${user.displayName}</div>
-        <textarea class="comment-input" placeholder="Write your thoughts..."></textarea>
-        <div class="comment-form-actions">
-          <button class="comment-btn" id="logout-btn">Logout</button>
-          <button class="comment-btn" id="submit-comment">Submit</button>
-        </div>
-      </div>
-    `;
-
-    container.querySelector('#logout-btn').addEventListener('click', async () => {
-      await signOut(auth);
-      renderCommentForm(postId, container);
-    });
-
-    container.querySelector('#submit-comment').addEventListener('click', async () => {
-      const input = container.querySelector('.comment-input');
-      const content = input.value.trim();
-      if (!content) return;
-
-      const submitBtn = container.querySelector('#submit-comment');
-      submitBtn.disabled = true;
-
-      try {
-        await addDoc(collection(db, 'comments'), {
-          postId: postId.toString(),
-          authorName: user.displayName || 'Anonymous',
-          content: content,
-          createdAt: serverTimestamp(),
-          uid: user.uid
-        });
-        input.value = '';
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, 'comments');
-      } finally {
-        submitBtn.disabled = false;
-      }
-    });
   }
 
   renderPostList();

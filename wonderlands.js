@@ -1,158 +1,248 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
 
 export async function openWonderlandWindow(entry, openWindowFn) {
-    console.log("Entry data:", entry); 
     const container = document.createElement('div');
-    container.className = 'wonderland-container';
-    container.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        background: #000;
-        color: #fff;
-        font-family: 'VT323', 'Courier New', monospace;
-        position: relative;
-        overflow: hidden;
-    `;
+    container.className = 'wonderland-window';
 
-    // Main Iframe area
-    const iframe = document.createElement('iframe');
-    iframe.src = entry.url;
-    iframe.style.cssText = `
-        flex-grow: 1;
-        border: none;
-        background: #fff;
-        width: 100%;
-        height: 100%;
-    `;
+    // Load CSS
+    if (!document.getElementById('wonderland-css')) {
+        const link = document.createElement('link');
+        link.id = 'wonderland-css';
+        link.rel = 'stylesheet';
+        link.href = './wonderlands.css';
+        document.head.appendChild(link);
+    }
 
-    // Updates Panel (Terminal style)
-    const updatesPanel = document.createElement('div');
-    updatesPanel.className = 'wonderland-updates-panel';
-    updatesPanel.style.cssText = `
-        position: absolute;
-        top: 0;
-        right: -400px;
-        width: 400px;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.98);
-        border-left: 1px solid #fff;
-        transition: right 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-        display: flex;
-        flex-direction: column;
-        z-index: 10;
-        padding: 0;
-        box-sizing: border-box;
-        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
-    `;
+    // Derive base path from URL
+    const basePath = entry.url.substring(0, entry.url.lastIndexOf('/') + 1);
 
-    const updatesHeader = document.createElement('div');
-    updatesHeader.style.cssText = `
-        font-size: 18px;
-        padding: 15px 20px;
-        border-bottom: 1px solid #fff;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #000;
-    `;
-    updatesHeader.innerHTML = `<span>[ LOG_VIEWER ]</span><span style="font-size: 12px; opacity: 0.5;">SECURE_LINK_ACTIVE</span>`;
-    updatesPanel.appendChild(updatesHeader);
-
-    // Timeline Area
-    const timelineContainer = document.createElement('div');
-    timelineContainer.style.cssText = `
-        padding: 10px 20px;
-        display: flex;
-        gap: 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        background: #000;
-        overflow-x: auto;
-    `;
-    updatesPanel.appendChild(timelineContainer);
-
-    const updatesContent = document.createElement('div');
-    updatesContent.className = 'wonderland-updates-content markdown-body-terminal-bw';
-    updatesContent.style.cssText = `
-        flex-grow: 1;
-        overflow-y: auto;
-        font-size: 16px;
-        line-height: 1.4;
-        padding: 20px;
-        scrollbar-width: thin;
-        scrollbar-color: #fff #000;
-        position: relative;
-    `;
-    updatesPanel.appendChild(updatesContent);
-
-    const footerPrompt = document.createElement('div');
-    footerPrompt.style.cssText = `
-        padding: 10px 20px;
-        border-top: 1px solid rgba(255, 255, 255, 0.2);
-        font-size: 14px;
-        color: #fff;
-        opacity: 0.7;
-        background: #000;
-        height: 40px;
-        display: flex;
-        align-items: center;
-    `;
-    footerPrompt.innerHTML = '<span class="blinking-cursor">_</span>';
-    updatesPanel.appendChild(footerPrompt);
-
-    // Toggle Button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.innerHTML = 'LOGS';
-    toggleBtn.style.cssText = `
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 11;
-        background: #000;
-        color: #fff;
-        border: 1px solid #fff;
-        padding: 5px 15px;
-        cursor: pointer;
-        font-family: 'VT323', monospace;
-        font-size: 16px;
-        transition: all 0.3s;
-    `;
-    
-    toggleBtn.onmouseover = () => {
-        toggleBtn.style.background = '#fff';
-        toggleBtn.style.color = '#000';
-    };
-    toggleBtn.onmouseout = () => {
-        toggleBtn.style.background = '#000';
-        toggleBtn.style.color = '#fff';
-    };
-
-    let panelOpen = false;
-    toggleBtn.onclick = () => {
-        panelOpen = !panelOpen;
-        updatesPanel.style.right = panelOpen ? '0' : '-400px';
-        toggleBtn.innerHTML = panelOpen ? 'CLOSE' : 'LOGS';
-        if (panelOpen) {
-            toggleBtn.style.right = '420px';
-        } else {
-            toggleBtn.style.right = '20px';
+    // Fetch TAG.txt
+    let tagContent = '';
+    try {
+        const res = await fetch(`${basePath}TAG.txt`);
+        if (res.ok) {
+            tagContent = await res.text();
         }
-    };
+    } catch (e) {
+        console.warn("No TAG.txt found for this wonderland", e);
+    }
 
-    container.appendChild(iframe);
-    container.appendChild(updatesPanel);
-    container.appendChild(toggleBtn);
-
+    // Fetch updates.md (Logs)
     let logs = [];
+    try {
+        const res = await fetch(entry.updatesUrl || `${basePath}updates.md`);
+        if (res.ok) {
+            const md = await res.text();
+            const sections = md.split(/\n---\n/).map(s => s.trim()).filter(s => s.length > 0);
+            
+            for (let i = 0; i < sections.length; i += 2) {
+                const metaRaw = sections[i];
+                const contentRaw = sections[i + 1] || '';
+                
+                const meta = {};
+                metaRaw.split('\n').forEach(line => {
+                    const [key, ...valParts] = line.split(':');
+                    if (key && valParts.length > 0) {
+                        meta[key.trim().toLowerCase()] = valParts.join(':').trim();
+                    }
+                });
+                
+                logs.push({
+                    meta,
+                    content: contentRaw
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch logs", e);
+    }
+
+    // Parse TAG.txt for GUIDs and Hashtags
+    const guids = {};
+    const hashtags = [];
+    if (tagContent) {
+        const tagLines = tagContent.split('\n');
+        tagLines.forEach(line => {
+            if (line.includes(':')) {
+                const [key, value] = line.split(':').map(s => s.trim());
+                if (value && /^\d+$/.test(value)) {
+                    guids[key] = value;
+                }
+            }
+            const hashMatches = line.match(/#\w+/g);
+            if (hashMatches) {
+                hashMatches.forEach(h => {
+                    if (!hashtags.includes(h)) hashtags.push(h);
+                });
+            }
+        });
+    }
+
+    // Clean description
+    let description = tagContent
+        ? tagContent
+            .replace(/EU:.*\n?|ASIA:.*\n?|America:.*\n?|TW HK KO:.*\n?/g, '')
+            .replace(/#\w+/g, '')
+            .replace(/_{5,}/g, '')
+            .trim()
+        : entry.description || 'A new wonderland is being forged...';
+
+    const isHtmlExperience = entry.url.toLowerCase().endsWith('.html');
+
+    container.innerHTML = `
+        <main class="wonderland-main">
+            <header class="wonderland-header">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="wonderland-rank-avatar"></div>
+                    <div>
+                        <h1 class="wonderland-title">${entry.name}</h1>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: 0.5; margin-top: 4px;">
+                            <span>DEV_JOURNAL</span>
+                            <span id="wonderland-version-badge" style="background: #e91e63; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">v1.0.0</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    ${isHtmlExperience ? `<button class="wonderland-btn" id="wonderland-refresh-experience" title="Reload Experience">⟳</button>` : ''}
+                    <button class="wonderland-btn" id="wonderland-log-toggle">DEV_LOGS</button>
+                </div>
+            </header>
+
+            <div class="wonderland-content-grid">
+                <div class="wonderland-left-col">
+                    <div class="wonderland-carousel" id="wonderland-stage-container">
+                        ${isHtmlExperience 
+                            ? `<iframe id="wonderland-experience-iframe" src="${entry.url}" style="width:100%; height:100%; border:none; background:#000;"></iframe>`
+                            : `<!-- Carousel injected here -->`
+                        }
+                    </div>
+
+                    ${Object.keys(guids).length > 0 ? `
+                        <div class="wonderland-section-title" style="margin-top: 20px;">Stage GUID (Click to Copy)</div>
+                        <div class="wonderland-tag-section">
+                            ${Object.entries(guids).map(([key, val]) => `
+                                <div class="wonderland-tag-item" style="cursor: pointer;" onclick="navigator.clipboard.writeText('${val}'); alert('Copied ${key} TAG: ${val}')">
+                                    <span style="opacity: 0.5;">${key}</span>
+                                    <span style="color: #4ecca3;">${val}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="wonderland-right-col">
+                    <div class="wonderland-description-box">
+                        <h2 class="wonderland-section-title">Wonderland Description</h2>
+                        <div class="wonderland-description-text" id="wonderland-desc-text">${description}</div>
+                    </div>
+
+                    <div class="wonderland-hashtags">
+                        ${hashtags.map(h => `<span class="wonderland-hashtag">${h}</span>`).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sliding Log Panel -->
+            <div class="wonderland-log-panel" id="wonderland-log-panel">
+                <div class="wonderland-log-header">
+                    <span>[ TERMINAL_LOGS ]</span>
+                    <button style="background:none; border:none; color:#fff; cursor:pointer;" id="wonderland-log-close">X</button>
+                </div>
+                <div class="wonderland-log-timeline" id="wonderland-log-timeline">
+                    <!-- Nodes generated here -->
+                </div>
+                <div class="wonderland-log-content markdown-body-terminal-bw" id="wonderland-log-display">
+                    <!-- Content typed here -->
+                </div>
+            </div>
+        </main>
+    `;
+
+    // State
     let currentLogIndex = -1;
     let isTyping = false;
-    let typingInterval = null;
 
-    async function typeText(html) {
-        isTyping = true;
-        updatesContent.innerHTML = '';
-        footerPrompt.innerHTML = 'TYPING... <span class="blinking-cursor">_</span>';
+    // Elements
+    const logPanel = container.querySelector('#wonderland-log-panel');
+    const logToggle = container.querySelector('#wonderland-log-toggle');
+    const logClose = container.querySelector('#wonderland-log-close');
+    const logTimeline = container.querySelector('#wonderland-log-timeline');
+    const logDisplay = container.querySelector('#wonderland-log-display');
+    const descText = container.querySelector('#wonderland-desc-text');
+    const versionBadge = container.querySelector('#wonderland-version-badge');
+    const stageContainer = container.querySelector('#wonderland-stage-container');
+    const refreshBtn = container.querySelector('#wonderland-refresh-experience');
+
+    if (refreshBtn) {
+        refreshBtn.onclick = () => {
+            const iframe = container.querySelector('#wonderland-experience-iframe');
+            if (iframe) iframe.src = iframe.src;
+        };
+    }
+
+    // Carousel state
+    let carouselTimer = null;
+    let currentSlideIndex = 0;
+
+    function updateCarousel(index) {
+        if (isHtmlExperience) return; // Don't update carousel if in HTML mode
+
+        const log = logs[index];
+        if (!log || !log.meta.media) {
+            stageContainer.innerHTML = `<img src="${entry.icon || 'icons/endless_canvas_icon.png'}" class="active" alt="Wonderland Cover">`;
+            return;
+        }
+
+        const media = log.meta.media.split(',').map(s => s.trim());
+        let html = media.map((src, i) => {
+            if (src === 'TRAILER') {
+                return `<div class="wonderland-video-slide ${i === 0 ? 'active' : ''}">
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/YERFXEsvH_k" frameborder="0" allowfullscreen></iframe>
+                </div>`;
+            }
+            const fullSrc = src.startsWith('http') ? src : `${basePath}${src.split('/').pop()}`;
+            return `<img src="${fullSrc}" class="${i === 0 ? 'active' : ''}" alt="Version Media">`;
+        }).join('');
+
+        html += `
+            <button class="wonderland-carousel-arrow wonderland-carousel-arrow-left" id="wonderland-prev">❮</button>
+            <button class="wonderland-carousel-arrow wonderland-carousel-arrow-right" id="wonderland-next">❯</button>
+            <div class="wonderland-carousel-nav">
+                ${media.map((_, i) => `<div class="wonderland-carousel-dot ${i === 0 ? 'active' : ''}" data-index="${i}"></div>`).join('')}
+            </div>
+        `;
+
+        stageContainer.innerHTML = html;
+
+        const slides = stageContainer.querySelectorAll('img, .wonderland-video-slide');
+        const dots = stageContainer.querySelectorAll('.wonderland-carousel-dot');
+        const prevBtn = stageContainer.querySelector('#wonderland-prev');
+        const nextBtn = stageContainer.querySelector('#wonderland-next');
         
+        currentSlideIndex = 0;
+
+        function showSlide(idx) {
+            currentSlideIndex = (idx + slides.length) % slides.length;
+            slides.forEach((s, i) => s.classList.toggle('active', i === currentSlideIndex));
+            dots.forEach((d, i) => d.classList.toggle('active', i === currentSlideIndex));
+            resetTimer();
+        }
+
+        function resetTimer() {
+            if (carouselTimer) clearInterval(carouselTimer);
+            carouselTimer = setInterval(() => showSlide(currentSlideIndex + 1), 5000);
+        }
+
+        dots.forEach(dot => dot.onclick = (e) => { e.stopPropagation(); showSlide(parseInt(dot.dataset.index)); });
+        prevBtn.onclick = (e) => { e.stopPropagation(); showSlide(currentSlideIndex - 1); };
+        nextBtn.onclick = (e) => { e.stopPropagation(); showSlide(currentSlideIndex + 1); };
+
+        resetTimer();
+    }
+
+    async function typeLog(html) {
+        isTyping = true;
+        logDisplay.innerHTML = '';
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
         const nodes = Array.from(tempDiv.childNodes);
@@ -162,34 +252,31 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             if (node.nodeType === Node.TEXT_NODE) {
                 const text = node.textContent;
                 const span = document.createElement('span');
-                updatesContent.appendChild(span);
+                logDisplay.appendChild(span);
                 for (let i = 0; i < text.length; i++) {
                     span.textContent += text[i];
-                    updatesContent.scrollTop = updatesContent.scrollHeight;
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
                     await new Promise(r => setTimeout(r, 5));
                 }
             } else {
-                updatesContent.appendChild(clone);
-                updatesContent.scrollTop = updatesContent.scrollHeight;
-                await new Promise(r => setTimeout(r, 50));
+                logDisplay.appendChild(clone);
+                logDisplay.scrollTop = logDisplay.scrollHeight;
+                await new Promise(r => setTimeout(r, 30));
             }
         }
-        
         isTyping = false;
-        footerPrompt.innerHTML = '--- PRESS ANY KEY TO CONTINUE --- <span class="blinking-cursor">_</span>';
     }
 
-    function selectLog(index) {
+    async function selectLog(index) {
         if (index === currentLogIndex || isTyping) return;
         currentLogIndex = index;
-        
-        // Update timeline UI
-        Array.from(timelineContainer.children).forEach((child, i) => {
-            child.style.background = i === index ? '#fff' : 'transparent';
-            child.style.color = i === index ? '#000' : '#fff';
-        });
 
-        let mdContent = logs[index];
+        Array.from(logTimeline.children).forEach((node, i) => node.classList.toggle('active', i === index));
+
+        const log = logs[index];
+        
+        // Handle video tags in logs
+        let mdContent = log.content;
         const videoMatch = mdContent.match(/\[video: (.*)\]/);
         let youtubeId = null;
         let isShort = false;
@@ -201,105 +288,49 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             const embedMatch = videoInput.match(/youtube\.com\/embed\/([^/?#&]+)/);
             const shortUrlMatch = videoInput.match(/youtu\.be\/([^/?#&]+)/);
 
-            if (shortsMatch) {
-                isShort = true;
-                youtubeId = shortsMatch[1];
-            } else if (watchMatch) {
-                youtubeId = watchMatch[1];
-            } else if (embedMatch) {
-                youtubeId = embedMatch[1];
-            } else if (shortUrlMatch) {
-                youtubeId = shortUrlMatch[1];
-            } else {
-                youtubeId = videoInput; // Assume it's just the ID
-            }
+            if (shortsMatch) { isShort = true; youtubeId = shortsMatch[1]; }
+            else if (watchMatch) { youtubeId = watchMatch[1]; }
+            else if (embedMatch) { youtubeId = embedMatch[1]; }
+            else if (shortUrlMatch) { youtubeId = shortUrlMatch[1]; }
+            else { youtubeId = videoInput; }
             mdContent = mdContent.replace(/\[video: .*\]/g, '').trim();
         }
 
-        let html = marked.parse(mdContent);
-        
+        let logHtml = marked.parse(mdContent);
         if (youtubeId) {
             const containerStyle = isShort 
                 ? "margin: 20px auto; border: 1px solid #fff; max-width: 280px; aspect-ratio: 9/16;"
                 : "margin: 20px 0; border: 1px solid #fff; aspect-ratio: 16/9;";
-            
-            html += `
-                <div class="video-container" style="${containerStyle}">
-                    <iframe 
-                        width="100%" 
-                        height="100%" 
-                        src="https://www.youtube.com/embed/${youtubeId}" 
-                        title="YouTube video player" 
-                        frameborder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                        referrerpolicy="strict-origin-when-cross-origin" 
-                        allowfullscreen>
-                    </iframe>
-                </div>
-            `;
+            logHtml += `<div class="video-container" style="${containerStyle}"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen></iframe></div>`;
         }
 
-        typeText(html);
+        versionBadge.textContent = log.meta.version || `v1.0.${index + 1}`;
+        descText.textContent = log.meta.description || description;
+        updateCarousel(index);
+        typeLog(logHtml);
     }
 
-    // Handle "Press any key"
-    const handleKeyPress = (e) => {
-        if (!panelOpen || isTyping) return;
-        if (currentLogIndex < logs.length - 1) {
-            selectLog(currentLogIndex + 1);
-        } else {
-            footerPrompt.innerHTML = '--- END OF LOGS --- <span class="blinking-cursor">_</span>';
-        }
-    };
-    window.addEventListener('keydown', handleKeyPress);
+    logs.forEach((_, i) => {
+        const node = document.createElement('div');
+        node.className = 'wonderland-timeline-node';
+        node.textContent = i + 1;
+        node.onclick = () => selectLog(i);
+        logTimeline.appendChild(node);
+    });
 
-    // Fetch and parse updates
-    if (entry.updatesUrl) {
-        try {
-            const res = await fetch(entry.updatesUrl);
-            if (res.ok) {
-                const md = await res.text();
-                // Split by --- to get individual logs
-                logs = md.split(/\n---\n/).map(l => l.trim()).filter(l => l.length > 0);
-                
-                // Create timeline squares
-                logs.forEach((_, i) => {
-                    const square = document.createElement('div');
-                    square.style.cssText = `
-                        width: 20px;
-                        height: 20px;
-                        border: 1px solid #fff;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 10px;
-                        transition: all 0.2s;
-                    `;
-                    square.textContent = i + 1;
-                    square.onclick = () => selectLog(i);
-                    timelineContainer.appendChild(square);
-                });
+    logToggle.onclick = () => logPanel.classList.toggle('open');
+    logClose.onclick = () => logPanel.classList.remove('open');
 
-                if (logs.length > 0) {
-                    selectLog(0);
-                }
-            }
-        } catch (e) {
-            updatesContent.innerHTML = '<p style="color: #f00;">> ERROR: CONNECTION_TERMINATED</p>';
-        }
-    }
+    if (logs.length > 0) selectLog(logs.length - 1);
+    else updateCarousel(-1);
 
     const windowId = openWindowFn({
-        title: `Wonderland Explorer - ${entry.name}`,
+        title: `${entry.name} - Dev Journal`,
         content: container,
-        width: 1000,
-        height: 700,
-        x: 40,
-        y: 40,
-        onClose: () => {
-            window.removeEventListener('keydown', handleKeyPress);
-        }
+        width: 1100,
+        height: 750,
+        x: 50,
+        y: 50
     });
 
     return windowId;
