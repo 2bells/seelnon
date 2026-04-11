@@ -3,7 +3,7 @@ DATE: 2026-04-09
 STATUS: FORGING
 BG_COLOR: #1a0f0a
 MEDIA: wonderlands/miliastra_prime/GBR_loading.jpg
-DESCRIPTION: Initial sector stabilization complete. <a href="https://www.youtube.com/shorts/N75uN9ioY-s" class="wonderland-btn">hoyo link</a>, but the boundaries are still fluid. Atmospheric simulation initialized and core reactor reached 100% capacity.
+DESCRIPTION: Initial sector stabilization complete. [link](https://youtube.com), but the boundaries are still fluid. Atmospheric simulation initialized and core reactor reached 100% capacity.
 ---
 # Sector: Guns Brooms Rockets
 ## Status: FORGING
