@@ -1198,123 +1198,6 @@ html {
   text-transform: uppercase;
 }
 
-.comment-form {
-  background: var(--win95-face);
-  border: 2px solid;
-  border-top-color: var(--win95-light);
-  border-left-color: var(--win95-light);
-  border-right-color: var(--win95-dark);
-  border-bottom-color: var(--win95-dark);
-  padding: 15px;
-  margin-bottom: 30px;
-  box-shadow: 2px 2px 0 #000;
-}
-
-.comment-form-title {
-  font-family: 'VT323', monospace;
-  font-size: 18px;
-  margin-bottom: 10px;
-  color: var(--win95-title-active-start);
-  font-weight: bold;
-}
-
-.comment-input {
-  width: 100%;
-  min-height: 80px;
-  padding: 8px;
-  font-family: 'Libre Baskerville', serif;
-  font-size: 14px;
-  border: 2px inset var(--win95-dark);
-  background: #fff;
-  margin-bottom: 10px;
-  resize: vertical;
-}
-
-.comment-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  align-items: center;
-}
-
-.comment-btn {
-  padding: 4px 15px;
-  font-family: 'VT323', monospace;
-  font-size: 16px;
-  background: var(--win95-face);
-  border: 2px solid;
-  border-top-color: var(--win95-light);
-  border-left-color: var(--win95-light);
-  border-right-color: var(--win95-dark);
-  border-bottom-color: var(--win95-dark);
-  box-shadow: 1px 1px 0 #000;
-  cursor: pointer;
-}
-
-.comment-btn:active {
-  border-top-color: var(--win95-dark);
-  border-left-color: var(--win95-dark);
-  border-right-color: var(--win95-light);
-  border-bottom-color: var(--win95-light);
-  box-shadow: none;
-}
-
-.comment-btn:disabled {
-  color: var(--win95-dark);
-  cursor: not-allowed;
-}
-
-.comment-auth-notice {
-  font-size: 13px;
-  color: #666;
-  font-style: italic;
-}
-
-.comments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.comment-item {
-  background: #fff;
-  border: 1px solid #000;
-  padding: 15px;
-  position: relative;
-}
-
-.comment-meta {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 5px;
-}
-
-.comment-author {
-  font-weight: bold;
-  font-size: 14px;
-  color: var(--win95-title-active-start);
-}
-
-.comment-date {
-  font-size: 12px;
-  color: #999;
-}
-
-.comment-body {
-  font-size: 15px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
-
-.no-comments {
-  text-align: center;
-  color: #999;
-  font-style: italic;
-  padding: 20px;
-}
-
 .post-item-title {
   font-weight: bold;
   font-size: 14px;
@@ -1326,12 +1209,6 @@ html {
 .post-item-date {
   font-size: 12px;
   opacity: 0.8;
-}
-
-#cusdis_thread {
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 2px solid var(--win95-bg);
 }
 
 /* Custom Win95 Video Controls */
