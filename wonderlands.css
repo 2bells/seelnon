@@ -23,9 +23,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+    padding-bottom: 10px;
 }
 
 .wonderland-title {
@@ -298,4 +297,45 @@
     height: 48px;
     border-radius: 50%;
     background: #673ab7;
+}
+
+/* ASCII WIP Liner */
+.wonderland-wip-banner {
+    width: 100%;
+    color: #ffd700;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    margin-bottom: 30px;
+    white-space: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+    text-transform: uppercase;
+    display: block;
+    opacity: 0.6;
+    letter-spacing: 1px;
+}
+
+.wonderland-wip-banner::before {
+    content: attr(data-content);
+}
+
+/* Terminal Prompt */
+.terminal-prompt {
+    margin-top: 20px;
+    color: #ffd700;
+    font-weight: bold;
+    animation: blink-prompt 1s step-end infinite;
+}
+
+@keyframes blink-prompt {
+    from, to { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.markdown-body-terminal-bw blockquote {
+    border-left: 4px solid #ffd700;
+    padding-left: 15px;
+    margin: 15px 0;
+    color: #aaa;
+    font-style: italic;
 }
