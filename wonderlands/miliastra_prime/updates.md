@@ -9,7 +9,7 @@ DESCRIPTION: Initial sector stabilization complete. <a href="https://www.youtube
 ## Status: FORGING
 
 > "The core is stable, but the boundaries are still fluid."
-
+[link](https://www.youtube.com/shorts/N75uN9ioY-s)
 ### Recent Events
 - **[2026-04-09]** Initial sector stabilization complete.
 - **[2026-04-08]** Atmospheric simulation initialized.
