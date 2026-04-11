@@ -16,6 +16,52 @@ export async function openWonderlandWindow(entry, openWindowFn) {
     // Derive base path from URL
     const basePath = entry.url.substring(0, entry.url.lastIndexOf('/') + 1);
 
+    // Load per-wonderland config (sources.js)
+    let config = {
+        trailerId: "",
+        videos: {}, // NEW: Support for multiple named videos
+        images: {}, // NEW: Support for multiple named images
+        version: "v1.0.0",
+        themeColor: "#e91e63",
+        avatarColor: "#673ab7",
+        wipStatuses: ["wip", "forging"],
+        labels: {
+            journal: "DEV_JOURNAL",
+            logs: "DEV_LOGS",
+            terminal: "[ TERMINAL_LOGS ]",
+            description: "Wonderland Description",
+            wip: "WORK IN PROGRESS",
+            guid: "Stage GUID (Click to Copy)"
+        }
+    };
+
+    try {
+        // Use a cache-busting or absolute path if needed, but relative should work in Vite
+        const configModule = await import(`${basePath}sources.js`);
+        if (configModule && configModule.default) {
+            config = { ...config, ...configModule.default };
+        }
+    } catch (e) {
+        console.warn(`No sources.js found for ${entry.name}, using defaults.`, e);
+    }
+
+    // Helper to render video slide
+    function renderVideoSlide(vId, isActive) {
+        // Extract ID if full URL is provided
+        let finalId = vId;
+        if (vId.includes('youtube.com') || vId.includes('youtu.be')) {
+            const shortsMatch = vId.match(/youtube\.com\/shorts\/([^/?#&]+)/);
+            const watchMatch = vId.match(/[?&]v=([^/?#&]+)/);
+            const embedMatch = vId.match(/youtube\.com\/embed\/([^/?#&]+)/);
+            const shortUrlMatch = vId.match(/youtu\.be\/([^/?#&]+)/);
+            finalId = shortsMatch?.[1] || watchMatch?.[1] || embedMatch?.[1] || shortUrlMatch?.[1] || vId;
+        }
+
+        return `<div class="wonderland-video-slide ${isActive ? 'active' : ''}">
+            <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${finalId}" frameborder="0" allowfullscreen></iframe>
+        </div>`;
+    }
+
     // Fetch TAG.txt
     let tagContent = '';
     try {
@@ -93,21 +139,21 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         <main class="wonderland-main">
             <header class="wonderland-header">
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <div class="wonderland-rank-avatar"></div>
+                    <div class="wonderland-rank-avatar" style="background-color: ${config.avatarColor};"></div>
                     <div>
                         <h1 class="wonderland-title">${entry.name}</h1>
                         <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: 0.5; margin-top: 4px;">
-                            <span>DEV_JOURNAL</span>
-                            <span id="wonderland-version-badge" style="background: #e91e63; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">v1.0.0</span>
+                            <span>${config.labels.journal}</span>
+                            <span id="wonderland-version-badge" style="background: ${config.themeColor}; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">${config.version}</span>
                         </div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     ${isHtmlExperience ? `<button class="wonderland-btn" id="wonderland-refresh-experience" title="Reload Experience">⟳</button>` : ''}
-                    <button class="wonderland-btn" id="wonderland-log-toggle">DEV_LOGS</button>
+                    <button class="wonderland-btn" id="wonderland-log-toggle">${config.labels.logs}</button>
                 </div>
             </header>
-
+            <div id="wonderland-wip-banner" class="wonderland-wip-banner" style="display: none;"></div>
             <div class="wonderland-content-grid">
                 <div class="wonderland-left-col">
                     <div class="wonderland-carousel" id="wonderland-stage-container">
@@ -118,7 +164,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
                     </div>
 
                     ${Object.keys(guids).length > 0 ? `
-                        <div class="wonderland-section-title" style="margin-top: 20px;">Stage GUID (Click to Copy)</div>
+                        <div class="wonderland-section-title" style="margin-top: 20px;">${config.labels.guid}</div>
                         <div class="wonderland-tag-section">
                             ${Object.entries(guids).map(([key, val]) => `
                                 <div class="wonderland-tag-item" style="cursor: pointer;" onclick="navigator.clipboard.writeText('${val}'); alert('Copied ${key} TAG: ${val}')">
@@ -132,7 +178,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
                 <div class="wonderland-right-col">
                     <div class="wonderland-description-box">
-                        <h2 class="wonderland-section-title">Wonderland Description</h2>
+                        <h2 class="wonderland-section-title">${config.labels.description}</h2>
                         <div class="wonderland-description-text" id="wonderland-desc-text">${description}</div>
                     </div>
 
@@ -145,7 +191,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             <!-- Sliding Log Panel -->
             <div class="wonderland-log-panel" id="wonderland-log-panel">
                 <div class="wonderland-log-header">
-                    <span>[ TERMINAL_LOGS ]</span>
+                    <span>${config.labels.terminal}</span>
                     <button style="background:none; border:none; color:#fff; cursor:pointer;" id="wonderland-log-close">X</button>
                 </div>
                 <div class="wonderland-log-timeline" id="wonderland-log-timeline">
@@ -195,11 +241,31 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
         const media = log.meta.media.split(',').map(s => s.trim());
         let html = media.map((src, i) => {
-            if (src === 'TRAILER') {
-                return `<div class="wonderland-video-slide ${i === 0 ? 'active' : ''}">
-                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/YERFXEsvH_k" frameborder="0" allowfullscreen></iframe>
-                </div>`;
+            // 1. Check if it's a named video in config.videos
+            if (config.videos && config.videos[src]) {
+                return renderVideoSlide(config.videos[src], i === 0);
             }
+
+            // 2. Check if it's a named image in config.images
+            if (config.images && config.images[src]) {
+                const imgUrl = config.images[src];
+                const fullImgSrc = imgUrl.startsWith('http') ? imgUrl : `${basePath}${imgUrl.split('/').pop()}`;
+                return `<img src="${fullImgSrc}" class="${i === 0 ? 'active' : ''}" alt="Version Media">`;
+            }
+
+            // 3. Legacy support for 'TRAILER' keyword
+            if (src === 'TRAILER') {
+                const tId = config.trailerId || "YERFXEsvH_k";
+                return renderVideoSlide(tId, i === 0);
+            }
+
+            // 4. Check if it's a direct YouTube link or ID
+            const isYouTube = src.includes('youtube.com') || src.includes('youtu.be') || (src.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(src));
+            if (isYouTube) {
+                return renderVideoSlide(src, i === 0);
+            }
+
+            // 5. Otherwise assume it's an image
             const fullSrc = src.startsWith('http') ? src : `${basePath}${src.split('/').pop()}`;
             return `<img src="${fullSrc}" class="${i === 0 ? 'active' : ''}" alt="Version Media">`;
         }).join('');
@@ -230,6 +296,13 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
         function resetTimer() {
             if (carouselTimer) clearInterval(carouselTimer);
+            
+            // NEW: Prevent autoscroll if current slide is a video
+            const currentSlide = slides[currentSlideIndex];
+            if (currentSlide && currentSlide.classList.contains('wonderland-video-slide')) {
+                return; 
+            }
+
             carouselTimer = setInterval(() => showSlide(currentSlideIndex + 1), 5000);
         }
 
@@ -264,6 +337,15 @@ export async function openWonderlandWindow(entry, openWindowFn) {
                 await new Promise(r => setTimeout(r, 30));
             }
         }
+        
+        // NEW: Add terminal prompt
+        const isLast = currentLogIndex === logs.length - 1;
+        const prompt = document.createElement('div');
+        prompt.className = 'terminal-prompt';
+        prompt.textContent = isLast ? '--- end of log ---' : '--- press any key to continue ---';
+        logDisplay.appendChild(prompt);
+        logDisplay.scrollTop = logDisplay.scrollHeight;
+        
         isTyping = false;
     }
 
@@ -274,6 +356,28 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         Array.from(logTimeline.children).forEach((node, i) => node.classList.toggle('active', i === index));
 
         const log = logs[index];
+        
+        // NEW: Dynamic Background Color
+        if (log.meta.bg_color) {
+            container.style.backgroundColor = log.meta.bg_color;
+        } else {
+            container.style.backgroundColor = ''; // Reset to default
+        }
+
+        // NEW: WIP Banner visibility and text control
+        const wipBanner = container.querySelector('#wonderland-wip-banner');
+        const status = (log.meta.status || "").toLowerCase();
+        const wipOverride = log.meta.wip_text;
+        const showWip = log.meta.show_wip !== undefined ? log.meta.show_wip === 'true' : config.wipStatuses.includes(status);
+
+        if (showWip) {
+            const wipText = wipOverride || config.labels.wip || "WORK IN PROGRESS";
+            const pattern = `---------------- ${wipText} `;
+            wipBanner.setAttribute('data-content', pattern.repeat(10));
+            wipBanner.style.display = 'block';
+        } else {
+            wipBanner.style.display = 'none';
+        }
         
         // Handle video tags in logs
         let mdContent = log.content;
@@ -320,6 +424,18 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
     logToggle.onclick = () => logPanel.classList.toggle('open');
     logClose.onclick = () => logPanel.classList.remove('open');
+
+    // NEW: Key progression for logs
+    const handleKeyProgression = (e) => {
+        if (!document.contains(container)) {
+            window.removeEventListener('keydown', handleKeyProgression);
+            return;
+        }
+        if (logPanel.classList.contains('open') && !isTyping && currentLogIndex < logs.length - 1) {
+            selectLog(currentLogIndex + 1);
+        }
+    };
+    window.addEventListener('keydown', handleKeyProgression);
 
     if (logs.length > 0) selectLog(logs.length - 1);
     else updateCarousel(-1);
