@@ -21,8 +21,8 @@ body.night-mode .start-menu,
 body.night-mode #start-menu {
   background-color: var(--win95-face);
   color: var(--text);
-  border-top-color: var(--win95-light);
-  border-left-color: var(--win95-light);
+  border-top-color: #4a2f1f; /* Subdued highlight */
+  border-left-color: #4a2f1f;
   border-right-color: var(--win95-dark);
   border-bottom-color: var(--win95-dark);
 }
@@ -30,12 +30,19 @@ body.night-mode #start-menu {
 body.night-mode .titlebar {
   background: linear-gradient(to right, var(--night-title-start), var(--night-title-end));
   color: #f5f5dc; /* Creamy title text */
+  border-top-color: var(--night-title-start);
+  border-left-color: var(--night-title-start);
+  border-right-color: var(--night-title-end);
   border-bottom: 1px solid var(--win95-dark);
 }
 
 body.night-mode .window .content {
   background-color: #2a1a12; /* Slightly lighter than desktop for contrast */
   color: var(--text);
+  border-top-color: var(--win95-dark);
+  border-left-color: var(--win95-dark);
+  border-bottom-color: #4a2f1f; /* More subtle than var(--win95-light) */
+  border-right-color: #4a2f1f;
 }
 
 body.night-mode .file-list {
@@ -51,8 +58,8 @@ body.night-mode .wonderland-viewport {
 
 body.night-mode #taskbar {
   background-color: var(--win95-face);
-  border-top-color: var(--win95-light);
-  border-left-color: var(--win95-light);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
   border-right-color: var(--win95-dark);
   border-bottom-color: var(--win95-dark);
 }
@@ -60,8 +67,8 @@ body.night-mode #taskbar {
 body.night-mode .task-btn {
   background-color: var(--win95-face);
   color: var(--text);
-  border-top-color: var(--win95-light);
-  border-left-color: var(--win95-light);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
   border-right-color: var(--win95-dark);
   border-bottom-color: var(--win95-dark);
 }
@@ -75,8 +82,8 @@ body.night-mode .task-btn.active {
   color: #ffffff;
   border-top-color: var(--win95-dark);
   border-left-color: var(--win95-dark);
-  border-right-color: var(--win95-light);
-  border-bottom-color: var(--win95-light);
+  border-right-color: #4a2f1f;
+  border-bottom-color: #4a2f1f;
 }
 
 /* Night Mode Blog Overrides */
@@ -122,7 +129,7 @@ body.night-mode .blog-sidebar {
 
 body.night-mode .start-header {
   color: #a68b6a; /* Muted tan for header */
-  border-bottom-color: var(--win95-light);
+  border-bottom-color: #4a2f1f;
 }
 
 body.night-mode .start-item {
@@ -143,8 +150,8 @@ body.night-mode .controls button {
   color: #a68b6a; /* Muted tan icons */
   opacity: 0.8;
   transition: opacity 0.2s ease;
-  border-top-color: #5c4033;
-  border-left-color: #5c4033;
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
   border-right-color: #1a0f0a;
   border-bottom-color: #1a0f0a;
 }
@@ -169,7 +176,7 @@ body.night-mode .controls button:active {
 body.night-mode .sticker {
   background-color: #3d2b1f;
   color: #e0d0c0;
-  border-color: #5c4033;
+  border-color: #4a2f1f;
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
 }
 
@@ -180,7 +187,7 @@ body.night-mode .sticker .title {
 body.night-mode .sticker .open {
   background-color: #1a0f0a;
   color: #e0d0c0;
-  border-color: #5c4033;
+  border-color: #4a2f1f;
 }
 
 body.night-mode .sticker.video-sticker,
@@ -191,7 +198,7 @@ body.night-mode .sticker.rts-game-sticker {
 
 body.night-mode #theme-toggle {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--win95-light);
+  border-color: #4a2f1f;
   color: #f5f5dc;
 }
 
@@ -226,7 +233,7 @@ body.night-mode .about-me-content .placeholder-text {
 
 /* Night Mode Blog & Timeline Improvements */
 body.night-mode .post-list-item:hover {
-  background-color: var(--win95-light);
+  background-color: #4a2f1f;
   color: var(--text);
 }
 
@@ -240,7 +247,7 @@ body.night-mode .timeline-header,
 body.night-mode .timeline-controls button {
   background-color: #2a1a12;
   color: var(--text);
-  border-color: var(--win95-dark);
+  border-color: #1a0f0a;
 }
 
 body.night-mode .timeline-square {
@@ -253,19 +260,145 @@ body.night-mode .timeline-square.has-post {
   border-color: #a68b6a;
 }
 
-/* Night Mode Viewer Controls */
-body.night-mode .image-viewer-nav button {
+/* Night Mode Projects/Wonderlands Folder Improvements */
+body.night-mode .projects-folder-list .file-item {
   background-color: var(--win95-face);
-  color: var(--text);
-  border-top-color: var(--win95-light);
-  border-left-color: var(--win95-light);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
   border-right-color: var(--win95-dark);
   border-bottom-color: var(--win95-dark);
 }
 
-body.night-mode .image-viewer-nav button:active {
+body.night-mode .projects-folder-list .file-item:hover,
+body.night-mode .projects-folder-list .file-item:focus {
+  background-color: var(--win95-title-active-start);
   border-top-color: var(--win95-dark);
   border-left-color: var(--win95-dark);
-  border-right-color: var(--win95-light);
-  border-bottom-color: var(--win95-light);
+  border-right-color: #4a2f1f;
+  border-bottom-color: #4a2f1f;
+}
+
+body.night-mode .projects-folder-list .file-icon {
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .projects-synopsis-block {
+  background-color: var(--win95-face);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+/* Night Mode Scrollbars */
+body.night-mode ::-webkit-scrollbar-track {
+  background-color: var(--win95-face);
+}
+
+body.night-mode ::-webkit-scrollbar-thumb {
+  background-color: var(--win95-face);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+  box-shadow: 1px 1px 0 #000;
+}
+
+body.night-mode ::-webkit-scrollbar-thumb:hover {
+  border-top-color: var(--win95-dark);
+  border-left-color: var(--win95-dark);
+  border-right-color: #4a2f1f;
+  border-bottom-color: #4a2f1f;
+}
+
+body.night-mode ::-webkit-scrollbar-button {
+  background-color: var(--win95-face);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+  color: var(--text);
+}
+
+body.night-mode ::-webkit-scrollbar-button:hover {
+  border-top-color: var(--win95-dark);
+  border-left-color: var(--win95-dark);
+  border-right-color: #4a2f1f;
+  border-bottom-color: #4a2f1f;
+}
+
+body.night-mode ::-webkit-scrollbar-corner {
+  background-color: var(--win95-face);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .win95-video-controls,
+body.night-mode .win95-video-controls button {
+  background-color: var(--win95-face);
+  color: var(--text);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .win95-video-controls button:active {
+  border-top-color: var(--win95-dark);
+  border-left-color: var(--win95-dark);
+  border-right-color: #4a2f1f;
+  border-bottom-color: #4a2f1f;
+}
+
+body.night-mode .win95-video-controls .seek-bar::-webkit-slider-runnable-track,
+body.night-mode .win95-video-controls .volume-bar::-webkit-slider-runnable-track,
+body.night-mode .win95-video-controls .seek-bar::-moz-range-track,
+body.night-mode .win95-video-controls .volume-bar::-moz-range-track {
+  background-color: var(--win95-dark);
+  border-right-color: #4a2f1f;
+  border-bottom-color: #4a2f1f;
+}
+
+body.night-mode .win95-video-controls .seek-bar::-webkit-slider-thumb,
+body.night-mode .win95-video-controls .volume-bar::-webkit-slider-thumb,
+body.night-mode .win95-video-controls .seek-bar::-moz-range-thumb,
+body.night-mode .win95-video-controls .volume-bar::-moz-range-thumb {
+  background-color: var(--win95-face);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+/* Night Mode Carousel Dots */
+body.night-mode .wonderland-carousel-dot {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+body.night-mode .wonderland-carousel-dot.active {
+  background: #a68b6a;
+}
+
+/* Night Mode Viewer Controls */
+body.night-mode .image-viewer-nav button,
+body.night-mode .wonderland-btn {
+  background-color: var(--win95-face);
+  color: var(--text);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
+body.night-mode .image-viewer-nav button:active,
+body.night-mode .wonderland-btn:active {
+  border-top-color: var(--win95-dark);
+  border-left-color: var(--win95-dark);
+  border-right-color: #4a2f1f;
+  border-bottom-color: #4a2f1f;
 }
