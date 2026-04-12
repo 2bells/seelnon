@@ -75,6 +75,8 @@ export const FS = (() => {
   // Corrected paths to be relative to the root index.html file
   image('Concept Art Collage', 'Content/Images/image-board-export-1756292941378.png', '/Pictures', { description: 'A collection of diverse concept art pieces.' });
   image('Red Eyes Solo Game Dreams', 'Content/Images/Red_Eyes_SoloGame_Dreams.png', '/Pictures', { description: 'Scenes from a dark, atmospheric Dreams game.' });
+  image('Deathless Traveler', 'Content/Images/deathless_traveler.jpg', '/Pictures', { description: 'If Frieren was depressing. Something I was concepting in 2020 with MSFS' });
+
 
   // Videos
   video('GBR Elements', 'Content/Videos/GBR_Elements_trailer.mp4', '/Videos', { icon: 'Content/Videos/GBR_Cover.jpg', description: 'A game made inside of Miliastra Wonderland.' });
