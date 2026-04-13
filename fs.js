@@ -81,7 +81,7 @@ export const FS = (() => {
   // Videos
   video('GBR Elements', 'Content/Videos/GBR_Elements_trailer.mp4', '/Videos', { icon: 'Content/Videos/GBR_Cover.jpg', description: 'A game made inside of Miliastra Wonderland.' });
   video('GBR Release', 'Content/Videos/GBR_trailer.mp4', '/Videos', { icon: 'Content/Videos/GBR_1_cover.png', description: 'A game made inside of Miliastra Wonderland.' });
-  video('Package turn', 'Content/Videos/Package_turn_1.mp4', '/Videos', { description: 'A short animation showcasing a package turnaround.' });
+  video('HR Deep Learning 2017', 'Content/Videos/shapes_cycle.mp4', '/Videos', { icon: 'Content/Videos/HR_yandex.jpg', description: 'Some of the stuff from back in the day, looked clean.' });
   video('Unsubscribed Trailer', 'Content/Videos/Unsubscribed Trailer.mp4', '/Videos', { icon: 'Content/Videos/Unsubscribe_Trailer_thumbnail.jpg', description: 'Trailer for a sci-fi game project.' }); // Added thumbnail
 
   // Projects
