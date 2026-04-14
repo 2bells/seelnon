@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -32,6 +33,16 @@
                         <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/>
                     </svg>
                     Crop
+                </button>
+                <button id="cutModeBtn" class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.5 10c-.8-4.5-4-8-8.5-8-2.9 0-5.5 1.5-7 4l2.8 2.8"/>
+                        <path d="M22 17.5c.8-4.5-2.4-8-6.9-8-2.9 0-5.5 1.5-7 4l2.8 2.8"/>
+                        <path d="M10 11l4-4"/>
+                        <path d="M15 16l4-4"/>
+                        <circle cx="12" cy="12" r="1"/>
+                    </svg>
+                    Cut Mode
                 </button>
                 <button id="deleteBtn" class="btn danger">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -116,6 +127,39 @@
             <div class="resize-handle resize-e"></div>
             <div class="resize-handle resize-w"></div>
         </div>
+        
+        <div id="cutModePanel" class="floating-panel cut-mode-panel hidden">
+            <div class="panel-header drag-handle">
+                <h3>Cut Mode</h3>
+            </div>
+            <div class="panel-content cut-mode-content">
+                <div class="tool-controls">
+                    <p style="font-size: 11px; color: rgba(255, 255, 255, 0.5); margin-bottom: 12px;">The visible center square is the export area. Pan and zoom to position the image.</p>
+                    <div class="form-group" style="display: flex; gap: 8px;">
+                        <div>
+                            <label for="cutSizeWidth">Width (px):</label>
+                            <input type="number" id="cutSizeWidth" value="256" min="1" step="1">
+                        </div>
+                        <div>
+                            <label for="cutSizeHeight">Height (px):</label>
+                            <input type="number" id="cutSizeHeight" value="256" min="1" step="1">
+                        </div>
+                    </div>
+                    
+                    <hr style="border-color: rgba(255, 255, 255, 0.1); margin: 16px 0;">
+
+                    <label>Lasso Tool:</label>
+                    <p style="font-size: 11px; color: rgba(255, 255, 255, 0.5);">Draw black shapes to hide content in the cut area.</p>
+                    <button id="startLassoBtn" class="btn primary full-width">Start Freehand Lasso</button>
+                    <button id="clearLassoBtn" class="btn danger full-width" style="margin-top: 8px;">Clear Shapes</button>
+                </div>
+                <hr style="border-color: rgba(255, 255, 255, 0.1); margin: 16px 0;">
+                <div class="modal-buttons" style="justify-content: space-between; margin-top: 0;">
+                    <button id="cutModeSnapshotBtn" class="btn primary">Snapshot</button>
+                    <button id="exitCutModeBtn" class="btn">Exit</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
@@ -147,6 +191,10 @@
             <div class="form-group checkbox-group">
                 <input type="checkbox" id="exportWithAlpha">
                 <label for="exportWithAlpha">Export with Transparency (Alpha)</label>
+            </div>
+            <div class="form-group" id="exportBgColorGroup">
+                <label for="exportBgColor">Background Color:</label>
+                <input type="color" id="exportBgColor" value="#0a0a0a">
             </div>
             <div class="modal-buttons">
                 <button id="exportConfirmBtn" class="btn primary">Export</button>
