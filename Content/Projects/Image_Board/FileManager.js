@@ -44,7 +44,7 @@ export class FileManager {
         });
     }
     
-    serialize(imageBoard, layerManager) {
+    serialize(imageBoard, layerManager, appState = {}) {
         const items = imageBoard.getAllItems();
         
         // Convert images to data URLs for saving
@@ -74,7 +74,12 @@ export class FileManager {
             layers: layerManager.layers,
             panX: imageBoard.panX,
             panY: imageBoard.panY,
-            zoom: imageBoard.zoom // Save zoom level
+            zoom: imageBoard.zoom, // Save zoom level
+            // Save Cut Mode specific state
+            cutModeState: {
+                cutRegion: appState.cutRegion,
+                lassoShapes: appState.lassoShapes || []
+            }
         };
     }
     
