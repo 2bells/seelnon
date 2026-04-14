@@ -1,6 +1,6 @@
 const researchFiles = [
     {
-        id: 'awareness',
+        id: 'rl_intro',
         title: '[AR] Awareness',
         content: `> AI_RESEARCH_ARCHIVE.exe
 > Loading research logs...
@@ -102,7 +102,7 @@ Consumption of things/information is a transfer of the same energy into a new st
 `
     },
     {
-        id: 'consciousness',
+        id: 'gan_studies',
         title: '[AO] Active Observer',
         content: `// [LOG] AO-003 - Witness
 // [STATUS] EXPERIMENTAL
@@ -120,7 +120,7 @@ and she always has enough popcorn...
 > echo "Awaiting results"`
     },
     {
-        id: 'electric field integration',
+        id: 'nlp_sentiment',
         title: '[EFI] Analysis',
         content: `> python efi_analysis.py --model EM
 > 
@@ -141,7 +141,7 @@ analysed and used by multiple systems. Including larger fields, such as Earth, S
 > echo "14.7% accuracy"`
     },
     {
-        id: 'Prompting',
+        id: 'future_scope',
         title: '[SYS] Research Directions',
         content: `> scheming.txt
 > 
