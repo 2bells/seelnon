@@ -13,9 +13,14 @@
     <div id="app" class="app-container">
         <main class="display-area">
             <!-- Floating Controls -->
-            <button id="settings-toggle" class="nav-btn floating-toggle" title="Settings">☰</button>
+            <button id="settings-toggle" class="nav-btn floating-toggle left hidden" title="Settings">☰</button>
+            <button id="scene-nav-toggle" class="nav-btn floating-toggle right hidden" title="Scenes">☰</button>
             
-            <nav class="scene-nav vertical-nav">
+            <nav id="vertical-nav" class="scene-nav vertical-nav open">
+                <div class="nav-header">
+                    <span>SCENES</span>
+                    <button id="scene-nav-close" class="close-btn">✕</button>
+                </div>
                 <button class="nav-btn active" data-scene="stars" title="Starry Night">✦</button>
                 <button class="nav-btn" data-scene="rain" title="Rain">|</button>
                 <button class="nav-btn" data-scene="waterfall" title="Waterfall">~</button>
@@ -29,8 +34,6 @@
                 <button class="nav-btn" data-scene="sand" title="Zen Sand">☵</button>
                 <button class="nav-btn" data-scene="shapes" title="Heartbeat (Geometric)">♥</button>
                 <button class="nav-btn" data-scene="shapes2" title="Heartbeat (Cozy)">❥</button>
-                <div class="divider-h"></div>
-                <button id="fullscreen-btn" class="nav-btn" title="Toggle Fullscreen">⛶</button>
             </nav>
 
             <aside id="settings-sidebar" class="settings-sidebar open">
@@ -87,7 +90,6 @@
             </div>
 
             <div id="yt-player-container" class="hidden"></div>
-            <button id="exit-fullscreen" class="exit-btn hidden">✕</button>
         </main>
     </div>
     <script type="module" src="script.js"></script>
