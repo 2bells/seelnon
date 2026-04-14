@@ -27,10 +27,22 @@ class App {
         this.cropStartMouse = { x: 0, y: 0 }; // Mouse position at crop start (in original image pixels)
         this.initialCropRect = { x: 0, y: 0, width: 0, height: 0 }; // Crop rect state when drag starts
         
+        // Cut Mode state
+        this.isCutMode = false;
+        // Cut region defined in Canvas coordinates (relative to canvas top-left, independent of pan/zoom)
+        // Set initial values, these will be recalculated on canvas setup/resize
+        this.cutRegion = { x: 0, y: 0, width: 256, height: 256 }; 
+        // Lasso tool state
+        this.isLassoDrawing = false; // If the lasso tool is active (button pressed)
+        this.isLassoDrawingShape = false; // If the mouse button is currently held down to draw a shape
+        this.currentLassoPath = []; // Current points for the path being drawn
+        this.lassoShapes = []; // Array of completed lasso shape paths (arrays of {x, y} points in world coordinates)
+        
         this.canvas = document.getElementById('viewport'); // Reference to the main canvas
         this.inventoryGridContainer = document.getElementById('inventoryGrid'); // Reference to inventory list container
         this.inventoryPanel = document.getElementById('inventoryPanel');
         this.layersPanel = document.getElementById('layersPanel');
+        this.cutModePanel = document.getElementById('cutModePanel');
 
         this.panelDragging = null; // Stores { element, startX, startY, initialLeft, initialTop }
         this.panelResizing = null; // Stores { element, startX, startY, initialWidth, initialHeight, direction }
@@ -54,6 +66,7 @@ class App {
         this.setupEventListeners(); // Call after canvas setup
         this.setupInventoryEvents();
         this.setupPanelEvents(); // New: setup events for floating panels
+        this.setupCutModeEvents(); // New: setup events for cut mode panel
         this.updateZoomDisplay(); // Update display with initial zoom from ImageBoard
         this.render(); // Initial render
         this.renderInventory(); // Initial render of inventory
@@ -65,6 +78,7 @@ class App {
         document.getElementById('importBtn').addEventListener('click', () => this.importImages());
         document.getElementById('addTextBtn').addEventListener('click', () => this.addText());
         document.getElementById('cropBtn').addEventListener('click', () => this.toggleCropMode()); // New crop button
+        document.getElementById('cutModeBtn').addEventListener('click', () => this.toggleCutMode(true)); // New cut mode button
         document.getElementById('deleteBtn').addEventListener('click', () => this.deleteSelected()); // New delete button
         document.getElementById('saveBtn').addEventListener('click', () => this.saveBoard());
         document.getElementById('loadBtn').addEventListener('click', () => this.loadBoard());
@@ -130,13 +144,125 @@ class App {
         });
 
         // Export modal width/height input changes
-        document.getElementById('exportWidth').addEventListener('input', (e) => this.adjustExportDimensions('exportWidth'));
-        document.getElementById('exportHeight').addEventListener('input', (e) => this.adjustExportDimensions('exportHeight'));
+        document.getElementById('exportWidth').addEventListener('input', () => this.adjustExportDimensions('exportWidth'));
+        document.getElementById('exportHeight').addEventListener('input', () => this.adjustExportDimensions('exportHeight'));
         
         // New: Export modal transparency checkbox
         document.getElementById('exportWithAlpha').addEventListener('change', (e) => {
             this.exportWithAlpha = e.target.checked;
+            const bgColorGroup = document.getElementById('exportBgColorGroup');
+            if (this.exportWithAlpha) {
+                bgColorGroup.classList.add('hidden');
+            } else {
+                bgColorGroup.classList.remove('hidden');
+            }
         });
+    }
+
+    setupCutModeEvents() {
+        document.getElementById('exitCutModeBtn').addEventListener('click', () => this.toggleCutMode(false));
+        document.getElementById('cutModeSnapshotBtn').addEventListener('click', () => this.exportCutRegion());
+        
+        document.getElementById('startLassoBtn').addEventListener('click', () => this.toggleLassoDrawingTool());
+        document.getElementById('clearLassoBtn').addEventListener('click', () => this.clearLassoShapes());
+        
+        // New Cut Size input listeners
+        document.getElementById('cutSizeWidth').addEventListener('input', (e) => this.handleCutSizeChange('width', e.target.value));
+        document.getElementById('cutSizeHeight').addEventListener('input', (e) => this.handleCutSizeChange('height', e.target.value));
+
+        // Set initial panel properties
+        this.cutRegion.width = 256;
+        this.cutRegion.height = 256;
+        this.setupCanvas(); // Initialize cutRegion position based on new width/height structure
+    }
+    
+    handleCutSizeChange(dimension, value) {
+        let size = parseInt(value);
+        if (isNaN(size) || size < 1) {
+            size = 1; // Minimum size of 1
+        }
+        
+        if (dimension === 'width') {
+            this.cutRegion.width = size;
+            document.getElementById('cutSizeWidth').value = size;
+        } else {
+            this.cutRegion.height = size;
+            document.getElementById('cutSizeHeight').value = size;
+        }
+        
+        this.setupCutRegionPosition();
+        this.render();
+    }
+
+    toggleCutMode(activate) {
+        if (activate === undefined) {
+            this.isCutMode = !this.isCutMode;
+        } else {
+            this.isCutMode = activate;
+        }
+
+        if (this.isCutMode) {
+            // Disable other interactive modes
+            this.isCropping = false;
+            this.imageBoard.selectItem(null);
+            this.cutModePanel.classList.remove('hidden');
+            document.getElementById('viewport').style.cursor = 'default';
+            this.setupCutRegionPosition(); // Recalculate cutRegion center position
+            this.syncCutModeInputs();
+        } else {
+            // Exit all cut mode drawing tools
+            this.isLassoDrawing = false;
+            this.isLassoDrawingShape = false;
+            this.currentLassoPath = [];
+            this.cutModePanel.classList.add('hidden');
+            this.toggleLassoDrawingTool(false); // Reset lasso button state
+        }
+        this.render();
+    }
+    
+    syncCutModeInputs() {
+        document.getElementById('cutSizeWidth').value = this.cutRegion.width;
+        document.getElementById('cutSizeHeight').value = this.cutRegion.height;
+    }
+    
+    toggleLassoDrawingTool(activate) {
+        if (activate === undefined) {
+            this.isLassoDrawing = !this.isLassoDrawing;
+        } else {
+            this.isLassoDrawing = activate;
+        }
+        
+        // Reset drawing state whenever tool state changes
+        this.isLassoDrawingShape = false;
+        this.currentLassoPath = [];
+        
+        const lassoBtn = document.getElementById('startLassoBtn');
+        
+        if (this.isLassoDrawing) {
+            lassoBtn.textContent = 'Lasso Active (Click & Drag)';
+            lassoBtn.classList.remove('primary');
+            lassoBtn.classList.add('danger'); // Use danger color to indicate active mode
+            document.getElementById('viewport').style.cursor = 'crosshair';
+        } else {
+            lassoBtn.textContent = 'Start Freehand Lasso';
+            lassoBtn.classList.add('primary');
+            lassoBtn.classList.remove('danger');
+            
+            // If exiting cut mode entirely, cursor will be handled by toggleCutMode
+            if (this.isCutMode) {
+                document.getElementById('viewport').style.cursor = 'move'; // Back to pan cursor in cut mode
+            } else {
+                document.getElementById('viewport').style.cursor = 'default';
+            }
+        }
+        this.render();
+    }
+
+    clearLassoShapes() {
+        if (confirm('Are you sure you want to clear all drawn black shapes?')) {
+            this.lassoShapes = [];
+            this.render();
+        }
     }
 
     setupPanelEvents() {
@@ -144,7 +270,7 @@ class App {
         document.addEventListener('mousemove', (e) => this.handlePanelMouseMove(e));
         document.addEventListener('mouseup', (e) => this.handlePanelMouseUp(e));
 
-        [this.inventoryPanel, this.layersPanel].forEach(panel => {
+        [this.inventoryPanel, this.layersPanel, this.cutModePanel].forEach(panel => {
             if (!panel) return; // Guard against panel not existing
 
             const header = panel.querySelector('.panel-header');
@@ -160,7 +286,7 @@ class App {
             });
         });
 
-        // Set initial positions for panels
+        // Set initial positions for panels (cutModePanel uses CSS centering now)
         this.inventoryPanel.style.left = '20px';
         this.inventoryPanel.style.top = '80px';
         this.inventoryPanel.style.width = '300px';
@@ -170,6 +296,17 @@ class App {
         this.layersPanel.style.top = '80px';
         this.layersPanel.style.width = '280px';
         this.layersPanel.style.height = '400px';
+
+        // Set default position for Cut Mode panel if it wasn't hidden by CSS transform
+        // We'll rely on the default position set in CSS, but ensure it's hidden initially.
+        this.cutModePanel.style.left = '50%';
+        this.cutModePanel.style.transform = 'translateX(-50%)'; // Retain centering for default start
+        this.cutModePanel.style.top = '80px'; 
+        
+        // Ensure cutModePanel starts hidden by CSS class if not explicitly positioned
+        if (!this.isCutMode) {
+            this.cutModePanel.classList.add('hidden');
+        }
     }
 
     handlePanelMouseDown(e, panel, mode, direction = null) {
@@ -188,6 +325,13 @@ class App {
             };
             panel.style.cursor = 'grabbing';
             panel.style.zIndex = '1001'; // Bring to front
+            
+            // If dragging the cut mode panel, remove its CSS centering for independent positioning
+            if (panel.id === 'cutModePanel') {
+                panel.style.transform = 'none'; // Use 'panel' instead of 'element'
+                panel.style.left = `${rect.left}px`; // Fix position based on current visual location
+            }
+
         } else if (mode === 'resize') {
             const rect = panel.getBoundingClientRect();
             this.panelResizing = {
@@ -269,7 +413,7 @@ class App {
         }
     }
 
-    handlePanelMouseUp(e) {
+    handlePanelMouseUp() {
         if (this.panelDragging) {
             this.panelDragging.element.style.cursor = 'grab';
             this.panelDragging.element.style.zIndex = '500'; // Reset z-index
@@ -286,15 +430,39 @@ class App {
         const container = canvas.parentElement;
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
+        
+        // Recalculate fixed cut region center on resize
+        this.setupCutRegionPosition();
+
         this.render();
     }
     
+    setupCutRegionPosition() {
+        // Calculate fixed cut region center on resize or size change
+        const cutWidth = this.cutRegion.width;
+        const cutHeight = this.cutRegion.height;
+
+        this.cutRegion.x = (this.canvas.width / 2) - (cutWidth / 2);
+        this.cutRegion.y = (this.canvas.height / 2) - (cutHeight / 2);
+        
+        // Note: this.cutRegion now has x, y, width, height properties instead of x, y, size
+    }
+
     // Returns world coordinates (board space after pan but before zoom)
     getTransformedCoords(e) {
         const rect = e.target.getBoundingClientRect();
         return {
             x: (e.clientX - rect.left) / this.imageBoard.zoom - this.imageBoard.panX, // Use imageBoard's zoom
             y: (e.clientY - rect.top) / this.imageBoard.zoom - this.imageBoard.panY // Use imageBoard's zoom
+        };
+    }
+    
+    // Returns canvas coordinates (relative to canvas top-left, independent of pan/zoom)
+    getCanvasCoords(e) {
+        const rect = e.target.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
         };
     }
 
@@ -349,6 +517,9 @@ class App {
         this.isCropping = !this.isCropping;
 
         if (this.isCropping) {
+            // Ensure we exit cut mode if entering crop mode
+            if (this.isCutMode) this.toggleCutMode(false); 
+
             this.imageBoard.selectItem(selectedItem.id);
             const item = selectedItem;
             if (item.crop) {
@@ -384,6 +555,29 @@ class App {
         const worldX = (mouseCanvasX / this.imageBoard.zoom) - this.imageBoard.panX; // Use imageBoard's zoom
         const worldY = (mouseCanvasY / this.imageBoard.zoom) - this.imageBoard.panY; // Use imageBoard's zoom
         
+        // Handle Cut Mode interactions first
+        if (this.isCutMode) {
+            // Priority 1: Lasso drawing (if enabled)
+            if (this.isLassoDrawing) {
+                // If the lasso tool is active, start drawing a shape on mousedown
+                this.isLassoDrawingShape = true;
+                this.currentLassoPath = []; // Start a new shape
+                const { x, y } = this.getTransformedCoords(e);
+                this.currentLassoPath.push({ x, y });
+                e.preventDefault();
+                return;
+            }
+
+            // Priority 2: Dragging the Cut Region (now disabled as region is fixed center)
+            // Interaction in Cut Mode is now exclusively pan/zoom of the canvas content.
+            
+            // Allow panning via click and drag anywhere on the canvas (unless lasso is active)
+            this.isPanning = true;
+            this.lastPanPoint = { x: e.clientX, y: e.clientY };
+            document.getElementById('viewport').style.cursor = 'move'; // Use move cursor for drag pan
+            return;
+        }
+
         // Pan logic (highest priority with spacebar)
         if (this.isSpacePressed) {
             this.isPanning = true;
@@ -583,6 +777,38 @@ class App {
             this.render();
             return;
         }
+        
+        // CUT MODE LOGIC
+        if (this.isCutMode) {
+            // Lasso Drawing
+            if (this.isLassoDrawing && this.isLassoDrawingShape) {
+                const { x, y } = this.getTransformedCoords(e);
+                this.currentLassoPath.push({ x, y });
+                this.render();
+                return;
+            }
+            
+            // Moving Cut Region (replaced by panning the entire board)
+            if (this.isPanning) {
+                const deltaX = e.clientX - this.lastPanPoint.x;
+                const deltaY = e.clientY - this.lastPanPoint.y;
+                
+                this.imageBoard.pan(deltaX / this.imageBoard.zoom, deltaY / this.imageBoard.zoom);
+                this.lastPanPoint = { x: e.clientX, y: e.clientY };
+                this.render();
+                document.getElementById('viewport').style.cursor = 'grabbing'; // Change to grabbing while moving
+                return;
+            }
+
+            // If cut mode is active but not drawing/moving/panning, the cursor should reflect the active tool or pan availability
+            if (this.isLassoDrawing) {
+                 document.getElementById('viewport').style.cursor = 'crosshair';
+            } else {
+                 document.getElementById('viewport').style.cursor = 'move';
+            }
+            return;
+        }
+        // END CUT MODE LOGIC
 
         const selectedItem = this.imageBoard.getSelected();
 
@@ -684,7 +910,6 @@ class App {
                 cursor = 'move';
             } else if (this.isResizingItem && selectedItem && selectedItem.type === 'image') {
                 const deltaX = worldX - this.resizeStart.x;
-                const deltaY = worldY - this.resizeStart.y;
                 
                 let newWidth; // Declare newWidth here
                 let newHeight; // Declare newWidth here
@@ -851,6 +1076,21 @@ class App {
             this.isMovingItem = false;
             this.isResizingItem = false;
         }
+
+        if (this.isMovingCutRegion) {
+            // This is no longer used, cut region is fixed
+            this.isMovingCutRegion = false;
+        }
+
+        // CUT MODE: Finalize lasso shape on mouse up
+        if (this.isCutMode && this.isLassoDrawing && this.isLassoDrawingShape) {
+            this.isLassoDrawingShape = false;
+            if (this.currentLassoPath.length > 2) {
+                this.lassoShapes.push(this.currentLassoPath);
+            }
+            this.currentLassoPath = []; // Clear for next shape
+            this.render();
+        }
         
         // If a crop drag operation just finished, reset the drag mode
         if (this.isCropping && this.cropDragMode) {
@@ -864,6 +1104,12 @@ class App {
             document.getElementById('viewport').style.cursor = 'grab';
         } else if (this.isCropping) {
             document.getElementById('viewport').style.cursor = 'crosshair';
+        } else if (this.isCutMode) {
+            if (this.isLassoDrawing) {
+                document.getElementById('viewport').style.cursor = 'crosshair';
+            } else {
+                document.getElementById('viewport').style.cursor = 'move'; // Default to move to indicate pan is possible
+            }
         } else {
             document.getElementById('viewport').style.cursor = 'default';
         }
@@ -985,7 +1231,14 @@ class App {
     }
     
     saveBoard() {
-        const data = this.fileManager.serialize(this.imageBoard, this.layerManager);
+        const appState = {
+            cutRegion: { 
+                width: this.cutRegion.width,
+                height: this.cutRegion.height
+            },
+            lassoShapes: this.lassoShapes
+        };
+        const data = this.fileManager.serialize(this.imageBoard, this.layerManager, appState);
         this.fileManager.saveBoard(data);
     }
     
@@ -1043,6 +1296,32 @@ class App {
 
         this.layerManager.loadData(restoredLayers);
 
+        // Restore Cut Mode State
+        if (data.cutModeState) {
+            this.cutRegion.x = 0; // Will be recalculated by setupCutRegionPosition
+            this.cutRegion.y = 0; // Will be recalculated by setupCutRegionPosition
+            
+            // Handle loading old 'size' format or new 'width/height' format
+            if (data.cutModeState.cutRegion) {
+                if (data.cutModeState.cutRegion.size) {
+                    this.cutRegion.width = data.cutModeState.cutRegion.size;
+                    this.cutRegion.height = data.cutModeState.cutRegion.size;
+                } else {
+                    this.cutRegion.width = data.cutModeState.cutRegion.width || 256;
+                    this.cutRegion.height = data.cutModeState.cutRegion.height || 256;
+                }
+            } else {
+                this.cutRegion.width = 256;
+                this.cutRegion.height = 256;
+            }
+            
+            this.lassoShapes = data.cutModeState.lassoShapes || [];
+            
+            // After loading, ensure cutRegion is centered relative to current canvas size
+            this.setupCutRegionPosition();
+            this.syncCutModeInputs();
+        }
+
         // Restore zoom level
         this.zoom = this.imageBoard.zoom;
         this.updateZoomDisplay();
@@ -1080,6 +1359,10 @@ class App {
         lockAspectRatioCheckbox.checked = true; // Default to locked aspect ratio
         exportWithAlphaCheckbox.checked = false; // New: Default to no transparency
         this.exportWithAlpha = false; // Sync internal state
+        
+        const bgColorGroup = document.getElementById('exportBgColorGroup');
+        bgColorGroup.classList.remove('hidden');
+        document.getElementById('exportBgColor').value = '#0a0a0a'; // Default to dark background
 
         modal.classList.remove('hidden');
     }
@@ -1168,7 +1451,8 @@ class App {
 
         // Fill background only if not exporting with alpha
         if (!this.exportWithAlpha) {
-            tempCtx.fillStyle = '#0a0a0a'; // Match current canvas background
+            const bgColor = document.getElementById('exportBgColor').value;
+            tempCtx.fillStyle = bgColor; 
             tempCtx.fillRect(0, 0, outputWidth, outputHeight);
         } else {
             // Clear to transparent if exporting with alpha
@@ -1205,6 +1489,90 @@ class App {
         const a = document.createElement('a');
         a.href = dataURL;
         a.download = `image-board-export-${Date.now()}.png`;
+        document.body.appendChild(a); // Append to body to make it clickable
+        a.click();
+        document.body.removeChild(a); // Clean up
+        
+        // Clean up temporary canvas
+        tempCanvas.remove();
+    }
+
+    exportCutRegion() {
+        if (!this.isCutMode) return;
+        
+        const outputWidth = this.cutRegion.width;
+        const outputHeight = this.cutRegion.height;
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        tempCanvas.width = outputWidth;
+        tempCanvas.height = outputHeight;
+
+        // The background is always black in Cut Mode export
+        tempCtx.fillStyle = '#000000';
+        tempCtx.fillRect(0, 0, outputWidth, outputHeight);
+        
+        // 1. Calculate the fixed center position on the current canvas
+        // We use the already calculated cutRegion.x/y
+        const cutX = this.cutRegion.x;
+        const cutY = this.cutRegion.y;
+        
+        // 2. Determine the World Coordinates (board space) that correspond to the top-left corner of the fixed cut region.
+        // WorldX = (CanvasX / Zoom) - PanX
+        const worldXStart = (cutX / this.imageBoard.zoom) - this.imageBoard.panX;
+        const worldYStart = (cutY / this.imageBoard.zoom) - this.imageBoard.panY;
+        
+        // 3. Calculate the required scaling factor for this export.
+        const exportScale = this.imageBoard.zoom;
+        
+        tempCtx.save();
+        
+        // Apply transformation: Scale by current zoom level
+        tempCtx.scale(exportScale, exportScale);
+        
+        // Translate the context so that the (worldXStart, worldYStart) lands on (0, 0) of the temporary canvas.
+        tempCtx.translate(-worldXStart, -worldYStart);
+
+        // Render all visible items to the temporary canvas
+        const items = this.imageBoard.getAllItems();
+        const sortedItems = [...items].sort((a,b) => (a.zIndex || 0) - (b.zIndex || 0)); 
+        
+        for (const item of sortedItems) {
+            if (!item.visible) continue;
+
+            // Simple visibility check based on the target world bounding box 
+            // is omitted here for simplicity, but could be added for performance.
+            // Since we're drawing the whole world, only the area within the cut will be visible on the 256x256 canvas.
+
+            if (item.type === 'image') {
+                this.renderImage(tempCtx, item);
+            } else if (item.type === 'text') {
+                this.renderText(tempCtx, item);
+            }
+        }
+        
+        // 4. Draw the black lasso shapes on top of the rendered image data
+        tempCtx.fillStyle = '#000000';
+        this.lassoShapes.forEach(shape => {
+            tempCtx.beginPath();
+            shape.forEach((point, index) => {
+                if (index === 0) {
+                    tempCtx.moveTo(point.x, point.y);
+                } else {
+                    tempCtx.lineTo(point.x, point.y);
+                }
+            });
+            tempCtx.closePath();
+            tempCtx.fill();
+        });
+        
+        tempCtx.restore(); // Restore context state (undoing export scale and translation)
+
+        // Trigger download
+        const dataURL = tempCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = dataURL;
+        a.download = `image-board-cut-snapshot-${Date.now()}.png`;
         document.body.appendChild(a); // Append to body to make it clickable
         a.click();
         document.body.removeChild(a); // Clean up
@@ -1295,7 +1663,78 @@ class App {
             }
         }
         
+        // Render Cut Mode Overlay and Shapes
+        if (this.isCutMode) {
+            // Lasso shapes need to be drawn *before* we undo the transform, 
+            // but the overlay mask needs to be drawn *after* we undo it.
+            this.renderLassoShapes(ctx);
+            this.renderCutModeOverlay(ctx); // This function handles restoring/saving context for overlay drawing
+        }
+
         ctx.restore();
+    }
+    
+    // New function to render lasso shapes in world coordinates
+    renderLassoShapes(ctx) {
+        ctx.fillStyle = '#000000';
+        this.lassoShapes.forEach(shape => {
+            ctx.beginPath();
+            shape.forEach((point, index) => {
+                if (index === 0) {
+                    ctx.moveTo(point.x, point.y);
+                } else {
+                    ctx.lineTo(point.x, point.y);
+                }
+            });
+            ctx.closePath();
+            ctx.fill();
+        });
+
+        // Draw the currently drawing lasso path
+        if (this.isLassoDrawing && this.isLassoDrawingShape && this.currentLassoPath.length > 0) {
+            ctx.strokeStyle = '#ff4757';
+            ctx.lineWidth = 2 / this.imageBoard.zoom; // Keep constant visual width
+            ctx.beginPath();
+            this.currentLassoPath.forEach((point, index) => {
+                if (index === 0) {
+                    ctx.moveTo(point.x, point.y);
+                } else {
+                    ctx.lineTo(point.x, point.y);
+                }
+            });
+            ctx.stroke();
+        }
+    }
+
+    // Renders the fixed cut region box and the black overlay mask
+    renderCutModeOverlay(ctx) {
+        // Must be called *after* world content (including items and lasso shapes) have been drawn 
+        // but *before* the main ctx.restore() to draw in screen space.
+        
+        // Undo pan/zoom to draw overlay in screen space
+        ctx.restore(); 
+        
+        const cutWidth = this.cutRegion.width;
+        const cutHeight = this.cutRegion.height;
+        const cutX = this.cutRegion.x;
+        const cutY = this.cutRegion.y;
+        
+        // 1. Draw the surrounding dark overlay (mask)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, this.canvas.width, cutY); // Top
+        ctx.fillRect(0, cutY + cutHeight, this.canvas.width, this.canvas.height - (cutY + cutHeight)); // Bottom
+        ctx.fillRect(0, cutY, cutX, cutHeight); // Left
+        ctx.fillRect(cutX + cutWidth, cutY, this.canvas.width - (cutX + cutWidth), cutHeight); // Right
+
+        // 2. Draw the cut region highlight
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(cutX, cutY, cutWidth, cutHeight);
+        ctx.setLineDash([]);
+        
+        // 3. Prepare for the original ctx.restore() caller
+        ctx.save();
     }
     
     renderImage(ctx, image) {
@@ -1363,7 +1802,7 @@ class App {
                     currentDisplayWidth = imageDisplayWidth;
                     currentDisplayHeight = currentDisplayWidth / aspectRatio;
                 } else {
-                    currentDisplayHeight = imageDisplayHeight;
+                    currentDisplayHeight = image.height;
                     currentDisplayWidth = currentDisplayHeight * aspectRatio;
                 }
             }
