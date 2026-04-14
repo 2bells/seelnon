@@ -114,8 +114,8 @@ Consumption of things/information is a transfer of the same energy into a new st
 
 > debug_gan.py
 [SOLUTION] Things do not need to be conscious for people to be nice to them.
-[STATUS] A rock, chair, PC, a tree, a cat, a star are a part of the universe. Smile, you are always on camera
-and she always has enough popcorn...
+[STATUS] A rock, a tree, a cat or a star are all part of the universe.
+She always watches and always has enough popcorn to throw at bad actors...
 -----
 > echo "Awaiting results"`
     },
