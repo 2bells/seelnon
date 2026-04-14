@@ -62,7 +62,7 @@ Even with few pieces it is possible to already make visual environments by repea
 ---
 
 VERSION: v0.0.4
-DATE: 2026-04-19
+DATE: 2026-04-22
 STATUS: EXPANDING
 BG_COLOR: #000000
 WIP_TEXT: WORK IN PROGRESS
@@ -81,5 +81,26 @@ DESCRIPTION: That's him, the building!
 
 ### Observations
 Even with few pieces it is possible to already make visual environments by repeating same blocks.
+
+---
+
+VERSION: v1.0.0
+DATE: 2026-04-24
+STATUS: OBSERVING
+BG_COLOR: #9B8308
+MEDIA: wonderlands/orszaghaz/shw_1.jpg, wonderlands/orszaghaz/shw_2.jpg, wonderlands/orszaghaz/shw_3.jpg, wonderlands/orszaghaz/shw_4.jpg, wonderlands/orszaghaz/shw_5.jpg, wonderlands/orszaghaz/shw_6.jpg,
+wonderlands/orszaghaz/shw_7.jpg, wonderlands/orszaghaz/shw_8.jpg, wonderlands/orszaghaz/shw_9.jpg, wonderlands/orszaghaz/shw_10.jpg, wonderlands/orszaghaz/shw_11.jpg, wonderlands/orszaghaz/shw_12.jpg,
+wonderlands/orszaghaz/shw_13.jpg, wonderlands/orszaghaz/shw_14.jpg, wonderlands/orszaghaz/shw_15.jpg,
+DESCRIPTION: That's him, the building!
+---
+# Sector: Orszaghaz
+## Status: Planning
+
+### Developments
+- Photosession!
+
+
+### Observations
+He looks tall, proud and happy!
 
 *End of log.*
