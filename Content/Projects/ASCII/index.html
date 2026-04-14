@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Zen Garden</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <header class="main-header">
+            <div class="window-controls">
+                <button id="settings-toggle" class="nav-btn" title="Settings">☰</button>
+                <div class="divider"></div>
+                <h1 class="title">ASCII_ZEN_GARDEN_V2.2</h1>
+                <div class="divider"></div>
+                <div class="zoom-controls">
+                    <button id="zoom-out" class="nav-btn" title="Zoom Out">−</button>
+                    <button id="zoom-in" class="nav-btn" title="Zoom In">+</button>
+                </div>
+            </div>
+            <nav class="scene-nav">
+                <button class="nav-btn active" data-scene="stars" title="Starry Night">✦</button>
+                <button class="nav-btn" data-scene="rain" title="Rain">|</button>
+                <button class="nav-btn" data-scene="waterfall" title="Waterfall">~</button>
+                <button class="nav-btn" data-scene="fire" title="Fire">@</button>
+                <button class="nav-btn" data-scene="fire2" title="Fire (Liquid)">♨</button>
+                <button class="nav-btn" data-scene="smoke" title="Smoke">&</button>
+                <button class="nav-btn" data-scene="typewriter" title="Typewriter">K</button>
+                <button class="nav-btn" data-scene="donut" title="Donut">O</button>
+                <button class="nav-btn" data-scene="ripples" title="Ripples">≋</button>
+                <button class="nav-btn" data-scene="leaves" title="Wind & Leaves">☘</button>
+                <button class="nav-btn" data-scene="sand" title="Zen Sand">☵</button>
+                <button class="nav-btn" data-scene="shapes" title="Heartbeat (Geometric)">♥</button>
+                <button class="nav-btn" data-scene="shapes2" title="Heartbeat (Cozy)">❥</button>
+                <div class="divider"></div>
+                <button id="fullscreen-btn" class="nav-btn" title="Toggle Fullscreen">⛶</button>
+            </nav>
+        </header>
+
+        <main class="display-area">
+            <aside id="settings-sidebar" class="settings-sidebar open">
+                <div class="sidebar-header">
+                    <h3>PARAMETERS</h3>
+                    <button id="settings-close" class="close-btn">✕</button>
+                </div>
+                <div id="settings-content" class="settings-content">
+                    <!-- Dynamic content -->
+                </div>
+                <div class="sidebar-footer">
+                    <div class="setting-group">
+                        <label>GLOBAL_COLOR</label>
+                        <div class="input-row">
+                            <input type="color" id="global-color-picker" value="#a1a1aa">
+                            <button id="apply-color-btn" class="action-btn">APPLY</button>
+                            <button id="clear-color-btn" class="action-btn">CLR</button>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label>AMBIENCE_YT_ID</label>
+                        <div class="input-row">
+                            <input type="text" id="yt-link-input" placeholder="e.g. jfKfPfyJRdk">
+                            <button id="load-yt-btn" class="action-btn">LOAD</button>
+                            <button id="toggle-yt-btn" class="action-btn">⏯</button>
+                        </div>
+                        <p style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">
+                            Note: If sound fails, check ad-blocker or click ⏯.
+                        </p>
+                    </div>
+                    <div class="setting-group">
+                        <label>VOLUME <span id="val-volume">50%</span></label>
+                        <input type="range" id="global-volume" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                </div>
+            </aside>
+
+            <div class="scanlines"></div>
+            <pre id="ascii-canvas"></pre>
+            
+            <div class="status-bar">
+                <span id="status-scene">SCENE: STARS</span>
+                <span>INPUT: MOUSE_ENABLED</span>
+                <span>STATUS: STABLE</span>
+            </div>
+
+            <div id="yt-player-container" class="hidden"></div>
+            <button id="exit-fullscreen" class="exit-btn hidden">✕</button>
+        </main>
+
+        <footer class="main-footer">
+            <p class="description">
+                Interactive ASCII sanctuary. Move your cursor to disturb the rain. 
+                Wait for the puddles to form and drain. Watch the deep cosmos drift.
+            </p>
+            <p class="copyright">© 2026 ASCII_ZEN</p>
+        </footer>
+    </div>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
