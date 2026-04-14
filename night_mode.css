@@ -227,8 +227,9 @@ body.night-mode .about-me-content li::before {
 }
 
 body.night-mode .about-me-content .subdued-text,
-body.night-mode .about-me-content .placeholder-text {
-  color: #a68b6a; /* Brighter tan for better readability */
+body.night-mode .about-me-content .placeholder-text,
+body.night-mode .hp-mp-label {
+  color: #f5f5dc; /* Brighter tan/creamy color for better visibility */
 }
 
 /* Night Mode Blog & Timeline Improvements */
