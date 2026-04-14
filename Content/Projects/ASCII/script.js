@@ -16,14 +16,14 @@ import { WIDTH, HEIGHT } from './utils.js';
 const canvas = document.getElementById('ascii-canvas');
 const statusScene = document.getElementById('status-scene');
 const navBtns = document.querySelectorAll('.nav-btn[data-scene]');
-const fullscreenBtn = document.getElementById('fullscreen-btn');
-const exitFullscreenBtn = document.getElementById('exit-fullscreen');
-const appContainer = document.querySelector('.app-container');
 
-// Settings Elements
+// Navigation Elements
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsSidebar = document.getElementById('settings-sidebar');
 const settingsClose = document.getElementById('settings-close');
+const sceneNavToggle = document.getElementById('scene-nav-toggle');
+const sceneNavClose = document.getElementById('scene-nav-close');
+const verticalNav = document.getElementById('vertical-nav');
 const settingsContent = document.getElementById('settings-content');
 const globalColorPicker = document.getElementById('global-color-picker');
 const applyColorBtn = document.getElementById('apply-color-btn');
@@ -328,13 +328,25 @@ function loadYouTube() {
         iframe.width = "1";
         iframe.height = "1";
         // Use youtube-nocookie.com for better compatibility and privacy
-        iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&enablejsapi=1`;
+        // Add mute=1 to prevent jump scares, then unmute after setting volume
+        iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&enablejsapi=1&mute=1`;
         iframe.frameBorder = "0";
         iframe.allow = "autoplay; encrypted-media";
         ytPlayerContainer.appendChild(iframe);
 
-        // Set initial volume after load
-        setTimeout(() => updateYoutubeVolume(globalVolume), 2000);
+        // Set initial volume and unmute after a short delay to ensure API is ready
+        setTimeout(() => {
+            updateYoutubeVolume(globalVolume);
+            // Unmute command
+            const iframeEl = ytPlayerContainer.querySelector('iframe');
+            if (iframeEl && iframeEl.contentWindow) {
+                iframeEl.contentWindow.postMessage(JSON.stringify({
+                    event: 'command',
+                    func: 'unMute',
+                    args: []
+                }), '*');
+            }
+        }, 1500);
     } else {
         console.warn("Invalid YouTube ID/URL");
     }
@@ -361,27 +373,34 @@ ytLinkInput.addEventListener('keydown', (e) => {
 });
 
 settingsToggle.addEventListener('click', () => {
-    settingsSidebar.classList.toggle('open');
+    settingsSidebar.classList.add('open');
+    settingsToggle.classList.add('hidden');
 });
 
 settingsClose.addEventListener('click', () => {
     settingsSidebar.classList.remove('open');
+    settingsToggle.classList.remove('hidden');
+});
+
+sceneNavToggle.addEventListener('click', () => {
+    verticalNav.classList.add('open');
+    sceneNavToggle.classList.add('hidden');
+});
+
+sceneNavClose.addEventListener('click', () => {
+    verticalNav.classList.remove('open');
+    sceneNavToggle.classList.remove('hidden');
 });
 
 navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         switchScene(btn.dataset.scene);
+        // Auto-close nav on mobile or for cleaner feel
+        if (window.innerWidth < 768) {
+            verticalNav.classList.remove('open');
+            sceneNavToggle.classList.remove('hidden');
+        }
     });
-});
-
-fullscreenBtn.addEventListener('click', () => {
-    appContainer.classList.add('fullscreen');
-    exitFullscreenBtn.classList.remove('hidden');
-});
-
-exitFullscreenBtn.addEventListener('click', () => {
-    appContainer.classList.remove('fullscreen');
-    exitFullscreenBtn.classList.add('hidden');
 });
 
 zoomInBtn.addEventListener('click', () => {
