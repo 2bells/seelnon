@@ -17,7 +17,10 @@ DESCRIPTION: I was listening to music and that building looked at me weirdly.
 VERSION: v0.0.2
 DATE: 2026-02-17
 STATUS: EXPANDING
-MEDIA: wonderlands/orszaghaz/1/3d_scan.jpg, Floor_Plan
+BG_COLOR: #000000
+WIP_TEXT: RESEARCH
+SHOW_WIP: true
+MEDIA: wonderlands/orszaghaz/3d_scan.jpg, Floor_Plan
 DESCRIPTION: So I found the floor plan shematics and the 3d scan: [link](https://sketchfab.com/3d-models/hungarian-parliament-buildingmapscan-4f25e4d65b1b4b03bdf9fe5a378312fe)
 ---
 # Sector: Orszaghaz
@@ -37,7 +40,10 @@ Deciding if I want to go hard or extra hard. Building seems to want to bait me. 
 VERSION: v0.0.3
 DATE: 2026-04-18
 STATUS: EXPANDING
-MEDIA: wonderlands/orszaghaz/1/ENV.jpg, wonderlands/orszaghaz/1/1.jpg, wonderlands/orszaghaz/1/2.jpg, wonderlands/orszaghaz/1/3.jpg, wonderlands/orszaghaz/1/4.jpg, wonderlands/orszaghaz/1/5.jpg, wonderlands/orszaghaz/1/ENV.jpg
+BG_COLOR: #000000
+WIP_TEXT: WORK IN PROGRESS
+SHOW_WIP: true
+MEDIA: wonderlands/orszaghaz/ENV.jpg, wonderlands/orszaghaz/1.jpg, wonderlands/orszaghaz/2.jpg, wonderlands/orszaghaz/3.jpg, wonderlands/orszaghaz/4.jpg, wonderlands/orszaghaz/5.jpg
 DESCRIPTION: That's him, the building!
 ---
 # Sector: Orszaghaz
@@ -52,5 +58,28 @@ DESCRIPTION: That's him, the building!
 ### Observations
 Even with few pieces it is possible to already make visual environments by repeating same blocks.
 
+
+---
+
+VERSION: v0.0.4
+DATE: 2026-04-19
+STATUS: EXPANDING
+BG_COLOR: #000000
+WIP_TEXT: WORK IN PROGRESS
+SHOW_WIP: true
+MEDIA: wonderlands/orszaghaz/6.jpg, wonderlands/orszaghaz/7.jpg, wonderlands/orszaghaz/8.jpg, wonderlands/orszaghaz/9.jpg, wonderlands/orszaghaz/10.jpg, wonderlands/orszaghaz/11.jpg
+DESCRIPTION: That's him, the building!
+---
+# Sector: Orszaghaz
+## Status: Planning
+
+### Developments
+- Main is complete
+- Entrance is being built
+- Environment stable to showcase how far we go.
+
+
+### Observations
+Even with few pieces it is possible to already make visual environments by repeating same blocks.
 
 *End of log.*
