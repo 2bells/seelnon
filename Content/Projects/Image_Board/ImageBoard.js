@@ -1,5 +1,4 @@
-import { LayerManager } from './LayerManager.js'; // Ensure LayerManager is imported if needed for zIndex calculation here
-
+// ImageBoard.js
 export class ImageBoard {
     constructor() {
         this.items = new Map();
@@ -128,15 +127,21 @@ export class ImageBoard {
     }
     
     saveState() {
+        // Deep clone items but keep the Image element reference
+        const clonedItems = new Map();
+        for (const [id, item] of this.items) {
+            clonedItems.set(id, { ...item });
+        }
+        
         const state = {
-            items: Array.from(this.items.entries()),
+            items: clonedItems,
             panX: this.panX,
             panY: this.panY,
             zoom: this.zoom // Save current zoom level
         };
         
         this.history = this.history.slice(0, this.historyIndex + 1);
-        this.history.push(JSON.stringify(state));
+        this.history.push(state);
         this.historyIndex++;
         
         // Limit history size
@@ -161,20 +166,12 @@ export class ImageBoard {
     }
     
     restoreState() {
-        const state = JSON.parse(this.history[this.historyIndex]);
+        const state = this.history[this.historyIndex];
         
         const restoredItems = new Map();
         for (const [id, itemData] of state.items) {
-            // Restore Image elements if they were serialized as dataURLs
-            if (itemData.type === 'image' && typeof itemData.element === 'string') { 
-                const img = new Image();
-                img.src = itemData.element; 
-                itemData.element = img;
-            }
-            // Ensure zIndex and visible properties are restored
-            if (itemData.zIndex === undefined) itemData.zIndex = 0;
-            if (itemData.visible === undefined) itemData.visible = true;
-            restoredItems.set(id, itemData);
+            // No need to restore Image elements from strings anymore as we store references
+            restoredItems.set(id, { ...itemData });
         }
         
         this.items = restoredItems;
