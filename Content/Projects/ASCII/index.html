@@ -11,18 +11,11 @@
 </head>
 <body>
     <div id="app" class="app-container">
-        <header class="main-header">
-            <div class="window-controls">
-                <button id="settings-toggle" class="nav-btn" title="Settings">☰</button>
-                <div class="divider"></div>
-                <h1 class="title">ASCII_ZEN_GARDEN_V2.2</h1>
-                <div class="divider"></div>
-                <div class="zoom-controls">
-                    <button id="zoom-out" class="nav-btn" title="Zoom Out">−</button>
-                    <button id="zoom-in" class="nav-btn" title="Zoom In">+</button>
-                </div>
-            </div>
-            <nav class="scene-nav">
+        <main class="display-area">
+            <!-- Floating Controls -->
+            <button id="settings-toggle" class="nav-btn floating-toggle" title="Settings">☰</button>
+            
+            <nav class="scene-nav vertical-nav">
                 <button class="nav-btn active" data-scene="stars" title="Starry Night">✦</button>
                 <button class="nav-btn" data-scene="rain" title="Rain">|</button>
                 <button class="nav-btn" data-scene="waterfall" title="Waterfall">~</button>
@@ -36,12 +29,10 @@
                 <button class="nav-btn" data-scene="sand" title="Zen Sand">☵</button>
                 <button class="nav-btn" data-scene="shapes" title="Heartbeat (Geometric)">♥</button>
                 <button class="nav-btn" data-scene="shapes2" title="Heartbeat (Cozy)">❥</button>
-                <div class="divider"></div>
+                <div class="divider-h"></div>
                 <button id="fullscreen-btn" class="nav-btn" title="Toggle Fullscreen">⛶</button>
             </nav>
-        </header>
 
-        <main class="display-area">
             <aside id="settings-sidebar" class="settings-sidebar open">
                 <div class="sidebar-header">
                     <h3>PARAMETERS</h3>
@@ -81,22 +72,23 @@
             <pre id="ascii-canvas"></pre>
             
             <div class="status-bar">
-                <span id="status-scene">SCENE: STARS</span>
-                <span>INPUT: MOUSE_ENABLED</span>
-                <span>STATUS: STABLE</span>
+                <div class="status-left">
+                    <span id="status-scene">SCENE: STARS</span>
+                </div>
+                <div class="status-center">
+                    <div class="zoom-controls">
+                        <button id="zoom-out" class="nav-btn" title="Zoom Out">−</button>
+                        <button id="zoom-in" class="nav-btn" title="Zoom In">+</button>
+                    </div>
+                </div>
+                <div class="status-right">
+                    <span>STATUS: STABLE</span>
+                </div>
             </div>
 
             <div id="yt-player-container" class="hidden"></div>
             <button id="exit-fullscreen" class="exit-btn hidden">✕</button>
         </main>
-
-        <footer class="main-footer">
-            <p class="description">
-                Interactive ASCII sanctuary. Move your cursor to disturb the rain. 
-                Wait for the puddles to form and drain. Watch the deep cosmos drift.
-            </p>
-            <p class="copyright">© 2026 ASCII_ZEN</p>
-        </footer>
     </div>
     <script type="module" src="script.js"></script>
 </body>
