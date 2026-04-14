@@ -28,7 +28,7 @@ body {
 .app-container {
     width: 100%;
     height: 100%;
-    padding: 2rem;
+    padding: 0;
     display: flex;
     flex-direction: column;
     transition: padding 0.5s ease;
@@ -38,56 +38,58 @@ body {
     padding: 0;
 }
 
-/* Header */
-.main-header {
+/* Floating Controls */
+.floating-toggle {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 110;
+    background: rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid var(--border-color) !important;
+    backdrop-filter: blur(5px);
+}
+
+.vertical-nav {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 2rem;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(5px);
 }
 
-.window-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+.divider-h {
+    width: 100%;
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 0.25rem 0;
 }
 
-.dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    opacity: 0.3;
+.divider-v {
+    width: 1px;
+    height: 10px;
+    background-color: var(--border-color);
+    margin: 0 0.5rem;
 }
-
-.red { background-color: #ef4444; }
-.amber { background-color: #f59e0b; }
-.emerald { background-color: #10b981; }
 
 .zoom-controls {
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    pointer-events: auto;
 }
 
 .zoom-controls .nav-btn {
     font-size: 1rem;
     padding: 0.25rem 0.5rem;
-}
-
-.title {
-    margin-left: 1rem;
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    color: var(--text-muted);
-}
-
-.scene-nav {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
 }
 
 .nav-btn {
@@ -100,6 +102,11 @@ body {
     transition: all 0.2s;
     font-family: var(--font-mono);
     font-size: 1.125rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
 }
 
 .nav-btn:hover {
@@ -113,19 +120,12 @@ body {
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
 }
 
-.divider {
-    width: 1px;
-    height: 1.5rem;
-    background-color: var(--border-color);
-    margin: 0 0.5rem;
-}
-
 /* Display Area */
 .display-area {
     flex: 1;
     background-color: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border: none;
+    border-radius: 0;
     position: relative;
     display: flex;
     justify-content: center;
@@ -159,6 +159,15 @@ body {
     #ascii-canvas {
         font-size: 1.2vw;
     }
+    .vertical-nav {
+        right: 0.5rem;
+        padding: 0.25rem;
+    }
+    .nav-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
 }
 
 .scanlines {
@@ -178,11 +187,28 @@ body {
     right: 1rem;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 10px;
     color: var(--text-muted);
     letter-spacing: 0.2em;
     text-transform: uppercase;
     pointer-events: none;
+}
+
+.status-left {
+    display: flex;
+    align-items: center;
+}
+
+.status-center {
+    display: flex;
+    align-items: center;
+    pointer-events: auto;
+}
+
+.status-right {
+    display: flex;
+    align-items: center;
 }
 
 .exit-btn {
