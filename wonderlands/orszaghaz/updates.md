@@ -43,7 +43,7 @@ STATUS: EXPANDING
 BG_COLOR: #000000
 WIP_TEXT: WORK IN PROGRESS
 SHOW_WIP: true
-MEDIA:  wonderlands/orszaghaz/1.jpg, wonderlands/orszaghaz/2.jpg, wonderlands/orszaghaz/4.jpg, wonderlands/orszaghaz/ENV.jpg,
+MEDIA:  wonderlands/orszaghaz/1.jpg, wonderlands/orszaghaz/2.jpg, wonderlands/orszaghaz/4.jpg, wonderlands/orszaghaz/ENV.jpg
 DESCRIPTION: That's him, the building!
 ---
 # Sector: Orszaghaz
@@ -56,7 +56,7 @@ DESCRIPTION: That's him, the building!
 
 
 ### Observations
-Even with few pieces it is possible to already make visual environments by repeating same blocks.
+Even with a few pieces it is possible to create nice looking environments.
 
 
 ---
@@ -74,13 +74,13 @@ DESCRIPTION: That's him, the building!
 ## Status: Planning
 
 ### Developments
-- Main is complete
-- Entrance is being built
-- Environment stable to showcase how far we go.
+- Additonal parts are being finished
+- All entrances are complete
+- Finilization of roofs and surroundings.
 
 
 ### Observations
-Even with few pieces it is possible to already make visual environments by repeating same blocks.
+Looks like 40k spaceship.
 
 ---
 
