@@ -210,6 +210,34 @@ body {
     height: 400px;
 }
 
+.cut-mode-panel {
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%); /* Center horizontally */
+    width: 280px;
+    height: auto; /* Auto height based on content */
+    min-height: 100px;
+    z-index: 550; /* Slightly above other panels */
+    /* Make the panel undockable by removing fixed center properties */
+    transform: none; 
+    left: 50%; /* Default starting position */
+    top: 80px;
+}
+
+/* Add default hidden state for floating panels to ensure they start off hidden if they have the 'hidden' class */
+.floating-panel.hidden {
+    display: none;
+}
+
+/* Remove resize handles for this panel, as it's meant to be a control box */
+.cut-mode-panel .resize-handle {
+    display: none;
+}
+
+.cut-mode-content {
+    padding: 12px;
+}
+
 .layers-list {
     padding: 8px;
 }
@@ -481,6 +509,10 @@ body {
     transition: opacity 0.3s ease;
 }
 
+.hidden {
+    display: none !important;
+}
+
 .modal-overlay.hidden {
     opacity: 0;
     pointer-events: none; 
@@ -498,11 +530,14 @@ body {
     gap: 16px;
 }
 
-.modal-content h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #ffffff;
-    margin-bottom: 8px;
+.modal-content.cut-mode-content {
+    /* Reset styles from previous modal content for floating panel content */
+    min-width: unset; 
+    padding: 0; /* Padding is now on panel-content wrapper */
+}
+
+.tool-controls .btn.full-width {
+    width: 100%;
 }
 
 .form-group {
