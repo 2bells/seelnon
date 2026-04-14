@@ -1437,7 +1437,7 @@ function initializeApp() {
     });
     addSticker({ 
       title:'Concept Art Collage', 
-      note:'Zoomable artwork preview', 
+      note:'Zoomable artwork of many pieces', 
       path:'/Pictures/Concept Art Collage', 
       x_percent: 25,
       y_percent: 45,
@@ -1447,7 +1447,7 @@ function initializeApp() {
     });
     addSticker({
       title: 'Unsubscribed Trailer',
-      note: 'Watch the game trailer!',
+      note: 'Youtube trailer from 12 years ago.',
       path: '/Videos/Unsubscribed Trailer',
       x_percent: 65,
       y_percent: 20,
