@@ -1,6 +1,6 @@
 # Deatheless Traveler
 
-Uploaded some stuff in 'Pictures' that is related to a project from 6 years ago.
+Uploaded some stuff in 'Pictures' that is related to a project from 2020.
 
 ![Image](Content/Images/deathless.jpg)
 
