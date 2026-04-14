@@ -2,7 +2,7 @@ export default {
     version: "v0.0.1",
     themeColor: "#ff0000",
     avatarColor: "#000000",
-    avatar: "https://picsum.photos/seed/rick/100/100",
+    avatar: "https://i.pinimg.com/1200x/a2/b7/c1/a2b7c198b6c622eb695b60c68af90b36.jpg",
     videos: {
         "JAZZ": "FVIv7TaKdfU"
     },
@@ -13,11 +13,11 @@ export default {
         "Floor_Plan": "https://i.pinimg.com/1200x/25/06/f5/2506f5a2631bfae753b70edc6cd830d7.jpg"
     },
     labels: {
-        journal: "RICK_JOURNAL",
-        logs: "RICK_LOGS",
-        terminal: "[ RICK_TERMINAL ]",
-        description: "The Ultimate Prank",
-        wip: "NEVER GONNA GIVE YOU UP",
-        guid: "Rick GUID"
+        journal: "BUILD_JOURNAL",
+        logs: "BUILDING_PROCESS",
+        terminal: "[ BUILD_TERMINAL ]",
+        description: "The Ultimate Build",
+        wip: "orszaghaz",
+        guid: "GUID IN PROGRESS..."
     }
 };
