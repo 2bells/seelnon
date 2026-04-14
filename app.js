@@ -491,13 +491,13 @@ function openFolder(path) {
     synopsisBlock.className = 'projects-synopsis-block'; // Reusing class for consistent styling
     let synopsisText = '';
     if (folder.path === '/Projects') {
-      synopsisText = `These are the projects I've been working on in my free time.`;
+      synopsisText = `These are the 'coding' projects I've been working on in my free time.`;
     } else if (folder.path === '/Pictures') {
-      synopsisText = `Here's a collection of images I've worked on or found inspiring.`;
+      synopsisText = `Here's a collection of images I've worked on throughout the years.`;
     } else if (folder.path === '/Videos') {
-      synopsisText = `A collection of videos I've created or worked on, including trailers and short animations.`;
+      synopsisText = `A collection of videos I've created or worked on.`;
     } else if (folder.path === '/Wonderlands') {
-      synopsisText = `Special interactive environments and development journals for my major projects.`;
+      synopsisText = `Genshin Wonderlands, but beware of meme projects here as well.`;
     }
     synopsisBlock.innerHTML = synopsisText;
     wrap.appendChild(synopsisBlock);
