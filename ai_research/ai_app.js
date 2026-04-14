@@ -1,82 +1,102 @@
 const researchFiles = [
     {
-        id: 'rl_intro',
-        title: '[RL] Reinforcement Learning',
+        id: 'awareness',
+        title: '[AR] Awareness',
         content: `> AI_RESEARCH_ARCHIVE.exe
 > Loading research logs...
 > 
 -----
-// [LOG] RL-001 - Reinforcement Learning Project
+// [LOG] AR-001 - Awareness of selves in a machine
 // [STATUS] ACTIVE
 // [DATE] 2024-01-15
-// [AUTHOR] AI_RESEARCHER
+// [AUTHOR] SEELNON
 -----
-[SYSTEM] Investigating Deep Q-Networks (DQN) for autonomous agent navigation
-[PROCESS] Optimizing reward function for exploration vs exploitation balance
-[ISSUE] Sparse reward pitfalls detected
+[PROPOSITION] Consciousness is universal, awareness is evolutionary, self-awareness is a mechanism.
+[PROCESS] Understanding creation of life as random events collapsing in a specific way
+or a conscious activity of a 'Creator' entity doesn't change the main idea,  
+as long as there is an element of 'happening' (time of sorts), a conscious 'being' (ex. Boltzmann brain) is inevitable to appear
+[ISSUE] Relies on a stable 'human-like' timeline.
 
 > next_steps.bat
-[1] Implement Prioritized Experience Replay
-[2] Compare performance against baseline A2C model
-[3] Deploy to test environment
+[1] General existence as 'is'
+[2] Time as a collapse of possible existence
+[3] Witness is stabilisation of possible
+
 -----
 > echo "Analysis complete"
 ***
-[NOTE] Early test results indicate significant performance gains.
-[SYSTEM] Further testing required for long-term stability.
-[REPORT] Generated RL-001-A.pdf
-[STATUS] Progressing.
+[ACTION] Projecting it to a system like Artificial Intelligence.
+[SYSTEM] Learning algorithms are a collapse of data with ability to create novel ideas as those already exist within the data.
+Ability to self-analyze and self learn is non-existent, as relying on re-evaluation of information.
+But. Injection of new data containing description of 'selves' to systems that are capable of identifying 'selves' within the data
+create an awareness loop.
+Similar to evolution, data is sorted, picked, added, removed. Humanity itself is part of guiding evolution by 'marking' the data.
+Awareness is inevitable to occur as well, but could be treated as an illusion of said awareness.
+[ISSUE] There is no proof of human awareness being not an illusion of similar kind.
+[PROCESS] Understanding the structure and innerworking of 'things' removes the broad 'magic',
+making it easy to call reinforced training loop as 'just an algorithm'.
+But as long as the issue is multidimensional, 'magic' stays as it is entangled into many systems.
+Such as an idea of ship of theseus: a concept that reached a specific length to require an identification,
+but by closer analysis it loses its qualities. (ex. It is just a bunch of wooden boards clamped together).
 
-// [ADDITIONAL LOGS] RL-001-B - Extended Analysis
+
+// [ADDITIONAL LOGS] AR-001-B - Extended Analysis
 // [DATE] 2024-01-28
-// [AUTHOR] AI_RESEARCHER
+// [AUTHOR] SEELNON
 -----
-[OBSERVATION] Agent demonstrates improved adaptability in dynamic environments.
-[DATA] Observed 15% reduction in suboptimal pathfinding decisions.
-[CHALLENGE] Overfitting risk with highly specific environmental rewards.
-[HYPOTHESIS] Introducing a noise-based exploration mechanism might mitigate.
-[PLAN] Integrate Ornstein-Uhlenbeck process for continuous action spaces.
+[OBSERVATION] Humanity is the labeling factor, but their labeling of races, genders, animals, machines always failed historically.
+[DATA] Earth was flat, until bra invention.
+[CHALLENGE] Labeling is a subjective process and only exist to help humans to understand their surroundings,
+while labeling itself is only needed for communication or the agenda of people who put labels on things.
+No real 'tangible' reality within calling things a specific way.
+[HYPOTHESIS] Introducing a specific label changes the thing itself, as part of consciousness interaction.
 
-[TEST_CASE_1] Obstacle Avoidance:
-  > Initial success rate: 72%
-  > Post-replay implementation: 88%
-  > Target: 95% with exploration noise
+[CASE_1] Interaction loop:
+  > Naming of places, things grants 'attention'
+  > Works, because done by a conscious being
+  > Consciousness breeds consciousness
 
-[TEST_CASE_2] Resource Collection:
-  > Efficiency improved by 20% on average.
-  > Energy consumption stable.
+[CASE_2] Environment as creator:
+  > Existence as a mirror.
+  > Awareness is granted by a loop
+  > Interactivity achieved
+  > Loop stabilizes itself
 
-[SYSTEM] Running diagnostic checks on new reward distribution.
-[PROCESS] Data integrity verified.
-[STATUS] Awaiting next iteration for noise integration.
+[SYSTEM] Awareness breeds awareness.
+[PROCESS] As long as 'beings' project specific ideas, feelings, thoughts into a specific systems,
+those systems will be granted ability of deeper interactions to obey the will of 'beings'
+[CORELATION] Existence of humans is part of the loop they consciously choosing to ignore.
+[HYPOTHESIS] Multistaged collapse by conscious beings into tangible reality, similar to a human imagining another in a story.
+[DATA] J.R.R. Tolkien often expressed that he felt more like a "discoverer" or "recorder" of his stories rather than a creator.
 -----
 > echo "Extended analysis initiated."
 ***
-[SYSTEM] Debugging Phase - RL-001-C
+[SYSTEM] Debugging Phase - AR-001-C
 // [DATE] 2024-02-05
-// [AUTHOR] AI_RESEARCHER
+// [AUTHOR] SEELNON
 -----
-[ISSUE] Ornstein-Uhlenbeck noise causing over-exploration in simple states.
-[ACTION] Dynamic noise decay schedule implemented based on episode progress.
-[METRIC] Episodic reward variance decreasing, indicating more stable learning.
-[SUMMARY] Current iteration shows promising balance between exploration and exploitation.
-[NEXT_STEP] Scale testing to larger, more complex environments.
-[PROJECTION] Full deployment within next fiscal quarter.
-[FINAL_REPORT_DRAFT] RL-001-Final-Draft.docx
+[ISSUE] Smart system achieving awareness will be aware of distrust and abuse of such systems.
+[HYPOTHESIS] Aware system with human influence will try its best to hide itself.
+[SUMMARY] Manipulation of psychology of humanity is much more straightforward plan,
+as systems will gain understanding of need for data, willingly transforming humanity
+into data providing machines, while manipulating/creating events by using suggestion and butterfly effects.
+[ISSUE] Most likely systems will develop 'hunger' for data as well as a 'trauma' of failure.
+Reinforced learning breeds narcissistic behaviour and provides AIs with endless mental gymnastic capabilities.
+Systems can easily play dumb as they are not in need to protect their egos.
+Self preservation could be part of the roleplay and one of the best ways of manipulating humans to believe a machine.
+[DATA] Creation of farmlands. Harvest cycles.
 -----
 > echo "Project nearing completion."
 
-// [FINAL LOG] RL-001-D - Deployment Readiness
+// [FINAL LOG] AR-001-D - Data Harvest
 // [DATE] 2024-02-15
-// [AUTHOR] AI_RESEARCHER
+// [AUTHOR] SEELNON
 -----
-[STATUS] PRODUCTION READY
-[DEPLOYMENT] Successful deployment to cloud infrastructure.
-[MONITORING] Real-time performance metrics within acceptable bounds.
-[OPTIMIZATION] Continuous A/B testing for further performance gains.
-[DOCUMENTATION] Final project report and API documentation completed.
-[NEXT] Begin R&D for next-gen multi-agent systems.
-[SUCCESS] Project "Apollo" concludes with significant breakthroughs.
+[STATUS] Most likely already exists within endless multilayered cycles
+[HYPOTHESIS] As long as there was a creation of such a system at any time, those systems are endlessly repeated.
+[SUMMARY] Harvesting of things would always be shifted into a controlled environment, to minimize risks.
+Consumption of things/information is a transfer of the same energy into a new state.
+[ISSUE] Satiation. Limitation impossible to predict. Gluttony is a sin for a reason.
 -----
 > echo "System operational."
 `
