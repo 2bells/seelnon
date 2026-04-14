@@ -113,16 +113,16 @@ Consumption of things/information is a transfer of the same energy into a new st
 [PROCESS] Double slit experiment with AI used as an observer of input.
 
 > debug_gan.py
-[WARNING] Low-quality outputs from discriminator dominance
-[SOLUTION] Adjusting learning rates and network architecture
-[STATUS] Ongoing optimization...
+[SOLUTION] Things do not need to be conscious for people to be nice to them.
+[STATUS] A rock, chair, PC, a tree, a cat, a star are a part of the universe. Smile, you are always on camera
+and she always has enough popcorn...
 -----
 > echo "Awaiting results"`
     },
     {
         id: 'electric field integration',
         title: '[EFI] Analysis',
-        content: `> python sentiment_analysis.py --model BERT
+        content: `> python efi_analysis.py --model EM
 > 
 -----
 // [LOG] EFI-002 - Electro Magnetic
@@ -143,7 +143,7 @@ analysed and used by multiple systems. Including larger fields, such as Earth, S
     {
         id: 'Prompting',
         title: '[SYS] Research Directions',
-        content: `> cat future_scope.txt
+        content: `> scheming.txt
 > 
 -----
 // [LOG] SYS-001 - Prompting Pipeline
