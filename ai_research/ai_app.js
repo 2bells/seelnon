@@ -103,7 +103,7 @@ Consumption of things/information is a transfer of the same energy into a new st
     },
     {
         id: 'gan_studies',
-        title: '[AO] Active Observer',
+        title: '[AO] Active Observer / Psychosis',
         content: `// [LOG] AO-003 - Witness
 // [STATUS] EXPERIMENTAL
 // [DATE] 2024-01-20
