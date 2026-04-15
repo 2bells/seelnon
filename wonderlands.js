@@ -15,7 +15,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
     // Derive base path from URL
     const basePath = entry.url.substring(0, entry.url.lastIndexOf('/') + 1);
-    const uniqueId = Math.random().toString(36).substring(2, 9);    
+    const uniqueId = Math.random().toString(36).substring(2, 9);
 
     // Load per-wonderland config (sources.js)
     let config = {
@@ -38,14 +38,14 @@ export async function openWonderlandWindow(entry, openWindowFn) {
     };
 
     try {
-        // Use a relative path prefix for Vite and deep merge labels
-        const configModule = await import(`./${basePath}sources.js`);
+        // Use an absolute path for the dynamic import to ensure it works in the browser
+        const configModule = await import(`/${basePath}sources.js`);
         if (configModule && configModule.default) {
             const newLabels = { ...config.labels, ...(configModule.default.labels || {}) };
             config = { ...config, ...configModule.default, labels: newLabels };
         }
     } catch (e) {
-        console.warn(`[Wonderlands] No sources.js found for ${entry.name} at ./${basePath}sources.js, using defaults.`, e);
+        console.warn(`[Wonderlands] No sources.js found for ${entry.name} at /${basePath}sources.js, using defaults.`, e);
     }
 
     // Helper to render video slide
@@ -138,6 +138,24 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
     const isHtmlExperience = entry.url.toLowerCase().endsWith('.html');
 
+    // Helper to parse markdown with relative path support
+    const safeParse = (md) => {
+        const renderer = new marked.Renderer();
+        renderer.image = (href, title, text) => {
+            const fullHref = (href.startsWith('http') || href.startsWith('/') || href.startsWith('data:')) 
+                ? href 
+                : basePath + href;
+            return `<img src="${fullHref}" alt="${text || ''}" title="${title || ''}">`;
+        };
+        renderer.link = (href, title, text) => {
+            const fullHref = (href.startsWith('http') || href.startsWith('/') || href.startsWith('#')) 
+                ? href 
+                : basePath + href;
+            return `<a href="${fullHref}" title="${title || ''}">${text}</a>`;
+        };
+        return marked.parse(md, { renderer });
+    };
+
     container.innerHTML = `
         <main class="wonderland-main">
             <header class="wonderland-header">
@@ -182,7 +200,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
                 <div class="wonderland-right-col">
                     <div class="wonderland-description-box">
                         <h2 class="wonderland-section-title">${config.labels.description}</h2>
-                        <div class="wonderland-description-text wonderland-desc-text">${marked.parse(description)}</div>
+                        <div class="wonderland-description-text wonderland-desc-text">${safeParse(description)}</div>
                     </div>
 
                     <div class="wonderland-hashtags">
@@ -211,7 +229,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
     let currentLogIndex = -1;
     let isTyping = false;
 
-   // Elements
+    // Elements
     const logPanel = container.querySelector('.wonderland-log-panel');
     const logToggle = container.querySelector('.wonderland-log-toggle');
     const logClose = container.querySelector('.wonderland-log-close');
@@ -252,7 +270,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             // 2. Check if it's a named image in config.images
             if (config.images && config.images[src]) {
                 const imgUrl = config.images[src];
-                const fullImgSrc = imgUrl.startsWith('http') ? imgUrl : `${basePath}${imgUrl.split('/').pop()}`;
+                const fullImgSrc = imgUrl.startsWith('http') ? imgUrl : `${basePath}${imgUrl}`;
                 return `<img src="${fullImgSrc}" class="${i === 0 ? 'active' : ''}" alt="Version Media">`;
             }
 
@@ -269,7 +287,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             }
 
             // 5. Otherwise assume it's an image
-            const fullSrc = src.startsWith('http') ? src : `${basePath}${src.split('/').pop()}`;
+            const fullSrc = src.startsWith('http') ? src : `${basePath}${src}`;
             return `<img src="${fullSrc}" class="${i === 0 ? 'active' : ''}" alt="Version Media">`;
         }).join('');
 
@@ -367,6 +385,15 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             container.style.backgroundColor = ''; // Reset to default
         }
 
+        // NEW: Dynamic Theme and Avatar Colors (from log metadata or config)
+        const currentThemeColor = log.meta.theme_color || config.themeColor;
+        const currentAvatarColor = log.meta.avatar_color || config.avatarColor;
+        
+        const avatarEl = container.querySelector('.wonderland-rank-avatar');
+        if (avatarEl) avatarEl.style.backgroundColor = currentAvatarColor;
+        
+        if (versionBadge) versionBadge.style.background = currentThemeColor;
+
         // NEW: WIP Banner visibility and text control
         const wipBanner = container.querySelector('.wonderland-wip-banner');
         const status = (log.meta.status || "").toLowerCase();
@@ -403,7 +430,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
             mdContent = mdContent.replace(/\[video: .*\]/g, '').trim();
         }
 
-        let logHtml = marked.parse(mdContent);
+        let logHtml = safeParse(mdContent);
         if (youtubeId) {
             const containerStyle = isShort 
                 ? "margin: 20px auto; border: 1px solid #fff; max-width: 280px; aspect-ratio: 9/16;"
@@ -412,7 +439,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
         }
 
         versionBadge.textContent = log.meta.version || `v1.0.${index + 1}`;
-        descText.innerHTML = marked.parse(log.meta.description || description);
+        descText.innerHTML = safeParse(log.meta.description || description);
         updateCarousel(index);
         typeLog(logHtml);
     }
