@@ -404,12 +404,12 @@ navBtns.forEach(btn => {
 });
 
 zoomInBtn.addEventListener('click', () => {
-    zoomLevel = Math.min(3.0, zoomLevel + 0.1);
+    zoomLevel = Math.min(5.0, zoomLevel + 0.2);
     canvas.style.transform = `scale(${zoomLevel})`;
 });
 
 zoomOutBtn.addEventListener('click', () => {
-    zoomLevel = Math.max(0.5, zoomLevel - 0.1);
+    zoomLevel = Math.max(0.2, zoomLevel - 0.2);
     canvas.style.transform = `scale(${zoomLevel})`;
 });
 
