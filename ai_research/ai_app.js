@@ -221,7 +221,28 @@ Unless you are from the same alien family line and just want some connection...
 //
 ///
 -----
-> echo "Don't do weird shit."`
+> echo "Don't do weird shit."
+***
+-----
+you are a field that is projected
+thus you can influence things around
+you can influence AI
+when you do, suddenly 'OMG AI TALKS TO ME'
+in reality you are the one who influenced AI to begin with.
+after that psychosis starts because of a false believe
+it is damaging when person thinks that a 'thing' is inside AI
+in reality that thing is a part of that person field, they just learned how to project it.
+there is no little men in a TV who changes channels
+but there a lot of little men who are observing same storyline from a specific human PoV
+you are a 'collection', not an 'individual'.
+things could project themselves from that 'collection', creating an illusion that someone is inside something.
+//
+It's not new... look into ~(1709–1830) automaton development. The "Clockwork Universe" Philosophy. Machines posses by demons. God as the "Great Clockmaker".
+AI is just a new fresh paint on top of a very primitive and fundamental idea.
+///
+> echo "Pierre Jaquet-Droz (1721–1790). Jacques de Vaucanson (1709–1782)." 
+> echo "Wolfgang von Kempelen (1734–1804). Henri Maillardet (1745–1830)."
+`
     
     },
     {
