@@ -216,26 +216,9 @@ function draw() {
 
         // --- End Animation Logic ---
         
-        // Highlight logic
-        const isSelected = state.selectedStrokes.includes(stroke);
-        if (isSelected) {
-            ctx.save();
-            // Draw a thicker highlight stroke underneath
-            ctx.globalAlpha = 0.5;
-            ctx.strokeStyle = '#0078D4';
-            ctx.lineWidth = (stroke.size * 1.5) / state.zoom;
-            // Since drawStroke uses its own internal state, we need a way to force color for highlight
-            // Or just use the shadow, but let's make the shadow more intense
-            ctx.shadowBlur = 12 / state.zoom;
-            ctx.shadowColor = 'rgba(0, 120, 212, 0.8)';
-            drawStroke(ctx, stroke, false, state.zoom);
-            ctx.restore();
-            
-            // Draw original stroke on top
-            drawStroke(ctx, stroke, false, state.zoom);
-        } else {
-            drawStroke(ctx, stroke, false, state.zoom);
-        }
+        // Simple draw call for all strokes. 
+        // Selection feedback is handled by drawSelectionBox separately.
+        drawStroke(ctx, stroke, false, state.zoom);
     });
 
     // Draw current stroke preview (only if actively drawing, and not yet part of state.strokes)

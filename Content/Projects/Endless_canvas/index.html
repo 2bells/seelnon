@@ -25,18 +25,6 @@
     </script>
 </head>
 <body>
-    <div id="sidebar">
-        <div class="sidebar-section collapsible-section collapsed" id="settings-section">
-            <div class="section-header">
-                <h3>Settings</h3>
-                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </div>
-            <div class="section-content">
-                <div id="brush-settings-container"></div>
-            </div>
-        </div>
-    </div>
-
     <div id="top-toolbar">
         <div id="tool-selector">
             <!-- Brush Group -->
@@ -128,10 +116,20 @@
     </div>
 
     <div id="right-panels">
+        <button id="settingsToggle">Settings</button>
         <button id="colorPaletteToggle">Colors</button>
     </div>
 
-    <div id="brush-settings-sidebar-container"></div>
+    <div id="settings-sidebar" class="floating-panel">
+        <div class="panel-header">
+            <h3>Settings</h3>
+            <button id="close-settings" class="close-button">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div id="brush-settings-container"></div>
+        </div>
+    </div>
+
     <div id="color-palette-container"></div>
 
     <div id="export-modal" class="modal hidden">

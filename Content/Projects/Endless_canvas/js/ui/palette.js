@@ -11,12 +11,12 @@ const INITIAL_PALETTE = [
 function createColorPalette() {
     const palette = document.createElement('div');
     palette.id = 'color-palette';
+    palette.className = 'floating-panel';
     palette.innerHTML = `
-        <div class="palette-header">
+        <div class="panel-header">
             <h3>Color Palette</h3>
             <div class="palette-header-actions">
                 <button id="reset-palette-btn" title="Reset Palette">↺</button>
-                <div class="drag-handle"></div>
             </div>
         </div>
         <div id="color-swatches"></div>
@@ -35,7 +35,6 @@ export function init(container) {
     const colorPicker = palette.querySelector('#colorPicker');
     const colorSwatches = palette.querySelector('#color-swatches');
     const colorPreviewBar = palette.querySelector('#color-preview-bar');
-    const dragHandle = palette.querySelector('.drag-handle');
     const resetBtn = palette.querySelector('#reset-palette-btn');
 
     function renderSwatches() {
@@ -158,9 +157,8 @@ export function init(container) {
         e.preventDefault(); // Prevent text selection
     };
 
-    dragHandle.addEventListener('mousedown', startDrag);
-    // Allow dragging by the header too for convenience, but exclude buttons
-    palette.querySelector('.palette-header').addEventListener('mousedown', startDrag);
+    // Allow dragging by the header, but exclude buttons
+    palette.querySelector('.panel-header')?.addEventListener('mousedown', startDrag);
 
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;

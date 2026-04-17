@@ -159,8 +159,40 @@ function initUI() {
     });
 
     // Panel Toggles (Right side)
-    colorPaletteToggle.addEventListener('click', () => {
-        colorPalette.classList.toggle('visible');
+    const settingsToggle = document.getElementById('settingsToggle');
+    const settingsSidebar = document.getElementById('settings-sidebar');
+    const closeSettings = document.getElementById('close-settings');
+    // Note: color-palette is created dynamically, so we need to find it after init
+    const getColorPalette = () => document.getElementById('color-palette');
+
+    settingsToggle?.addEventListener('click', () => {
+        const isVisible = settingsSidebar.classList.toggle('visible');
+        settingsToggle.classList.toggle('active', isVisible);
+        getColorPalette()?.classList.remove('visible');
+        colorPaletteToggle.classList.remove('active');
+    });
+
+    colorPaletteToggle?.addEventListener('click', () => {
+        const palette = getColorPalette();
+        const isVisible = palette?.classList.toggle('visible');
+        colorPaletteToggle.classList.toggle('active', isVisible);
+        settingsSidebar.classList.remove('visible');
+        settingsToggle.classList.remove('active');
+    });
+
+    closeSettings?.addEventListener('click', () => {
+        settingsSidebar.classList.remove('visible');
+        settingsToggle.classList.remove('active');
+    });
+
+    // Close on escape
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            settingsSidebar?.classList.remove('visible');
+            settingsToggle?.classList.remove('active');
+            getColorPalette()?.classList.remove('visible');
+            colorPaletteToggle?.classList.remove('active');
+        }
     });
 
     // Color Picker in Toolbar
@@ -172,7 +204,6 @@ function initUI() {
         }
         window.dispatchEvent(new CustomEvent('activeBrushChanged')); // Update editor if color changes
     });
-    
 
     // Clear Canvas Modal Flow
     deleteAllBtn?.addEventListener('click', (e) => {
@@ -203,17 +234,6 @@ function initUI() {
     // Instructions Toggle
     instructionsToggle.addEventListener('click', () => {
         instructionsPanel.classList.toggle('hidden');
-    });
-
-    // Collapsible Sections (Sidebar)
-    const collapsibleSections = document.querySelectorAll('.collapsible-section');
-    collapsibleSections.forEach(section => {
-        const header = section.querySelector('.section-header');
-        if (header) {
-            header.addEventListener('click', () => {
-                section.classList.toggle('collapsed');
-            });
-        }
     });
 
     // Initialize the active tool button and brush settings on load

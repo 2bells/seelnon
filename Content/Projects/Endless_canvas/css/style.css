@@ -303,54 +303,87 @@ body {
 }
 
 #right-panels button {
-    padding: 8px 16px;
+    height: 32px;
+    padding: 0 16px;
     border-radius: 50px;
     border: 1px solid rgba(0, 0, 0, 0.05);
     background: white;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    transition: background 0.2s;
+    transition: all 0.2s;
+    color: #666;
 }
 
 #right-panels button:hover {
     background-color: #f9f9f9;
+    color: #000;
+    transform: translateY(-1px);
 }
 
-#color-palette {
+#right-panels button.active {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+}
+
+.floating-panel {
     position: fixed;
-    top: 20px;
+    top: 64px;
     right: 20px;
     background-color: rgba(255, 255, 255, 0.95);
     padding: 15px;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 12px;
     user-select: none;
     backdrop-filter: blur(10px);
-    width: 240px;
+    width: 280px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
     border: 1px solid rgba(0, 0, 0, 0.05);
-    display: none; /* Hidden by default */
-    z-index: 99;
-    color: #333;
+    z-index: 1000;
 }
 
-#color-palette.visible {
+.floating-panel.visible {
     display: flex;
 }
 
-#color-palette h3 {
-    margin: 0 0 10px 0;
-    text-align: left;
-    font-size: 11px;
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     color: #999;
-    padding-bottom: 8px;
-    font-weight: 600;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close-button:hover {
+    color: #000;
+}
+
+#color-palette {
+    /* Reusing floating-panel styles via class in HTML */
 }
 
 #color-palette .palette-header {
