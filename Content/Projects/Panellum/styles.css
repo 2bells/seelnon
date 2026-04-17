@@ -1,0 +1,80 @@
+:root{
+  --bg: #0b0b0c;
+  --panel: #0f1113;
+  --text: #e6eef3;
+  --muted: #9aa6b2;
+  --accent: #8ab4ff;
+  font-family: "Noto Sans", system-ui, Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.04);background:var(--panel)}
+header h1{font-size:16px;margin:0;color:var(--text)}
+.controls{display:flex;gap:10px;align-items:center}
+.upload{background:#0d1316;border:1px solid rgba(255,255,255,0.04);padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--text)}
+.upload input{display:none}
+#gyroBtn{padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:#0d1316;color:var(--text);cursor:pointer}
+.controls button#settingsToggle{padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:#0d1316;color:var(--text);cursor:pointer}
+.controls button#localLibToggle{
+  padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:#0d1316;color:var(--text);cursor:pointer
+}
+
+/* Settings panel */
+.settings-panel{
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 260px;
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,0.04);
+  padding:12px;
+  border-radius:8px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.6);
+  z-index:20;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+/* Ensure the native [hidden] attribute actually hides the panel */
+.settings-panel[hidden] {
+  display: none;
+}
+.settings-panel h3{margin:0 0 6px 0;font-size:14px}
+.settings-panel label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.settings-panel input[type="number"]{width:90px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:#071013;color:var(--text)}
+.settings-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.settings-actions button{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:#0d1316;color:var(--text);cursor:pointer}
+
+main{display:flex;height:calc(100vh - 110px);background:var(--bg)}
+#thumbs{order:2;width:160px;border-left:1px solid rgba(255,255,255,0.03);border-right:0;padding:12px;overflow:auto;background:#071013}
+.hint{color:var(--muted);font-size:13px;margin:0 0 8px 0}
+#thumbList{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+#thumbList li{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:6px}
+#thumbList img{width:100%;height:64px;object-fit:cover;border-radius:4px;display:block;filter:brightness(0.9)}
+#thumbList li.active{outline:2px solid rgba(138,180,255,0.16);background:rgba(138,180,255,0.03)}
+
+#viewerWrap{order:1;flex:1;position:relative;display:flex;flex-direction:column}
+#panorama{flex:1;min-height:300px;background:#000}
+
+#nav{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;border-top:1px solid rgba(255,255,255,0.03);background:var(--panel)}
+#nav button{padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:#0d1316;color:var(--text);cursor:pointer}
+#index{color:var(--muted)}
+
+footer{padding:10px 18px;border-top:1px solid rgba(255,255,255,0.02);font-size:13px;color:var(--muted);background:var(--panel)}
+
+.pannellum-hotspot-btn {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:56px;
+  height:36px;
+  background:rgba(255,255,255,0.06);
+  color:var(--text);
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,0.06);
+  font-weight:600;
+  cursor:pointer;
+  box-shadow:none;
+  user-select:none;
+}
+.pannellum-hotspot-btn:active { transform:translateY(1px); }

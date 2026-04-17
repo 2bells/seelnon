@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Interactive Pannellum</title>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Local Pannellum -->
+  <link rel="stylesheet" href="src/pannellum.css">
+  <script src="src/pannellum.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Interactive Image Viewer</h1>
+    <div class="controls">
+      <label class="upload">
+        Upload images
+        <input id="fileInput" type="file" accept="image/*" multiple>
+      </label>
+      <button id="gyroBtn">Enable Gyroscope</button>
+      <button id="localLibToggle" aria-pressed="false">Local library</button>
+      <button id="settingsToggle" aria-expanded="false">Settings</button>
+    </div>
+  </header>
+
+  <main>
+    <aside id="thumbs" aria-label="Image thumbnails">
+      <p class="hint">Drop images here or use Upload</p>
+      <ul id="thumbList"></ul>
+    </aside>
+
+    <section id="viewerWrap">
+      <div id="panorama" aria-label="Panorama viewer"></div>
+
+      <!-- Settings panel -->
+      <div id="settingsPanel" class="settings-panel" hidden>
+        <h3>Projection & View</h3>
+        <label>Horizontal angle (haov): <input id="inpHaov" type="number" min="0" max="360" step="1" value="180"></label>
+        <label>Vertical angle (vaov): <input id="inpVaov" type="number" min="0" max="180" step="1" value="110"></label>
+        <label>Default FOV (hfov): <input id="inpHfov" type="number" min="10" max="160" step="1" value="90"></label>
+        <label>Min FOV: <input id="inpMinHfov" type="number" min="5" max="160" step="1" value="30"></label>
+        <label>Max FOV: <input id="inpMaxHfov" type="number" min="10" max="170" step="1" value="120"></label>
+        <div class="settings-actions">
+          <button id="applySettings">Apply</button>
+          <button id="closeSettings">Close</button>
+        </div>
+      </div>
+
+      <!-- navigation/menu removed -->
+    </section>
+  </main>
+</body>
+</html>
