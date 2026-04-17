@@ -93,6 +93,16 @@ export function init(canvas) {
     // Initial update of project info
     updateProjectInfo();
 
+    // Throttle status bar updates for performance
+    let infoRequest = null;
+    function throttledUpdateInfo(worldX, worldY) {
+        if (infoRequest) return;
+        infoRequest = requestAnimationFrame(() => {
+            updateProjectInfo(worldX, worldY);
+            infoRequest = null;
+        });
+    }
+
     canvas.addEventListener('pointerdown', (e) => {
         if (!e.isPrimary) return;
         e.preventDefault();
@@ -373,10 +383,9 @@ export function init(canvas) {
             state.selection.height = Math.abs(state.selection.startY - worldPos.y);
         }
         
-        // Always update project coords on move
-        updateProjectInfo(worldPos.x, worldPos.y);
+        // Always update project coords on move (throttled)
+        throttledUpdateInfo(worldPos.x, worldPos.y);
         
-        updateCanvasCursor();
         state.lastMousePosition = currentPointerPos;
     });
 
