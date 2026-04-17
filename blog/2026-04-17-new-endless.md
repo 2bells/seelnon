@@ -17,4 +17,9 @@ UPD: there is a chance it is fixed.
 UPD: I think white theme is fine.
 ```
 
-[CLICK TO USE](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html)
+
+[<kbd>CLICK TO USE</kbd>](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html)
+
+<a href="https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html" style="color: #ff4500; text-decoration: none; font-weight: bold; border-bottom: 2px solid #ff4500;">
+   or click this
+</a>
