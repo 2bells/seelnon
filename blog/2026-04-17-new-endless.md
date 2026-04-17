@@ -1,6 +1,9 @@
 # Canvas Upgrade
 
-Some upgrades to Endless Canvas. Used it for design note taking for a bit, decided to give it a boost...
+Made some upgrades to Endless Canvas. Decided to use it for note taking and some things were lacking, so 'worked' on it for a bit.
+It has autosaving into browser's cache, so as long as you use it on a current browser, it will load your document.
+In theory it is endless + vector, but designed to be like a sketching software.
+It has animated brushes, so it is possible to even create brushstrokes that are animated, creating fun sketches.
 
 ![Image](Content/Projects/Endless_canvas/Endless_Canvas_UPD.jpg)
 
@@ -11,6 +14,7 @@ Feels like I nuked some performance with this one,
 > sad.
 UPD: there is a chance it is fixed.
 > not sure about white theme.
+UPD: I think white theme is fine.
 ```
 
-[Link to use](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html)
+[CLICK TO USE](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html)
