@@ -26,14 +26,14 @@
 </head>
 <body>
     <div id="sidebar">
-        <div class="sidebar-section">
-            <h3>Brush Settings</h3>
-            <div id="brush-settings-container"></div>
-        </div>
-        <div class="sidebar-info-section">
-            <h3>Project Info</h3>
-            <div id="project-coords">X: 0, Y: 0</div>
-            <div id="project-zoom">Zoom: 100%</div>
+        <div class="sidebar-section collapsible-section collapsed" id="settings-section">
+            <div class="section-header">
+                <h3>Settings</h3>
+                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+            <div class="section-content">
+                <div id="brush-settings-container"></div>
+            </div>
         </div>
     </div>
 
@@ -214,7 +214,11 @@
             <p><strong>Ctrl+Shift+Z:</strong> Redo</p>
         </div>
     </div>
-    <div id="zoom-indicator">100%</div>
+    <div id="project-status-bar">
+        <span id="project-coords">X: 0, Y: 0</span>
+        <span class="status-sep">|</span>
+        <span id="project-zoom">100%</span>
+    </div>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

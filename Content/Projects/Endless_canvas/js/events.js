@@ -50,16 +50,15 @@ function updateToolbarColor(newColor) {
     }
 }
 
-// Function to update the zoom and coordinate indicator UI in the sidebar
+// Function to update the zoom and coordinate indicator UI in the status bar
 function updateProjectInfo(worldX = 0, worldY = 0) {
-    const zoomIndicator = document.getElementById('zoom-indicator');
     const projectZoom = document.getElementById('project-zoom');
     const projectCoords = document.getElementById('project-coords');
     
-    const zoomText = `${Math.round(state.zoom * 100)}%`;
+    if (projectZoom) {
+        projectZoom.textContent = `${Math.round(state.zoom * 100)}%`;
+    }
     
-    if (zoomIndicator) zoomIndicator.textContent = zoomText;
-    if (projectZoom) projectZoom.textContent = `Zoom: ${zoomText}`;
     if (projectCoords) {
         projectCoords.textContent = `X: ${Math.round(worldX)}, Y: ${Math.round(worldY)}`;
     }

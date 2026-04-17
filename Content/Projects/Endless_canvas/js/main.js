@@ -205,6 +205,17 @@ function initUI() {
         instructionsPanel.classList.toggle('hidden');
     });
 
+    // Collapsible Sections (Sidebar)
+    const collapsibleSections = document.querySelectorAll('.collapsible-section');
+    collapsibleSections.forEach(section => {
+        const header = section.querySelector('.section-header');
+        if (header) {
+            header.addEventListener('click', () => {
+                section.classList.toggle('collapsed');
+            });
+        }
+    });
+
     // Initialize the active tool button and brush settings on load
     // This ensures the correct button is highlighted and state.brush is populated
     setActiveTool(state.activeTool, state.activeBrushPresetId);
