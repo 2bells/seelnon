@@ -149,6 +149,7 @@ body {
     outline: none;
     padding: 0;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 .tool-button:hover {
@@ -198,6 +199,7 @@ body {
 
 #toolColorPicker {
     -webkit-appearance: none;
+    appearance: none;
     padding: 0;
     border: none;
     width: 24px;
@@ -382,9 +384,6 @@ body {
     color: #000;
 }
 
-#color-palette {
-    /* Reusing floating-panel styles via class in HTML */
-}
 
 #color-palette .palette-header {
     display: flex;
@@ -536,6 +535,7 @@ body {
 .canvas-setting input[type="color"],
 .settings-color-input {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 32px;
     border: 1px solid rgba(0, 0, 0, 0.1);
@@ -574,6 +574,7 @@ body {
 
 input[type="range"] {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 4px;
     background: #E0E0E0;
@@ -583,6 +584,7 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 12px;
     height: 12px;
     background: #000;
