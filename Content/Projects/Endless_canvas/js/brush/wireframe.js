@@ -19,7 +19,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
              // Use hull thickness factor * brush size for these simple lines if wireframeIsClosed is false, otherwise mesh thickness
              const baseSize = stroke.points[0].size; // Use the base brush size for calculation
              const thickness = (stroke.wireframeIsClosed === false ? baseSize * (stroke.wireframeHullLineThickness || 1.0) : stroke.wireframeMeshLineThickness || 1.0);
-             context.lineWidth = Math.max(0.5, thickness) / targetScale;
+             context.lineWidth = Math.max(0.5, thickness);
              context.stroke();
         }
         return;
@@ -92,7 +92,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
                         const addedThickness = maxAddedThickness * (1 - clampedLengthRatio);
                         const finalThickness = minRenderedThickness + addedThickness;
                         
-                        context.lineWidth = finalThickness / targetScale;
+                        context.lineWidth = finalThickness;
                         context.beginPath(); // Start a new path for each line to apply individual thickness
                         context.moveTo(p0x, p0y);
                         context.lineTo(p1x, p1y);
@@ -102,7 +102,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
             } else { // No gradient mesh, draw all valid mesh lines with uniform thickness
                 const baseSize = stroke.size || 10.0;
                 const meshThickness = baseSize * (stroke.wireframeMeshLineThickness || 1.0) / 10.0;
-                context.lineWidth = meshThickness / targetScale; // Adjusted for zoom
+                context.lineWidth = meshThickness; 
                 for (let i = 0; i < delaunay.halfedges.length; ++i) {
                     const j = delaunay.halfedges[i];
                     if (j < i) continue; // Only draw each edge once
@@ -126,7 +126,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
             // No max mesh length, draw all Delaunay edges with uniform thickness
             const baseSize = stroke.size || 10.0;
             const meshThickness = baseSize * (stroke.wireframeMeshLineThickness || 1.0) / 10.0;
-            context.lineWidth = meshThickness / targetScale;
+            context.lineWidth = meshThickness;
             delaunay.render(context); // Renders all edges if no max length or disabled
             context.stroke();
         }
@@ -136,7 +136,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
         delaunay.renderHull(context);
         const baseSize = stroke.size || 10.0;
         const hullThickness = baseSize * (stroke.wireframeHullLineThickness || 5.0) / 10.0;
-        context.lineWidth = hullThickness / targetScale; // Adjusted for zoom
+        context.lineWidth = hullThickness; 
         context.stroke();
 
     } else {
@@ -194,7 +194,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
                         const addedThickness = maxAddedThickness * (1 - clampedLengthRatio);
                         const finalThickness = minRenderedThickness + addedThickness;
 
-                        context.lineWidth = finalThickness / targetScale;
+                        context.lineWidth = finalThickness;
                         context.beginPath(); // Start a new path for each line to apply individual thickness
                         context.moveTo(p0x, p0y);
                         context.lineTo(p1x, p1y);
@@ -204,7 +204,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
             } else { // No gradient mesh, draw all valid mesh lines with uniform thickness
                 const baseSize = stroke.size || 10.0;
                 const meshThickness = baseSize * (stroke.wireframeMeshLineThickness || 1.0) / 10.0;
-                context.lineWidth = meshThickness / targetScale;
+                context.lineWidth = meshThickness;
                 for (let i = 0; i < delaunay.halfedges.length; ++i) {
                     const j = delaunay.halfedges[i];
                     if (j < i) continue;
@@ -228,7 +228,7 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
             // No max mesh length, draw all Delaunay edges with uniform thickness
             const baseSize = stroke.size || 10.0;
             const meshThickness = baseSize * (stroke.wireframeMeshLineThickness || 1.0) / 10.0;
-            context.lineWidth = meshThickness / targetScale;
+            context.lineWidth = meshThickness;
             delaunay.render(context); // Renders all edges if no max length or disabled
             context.stroke();
         }

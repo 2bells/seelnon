@@ -58,7 +58,7 @@ export function drawPenStroke(context, stroke, isPreview = false, targetScale = 
             const minSize = p2.size * stroke.minSizeFactor;
             currentLineWidth = minSize + (p2.size - minSize) * pressure;
             
-            context.lineWidth = Math.max(0.5, currentLineWidth) / targetScale; // Adjusted for zoom
+            context.lineWidth = Math.max(0.5, currentLineWidth); // World-space width
             context.quadraticCurveTo(p2.x, p2.y, cp2x, cp2y);
             context.stroke();
             context.beginPath();
@@ -71,7 +71,7 @@ export function drawPenStroke(context, stroke, isPreview = false, targetScale = 
             const pressure = lastPoint.pressure || 1.0;
             const minSize = lastPoint.size * stroke.minSizeFactor;
             lastWidth = minSize + (lastPoint.size - minSize) * pressure;
-            context.lineWidth = Math.max(0.5, lastWidth) / targetScale; // Adjusted for zoom
+            context.lineWidth = Math.max(0.5, lastWidth); // World-space width
             context.lineTo(lastPoint.x, lastPoint.y);
             context.stroke();
         }

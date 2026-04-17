@@ -581,7 +581,7 @@ export function deleteStrokeAt(worldX, worldY) {
     // Iterate in reverse to delete "topmost" stroke if overlaps
     for (let i = state.strokes.length - 1; i >= 0; i--) {
         const stroke = state.strokes[i];
-        if (isPointOnStroke(worldX, worldY, stroke, (state.brush.size / 2) / state.zoom)) {
+        if (isPointOnStroke(worldX, worldY, stroke, state.brush.size / 2)) {
             state.strokes.splice(i, 1);
             deleted = true;
             
