@@ -13,12 +13,15 @@ Not much changed, but selector tool + visuals are working a bit better. Need to 
 
 ```
 Feels like I nuked some performance with this one,
-> sad.
+> sad. 
+> it's so over
 UPD: there is a chance it is fixed.
 > not sure about white theme.
 UPD: I think white theme is fine.
+UPD: Windows Ink might be working as well.
+> we are so back
 ```
 
 <a href="https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html" style="color: #ff4500; text-decoration: none; font-weight: bold; border-bottom: 2px solid #ff4500;">
-   click to use.
+   click to use
 </a>
