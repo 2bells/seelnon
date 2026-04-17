@@ -95,6 +95,7 @@ export function init(canvas) {
 
     canvas.addEventListener('pointerdown', (e) => {
         if (!e.isPrimary) return;
+        e.preventDefault();
         const currentPointerPos = getPointerPos(e);
         state.lastMousePosition = currentPointerPos;
         const worldPos = screenToWorld(state.lastMousePosition.x, state.lastMousePosition.y);
@@ -212,6 +213,7 @@ export function init(canvas) {
 
     canvas.addEventListener('pointermove', (e) => {
         if (!e.isPrimary) return;
+        e.preventDefault();
         const currentPointerPos = getPointerPos(e);
         const deltaX = currentPointerPos.x - state.lastMousePosition.x;
         const deltaY = currentPointerPos.y - state.lastMousePosition.y;
@@ -459,26 +461,29 @@ export function init(canvas) {
         updateCanvasCursor();
     });
 
-    canvas.addEventListener('pointerleave', (e) => {
-        if(state.isDrawing && state.activeTool === 'brush') {
-            endStroke();
-        }
-        if (state.isMovingSelection || state.isRotatingSelection || state.isScalingSelection) {
-            state.isMovingSelection = false;
-            state.isRotatingSelection = false;
-            state.isScalingSelection = false;
-        }
-        if (state.isSelecting) {
-            state.isSelecting = false;
-            state.selection = null;
-        }
-        if (state.isErasing) { // Reset flag if pointer leaves while erasing
-            state.isErasing = false;
+    canvas.addEventListener('pointercancel', (e) => {
+        if (!e.isPrimary) return;
+        if (state.isDrawing) {
+            canvas.releasePointerCapture(e.pointerId);
+            if(state.activeTool === 'brush') {
+                endStroke();
+            }
         }
         state.isDrawing = false;
         state.isPanning = false;
         state.isZoomingWithMouse = false;
         state.isSelecting = false;
+        state.isMovingSelection = false;
+        state.isRotatingSelection = false;
+        state.isScalingSelection = false;
+        state.isErasing = false;
+        updateCanvasCursor();
+    });
+
+    canvas.addEventListener('pointerleave', (e) => {
+        // We no longer end stroke on pointerleave because setPointerCapture 
+        // handles tracking outside the canvas area. pointerup or pointercancel 
+        // will handle the finalisation.
         updateCanvasCursor();
     });
 

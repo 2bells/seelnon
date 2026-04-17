@@ -10,6 +10,7 @@ body {
     display: block;
     background-color: transparent;
     cursor: crosshair;
+    touch-action: none;
 }
 
 #sidebar {
@@ -383,6 +384,7 @@ body {
 .close-button:hover {
     color: #000;
 }
+
 
 
 #color-palette .palette-header {

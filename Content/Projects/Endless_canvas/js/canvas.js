@@ -444,7 +444,7 @@ export function startStroke(x, y, pressure) {
     }
 }
 
-export async function addPointToStroke(x, y, pressure) {
+export function addPointToStroke(x, y, pressure) {
     if (state.currentStroke) {
         // Add current brush size to the point
         state.currentStroke.points.push({ x, y, pressure, size: state.brush.size });
