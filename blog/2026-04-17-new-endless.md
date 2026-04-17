@@ -12,3 +12,5 @@ Feels like I nuked some performance with this one,
 UPD: there is a chance it is fixed.
 > not sure about white theme.
 ```
+
+[Link to use](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html)
