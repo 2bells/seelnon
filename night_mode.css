@@ -403,3 +403,30 @@ body.night-mode .wonderland-btn:active {
   border-right-color: #4a2f1f;
   border-bottom-color: #4a2f1f;
 }
+
+/* Night Mode Blog Link Buttons */
+body.night-mode .blog-link-btn {
+  background-color: #3d2b1f; /* Dark wooden brown */
+  color: #ffd700; /* Gold text */
+  border: 2px solid;
+  border-top-color: #5c4033;
+  border-left-color: #5c4033;
+  border-right-color: #1a0f0a;
+  border-bottom-color: #1a0f0a;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+body.night-mode .blog-link-btn:hover {
+  background-color: #5c4033; /* Lighter wood */
+  color: #fff;
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+body.night-mode .blog-link-btn:active {
+  background-color: #ffd700;
+  color: #000;
+  border-color: #ffd700;
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}

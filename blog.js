@@ -172,8 +172,19 @@ export async function openBlogWindow(title, openWindowFn) {
           }
 
           const renderer = new marked.Renderer();
-          renderer.link = (href, title, text) => {
-            return `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer" class="blog-link-btn">${text}</a>`;
+          renderer.link = (first, title, text) => {
+            let href = first;
+            let linkText = text;
+            let linkTitle = title;
+            
+            // Check if marked version >= 4.0 uses object destructuring
+            if (typeof first === 'object' && first !== null) {
+              href = first.href;
+              linkTitle = first.title;
+              linkText = first.text;
+            }
+            
+            return `<a href="${href}" title="${linkTitle || ''}" target="_blank" rel="noopener noreferrer" class="blog-link-btn">${linkText}</a>`;
           };
 
           const html = marked.parse(cleanText, { renderer });
