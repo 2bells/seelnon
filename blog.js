@@ -170,8 +170,13 @@ export async function openBlogWindow(title, openWindowFn) {
           if (iconMatch) {
             cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
           }
+          
+          const renderer = new marked.Renderer();
+          renderer.link = (href, title, text) => {
+            return `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer" class="blog-link-btn">${text}</a>`;
+          };
 
-          const html = marked.parse(cleanText);
+          const html = marked.parse(cleanText, { renderer });
           
           // Extract date from filename (YYYY-MM-DD)
           const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
