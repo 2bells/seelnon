@@ -22,9 +22,9 @@ UPD: Windows Ink might be working as well.
 > we are so back
 ```
 
-testing the link
 
-[link](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html)
+
+[click to use](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html)
 
 <a href="https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/index.html" style="color: #ff4500; text-decoration: none; font-weight: bold; border-bottom: 2px solid #ff4500;">
    click to use

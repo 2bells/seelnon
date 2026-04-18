@@ -170,7 +170,7 @@ export async function openBlogWindow(title, openWindowFn) {
           if (iconMatch) {
             cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
           }
-          
+
           const renderer = new marked.Renderer();
           renderer.link = (href, title, text) => {
             return `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer" class="blog-link-btn">${text}</a>`;
