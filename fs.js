@@ -89,13 +89,13 @@ export const FS = (() => {
   html('Endless Canvas', 'Content/Projects/Endless_canvas/index.html', '/Projects', { icon: 'Content/Projects/Endless_canvas/Endless_canvas_thumbnail.jpg', description: 'A versatile digital drawing application with infinite canvas.' });
   html('RTS Game', 'Content/Projects/RTS_Game/index.html', '/Projects', { icon: 'Content/Projects/RTS_Game/RTS_thumbnail.jpg', description: 'A real-time strategy game with AI opponents.' });
   html('Atelier', 'Content/Projects/Atelier/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A digital art studio with custom brushes and image management.' });
-  html('Game Assets Creator', 'Content/Projects/Game_Assets_Creator/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to quickly create game assets.' });  
-  html('Pixel Mesh Animator', 'Content/Projects/Pixel_Mesh_Animator/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to animate pixel art, works great with GAC.' });  
-  html('Rubber Animation', 'Content/Projects/Rubber_Animation/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to animate fluid pictures.' });  
-  html('Video Analysis', 'Content/Projects/Video_Analysis/index.html', '/Projects', { icon: 'Content/Projects/Atelier/Atelier_thumbnail.jpg', description: 'A way to analyze a video.' });    
+  html('Game Assets Creator', 'Content/Projects/Game_Assets_Creator/index.html', '/Projects', { icon: 'Content/Projects/Game_Assets_Creator/gac_thumbnail.jpg', description: 'A way to quickly create game assets.' });  
+  html('Pixel Mesh Animator', 'Content/Projects/Pixel_Mesh_Animator/index.html', '/Projects', { icon: 'Content/Projects/Pixel_Mesh_Animator/pixel_mesh_thumbnail.jpg', description: 'A way to animate pixel art, works great with GAC.' });  
+  html('Rubber Animation', 'Content/Projects/Rubber_Animation/index.html', '/Projects', { icon: 'Content/Projects/Rubber_Animation/soft_puppet_thumbnail.jpg', description: 'A way to animate fluid pictures.' });  
+  html('Video Analysis', 'Content/Projects/Video_Analysis/index.html', '/Projects', { icon: 'Content/Projects/Video_Analysis/video_analysis_thumbnail.jpg', description: 'A way to analyze a video.' });    
   html('Fireplace', 'Content/Projects/Fireplace/index.html', '/Projects', { icon: 'Content/Projects/Fireplace/Fireplace_Thumbnail.jpg', description: 'A way to remember an hour.' });  
   html('ASCII animations', 'Content/Projects/ASCII/index.html', '/Projects', { icon: 'Content/Projects/ASCII/ASCII_Thumbnail.jpg', description: 'A way to vibe out an hour.' });  
-  html('Panellum Viewer', 'Content/Projects/Panellum/index.html', '/Projects', { icon: 'Content/Projects/ASCII/ASCII_Thumbnail.jpg', description: 'A way to view images.' });  
+  html('Panellum Viewer', 'Content/Projects/Panellum/index.html', '/Projects', { icon: 'Content/Projects/Panellum/panellum_thumbnail.jpg', description: 'A way to view images.' });  
 
 
 
