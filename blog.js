@@ -189,6 +189,12 @@ export async function openBlogWindow(title, openWindowFn) {
             a.classList.add('blog-link-btn');
             if (!a.target) a.target = "_blank";
             if (!a.rel) a.rel = "noopener noreferrer";
+            
+            // Add blinking cursor
+            const cursor = document.createElement('span');
+            cursor.className = 'blinking-cursor';
+            cursor.textContent = ' _';
+            a.appendChild(cursor);
           });
           
           html = tempDiv.innerHTML;

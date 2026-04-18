@@ -1027,6 +1027,15 @@ html {
   vertical-align: middle;
 }
 
+.blinking-cursor {
+  animation: blink-cursor 1s step-end infinite;
+  font-weight: bold;
+}
+
+@keyframes blink-cursor {
+  50% { opacity: 0; }
+}
+
 .blog-link-btn:hover {
   background-color: var(--win95-title-active-start);
   color: #fff;
