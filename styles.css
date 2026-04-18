@@ -958,6 +958,18 @@ html {
   text-indent: 0;
 }
 
+.blog-comment-line {
+  color: #6A9955 !important; /* VS Code comment green */
+  font-family: 'JetBrains Mono', 'Fira Code', 'VT323', monospace !important;
+  font-style: normal !important;
+  text-align: left !important;
+  text-justify: none !important;
+  margin-bottom: 15px !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  opacity: 0.85;
+}
+
 .blog-post-content pre {
   background: #000;
   color: #fff;

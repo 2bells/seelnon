@@ -36,7 +36,7 @@ export async function preloadBlogPosts() {
         
         // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
         // Also avoids intra-word underscores (e.g., snake_case) and handles single-character italics
-        const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
+        const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*a-zA-Z0-9])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
         let match;
         const postItalics = [];
         while ((match = italicRegex.exec(text)) !== null) {
@@ -121,7 +121,7 @@ export async function openBlogWindow(title, openWindowFn) {
           // Extract italicized text for mascot and make it invisible in blog
           // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
           // Also avoids intra-word underscores (e.g., snake_case) and handles single-character italics
-          const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
+          const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*a-zA-Z0-9])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
           let match;
           const postItalics = [];
           while ((match = italicRegex.exec(cleanText)) !== null) {
@@ -171,23 +171,27 @@ export async function openBlogWindow(title, openWindowFn) {
             cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
           }
 
-          const renderer = new marked.Renderer();
-          renderer.link = (first, title, text) => {
-            let href = first;
-            let linkText = text;
-            let linkTitle = title;
-            
-            // Check if marked version >= 4.0 uses object destructuring
-            if (typeof first === 'object' && first !== null) {
-              href = first.href;
-              linkTitle = first.title;
-              linkText = first.text;
+          let html = marked.parse(cleanText);
+          
+          // Post-process HTML to apply custom styles without breaking standard Markdown parsing
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          
+          // 1. Style comment lines (// style)
+          tempDiv.querySelectorAll('p').forEach(p => {
+            if (p.textContent.trim().startsWith('//')) {
+              p.classList.add('blog-comment-line');
             }
-            
-            return `<a href="${href}" title="${linkTitle || ''}" target="_blank" rel="noopener noreferrer" class="blog-link-btn">${linkText}</a>`;
-          };
-
-          const html = marked.parse(cleanText, { renderer });
+          });
+          
+          // 2. Style links as buttons
+          tempDiv.querySelectorAll('a').forEach(a => {
+            a.classList.add('blog-link-btn');
+            if (!a.target) a.target = "_blank";
+            if (!a.rel) a.rel = "noopener noreferrer";
+          });
+          
+          html = tempDiv.innerHTML;
           
           // Extract date from filename (YYYY-MM-DD)
           const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
