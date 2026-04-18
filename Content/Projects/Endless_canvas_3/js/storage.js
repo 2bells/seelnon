@@ -34,8 +34,14 @@ function saveStateToLocalStorage() {
         // This means undo/redo history is reset on page reload, but current drawing is preserved.
         const stateToSave = {
             strokes: state.strokes.map(stroke => ({
-                // We don't save the 'bitmap' property as it's not serializable
-                points: stroke.points,
+                // Optimization: Round coordinates to 1 decimal place to save localStorage space
+                points: stroke.points.map(p => ({
+                    x: Math.round(p.x * 10) / 10,
+                    y: Math.round(p.y * 10) / 10,
+                    pressure: Math.round((p.pressure || 1.0) * 100) / 100,
+                    size: Math.round(p.size * 10) / 10
+                })),
+                bounds: stroke.bounds, // Save bounds for faster culling on load
                 color: stroke.color,
                 opacity: stroke.opacity,
                 tipShape: stroke.tipShape, // Save per-stroke properties

@@ -1,6 +1,19 @@
 import { state } from './state.js';
 import { scheduleSave } from './storage.js';
-import { hexToRgba, drawVariableWidthStrokePolygon } from './utils/drawing.js';
+import { hexToRgba, drawVariableWidthStrokePolygon, calculateStrokeBounds, getVariableWidthPath } from './utils/drawing.js';
+import { screenToWorld } from './events.js';
+
+// Helper to get current world-space viewport
+function getWorldViewport() {
+    const topLeft = screenToWorld(0, 0);
+    const bottomRight = screenToWorld(window.innerWidth, window.innerHeight);
+    return {
+        minX: topLeft.x,
+        minY: topLeft.y,
+        maxX: bottomRight.x,
+        maxY: bottomRight.y
+    };
+}
 
 // Import brush drawing functions
 import { drawPenStroke } from './brush/pen.js';
@@ -201,7 +214,21 @@ function draw() {
     const now = performance.now();
 
     // Draw all stored strokes (finalized strokes)
+    const viewport = getWorldViewport();
     state.strokes.forEach(stroke => {
+        // --- Spatial Culling: Skip if completely outside viewport ---
+        if (stroke.bounds) {
+            if (stroke.bounds.maxX < viewport.minX || 
+                stroke.bounds.minX > viewport.maxX || 
+                stroke.bounds.maxY < viewport.minY || 
+                stroke.bounds.minY > viewport.maxY) {
+                return;
+            }
+        } else {
+            // Fallback: calculate bounds if missing (e.g. legacy data)
+            stroke.bounds = calculateStrokeBounds(stroke);
+        }
+
         // --- Animation Logic for Sketchy Brush ---
         if (stroke.type === 'sketchy-animated' && stroke.animationInterval > 0 && now - (stroke.lastAnimationTime || 0) > stroke.animationInterval) {
             stroke.lastAnimationTime = now;
@@ -459,11 +486,41 @@ export async function endStroke() {
     const wasDrawing = state.currentStroke && state.currentStroke.points.length > 1; // if just a click, don't consider it a full stroke
     
     if (wasDrawing) {
+        // Round points to 1 decimal place to save memory and storage space
+        state.currentStroke.points = state.currentStroke.points.map(p => ({
+            x: Math.round(p.x * 10) / 10,
+            y: Math.round(p.y * 10) / 10,
+            pressure: Math.round((p.pressure || 1.0) * 100) / 100,
+            size: Math.round(p.size * 10) / 10
+        }));
+        if (state.currentMirrorStroke) {
+            state.currentMirrorStroke.points = state.currentMirrorStroke.points.map(p => ({
+                x: Math.round(p.x * 10) / 10,
+                y: Math.round(p.y * 10) / 10,
+                pressure: Math.round((p.pressure || 1.0) * 100) / 100,
+                size: Math.round(p.size * 10) / 10
+            }));
+        }
+
         // Apply smoothing if enabled before rendering to bitmap or adding to strokes
         if (state.currentStroke.enableSmoothing && state.currentStroke.smoothingFactor > 0) {
             state.currentStroke.points = applySmoothing(state.currentStroke.points, state.currentStroke.smoothingFactor);
             if (state.currentMirrorStroke) {
                 state.currentMirrorStroke.points = applySmoothing(state.currentMirrorStroke.points, state.currentMirrorStroke.smoothingFactor);
+            }
+        }
+
+        // --- Performance Optimization: ALWAYS calculate bounds for spatial culling ---
+        state.currentStroke.bounds = calculateStrokeBounds(state.currentStroke);
+        if (state.currentMirrorStroke) {
+            state.currentMirrorStroke.bounds = calculateStrokeBounds(state.currentMirrorStroke);
+        }
+
+        // --- Performance Optimization: Cache Path2D for Vector Drawing ---
+        if (state.currentStroke.type === 'pen' && state.currentStroke.points.length >= 2) {
+            state.currentStroke.pathObject = getVariableWidthPath(state.currentStroke.points, state.currentStroke.minSizeFactor, state.currentStroke.tipShape);
+            if (state.currentMirrorStroke) {
+                state.currentMirrorStroke.pathObject = getVariableWidthPath(state.currentMirrorStroke.points, state.currentMirrorStroke.minSizeFactor, state.currentMirrorStroke.tipShape);
             }
         }
 

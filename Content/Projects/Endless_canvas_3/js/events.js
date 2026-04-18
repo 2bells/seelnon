@@ -25,7 +25,7 @@ function getPointerPos(event) {
 }
 
 // Convert screen coordinates to world coordinates, considering pan and zoom
-function screenToWorld(x, y) {
+export function screenToWorld(x, y) {
     let screenX = x;
     const screenY = y;
 
@@ -670,8 +670,15 @@ export function init(canvas) {
         scheduleSave();
     });
 
+    let lastCursorParams = null;
+
     // Function to update canvas cursor based on active tools/modes
     function updateCanvasCursor() {
+        // Check if anything actually changed to avoid expensive cursor re-sets
+        const currentParams = `${state.activeTool}-${state.brush.size}-${state.zoom}-${state.brush.type}-${state.altKeyPressed}-${state.spacebarPressed}-${state.zKeyPressed}-${state.isMovingSelection}-${state.isRotatingSelection}-${state.isScalingSelection}`;
+
+        if (currentParams === lastCursorParams) return;
+        lastCursorParams = currentParams;
         if (state.activeTool === 'eraser') {
             const size = Math.max(2, state.brush.size * state.zoom);
             const halfSize = size / 2;
@@ -745,7 +752,14 @@ export function init(canvas) {
         // Observe brushSizeValue for changes (from keyboard input or editor)
         new MutationObserver(updateCanvasCursor).observe(brushSizeValue, { childList: true });
     }
-    canvas.addEventListener('wheel', updateCanvasCursor, { passive: true });
+    let wheelCursorTimeout = null;
+    canvas.addEventListener('wheel', () => {
+        if (wheelCursorTimeout) return;
+        wheelCursorTimeout = setTimeout(() => {
+            updateCanvasCursor();
+            wheelCursorTimeout = null;
+        }, 100); 
+    }, { passive: true });
 
     // Also update cursor when activeTool or state.brush.type changes
     // This is handled via a custom event dispatched from main.js when the active brush changes
