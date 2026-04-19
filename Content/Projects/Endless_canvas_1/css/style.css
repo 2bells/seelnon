@@ -13,37 +13,6 @@ body {
     touch-action: none;
 }
 
-#custom-stylus-cursor {
-    position: fixed;
-    width: 31px;
-    height: 31px;
-    pointer-events: none;
-    z-index: 10000; /* Above everything */
-    mix-blend-mode: difference;
-    transform: translate(-50%, -50%);
-}
-
-#custom-stylus-cursor::before,
-#custom-stylus-cursor::after {
-    content: '';
-    position: absolute;
-    background: white; /* Inverts behind it */
-}
-
-#custom-stylus-cursor::before {
-    width: 100%;
-    height: 1px;
-    top: 50%;
-    left: 0;
-}
-
-#custom-stylus-cursor::after {
-    width: 1px;
-    height: 100%;
-    top: 0;
-    left: 50%;
-}
-
 #sidebar {
     position: fixed;
     top: 20px;
@@ -137,15 +106,14 @@ body {
 
 #top-toolbar {
     position: fixed;
-    top: 50%;
-    left: 20px;
-    transform: translateY(-50%);
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(255, 255, 255, 0.95);
-    padding: 8px;
+    padding: 6px;
     border-radius: 50px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 8px;
     user-select: none;
@@ -156,7 +124,7 @@ body {
 
 #tool-selector {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 4px;
 }
@@ -215,10 +183,10 @@ body {
 
 /* Toolbar Separator */
 .toolbar-separator {
-    width: 24px;
-    height: 1px;
+    width: 1px;
+    height: 24px;
     background: rgba(0, 0, 0, 0.1);
-    margin: 4px 0;
+    margin: 0 4px;
 }
 
 /* Color Picker in Toolbar */
@@ -256,10 +224,10 @@ body {
 /* Tool Dropdowns */
 .tool-dropdown {
     position: absolute;
-    left: 36px; /* Start at the right of the button */
-    padding-left: 12px; /* Invisible bridge to the menu */
-    top: 50%;
-    transform: translateY(-50%);
+    top: 36px; /* Start at the bottom of the button */
+    padding-top: 12px; /* Invisible bridge to the menu */
+    left: 50%;
+    transform: translateX(-50%);
     background: transparent;
     display: none;
     flex-direction: column;
@@ -417,151 +385,96 @@ body {
     color: #000;
 }
 
-#color-palette {
-    width: 250px;
-    padding: 10px;
+
+
+#color-palette .palette-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding-bottom: 8px;
+    cursor: grab;
+    height: 30px;
+}
+
+.palette-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#color-palette .palette-header .drag-handle {
+    width: 20px;
+    height: 20px;
+    cursor: grab;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23999"><path d="M10 20h4v-2h-4v2zm0-12v4h4V8h-4zM6 6h4V2H6v4zm0 12h4v-4H6v4zm12 0h-4V2h4v4z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 80%;
 }
 
 #color-swatches {
-    position: relative;
-    width: 240px;
-    height: 240px;
-    margin: 0 auto;
-    display: block;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+#color-preview-bar {
+    width: 100%;
+    height: 35px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: 5px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+#color-preview-bar:hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .swatch {
-    position: absolute;
+    width: 25px;
+    height: 25px;
     border-radius: 50%;
     cursor: pointer;
     border: 1.5px solid rgba(0, 0, 0, 0.1);
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    transition: transform 0.1s ease, box-shadow 0.2s ease, width 0.2s, height 0.2s;
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
     overflow: hidden;
-    transform: translate(-50%, -50%); /* Size set by JS */
-}
-
-.palette-bottom-menu {
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    margin-top: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-#palette-menu-toggle {
-    width: 100%;
-    background: none;
-    border: none;
-    padding: 8px 0;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: #999;
-    cursor: pointer;
-    transition: color 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-}
-
-#palette-menu-toggle:hover {
-    color: #000;
-}
-
-#palette-slide-menu {
-    width: 100%;
-    background: #f9f9f9;
-    border-radius: 8px;
-    margin-bottom: 5px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-}
-
-#palette-slide-menu.hidden {
-    height: 0;
-    padding: 0;
-    margin: 0;
 }
 
 .swatch:hover {
-    transform: translate(-50%, -50%) scale(1.2);
-    z-index: 10;
-}
-
-.swatch.active {
-    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(0, 0, 0, 0.8);
-    transform: translate(-50%, -50%) scale(1.2);
-    z-index: 11;
-}
-
-.palette-preset-icons {
-    display: flex;
-    justify-content: space-around;
-    padding: 8px 5px;
-    gap: 5px;
-}
-
-.preset-btn {
-    width: 32px;
-    height: 32px;
-    background: white;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    font-size: 16px;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    padding: 0;
-}
-
-.preset-btn svg {
-    width: 16px;
-    height: 16px;
-    color: #444;
-}
-
-.preset-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
     transform: scale(1.1);
 }
 
-/* Brush cycle dots */
-.brush-cycle-indicator {
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 2px;
-    pointer-events: none;
+.swatch.active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(0, 0, 0, 0.6);
+    transform: scale(1.1);
+    z-index: 2;
 }
 
-.cycle-dot {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.3);
+#reset-palette-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font-size: 16px;
+    color: #999;
+    transition: color 0.2s, transform 0.2s;
+    line-height: 1;
 }
 
-.tool-button.active .cycle-dot {
-    background: rgba(255, 255, 255, 0.5);
+#reset-palette-btn:hover {
+    color: #333;
+    transform: rotate(-45deg);
 }
 
-.cycle-dot.active {
-    background: #000;
-    transform: scale(1.3);
-}
-
-.tool-button.active .cycle-dot.active {
-    background: #fff;
-}
 /* Brush Settings in Sidebar */
 #brush-settings-container {
     margin-top: 10px;
@@ -733,10 +646,6 @@ select {
     display: none !important;
 }
 
-.hidden {
-    display: none !important;
-}
-
 #project-status-bar {
     position: fixed;
     bottom: 12px;
@@ -793,52 +702,6 @@ select {
     transition: opacity 0.5s ease-in-out;
     pointer-events: none;
     z-index: 100;
-}
-
-/* Loading Overlay */
-#loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 100000;
-    backdrop-filter: blur(5px);
-    transition: opacity 0.3s ease;
-}
-
-#loading-overlay.hidden {
-    display: none;
-    opacity: 0;
-}
-
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(255, 255, 255, 0.2);
-    border-top: 4px solid white;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin-bottom: 12px;
-}
-
-#loading-text {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    font-weight: 600;
-    color: #fff;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
 }
 
 #status-indicator {

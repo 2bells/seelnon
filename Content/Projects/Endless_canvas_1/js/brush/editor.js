@@ -21,8 +21,8 @@ function createBrushEditor() {
             </div>
 
             <div class="brush-preset-actions">
-                <button id="saveCurrentPresetBtn" title="Save current settings as the new default for this brush">Save Preset</button>
-                <button id="resetBrushBtn" title="Reset brush settings to the saved preset">Reset Brush</button>
+                <button id="saveCurrentPresetBtn" title="Save changes to current preset">Save Preset</button>
+                <button id="saveNewPresetBtn" title="Save current settings as a new preset">Save As New</button>
             </div>
 
             <div class="brush-setting">
@@ -227,33 +227,6 @@ function createBrushEditor() {
                 </div>
                 <input type="range" id="canvasBgSpacing" min="10" max="200" value="${state.canvasSettings.backgroundSpacing}" step="5">
             </div>
-
-            <div class="canvas-setting">
-                <label for="canvasBgLineColor">Pattern Color</label>
-                <input type="color" id="canvasBgLineColor" class="settings-color-input" value="${state.canvasSettings.backgroundLineColor || '#D1D1D1'}">
-            </div>
-
-            <div class="canvas-setting">
-                <div class="label-group">
-                    <label for="canvasBgLineWidth">Pattern Thickness</label>
-                    <span id="canvasBgLineWidthValue">${state.canvasSettings.backgroundLineWidth || 1}px</span>
-                </div>
-                <input type="range" id="canvasBgLineWidth" min="0.5" max="20" value="${state.canvasSettings.backgroundLineWidth || 1}" step="0.5">
-            </div>
-
-            <div class="toolbar-separator" style="margin: 15px 0 10px 0; opacity: 0.2;"></div>
-
-            <div class="canvas-setting">
-                <label for="renderMode">Render Engine</label>
-                <select id="renderMode">
-                    <option value="bitmap">Optimized (Chunks)</option>
-                    <option value="vector">Raw (Full Vector)</option>
-                </select>
-                <div class="setting-hint" style="font-size: 10px; opacity: 0.5; margin-top: 6px; line-height: 1.3;">
-                    'Optimized' caches parts of the canvas to keep things smooth. 
-                    'Raw' redraws every single point every frame—true to the holy trinity, but can get laggy.
-                </div>
-            </div>
         </div>
     `;
     return editor;
@@ -269,7 +242,7 @@ export function init() {
     // Get all UI elements
     const activeBrushPresetName = editor.querySelector('#activeBrushPresetName');
     const saveCurrentPresetBtn = editor.querySelector('#saveCurrentPresetBtn');
-    const resetBrushBtn = editor.querySelector('#resetBrushBtn');
+    const saveNewPresetBtn = editor.querySelector('#saveNewPresetBtn');
     const brushSize = editor.querySelector('#brushSize');
     const brushSizeValue = editor.querySelector('#brushSizeValue');
     const brushOpacity = editor.querySelector('#brushOpacity');
@@ -291,10 +264,6 @@ export function init() {
     const canvasBgType = editor.querySelector('#canvasBgType');
     const canvasBgSpacing = editor.querySelector('#canvasBgSpacing');
     const canvasBgSpacingValue = editor.querySelector('#canvasBgSpacingValue');
-    const canvasBgLineColor = editor.querySelector('#canvasBgLineColor');
-    const canvasBgLineWidth = editor.querySelector('#canvasBgLineWidth');
-    const canvasBgLineWidthValue = editor.querySelector('#canvasBgLineWidthValue');
-    const renderMode = editor.querySelector('#renderMode');
 
     // Advanced Brush Settings elements (now in their own tab)
     const enableSmoothingToggle = editor.querySelector('#enableSmoothingToggle');
@@ -359,13 +328,6 @@ export function init() {
             content.classList.toggle('active', content.id === `${tabId}-tab-content`);
         });
         syncUiWithState(); // Re-sync UI to show relevant settings for the new tab
-    }
-
-    // Helper to sync current modifications to the session-wide work-in-progress state
-    function syncWorkInProgress() {
-        if (state.activeBrushPresetId && state.brush) {
-            state.brushWorkInProgress[state.activeBrushPresetId] = structuredClone(state.brush);
-        }
     }
 
     // Function to update visibility of brush-specific settings
@@ -465,10 +427,23 @@ export function init() {
                             button.addEventListener('click', (e) => {
                                 const clickedPresetId = e.target.dataset.presetId;
                                 if (clickedPresetId) {
-                                    // Use the centralized event-based switching to ensure color preservation
-                                    window.dispatchEvent(new CustomEvent('requestSetActiveTool', {
-                                        detail: { toolName: 'brush', presetId: clickedPresetId }
-                                    }));
+                                    // Remove 'active' from all main tool buttons
+                                    document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+                                    // Find the main tool button associated with this preset's baseType and add 'active'
+                                    const mainToolButton = document.getElementById(`${preset.baseType}-brush-tool`);
+                                    if (mainToolButton) mainToolButton.classList.add('active');
+                                    
+                                    // Remove 'active' from all dropdown items
+                                    document.querySelectorAll('.tool-dropdown-item').forEach(btn => btn.classList.remove('active'));
+                                    // Add 'active' to the clicked dropdown item
+                                    e.target.classList.add('active');
+
+                                    // Update state.brush and state.activeBrushPresetId
+                                    state.activeTool = 'brush';
+                                    state.brush = structuredClone(state.brushPresets[clickedPresetId]);
+                                    state.activeBrushPresetId = clickedPresetId;
+
+                                    window.dispatchEvent(new CustomEvent('activeBrushChanged')); // Notify editor
                                 }
                             });
                             dropdown.appendChild(button);
@@ -564,10 +539,6 @@ export function init() {
         canvasBgType.value = state.canvasSettings.backgroundType;
         canvasBgSpacing.value = state.canvasSettings.backgroundSpacing;
         canvasBgSpacingValue.textContent = `${state.canvasSettings.backgroundSpacing}px`;
-        canvasBgLineColor.value = state.canvasSettings.backgroundLineColor || '#D1D1D1';
-        canvasBgLineWidth.value = state.canvasSettings.backgroundLineWidth || 1;
-        canvasBgLineWidthValue.textContent = `${state.canvasSettings.backgroundLineWidth || 1}px`;
-        renderMode.value = state.renderMode || 'bitmap';
     }
     
     syncUiWithState();
@@ -584,62 +555,52 @@ export function init() {
         const newSize = parseFloat(e.target.value);
         state.brush.size = newSize;
         brushSizeValue.textContent = newSize.toFixed(1);
-        syncWorkInProgress();
     });
 
     brushOpacity.addEventListener('input', (e) => {
         const newOpacity = parseFloat(e.target.value);
         state.brush.opacity = newOpacity;
         brushOpacityValue.textContent = newOpacity.toFixed(2);
-        syncWorkInProgress();
     });
     
     speedSensitivityFactor.addEventListener('input', (e) => {
         const newFactor = parseFloat(e.target.value);
         state.brush.speedSensitivityFactor = newFactor;
         speedSensitivityFactorValue.textContent = newFactor.toFixed(1);
-        syncWorkInProgress();
     });
 
     minSizeFactor.addEventListener('input', (e) => {
         const newFactor = parseFloat(e.target.value);
         state.brush.minSizeFactor = newFactor;
         minSizeFactorValue.textContent = `${Math.round(newFactor * 100)}%`;
-        syncWorkInProgress();
     });
 
     pressureSensitivityToggle.addEventListener('change', (e) => {
         state.brush.pressureSensitivity = e.target.checked;
-        syncWorkInProgress();
     });
 
     speedSensitivityToggle.addEventListener('change', (e) => {
         state.brush.speedSensitivity = e.target.checked;
-        syncWorkInProgress();
     });
 
     brushTipShape.addEventListener('change', (e) => {
         state.brush.tipShape = e.target.value;
-        syncWorkInProgress();
     });
 
     nonCompoundingOpacityToggle.addEventListener('change', (e) => {
         state.brush.nonCompoundingOpacity = e.target.checked;
-        syncWorkInProgress();
     });
 
     pixelSize.addEventListener('input', (e) => {
         const newPixelSize = parseFloat(e.target.value);
         state.brush.pixelSize = newPixelSize;
         pixelSizeValue.textContent = newPixelSize;
-        syncWorkInProgress();
     });
 
     // Advanced Brush Settings Listeners (advanced tab)
     enableSmoothingToggle.addEventListener('change', (e) => {
         state.brush.enableSmoothing = e.target.checked;
         updateBrushSpecificSettingsVisibility(); // Update visibility of smoothing factor
-        syncWorkInProgress();
     });
 
     smoothingFactor.addEventListener('input', (e) => {
@@ -647,32 +608,27 @@ export function init() {
         const newFactor = parseFloat(e.target.value) / 1000;
         state.brush.smoothingFactor = newFactor;
         smoothingFactorValue.textContent = `${(newFactor * 100).toFixed(1)}%`;
-        syncWorkInProgress();
     });
 
     wireframeMeshOpacity.addEventListener('input', (e) => {
         const newOpacity = parseFloat(e.target.value);
         state.brush.wireframeMeshOpacity = newOpacity;
         wireframeMeshOpacityValue.textContent = `${Math.round(newOpacity * 100)}%`;
-        syncWorkInProgress();
     });
     wireframeLineOpacity.addEventListener('input', (e) => {
         const newOpacity = parseFloat(e.target.value);
         state.brush.wireframeLineOpacity = newOpacity;
         wireframeLineOpacityValue.textContent = `${Math.round(newOpacity * 100)}%`;
-        syncWorkInProgress();
     });
     wireframeHullThickness.addEventListener('input', (e) => {
         const newThicknessFactor = parseFloat(e.target.value);
         state.brush.wireframeHullLineThickness = newThicknessFactor;
         wireframeHullThicknessValue.textContent = `${newThicknessFactor.toFixed(1)}x`;
-        syncWorkInProgress();
     });
     wireframeMeshThickness.addEventListener('input', (e) => {
         const newThickness = parseFloat(e.target.value);
         state.brush.wireframeMeshLineThickness = newThickness;
         wireframeMeshThicknessValue.textContent = newThickness.toFixed(1);
-        syncWorkInProgress();
     });
     wireframeMaxMeshLength.addEventListener('input', (e) => {
         let newLength = parseFloat(e.target.value);
@@ -684,20 +640,17 @@ export function init() {
             state.brush.wireframeMaxMeshLength = newLength;
             wireframeMaxMeshLengthValue.textContent = newLength.toFixed(0);
         }
-        syncWorkInProgress();
     });
 
     wireframePointRadius.addEventListener('input', (e) => {
         const newRadius = parseFloat(e.target.value);
         state.brush.wireframePointRadius = newRadius;
         wireframePointRadiusValue.textContent = newRadius.toFixed(1);
-        syncWorkInProgress();
     });
     wireframePointOpacity.addEventListener('input', (e) => {
         const newOpacity = parseFloat(e.target.value);
         state.brush.wireframePointOpacity = newOpacity;
         wireframePointOpacityValue.textContent = `${Math.round(newOpacity * 100)}%`;
-        syncWorkInProgress();
     });
     wireframeAnimationSpeed.addEventListener('input', (e) => {
         const newSpeed = parseInt(e.target.value, 10);
@@ -706,7 +659,6 @@ export function init() {
         if (state.currentStroke && state.currentStroke.type === 'wireframe') {
             state.currentStroke.needsJitterUpdate = true;
         }
-        syncWorkInProgress();
     });
     wireframeAnimationAmount.addEventListener('input', (e) => {
         const newAmount = parseFloat(e.target.value);
@@ -715,18 +667,15 @@ export function init() {
         if (state.currentStroke && state.currentStroke.type === 'wireframe') {
             state.currentStroke.needsJitterUpdate = true;
         }
-        syncWorkInProgress();
     });
     wireframeGradientMeshToggle.addEventListener('change', (e) => {
         state.brush.wireframeGradientMesh = e.target.checked;
         updateBrushSpecificSettingsVisibility(); // To show/hide the boost factor slider
-        syncWorkInProgress();
     });
     wireframeGradientMeshBoostFactor.addEventListener('input', (e) => {
         const newFactor = parseFloat(e.target.value);
         state.brush.wireframeGradientMeshBoostFactor = newFactor;
         wireframeGradientMeshBoostFactorValue.textContent = `${newFactor.toFixed(1)}x`;
-        syncWorkInProgress();
     });
 
     sketchyJitterAmount.addEventListener('input', (e) => {
@@ -737,7 +686,6 @@ export function init() {
         if (state.currentStroke && state.currentStroke.type === 'sketchy-animated') {
             state.currentStroke.needsJitterUpdate = true;
         }
-        syncWorkInProgress();
     });
     sketchyJitterDensity.addEventListener('input', (e) => {
         const newDensity = parseInt(e.target.value, 10);
@@ -747,83 +695,62 @@ export function init() {
         if (state.currentStroke && state.currentStroke.type === 'sketchy-animated') {
             state.currentStroke.needsJitterUpdate = true;
         }
-        syncWorkInProgress();
     });
     sketchyAnimationInterval.addEventListener('input', (e) => {
         const newInterval = parseInt(e.target.value, 10);
         state.brush.animationInterval = newInterval;
         sketchyAnimationIntervalValue.textContent = `${newInterval / 1000}s`;
-        syncWorkInProgress();
     });
 
     // Canvas settings Listeners (canvas tab)
     canvasBgColor.addEventListener('input', (e) => {
         state.canvasSettings.backgroundColor = e.target.value;
-        scheduleSave();
     });
 
     canvasBgType.addEventListener('change', (e) => {
         state.canvasSettings.backgroundType = e.target.value;
-        scheduleSave();
     });
 
     canvasBgSpacing.addEventListener('input', (e) => {
         const newSpacing = parseFloat(e.target.value);
         state.canvasSettings.backgroundSpacing = newSpacing;
         canvasBgSpacingValue.textContent = `${newSpacing}px`;
-        scheduleSave();
-    });
-
-    canvasBgLineColor.addEventListener('input', (e) => {
-        state.canvasSettings.backgroundLineColor = e.target.value;
-        scheduleSave();
-    });
-
-    canvasBgLineWidth.addEventListener('input', (e) => {
-        const newWidth = parseFloat(e.target.value);
-        state.canvasSettings.backgroundLineWidth = newWidth;
-        canvasBgLineWidthValue.textContent = `${newWidth}px`;
-        scheduleSave();
-    });
-
-    renderMode.addEventListener('change', (e) => {
-        state.renderMode = e.target.value;
-        scheduleSave();
-        
-        // If switching to bitmap, we might need a visual refresh of chunks
-        if (state.renderMode === 'bitmap') {
-            window.dispatchEvent(new CustomEvent('rebuildChunksRequest'));
-        }
     });
 
     // Preset save/load functionality
     saveCurrentPresetBtn.addEventListener('click', () => {
         const activePresetId = state.activeBrushPresetId;
         if (activePresetId && state.brushPresets[activePresetId]) {
-            // Save current state as the new permanent preset, but STRIP color 
-            // so it doesn't get baked into the preset definition.
-            const brushToSave = structuredClone(state.brush);
-            delete brushToSave.color;
-            
-            state.brushPresets[activePresetId] = brushToSave;
+            // Overwrite existing preset with current settings
+            // We clone state.brush to ensure all properties are copied.
+            const updatedPreset = structuredClone(state.brush);
+            // Make sure the name is retained, as it's part of the preset metadata
+            updatedPreset.name = state.brushPresets[activePresetId].name; 
+            updatedPreset.baseType = state.brushPresets[activePresetId].baseType;
+
+            state.brushPresets[activePresetId] = updatedPreset;
+
             scheduleSave();
-            syncUiWithState();
-            console.log(`Preset "${state.brushPresets[activePresetId].name}" saved without color-baking.`);
+            syncUiWithState(); // Re-sync UI to confirm changes and update active name if needed
+            console.log(`Preset "${state.brushPresets[activePresetId].name}" updated.`);
+        } else {
+            // If it's a completely new brush or not an active preset (e.g., modified a default), ask to save as new.
+            saveNewPresetBtn.click();
         }
     });
 
-    resetBrushBtn.addEventListener('click', () => {
-        const activePresetId = state.activeBrushPresetId;
-        if (activePresetId && state.brushPresets[activePresetId]) {
-            // Reset to the saved preset but preserve current color
-            const previousColor = state.brush.color;
-            state.brush = structuredClone(state.brushPresets[activePresetId]);
-            state.brush.color = previousColor;
-
-            // Clear any WIP settings for this brush
-            state.brushWorkInProgress[activePresetId] = structuredClone(state.brush);
-            syncUiWithState();
-            console.log(`Brush "${state.brushPresets[activePresetId].name}" reset to preset (color preserved).`);
+    saveNewPresetBtn.addEventListener('click', () => {
+        const presetName = prompt('Enter a name for the new brush preset:', state.brush.name || 'New Custom Brush');
+        if (presetName) {
+            const newPresetId = `user-custom-${state.brush.baseType || 'pen'}-${Date.now()}`;
+            const newPreset = structuredClone(state.brush);
+            newPreset.name = presetName;
+            state.brushPresets[newPresetId] = newPreset;
+            state.activeBrushPresetId = newPresetId; // Set newly created preset as active
+            state.brush = structuredClone(newPreset); // Update current brush to be a copy of the new preset
+            scheduleSave();
+            syncUiWithState(); // Refresh UI including dropdowns and active name
+            console.log(`New preset "${presetName}" created.`);
         }
     });
 

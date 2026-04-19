@@ -29,33 +29,26 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
 
     // Apply animation (jiggle) only if NOT in preview mode AND animation is enabled
     if (!isPreview && (stroke.wireframeAnimationSpeed || 0) > 0) {
-        // Generate animated points based on speed
-        const now = performance.now();
-        if (!stroke.lastAnimationTime || now - stroke.lastAnimationTime > stroke.wireframeAnimationSpeed) {
-             stroke.animatedPoints = stroke.points.map(p => ({
+        // Generate animated points if needed (first time after endStroke or if update is flagged)
+        if (stroke.needsJitterUpdate || !stroke.animatedPoints) {
+            stroke.animatedPoints = stroke.points.map(p => ({
                 x: p.x + (Math.random() - 0.5) * (stroke.wireframeAnimationAmount || 0),
                 y: p.y + (Math.random() - 0.5) * (stroke.wireframeAnimationAmount || 0),
                 pressure: p.pressure,
                 size: p.size
             }));
-            stroke.lastAnimationTime = now;
-            stroke.needsDelaunayUpdate = true; // Flag for delaunay update
+            stroke.needsJitterUpdate = false; // Reset the flag after generating new jiggle points
         }
-        pointsToDraw = stroke.animatedPoints || stroke.points;
+        pointsToDraw = stroke.animatedPoints; // Use animated points for drawing
     }
+    // If isPreview is true OR animation is disabled, pointsToDraw remains stroke.points, effectively showing static.
 
-    // --- Performance Optimization: Cache Delaunay Triangulation ---
-    if (!stroke.cachedDelaunay || stroke.needsDelaunayUpdate || isPreview) {
-        stroke.cachedDelaunayPoints = pointsToDraw.map(p => [p.x, p.y]);
-        stroke.cachedDelaunay = Delaunay.from(stroke.cachedDelaunayPoints);
-        stroke.needsDelaunayUpdate = false;
-    }
-    
-    const delaunayPoints = stroke.cachedDelaunayPoints;
-    const delaunay = stroke.cachedDelaunay;
+    const delaunayPoints = pointsToDraw.map(p => [p.x, p.y]);
+    const delaunay = Delaunay.from(delaunayPoints);
 
     if (stroke.wireframeIsClosed !== false) { // Default to true if property is missing
         // --- Logic for CLOSED wireframe (original behavior) ---
+
         // Fill triangles with controlled opacity
         context.fillStyle = hexToRgba(stroke.color, stroke.opacity * (stroke.wireframeMeshOpacity || 0.1));
         const triangles = delaunay.trianglePolygons();
@@ -151,15 +144,22 @@ export function drawWireframeStroke(context, stroke, targetScale = 1, isPreview 
 
         // 1. Draw the "hull" (the user-drawn path) using drawVariableWidthStrokePolygon
         // This creates a continuous, variable-width line that follows the stroke points.
-        // We use the new sizeMultiplier parameter to avoid mapping points into a new array.
+        // The hull's thickness is now dynamic, affected by original point pressures and minSizeFactor,
+        // with wireframeHullLineThickness acting as its base size.
+        const hullPointsForPolygon = pointsToDraw.map(p => ({
+            x: p.x,
+            y: p.y,
+            pressure: p.pressure, // Use actual pressure from the stroke point
+            // Use the base size (p.size from global brush settings) multiplied by the hull thickness factor
+            size: p.size * (stroke.wireframeHullLineThickness || 1.0)
+        }));
+
         drawVariableWidthStrokePolygon(
             context,
-            pointsToDraw,
-            hexToRgba(stroke.color, stroke.opacity * (stroke.wireframeLineOpacity || 0.8)),
-            stroke.minSizeFactor,
-            stroke.tipShape,
-            0, 0, // No offset
-            stroke.wireframeHullLineThickness || 1.0 // sizeMultiplier replaces mapping
+            hullPointsForPolygon,
+            hexToRgba(stroke.color, stroke.opacity * (stroke.wireframeLineOpacity || 0.8)), // Use line opacity for hull
+            stroke.minSizeFactor, // Use the actual stroke's minSizeFactor for dynamic width
+            stroke.tipShape // Use brush tip shape for caps/joins
         );
 
         // 2. Draw Delaunay mesh lines (internal connections)

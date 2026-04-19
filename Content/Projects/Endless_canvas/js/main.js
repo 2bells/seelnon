@@ -1,4 +1,4 @@
-import { init as initCanvas, startDrawingLoop, clearCanvas } from './canvas.js';
+import { init as initCanvas, startDrawingLoop, clearCanvas, setSelectedStrokes } from './canvas.js';
 import { init as initEvents } from './events.js';
 import { state } from './state.js';
 import { loadState } from './storage.js';
@@ -58,42 +58,57 @@ function initUI() {
     const presetButtons = document.querySelectorAll('.tool-dropdown-item');
 
     // Function to set the active tool and brush preset
-    function setActiveTool(toolName, presetId = null) {
-        state.activeTool = toolName; // Set the overall active tool (brush, eraser, selection)
+    function setActiveTool(toolName, presetId = null, preserveColor = true) {
+        // Before switching, save the current work-in-progress if it's a brush
+        if (state.activeTool === 'brush' && state.activeBrushPresetId && state.brush) {
+            state.brushWorkInProgress[state.activeBrushPresetId] = structuredClone(state.brush);
+        }
+
+        const previousColor = state.brush ? state.brush.color : '#000000';
+        state.activeTool = toolName; 
 
         // Clear selection when switching tools away from selection
         if (toolName !== 'selection') {
-            state.selectedStrokes = [];
+            setSelectedStrokes([]);
             state.selection = null;
         }
 
         // Clear active class from all main tool buttons and dropdown items
         document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
-        presetButtons.forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tool-dropdown-item').forEach(btn => btn.classList.remove('active'));
 
         if (toolName === 'brush') {
             let actualPresetId = presetId;
             if (!actualPresetId) {
-                // If no preset ID is provided, try to find the last active preset for the baseType
                 const currentBaseType = state.brushPresets[state.activeBrushPresetId]?.baseType || 'pen';
                 actualPresetId = Object.keys(state.brushPresets).find(id => 
                     state.brushPresets[id].baseType === currentBaseType && state.brushPresets[id].name === state.brush.name
-                ) || state.activeBrushPresetId; // Fallback to current or default
+                ) || state.activeBrushPresetId;
             }
             
-            // Load the new preset into state.brush
-            const newPreset = state.brushPresets[actualPresetId];
-            if (newPreset) {
-                state.brush = structuredClone(newPreset);
+            // Load from Work-in-Progress if it exists, otherwise from the Preset repository
+            const sessionData = state.brushWorkInProgress[actualPresetId];
+            const presetData = state.brushPresets[actualPresetId];
+
+            if (sessionData) {
+                state.brush = structuredClone(sessionData);
+                state.activeBrushPresetId = actualPresetId;
+            } else if (presetData) {
+                state.brush = structuredClone(presetData);
                 state.activeBrushPresetId = actualPresetId;
             } else {
-                // Fallback to default pen if preset not found
                 state.brush = structuredClone(state.brushPresets['pen-default']);
                 state.activeBrushPresetId = 'pen-default';
             }
+
+            // Preservation of color across brushes (requested: color should not be baked into brush presets)
+            if (preserveColor && toolName === 'brush' && state.brush) {
+                state.brush.color = previousColor;
+            }
             
             // Activate the main button corresponding to the baseType
-            const mainButtonId = newPreset ? `${newPreset.baseType}-brush-tool` : 'pen-brush-tool';
+            const activePreset = state.brushPresets[state.activeBrushPresetId];
+            const mainButtonId = activePreset ? `${activePreset.baseType}-brush-tool` : 'pen-brush-tool';
             const mainButton = document.getElementById(mainButtonId);
             if (mainButton) mainButton.classList.add('active');
 
@@ -101,31 +116,63 @@ function initUI() {
             const activePresetButton = document.querySelector(`[data-preset-id="${state.activeBrushPresetId}"]`);
             if (activePresetButton) {
                 activePresetButton.classList.add('active');
-            } else if (mainButton) {
-                // If a preset button wasn't found (e.g. initial load of a custom unsaved brush),
-                // ensure the main brush tool is active
-                mainButton.classList.add('active');
             }
-
         } else if (toolName === 'eraser') {
             document.getElementById('eraser-tool')?.classList.add('active');
-            // For eraser, load its specific settings but keep activeTool as 'eraser'
             state.brush = structuredClone(state.brushPresets['eraser-default']);
+            // Preserve the active color even for eraser, so we don't lose it when switching back
+            if (state.brush) {
+                state.brush.color = previousColor;
+            }
             state.activeBrushPresetId = 'eraser-default';
         } else if (toolName === 'selection') {
             if (selectionToolBtn) selectionToolBtn.classList.add('active');
-            // Selection tool doesn't use brush settings, but keep the activeTool for context
+            // Ensure state.brush.color remains valid even when in selection mode
+            if (state.brush) {
+                state.brush.color = previousColor;
+            }
         }
 
         // Sync editor and color picker with new brush state
         if (state.brush) {
             toolColorPicker.value = state.brush.color;
-            const mainColorPicker = document.getElementById('colorPicker');
-            if (mainColorPicker) mainColorPicker.value = state.brush.color;
         }
         
         // Notify brush editor to update its UI
         window.dispatchEvent(new CustomEvent('activeBrushChanged'));
+        updateBrushCycleIndicators();
+    }
+
+    function updateBrushCycleIndicators() {
+        // Find all main brush buttons and add cycle dots if they represent a group
+        const baseTypes = ['pen', 'wireframe', 'pixel', 'sketchy'];
+        baseTypes.forEach(baseType => {
+            const btn = document.getElementById(`${baseType}-brush-tool`);
+            if (!btn) return;
+
+            // Find all presets for this base type
+            const presets = Object.keys(state.brushPresets).filter(id => state.brushPresets[id].baseType === baseType);
+            if (presets.length <= 1) return;
+
+            // Create or update indicator container
+            let indicator = btn.querySelector('.brush-cycle-indicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'brush-cycle-indicator';
+                btn.style.position = 'relative'; // Ensure button is relative for absolute dots
+                btn.appendChild(indicator);
+            }
+
+            indicator.innerHTML = '';
+            presets.forEach(id => {
+                const dot = document.createElement('div');
+                dot.className = 'cycle-dot';
+                if (state.activeBrushPresetId === id) {
+                    dot.classList.add('active');
+                }
+                indicator.appendChild(dot);
+            });
+        });
     }
 
     // Event Listeners for main tool buttons
@@ -168,16 +215,12 @@ function initUI() {
     settingsToggle?.addEventListener('click', () => {
         const isVisible = settingsSidebar.classList.toggle('visible');
         settingsToggle.classList.toggle('active', isVisible);
-        getColorPalette()?.classList.remove('visible');
-        colorPaletteToggle.classList.remove('active');
     });
 
     colorPaletteToggle?.addEventListener('click', () => {
         const palette = getColorPalette();
         const isVisible = palette?.classList.toggle('visible');
         colorPaletteToggle.classList.toggle('active', isVisible);
-        settingsSidebar.classList.remove('visible');
-        settingsToggle.classList.remove('active');
     });
 
     closeSettings?.addEventListener('click', () => {
@@ -198,6 +241,10 @@ function initUI() {
     // Color Picker in Toolbar
     toolColorPicker.addEventListener('input', (e) => {
         state.brush.color = e.target.value;
+        // Keep work-in-progress synced
+        if (state.activeBrushPresetId) {
+            state.brushWorkInProgress[state.activeBrushPresetId] = structuredClone(state.brush);
+        }
         const mainColorPicker = document.getElementById('colorPicker');
         if (mainColorPicker) {
             mainColorPicker.value = e.target.value;
@@ -236,9 +283,22 @@ function initUI() {
         instructionsPanel.classList.toggle('hidden');
     });
 
+    // Listen for requests to set active tool from other components (like brush editor)
+    window.addEventListener('requestSetActiveTool', (e) => {
+        const { toolName, presetId } = e.detail;
+        setActiveTool(toolName, presetId);
+    });
+
     // Initialize the active tool button and brush settings on load
-    // This ensures the correct button is highlighted and state.brush is populated
     setActiveTool(state.activeTool, state.activeBrushPresetId);
+
+    // Ensure color palette UI stays in sync if color is picked from canvas (alt+click/eyedropper)
+    window.addEventListener('requestSyncUI', () => {
+        if (state.brush) {
+            toolColorPicker.value = state.brush.color;
+        }
+        updateBrushCycleIndicators();
+    });
 }
 
 window.addEventListener('load', main);

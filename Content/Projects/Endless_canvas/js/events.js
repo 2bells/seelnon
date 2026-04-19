@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke } from './canvas.js';
+import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes } from './canvas.js';
 import { scheduleSave } from './storage.js';
 
 function getPointerPos(event) {
@@ -25,7 +25,7 @@ function getPointerPos(event) {
 }
 
 // Convert screen coordinates to world coordinates, considering pan and zoom
-function screenToWorld(x, y) {
+export function screenToWorld(x, y) {
     let screenX = x;
     const screenY = y;
 
@@ -106,6 +106,11 @@ export function init(canvas) {
     canvas.addEventListener('pointerdown', (e) => {
         if (!e.isPrimary) return;
         e.preventDefault();
+        
+        // Detect stylus for custom cursor
+        state.isStylusActive = (e.pointerType === 'pen');
+        updateStylusCursor(e);
+
         const currentPointerPos = getPointerPos(e);
         state.lastMousePosition = currentPointerPos;
         const worldPos = screenToWorld(state.lastMousePosition.x, state.lastMousePosition.y);
@@ -205,7 +210,7 @@ export function init(canvas) {
                     state.clickHitStroke = hitStroke;
                     
                     if (!hitStroke) {
-                        state.selectedStrokes = []; // Deselect on empty click start
+                        setSelectedStrokes([]); // Deselect on empty click start
                     }
 
                     state.selection = {
@@ -224,6 +229,18 @@ export function init(canvas) {
     canvas.addEventListener('pointermove', (e) => {
         if (!e.isPrimary) return;
         e.preventDefault();
+
+        // Update stylus cursor state
+        if (e.pointerType === 'pen') {
+            // Already handled in pointerdown for activation, 
+            // but we update position here.
+            updateStylusCursor(e);
+        } else if (state.isStylusActive) {
+            // If we get a mouse move while stylus was active, reset it
+            state.isStylusActive = false;
+            updateStylusCursor(e);
+        }
+
         const currentPointerPos = getPointerPos(e);
         const deltaX = currentPointerPos.x - state.lastMousePosition.x;
         const deltaY = currentPointerPos.y - state.lastMousePosition.y;
@@ -391,6 +408,14 @@ export function init(canvas) {
 
     canvas.addEventListener('pointerup', (e) => {
         if (!e.isPrimary) return;
+
+        // Reset stylus active state on ANY pointerup for safety
+        if (state.isStylusActive || e.pointerType === 'pen') {
+            state.isStylusActive = false;
+            // Force a small delay to ensure the browser has finished pen-specific cursor logic
+            requestAnimationFrame(() => updateStylusCursor(e));
+        }
+
         if (state.isDrawing) {
             canvas.releasePointerCapture(e.pointerId);
             if(state.activeTool === 'brush') {
@@ -435,12 +460,12 @@ export function init(canvas) {
 
             if (isClick && state.clickHitStroke) {
                 // Clicked on a stroke: Select it exclusively and fit bounds
-                state.selectedStrokes = [state.clickHitStroke];
+                setSelectedStrokes([state.clickHitStroke]);
                 state.selection = getSelectionBounds(state.selectedStrokes);
                 state.clickHitStroke = null;
             } else {
                 // Dragged a box: Select all strokes inside
-                state.selectedStrokes = selectStrokesInRect(bounds);
+                setSelectedStrokes(selectStrokesInRect(bounds));
                 state.clickHitStroke = null;
 
                 if (state.selectedStrokes.length === 0) {
@@ -472,6 +497,12 @@ export function init(canvas) {
 
     canvas.addEventListener('pointercancel', (e) => {
         if (!e.isPrimary) return;
+        
+        if (state.isStylusActive) {
+            state.isStylusActive = false;
+            updateStylusCursor(e);
+        }
+
         if (state.isDrawing) {
             canvas.releasePointerCapture(e.pointerId);
             if(state.activeTool === 'brush') {
@@ -493,6 +524,12 @@ export function init(canvas) {
         // We no longer end stroke on pointerleave because setPointerCapture 
         // handles tracking outside the canvas area. pointerup or pointercancel 
         // will handle the finalisation.
+        
+        if (state.isStylusActive) {
+            state.isStylusActive = false;
+            updateStylusCursor(e);
+        }
+        
         updateCanvasCursor();
     });
 
@@ -600,20 +637,36 @@ export function init(canvas) {
         // Flip canvas view
         if (e.key.toLowerCase() === 'b') {
              e.preventDefault();
+             // Smart Flip: keep the same world coordinate at the screen center
+             const centerX = window.innerWidth / 2;
+             const centerY = window.innerHeight / 2;
+             const worldCenter = screenToWorld(centerX, centerY);
+             
              state.isCanvasFlipped = !state.isCanvasFlipped;
+             
+             // Recalculate pan to keep worldCenter at screen center
+             if (state.isCanvasFlipped) {
+                 state.panOffset.x = (window.innerWidth - centerX) - worldCenter.x * state.zoom;
+             } else {
+                 state.panOffset.x = centerX - worldCenter.x * state.zoom;
+             }
+
              const flipStatus = document.getElementById('flip-status');
              if (flipStatus) {
                 flipStatus.style.opacity = state.isCanvasFlipped ? '1' : '0';
              }
+             scheduleSave();
         }
         // Undo/Redo
         if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z') {
             e.preventDefault();
             undo();
+            updateCanvasCursor();
         }
         if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z') {
             e.preventDefault();
             redo();
+            updateCanvasCursor();
         }
 
         // Delete selected strokes
@@ -628,6 +681,7 @@ export function init(canvas) {
             state.selectedStrokes = [];
             state.selection = null;
             saveHistory();
+            updateCanvasCursor();
         }
     });
 
@@ -670,8 +724,26 @@ export function init(canvas) {
         scheduleSave();
     });
 
+    let lastCursorParams = null;
+
     // Function to update canvas cursor based on active tools/modes
     function updateCanvasCursor() {
+        // Check if anything actually changed to avoid expensive cursor re-sets
+        const currentParams = `${state.activeTool}-${state.brush.size}-${state.zoom}-${state.brush.type}-${state.altKeyPressed}-${state.spacebarPressed}-${state.zKeyPressed}-${state.isMovingSelection}-${state.isRotatingSelection}-${state.isScalingSelection}-${state.isStylusActive}`;
+
+        if (currentParams === lastCursorParams) return;
+        lastCursorParams = currentParams;
+
+        // Centralized stylus cursor handling
+        const stylusCursor = document.getElementById('custom-stylus-cursor');
+        if (state.isStylusActive) {
+            canvas.style.cursor = 'none';
+            if (stylusCursor) stylusCursor.classList.remove('hidden');
+            return;
+        } else {
+            if (stylusCursor) stylusCursor.classList.add('hidden');
+        }
+
         if (state.activeTool === 'eraser') {
             const size = Math.max(2, state.brush.size * state.zoom);
             const halfSize = size / 2;
@@ -736,6 +808,19 @@ export function init(canvas) {
         }
     }
 
+    function updateStylusCursor(e) {
+        const cursor = document.getElementById('custom-stylus-cursor');
+        if (!cursor) return;
+
+        if (state.isStylusActive) {
+            cursor.style.left = `${e.clientX}px`;
+            cursor.style.top = `${e.clientY}px`;
+        }
+        
+        // Always trigger updateCanvasCursor to ensure sync
+        updateCanvasCursor();
+    }
+
     // Initial cursor set
     updateCanvasCursor();
 
@@ -745,7 +830,14 @@ export function init(canvas) {
         // Observe brushSizeValue for changes (from keyboard input or editor)
         new MutationObserver(updateCanvasCursor).observe(brushSizeValue, { childList: true });
     }
-    canvas.addEventListener('wheel', updateCanvasCursor, { passive: true });
+    let wheelCursorTimeout = null;
+    canvas.addEventListener('wheel', () => {
+        if (wheelCursorTimeout) return;
+        wheelCursorTimeout = setTimeout(() => {
+            updateCanvasCursor();
+            wheelCursorTimeout = null;
+        }, 100); 
+    }, { passive: true });
 
     // Also update cursor when activeTool or state.brush.type changes
     // This is handled via a custom event dispatched from main.js when the active brush changes

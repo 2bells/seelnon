@@ -34,14 +34,8 @@ function saveStateToLocalStorage() {
         // This means undo/redo history is reset on page reload, but current drawing is preserved.
         const stateToSave = {
             strokes: state.strokes.map(stroke => ({
-                // Optimization: Round coordinates to 1 decimal place to save localStorage space
-                points: stroke.points.map(p => ({
-                    x: Math.round(p.x * 10) / 10,
-                    y: Math.round(p.y * 10) / 10,
-                    pressure: Math.round((p.pressure || 1.0) * 100) / 100,
-                    size: Math.round(p.size * 10) / 10
-                })),
-                bounds: stroke.bounds, // Save bounds for faster culling on load
+                // We don't save the 'bitmap' property as it's not serializable
+                points: stroke.points,
                 color: stroke.color,
                 opacity: stroke.opacity,
                 tipShape: stroke.tipShape, // Save per-stroke properties
@@ -82,15 +76,11 @@ function saveStateToLocalStorage() {
             version: state.version, // Save the state version
             paletteColors: state.paletteColors, // Save custom palette colors
             selectedSwatchIndex: state.selectedSwatchIndex, // Save which swatch is active
-            activeColor: state.brush.color, // Save the actual current color as a fallback
-            renderMode: state.renderMode, // Save current render mode (bitmap or vector)
 
             canvasSettings: { // Save canvas settings
                 backgroundColor: state.canvasSettings.backgroundColor,
                 backgroundType: state.canvasSettings.backgroundType,
                 backgroundSpacing: state.canvasSettings.backgroundSpacing,
-                backgroundLineColor: state.canvasSettings.backgroundLineColor,
-                backgroundLineWidth: state.canvasSettings.backgroundLineWidth,
             }
         };
         // Use structuredClone to create a deep copy for saving to localStorage
@@ -147,10 +137,6 @@ export function loadState() {
                     }
 
                     if (state.brushPresets[presetId]) {
-                        // Ensure we don't load any 'baked-in' color from older saves
-                        const sanitizedSavedPreset = { ...savedPreset };
-                        delete sanitizedSavedPreset.color;
-                        
                         // If it's a default preset and version is older, we might want to be selective.
                         // Force update 'wireframe-hull' if version < 6
                         if (presetId === 'wireframe-hull' && savedVersion < 6) {
@@ -159,12 +145,10 @@ export function loadState() {
                         }
                         
                         // Merge saved values into current default definition
-                        state.brushPresets[presetId] = { ...state.brushPresets[presetId], ...sanitizedSavedPreset };
+                        state.brushPresets[presetId] = { ...state.brushPresets[presetId], ...savedPreset };
                     } else {
                         // It's a custom preset from the saved state.
-                        const sanitizedSavedPreset = { ...savedPreset };
-                        delete sanitizedSavedPreset.color;
-                        state.brushPresets[presetId] = { ...state.brushPresets['pen-default'], ...sanitizedSavedPreset };
+                        state.brushPresets[presetId] = { ...state.brushPresets['pen-default'], ...savedPreset };
                     }
                 }
             }
@@ -181,27 +165,15 @@ export function loadState() {
             // Apply saved palette
             if (savedState.paletteColors) state.paletteColors = savedState.paletteColors;
             if (savedState.selectedSwatchIndex !== undefined) state.selectedSwatchIndex = savedState.selectedSwatchIndex;
-            if (savedState.renderMode) state.renderMode = savedState.renderMode;
 
             // Populate state.brush with a deep copy of the active preset
             state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
-
-            // Restore color: Priority: saved activeColor > active swatch > #000000
-            if (savedState.activeColor) {
-                state.brush.color = savedState.activeColor;
-            } else if (state.selectedSwatchIndex !== null && state.paletteColors[state.selectedSwatchIndex]) {
-                state.brush.color = state.paletteColors[state.selectedSwatchIndex];
-            } else {
-                state.brush.color = '#000000';
-            }
 
             // Apply canvas settings
             if (savedState.canvasSettings) {
                 if (savedState.canvasSettings.backgroundColor) state.canvasSettings.backgroundColor = savedState.canvasSettings.backgroundColor;
                 if (savedState.canvasSettings.backgroundType) state.canvasSettings.backgroundType = savedState.canvasSettings.backgroundType;
                 if (savedState.canvasSettings.backgroundSpacing) state.canvasSettings.backgroundSpacing = savedState.canvasSettings.backgroundSpacing;
-                if (savedState.canvasSettings.backgroundLineColor) state.canvasSettings.backgroundLineColor = savedState.canvasSettings.backgroundLineColor;
-                if (savedState.canvasSettings.backgroundLineWidth) state.canvasSettings.backgroundLineWidth = savedState.canvasSettings.backgroundLineWidth;
             }
 
             console.log('Canvas state loaded from Local Storage.');

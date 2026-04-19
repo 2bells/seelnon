@@ -21,18 +21,14 @@ function _drawSketchyStrokeWithPasses(context, stroke, jitterPasses) {
     if (!jitterPasses || jitterPasses.length === 0) return;
 
     jitterPasses.forEach(pass => {
+        const displacedPoints = stroke.points.map(p => ({
+            ...p,
+            x: p.x + pass.offsetX,
+            y: p.y + pass.offsetY,
+            size: p.size * pass.sizeFactor
+        }));
         const strokeColor = hexToRgba(stroke.color, stroke.opacity * pass.opacityFactor);
-        // Use the optimized drawer which handles offset and scale internally to avoid mapping objects
-        drawVariableWidthStrokePolygon(
-            context, 
-            stroke.points, 
-            strokeColor, 
-            stroke.minSizeFactor, 
-            stroke.tipShape,
-            pass.offsetX,
-            pass.offsetY,
-            pass.sizeFactor
-        );
+        drawVariableWidthStrokePolygon(context, displacedPoints, strokeColor, stroke.minSizeFactor, stroke.tipShape);
     });
 }
 

@@ -1,4 +1,4 @@
-import { hexToRgba, drawVariableWidthStrokePolygon } from '../utils/drawing.js';
+import { hexToRgba, drawVariableWidthStrokePolygon, getVariableWidthPath } from '../utils/drawing.js';
 
 export function drawPenStroke(context, stroke, isPreview = false, targetScale = 1) {
     // Handle single point strokes
@@ -18,12 +18,24 @@ export function drawPenStroke(context, stroke, isPreview = false, targetScale = 
         return;
     }
 
+    const strokeColor = hexToRgba(stroke.color, stroke.opacity);
+
     if (stroke.nonCompoundingOpacity) {
+        if (!isPreview && stroke.pathObject) {
+            // High-performance Path2D drawing for finalized non-compounding strokes
+            context.fillStyle = strokeColor;
+            context.fill(stroke.pathObject);
+            return;
+        }
+
         if (isPreview || !stroke.bitmap) {
-            // For preview or when bitmap isn't ready, draw directly
-            // For non-compounding opacity, the preview should also respect the overall stroke opacity directly
-            const strokeColor = hexToRgba(stroke.color, stroke.opacity);
+            // For preview or when bitmap isn't ready/wanted, draw directly
             drawVariableWidthStrokePolygon(context, stroke.points, strokeColor, stroke.minSizeFactor, stroke.tipShape);
+            
+            // Auto-cache pathObject if it doesn't exist yet and we're not in preview
+            if (!isPreview && !stroke.pathObject) {
+                stroke.pathObject = getVariableWidthPath(stroke.points, stroke.minSizeFactor, stroke.tipShape);
+            }
         } else if (stroke.bitmap) {
             // Use cached bitmap
             context.globalAlpha = stroke.opacity;

@@ -1,6 +1,6 @@
 // A base set of properties for a brush preset to ensure all presets have common properties
 const baseBrushProperties = {
-    // Note: color is now handled globally and not baked into presets by default
+    color: '#000000',
     size: 5.0,
     opacity: 1,
     pressureSensitivity: false,
@@ -55,7 +55,6 @@ export const state = {
     selectedStrokes: [], // References to selected stroke objects
     currentStroke: null,
     currentMirrorStroke: null, // For mirror mode
-    isStylusActive: false, // For custom cursor logic
     
     // Selection rectangle
     selection: null, // { x, y, width, height } in world coordinates
@@ -111,6 +110,7 @@ export const state = {
             baseType: 'pen',
             ...baseBrushProperties,
             type: 'pen',
+            color: '#333333',
             size: 2.0,
             opacity: 0.8,
             tipShape: 'round',
@@ -193,6 +193,7 @@ export const state = {
             baseType: 'pixel',
             ...baseBrushProperties,
             type: 'pixel',
+            color: '#ff453a',
             size: 8.0,
             opacity: 0.9,
             pixelSize: 20,
@@ -245,6 +246,7 @@ export const state = {
             baseType: 'eraser',
             ...baseBrushProperties,
             type: 'pen', // Eraser uses the 'pen' drawing logic, but with clear blend mode (handled in events, not here)
+            color: '#ffffff', // This is technically unused since eraser clears, but for consistency.
             size: 20.0,
             opacity: 1.0,
             tipShape: 'round',
@@ -260,36 +262,25 @@ export const state = {
     
     // Color Palette state
     paletteColors: [
+        '#ffffff', '#c1c1c1', '#6f6f6f', '#000000',
         '#ff453a', '#ff9f0a', '#ffd60a', '#32d74b',
         '#64d2ff', '#0a84ff', '#bf5af2', '#ff4f79',
-        '#a2825f', '#8e8e93', '#636366', '#48484a',
-        '#3a3a3c', '#2c2c2e', '#1c1c1e', '#000000',
-        '#ffffff' 
+        '#a2825f', '#8e6c4e', '#5c452b', '#2e2216'
     ],
-    selectedSwatchIndex: 15, // Default to black
+    selectedSwatchIndex: 3, // Default to black
 
     // This 'brush' object will always be a deep copy of the currently active preset.
     // It will be modified directly by the brush editor, and used for new strokes.
-    brush: {
-        ...structuredClone(baseBrushProperties),
-        color: '#000000' // Initial global color
-    },
-
-    // Track modifications to brushes during the current session.
-    // Maps presetId -> brush settings object.
-    brushWorkInProgress: {},
+    brush: structuredClone(baseBrushProperties), // Initialized with base properties
 
     // Canvas settings
     canvasSettings: {
         backgroundColor: '#F7F7F7',
         backgroundType: 'dots', // 'none', 'dots', 'grid', 'horizontal', 'vertical'
         backgroundSpacing: 30, // For dots, grid, lines
-        backgroundLineColor: '#D1D1D1', // New: custom pattern color
-        backgroundLineWidth: 1, // New: custom pattern thickness
     },
 
     // Modes
     mirrorMode: false,
     isCanvasFlipped: false,
-    renderMode: 'bitmap', // 'bitmap' (chunk-based cache) or 'vector' (redraw all raw data)
 };
