@@ -4,7 +4,8 @@ import { scheduleSave } from '../storage.js';
 const INITIAL_PALETTE = [
     '#ff453a', '#ff9f0a', '#ffd60a', '#32d74b',
     '#64d2ff', '#0a84ff', '#bf5af2', '#ff4f79',
-    '#a2825f', '#ffffff', '#6f6f6f', '#000000'
+    '#a2825f', '#8e8e93', '#636366', '#48484a',
+    '#3a3a3c', '#2c2c2e', '#1c1c1e', '#000000'
 ];
 
 // Color utilities
@@ -79,9 +80,9 @@ function adjustSaturation(hex, factor) {
 
 const PALETTE_PRESETS = {
     DEFAULT: INITIAL_PALETTE,
-    BW: ['#000000', '#1a1a1a', '#333333', '#4d4d4d', '#666666', '#808080', '#999999', '#b3b3b3', '#cccccc', '#e6e6e6', '#f2f2f2', '#ffffff'],
-    SKIN: ['#2d1d19', '#3d2b1f', '#4d3b2b', '#5d4b3b', '#7a5a4a', '#8d6e5d', '#a67b5b', '#c68642', '#d2996c', '#e0ac69', '#f1c27d', '#ffdbac'],
-    LANDSCAPE: ['#003366', '#006699', '#3399cc', '#66cccc', '#004d00', '#006600', '#339933', '#66cc66', '#4b3621', '#8b4513', '#a0522d', '#d2b48c']
+    BW: ['#000000', '#0a0a0a', '#141414', '#1e1e1e', '#282828', '#323232', '#3c3c3c', '#464646', '#505050', '#5a5a5a', '#646464', '#6e6e6e', '#787878', '#828282', '#8c8c8c', '#ffffff'],
+    SKIN: ['#2d1d19', '#3d2b1f', '#4d3b2b', '#5d4b3b', '#7a5a4a', '#8d6e5d', '#a67b5b', '#c68642', '#d2996c', '#e0ac69', '#f1c27d', '#ffdbac', '#ffedd5', '#fff5e6', '#ffffff', '#000000'],
+    LANDSCAPE: ['#003366', '#004080', '#0059b3', '#0073e6', '#004d00', '#006600', '#008000', '#009900', '#4b3621', '#8b4513', '#a0522d', '#d2b48c', '#e6ccb2', '#f5ebe0', '#ffffff', '#000000']
 };
 
 function createColorPalette() {
@@ -94,10 +95,18 @@ function createColorPalette() {
             <button id="palette-menu-toggle">MENU</button>
             <div id="palette-slide-menu" class="hidden">
                  <div class="palette-preset-icons">
-                    <button class="preset-btn" data-preset="DEFAULT" title="Default Palette">🌈</button>
-                    <button class="preset-btn" data-preset="BW" title="B&W Tone">🌓</button>
-                    <button class="preset-btn" data-preset="SKIN" title="Skin Tones">👐</button>
-                    <button class="preset-btn" data-preset="LANDSCAPE" title="Landscape">⛰️</button>
+                    <button class="preset-btn" data-preset="DEFAULT" title="Default Palette">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10V6a2 2 0 0 0-2-2h-3.93a2 2 0 0 1-1.66-.9l-.82-1.2a2 2 0 0 0-1.66-.9H12Z"/></svg>
+                    </button>
+                    <button class="preset-btn" data-preset="BW" title="B&W Tone">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20z"/></svg>
+                    </button>
+                    <button class="preset-btn" data-preset="SKIN" title="Skin Tones">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.82-2.82L7 15"/></svg>
+                    </button>
+                    <button class="preset-btn" data-preset="LANDSCAPE" title="Landscape">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+                    </button>
                  </div>
             </div>
         </div>

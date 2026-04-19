@@ -5,13 +5,13 @@ import { screenToWorld } from './events.js';
 
 // Helper to get current world-space viewport
 function getWorldViewport() {
-    const topLeft = screenToWorld(0, 0);
-    const bottomRight = screenToWorld(window.innerWidth, window.innerHeight);
+    const p1 = screenToWorld(0, 0);
+    const p2 = screenToWorld(window.innerWidth, window.innerHeight);
     return {
-        minX: topLeft.x,
-        minY: topLeft.y,
-        maxX: bottomRight.x,
-        maxY: bottomRight.y
+        minX: Math.min(p1.x, p2.x),
+        minY: Math.min(p1.y, p2.y),
+        maxX: Math.max(p1.x, p2.x),
+        maxY: Math.max(p1.y, p2.y)
     };
 }
 
@@ -47,8 +47,7 @@ export function rotateStrokes(strokes, angle, pivot) {
             p.x = pivot.x + (dx * cos - dy * sin);
             p.y = pivot.y + (dx * sin + dy * cos);
         }
-        stroke.bounds = null;
-        stroke.bitmap = null;
+        invalidateStrokeCaches(stroke);
     }
 }
 
@@ -60,8 +59,7 @@ export function scaleStrokes(strokes, scaleX, scaleY, pivot) {
             p.y = pivot.y + (p.y - pivot.y) * scaleY;
             p.size *= (Math.abs(scaleX) + Math.abs(scaleY)) / 2;
         }
-        stroke.bounds = null;
-        stroke.bitmap = null;
+        invalidateStrokeCaches(stroke);
     }
 }
 
@@ -70,14 +68,14 @@ export function drawBackgroundPattern(context, type, spacing, viewportWorldX, vi
     if (type === 'none') return;
 
     context.save();
-    context.strokeStyle = '#D1D1D1';
-    context.lineWidth = 1 / targetScale; // Make lines consistent thickness regardless of targetScale
+    context.strokeStyle = state.canvasSettings.backgroundLineColor || '#D1D1D1';
+    context.lineWidth = (state.canvasSettings.backgroundLineWidth || 1) / targetScale; // Make lines consistent thickness regardless of targetScale
 
     context.beginPath();
 
     if (type === 'dots') {
-        const dotRadius = (1 / targetScale); // Fine dot for minimalism
-        context.fillStyle = '#D1D1D1';
+        const dotRadius = (state.canvasSettings.backgroundLineWidth || 1) / targetScale; // Use line width for dot size
+        context.fillStyle = state.canvasSettings.backgroundLineColor || '#D1D1D1';
         for (let x = Math.floor(viewportWorldX / spacing) * spacing; x < viewportWorldX + viewportWorldWidth + spacing; x += spacing) {
             for (let y = Math.floor(viewportWorldY / spacing) * spacing; y < viewportWorldY + viewportWorldHeight + spacing; y += spacing) {
                 context.moveTo(x + dotRadius, y);
@@ -567,6 +565,23 @@ export async function endStroke() {
     state.currentMirrorStroke = null;
 }
 
+// Function to invalidate all caches for a stroke (call after transformations)
+function invalidateStrokeCaches(stroke) {
+    stroke.bounds = null;
+    stroke.bitmap = null;
+    stroke.pathObject = null;
+    
+    // Sketchy brush resets
+    stroke.needsJitterUpdate = true;
+    delete stroke.previewJitterPasses;
+    
+    // Wireframe brush resets
+    stroke.needsDelaunayUpdate = true;
+    stroke.cachedDelaunay = null;
+    stroke.cachedDelaunayPoints = null;
+    delete stroke.animatedPoints;
+}
+
 // Helper for hit-testing: checks if a point is "near" a stroke
 export function isPointOnStroke(px, py, stroke, tolerance = 5) { // tolerance in world units
     if (stroke.points.length === 0) return false;
@@ -692,9 +707,7 @@ export function moveStrokes(strokes, dx, dy) {
             p.x += dx;
             p.y += dy;
         }
-        // Invalidate cached bounds and bitmaps
-        stroke.bounds = null;
-        stroke.bitmap = null; // Will be regenerated if needed
+        invalidateStrokeCaches(stroke);
     }
 }
 

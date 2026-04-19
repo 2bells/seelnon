@@ -434,26 +434,10 @@ export function init() {
                             button.addEventListener('click', (e) => {
                                 const clickedPresetId = e.target.dataset.presetId;
                                 if (clickedPresetId) {
-                                    // Remove 'active' from all main tool buttons
-                                    document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
-                                    // Find the main tool button associated with this preset's baseType and add 'active'
-                                    const mainToolButton = document.getElementById(`${preset.baseType}-brush-tool`);
-                                    if (mainToolButton) mainToolButton.classList.add('active');
-                                    
-                                    // Remove 'active' from all dropdown items
-                                    document.querySelectorAll('.tool-dropdown-item').forEach(btn => btn.classList.remove('active'));
-                                    // Add 'active' to the clicked dropdown item
-                                    e.target.classList.add('active');
-
-                                    // Update state.brush and state.activeBrushPresetId
-                                    state.activeTool = 'brush';
-                                    state.brush = structuredClone(state.brushPresets[clickedPresetId]);
-                                    state.activeBrushPresetId = clickedPresetId;
-                                    
-                                    // Save the newly loaded brush as the work-in-progress for this session
-                                    syncWorkInProgress();
-
-                                    window.dispatchEvent(new CustomEvent('activeBrushChanged')); // Notify editor
+                                    // Use the centralized event-based switching to ensure color preservation
+                                    window.dispatchEvent(new CustomEvent('requestSetActiveTool', {
+                                        detail: { toolName: 'brush', presetId: clickedPresetId }
+                                    }));
                                 }
                             });
                             dropdown.appendChild(button);
@@ -756,23 +740,30 @@ export function init() {
     saveCurrentPresetBtn.addEventListener('click', () => {
         const activePresetId = state.activeBrushPresetId;
         if (activePresetId && state.brushPresets[activePresetId]) {
-            // Save current state as the new permanent preset
-            state.brushPresets[activePresetId] = structuredClone(state.brush);
+            // Save current state as the new permanent preset, but STRIP color 
+            // so it doesn't get baked into the preset definition.
+            const brushToSave = structuredClone(state.brush);
+            delete brushToSave.color;
+            
+            state.brushPresets[activePresetId] = brushToSave;
             scheduleSave();
             syncUiWithState();
-            console.log(`Preset "${state.brushPresets[activePresetId].name}" saved.`);
+            console.log(`Preset "${state.brushPresets[activePresetId].name}" saved without color-baking.`);
         }
     });
 
     resetBrushBtn.addEventListener('click', () => {
         const activePresetId = state.activeBrushPresetId;
         if (activePresetId && state.brushPresets[activePresetId]) {
-            // Reset to the saved preset
+            // Reset to the saved preset but preserve current color
+            const previousColor = state.brush.color;
             state.brush = structuredClone(state.brushPresets[activePresetId]);
+            state.brush.color = previousColor;
+
             // Clear any WIP settings for this brush
             state.brushWorkInProgress[activePresetId] = structuredClone(state.brush);
             syncUiWithState();
-            console.log(`Brush "${state.brushPresets[activePresetId].name}" reset to preset.`);
+            console.log(`Brush "${state.brushPresets[activePresetId].name}" reset to preset (color preserved).`);
         }
     });
 

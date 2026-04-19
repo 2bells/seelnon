@@ -13,6 +13,37 @@ body {
     touch-action: none;
 }
 
+#custom-stylus-cursor {
+    position: fixed;
+    width: 31px;
+    height: 31px;
+    pointer-events: none;
+    z-index: 10000; /* Above everything */
+    mix-blend-mode: difference;
+    transform: translate(-50%, -50%);
+}
+
+#custom-stylus-cursor::before,
+#custom-stylus-cursor::after {
+    content: '';
+    position: absolute;
+    background: white; /* Inverts behind it */
+}
+
+#custom-stylus-cursor::before {
+    width: 100%;
+    height: 1px;
+    top: 50%;
+    left: 0;
+}
+
+#custom-stylus-cursor::after {
+    width: 1px;
+    height: 100%;
+    top: 0;
+    left: 50%;
+}
+
 #sidebar {
     position: fixed;
     top: 20px;
@@ -429,6 +460,10 @@ body {
     color: #999;
     cursor: pointer;
     transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }
 
 #palette-menu-toggle:hover {
@@ -471,17 +506,25 @@ body {
 }
 
 .preset-btn {
-    flex: 1;
-    background: transparent;
-    border: none;
-    font-size: 18px;
-    padding: 10px 5px;
-    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 16px;
+    border-radius: 50%;
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    padding: 0;
+}
+
+.preset-btn svg {
+    width: 16px;
+    height: 16px;
+    color: #444;
 }
 
 .preset-btn:hover {
@@ -489,8 +532,35 @@ body {
     transform: scale(1.1);
 }
 
-.preset-btn:active {
-    transform: scale(0.95);
+/* Brush cycle dots */
+.brush-cycle-indicator {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 2px;
+    pointer-events: none;
+}
+
+.cycle-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.tool-button.active .cycle-dot {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.cycle-dot.active {
+    background: #000;
+    transform: scale(1.3);
+}
+
+.tool-button.active .cycle-dot.active {
+    background: #fff;
 }
 /* Brush Settings in Sidebar */
 #brush-settings-container {
@@ -660,6 +730,10 @@ select {
 }
 
 .hidden-setting {
+    display: none !important;
+}
+
+.hidden {
     display: none !important;
 }
 

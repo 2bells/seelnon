@@ -143,6 +143,10 @@ export function loadState() {
                     }
 
                     if (state.brushPresets[presetId]) {
+                        // Ensure we don't load any 'baked-in' color from older saves
+                        const sanitizedSavedPreset = { ...savedPreset };
+                        delete sanitizedSavedPreset.color;
+                        
                         // If it's a default preset and version is older, we might want to be selective.
                         // Force update 'wireframe-hull' if version < 6
                         if (presetId === 'wireframe-hull' && savedVersion < 6) {
@@ -151,10 +155,12 @@ export function loadState() {
                         }
                         
                         // Merge saved values into current default definition
-                        state.brushPresets[presetId] = { ...state.brushPresets[presetId], ...savedPreset };
+                        state.brushPresets[presetId] = { ...state.brushPresets[presetId], ...sanitizedSavedPreset };
                     } else {
                         // It's a custom preset from the saved state.
-                        state.brushPresets[presetId] = { ...state.brushPresets['pen-default'], ...savedPreset };
+                        const sanitizedSavedPreset = { ...savedPreset };
+                        delete sanitizedSavedPreset.color;
+                        state.brushPresets[presetId] = { ...state.brushPresets['pen-default'], ...sanitizedSavedPreset };
                     }
                 }
             }
