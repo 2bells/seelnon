@@ -64,7 +64,6 @@ export const state = {
     isScalingImage: false,
     isRotatingImage: false,
     isChangingImageOpacity: false,
-    isRotating3D: false,
     imageHandle: null, // Handle used for transformation ('nw', 'se', 'rotate', 'opacity', etc)
     
     // Selection rectangle
@@ -303,24 +302,4 @@ export const state = {
     mirrorMode: false,
     isCanvasFlipped: false,
     renderMode: 'bitmap', // 'bitmap' (chunk-based cache) or 'vector' (redraw all raw data)
-
-    // Phase 5: 3D Reference Generator
-    camera3D: {
-        x: 0,
-        y: 0,
-        z: -500, // Distance from origin
-        rotationX: -0.5, // Standard isometric-ish starting angle
-        rotationY: 0.5,
-        rotationZ: 0,
-        focalLength: 50, // in mm
-        show: false
-    },
-    box3D: {
-        width: 100,
-        height: 100,
-        depth: 100,
-        x: 0,
-        y: 0,
-        z: 0
-    }
 };

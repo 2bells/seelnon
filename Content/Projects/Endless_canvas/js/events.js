@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw, draw3DReference } from './canvas.js';
+import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw } from './canvas.js';
 import { scheduleSave } from './storage.js';
 
 function getPointerPos(event) {
@@ -185,14 +185,7 @@ export function init(canvas) {
         }
 
         // Priority 2: Tool-specific actions
-        if (state.activeTool === '3d-box' && e.button === 0) {
-            canvas.setPointerCapture(e.pointerId);
-            state.isRotating3D = true;
-            state.moveOrigin = { x: worldPos.x, y: worldPos.y };
-            return;
-        }
-
-        // Eraser tool behavior
+        // Eraser tool behavior: continuous erase on hold
         if (state.activeTool === 'eraser') {
             canvas.setPointerCapture(e.pointerId); // Capture to prevent unintended scroll/pan
             state.isErasing = true; // Set erasing flag
@@ -501,12 +494,6 @@ export function init(canvas) {
                 const currentAngle = Math.atan2(worldPos.y - img.y, worldPos.x - img.x);
                 img.rotation = currentAngle - state.rotationStartAngle;
             }
-        } else if (state.isRotating3D) {
-            const dx = worldPos.x - state.moveOrigin.x;
-            const dy = worldPos.y - state.moveOrigin.y;
-            state.camera3D.rotationY += dx * 0.01;
-            state.camera3D.rotationX += dy * 0.01;
-            state.moveOrigin = { x: worldPos.x, y: worldPos.y };
         } else if (state.isScalingImage) {
             const img = state.images.find(i => i.id === state.selectedImageId);
             if (img) {
@@ -624,13 +611,12 @@ export function init(canvas) {
                 if (selectionOption) selectionOption.disabled = true;
             }
         }
-        if (state.isRotatingImage || state.isScalingImage || state.isMovingImage || state.isChangingImageOpacity || state.isRotating3D) {
+        if (state.isRotatingImage || state.isScalingImage || state.isMovingImage || state.isChangingImageOpacity) {
             canvas.releasePointerCapture(e.pointerId);
             state.isRotatingImage = false;
             state.isScalingImage = false;
             state.isMovingImage = false;
             state.isChangingImageOpacity = false;
-            state.isRotating3D = false;
             state.imageHandle = null;
             scheduleSave();
         }
@@ -660,7 +646,6 @@ export function init(canvas) {
                 endStroke();
             }
         }
-        state.isRotating3D = false;
         state.isDrawing = false;
         state.isPanning = false;
         state.isZoomingWithMouse = false;
@@ -771,10 +756,6 @@ export function init(canvas) {
         if(e.key === '5') { // Hotkey '5' for Eraser Tool
             e.preventDefault();
             document.getElementById('eraser-tool')?.click();
-        }
-        if(e.key === '6') { // Hotkey '6' for 3D Box Tool
-            e.preventDefault();
-            document.getElementById('box-3d-tool')?.click();
         }
         if(e.key.toLowerCase() === 's') { // Hotkey 'S' for Selection Tool
             e.preventDefault();
@@ -1019,101 +1000,6 @@ export function init(canvas) {
     if (importBtn && imageInput) {
         importBtn.addEventListener('click', () => {
             imageInput.click();
-        });
-
-        // 3D Tool logic
-        const box3dBtn = document.getElementById('box-3d-tool');
-        const threeDPanel = document.getElementById('three-d-panel');
-        const close3DPanel = document.getElementById('close-3d-panel');
-        const reset3DCamera = document.getElementById('reset-3d-camera');
-        const bake3DBtn = document.getElementById('bake-3d-btn');
-        const focalLengthInput = document.getElementById('camera-focal-length');
-        const focalLengthValue = document.getElementById('focal-length-value');
-        const boxSizeInput = document.getElementById('box-size');
-        const boxSizeValue = document.getElementById('box-size-value');
-
-        const activate3DTool = () => {
-            state.activeTool = '3d-box';
-            state.camera3D.show = true;
-            document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
-            box3dBtn?.classList.add('active');
-            threeDPanel?.classList.remove('hidden');
-            requestAnimationFrame(draw);
-        };
-
-        box3dBtn?.addEventListener('click', activate3DTool);
-        
-        close3DPanel?.addEventListener('click', () => {
-            threeDPanel?.classList.add('hidden');
-            state.camera3D.show = false;
-            requestAnimationFrame(draw);
-        });
-
-        focalLengthInput?.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value);
-            state.camera3D.focalLength = val;
-            if (focalLengthValue) focalLengthValue.textContent = val;
-            requestAnimationFrame(draw);
-        });
-
-        boxSizeInput?.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value);
-            state.box3D.width = val;
-            state.box3D.height = val;
-            state.box3D.depth = val;
-            if (boxSizeValue) boxSizeValue.textContent = val;
-            requestAnimationFrame(draw);
-        });
-
-        reset3DCamera?.addEventListener('click', () => {
-            state.camera3D.rotationX = -0.5;
-            state.camera3D.rotationY = 0.5;
-            state.camera3D.z = -500;
-            requestAnimationFrame(draw);
-        });
-
-        bake3DBtn?.addEventListener('click', () => {
-            // Bake 3D to Image Layer
-            const viewport = getWorldViewport();
-            const width = viewport.maxX - viewport.minX;
-            const height = viewport.maxY - viewport.minY;
-            
-            const bakeCanvas = document.createElement('canvas');
-            const scale = 2; // Higher quality bake
-            bakeCanvas.width = width * scale;
-            bakeCanvas.height = height * scale;
-            const bCtx = bakeCanvas.getContext('2d');
-            
-            // Setup bake context to match world space
-            bCtx.scale(scale, scale);
-            bCtx.translate(-viewport.minX, -viewport.minY);
-            
-            // Draw 3D reference onto it
-            draw3DReference(bCtx, viewport);
-            
-            const url = bakeCanvas.toDataURL('image/png');
-            const img = new Image();
-            img.onload = () => {
-                const newImage = {
-                    id: 'bake-' + Date.now().toString(),
-                    url: url,
-                    x: (viewport.minX + viewport.maxX) / 2,
-                    y: (viewport.minY + viewport.maxY) / 2,
-                    scaleX: 1,
-                    scaleY: 1,
-                    rotation: 0,
-                    opacity: 0.5, // Default to 50% for tracing
-                    visible: true,
-                    locked: false,
-                    width: width,
-                    height: height,
-                    element: img
-                };
-                state.images.push(newImage);
-                scheduleSave();
-                requestAnimationFrame(draw);
-            };
-            img.src = url;
         });
 
         imageInput.addEventListener('change', (e) => {

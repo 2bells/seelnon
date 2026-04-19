@@ -502,11 +502,6 @@ export function draw() {
         });
     }
 
-    // 4. Draw 3D Reference if enabled
-    if (state.camera3D.show) {
-        draw3DReference(ctx, viewport);
-    }
-
     // Draw selected strokes (they stay "live" and un-cached for smooth transformation)
     state.selectedStrokes.forEach(stroke => {
         drawStroke(ctx, stroke, false, state.zoom);
@@ -531,85 +526,6 @@ export function draw() {
     }
 
     // Restore context state
-    ctx.restore();
-}
-
-export function draw3DReference(ctx, viewport) {
-    const cam = state.camera3D;
-    const box = state.box3D;
-    
-    const centerX = (viewport.minX + viewport.maxX) / 2;
-    const centerY = (viewport.minY + viewport.maxY) / 2;
-    
-    // 1. Define Box Vertices in local 3D space
-    const hw = box.width / 2;
-    const hh = box.height / 2;
-    const hd = box.depth / 2;
-    
-    const vertices = [
-        { x: -hw, y: -hh, z: -hd }, { x: hw, y: -hh, z: -hd },
-        { x: hw, y: hh, z: -hd }, { x: -hw, y: hh, z: -hd },
-        { x: -hw, y: -hh, z: hd }, { x: hw, y: -hh, z: hd },
-        { x: hw, y: hh, z: hd }, { x: -hw, y: hh, z: hd }
-    ];
-    
-    const edges = [
-        [0, 1], [1, 2], [2, 3], [3, 0], // Near
-        [4, 5], [5, 6], [6, 7], [7, 4], // Far
-        [0, 4], [1, 5], [2, 6], [3, 7]  // Connecting
-    ];
-    
-    // 2. Project vertices to 2D world space
-    const projected = vertices.map(v => {
-        // Apply rotation
-        let x = v.x, y = v.y, z = v.z;
-        
-        // Y-axis rotation
-        let tx = x * Math.cos(cam.rotationY) + z * Math.sin(cam.rotationY);
-        let tz = -x * Math.sin(cam.rotationY) + z * Math.cos(cam.rotationY);
-        x = tx; z = tz;
-        
-        // X-axis rotation
-        let ty = y * Math.cos(cam.rotationX) - z * Math.sin(cam.rotationX);
-        tz = y * Math.sin(cam.rotationX) + z * Math.cos(cam.rotationX);
-        y = ty; z = tz;
-        
-        // Move relative to camera
-        z -= cam.z;
-        
-        // Perspective projection
-        const f = cam.focalLength * 10; 
-        const px = (x * f) / z;
-        const py = (y * f) / z;
-        
-        return { x: centerX + px, y: centerY + py, z: z };
-    });
-    
-    // 3. Draw Edges
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-    // Use dynamic line width for viewport vs bake
-    ctx.lineWidth = 2 / (ctx.canvas.width > 2000 ? 0.5 : state.zoom);
-    
-    edges.forEach(edge => {
-        const v1 = projected[edge[0]];
-        const v2 = projected[edge[1]];
-        
-        // Basic clipping (only draw if in front of camera)
-        if (v1.z > 0 && v2.z > 0) {
-            ctx.beginPath();
-            ctx.moveTo(v1.x, v1.y);
-            ctx.lineTo(v2.x, v2.y);
-            ctx.stroke();
-        }
-    });
-
-    // Draw center point
-    ctx.fillStyle = 'red';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 3 / (ctx.canvas.width > 2000 ? 1 : state.zoom), 0, Math.PI * 2);
-    ctx.fill();
-    
     ctx.restore();
 }
 
