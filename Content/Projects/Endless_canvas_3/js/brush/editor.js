@@ -227,6 +227,19 @@ function createBrushEditor() {
                 </div>
                 <input type="range" id="canvasBgSpacing" min="10" max="200" value="${state.canvasSettings.backgroundSpacing}" step="5">
             </div>
+
+            <div class="canvas-setting">
+                <label for="canvasBgLineColor">Pattern Color</label>
+                <input type="color" id="canvasBgLineColor" class="settings-color-input" value="${state.canvasSettings.backgroundLineColor || '#D1D1D1'}">
+            </div>
+
+            <div class="canvas-setting">
+                <div class="label-group">
+                    <label for="canvasBgLineWidth">Pattern Thickness</label>
+                    <span id="canvasBgLineWidthValue">${state.canvasSettings.backgroundLineWidth || 1}px</span>
+                </div>
+                <input type="range" id="canvasBgLineWidth" min="0.5" max="20" value="${state.canvasSettings.backgroundLineWidth || 1}" step="0.5">
+            </div>
         </div>
     `;
     return editor;
@@ -264,6 +277,9 @@ export function init() {
     const canvasBgType = editor.querySelector('#canvasBgType');
     const canvasBgSpacing = editor.querySelector('#canvasBgSpacing');
     const canvasBgSpacingValue = editor.querySelector('#canvasBgSpacingValue');
+    const canvasBgLineColor = editor.querySelector('#canvasBgLineColor');
+    const canvasBgLineWidth = editor.querySelector('#canvasBgLineWidth');
+    const canvasBgLineWidthValue = editor.querySelector('#canvasBgLineWidthValue');
 
     // Advanced Brush Settings elements (now in their own tab)
     const enableSmoothingToggle = editor.querySelector('#enableSmoothingToggle');
@@ -533,6 +549,9 @@ export function init() {
         canvasBgType.value = state.canvasSettings.backgroundType;
         canvasBgSpacing.value = state.canvasSettings.backgroundSpacing;
         canvasBgSpacingValue.textContent = `${state.canvasSettings.backgroundSpacing}px`;
+        canvasBgLineColor.value = state.canvasSettings.backgroundLineColor || '#D1D1D1';
+        canvasBgLineWidth.value = state.canvasSettings.backgroundLineWidth || 1;
+        canvasBgLineWidthValue.textContent = `${state.canvasSettings.backgroundLineWidth || 1}px`;
     }
     
     syncUiWithState();
@@ -724,16 +743,31 @@ export function init() {
     // Canvas settings Listeners (canvas tab)
     canvasBgColor.addEventListener('input', (e) => {
         state.canvasSettings.backgroundColor = e.target.value;
+        scheduleSave();
     });
 
     canvasBgType.addEventListener('change', (e) => {
         state.canvasSettings.backgroundType = e.target.value;
+        scheduleSave();
     });
 
     canvasBgSpacing.addEventListener('input', (e) => {
         const newSpacing = parseFloat(e.target.value);
         state.canvasSettings.backgroundSpacing = newSpacing;
         canvasBgSpacingValue.textContent = `${newSpacing}px`;
+        scheduleSave();
+    });
+
+    canvasBgLineColor.addEventListener('input', (e) => {
+        state.canvasSettings.backgroundLineColor = e.target.value;
+        scheduleSave();
+    });
+
+    canvasBgLineWidth.addEventListener('input', (e) => {
+        const newWidth = parseFloat(e.target.value);
+        state.canvasSettings.backgroundLineWidth = newWidth;
+        canvasBgLineWidthValue.textContent = `${newWidth}px`;
+        scheduleSave();
     });
 
     // Preset save/load functionality

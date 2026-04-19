@@ -87,6 +87,8 @@ function saveStateToLocalStorage() {
                 backgroundColor: state.canvasSettings.backgroundColor,
                 backgroundType: state.canvasSettings.backgroundType,
                 backgroundSpacing: state.canvasSettings.backgroundSpacing,
+                backgroundLineColor: state.canvasSettings.backgroundLineColor,
+                backgroundLineWidth: state.canvasSettings.backgroundLineWidth,
             }
         };
         // Use structuredClone to create a deep copy for saving to localStorage
@@ -186,6 +188,8 @@ export function loadState() {
                 if (savedState.canvasSettings.backgroundColor) state.canvasSettings.backgroundColor = savedState.canvasSettings.backgroundColor;
                 if (savedState.canvasSettings.backgroundType) state.canvasSettings.backgroundType = savedState.canvasSettings.backgroundType;
                 if (savedState.canvasSettings.backgroundSpacing) state.canvasSettings.backgroundSpacing = savedState.canvasSettings.backgroundSpacing;
+                if (savedState.canvasSettings.backgroundLineColor) state.canvasSettings.backgroundLineColor = savedState.canvasSettings.backgroundLineColor;
+                if (savedState.canvasSettings.backgroundLineWidth) state.canvasSettings.backgroundLineWidth = savedState.canvasSettings.backgroundLineWidth;
             }
 
             console.log('Canvas state loaded from Local Storage.');
