@@ -147,8 +147,9 @@ export function loadState() {
                     }
 
                     if (state.brushPresets[presetId]) {
-                        // Ensure we don't load any 'baked-in' color from older saves
+                        // Always ignore the saved 'name' property to ensure new hardcoded names take effect
                         const sanitizedSavedPreset = { ...savedPreset };
+                        delete sanitizedSavedPreset.name;
                         delete sanitizedSavedPreset.color;
                         
                         // If it's a default preset and version is older, we might want to be selective.

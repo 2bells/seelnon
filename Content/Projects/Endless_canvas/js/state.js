@@ -201,7 +201,7 @@ export const state = {
             smoothingFactor: 0.005, // Changed
         },
         'sketchy-static': { 
-            name: 'Firm',
+            name: 'Sketchy Vibe',
             baseType: 'sketchy', 
             ...baseBrushProperties,
             type: 'sketchy', // Render type
@@ -221,7 +221,7 @@ export const state = {
             animationInterval: 0, // Not animated, set to 0
         },
         'sketchy-animated': {
-            name: 'Vibe',
+            name: 'Sketchy Stop',
             baseType: 'sketchy',
             ...baseBrushProperties,
             type: 'sketchy-animated', // Render type
@@ -238,7 +238,7 @@ export const state = {
             // Sketchy specific settings
             jitterAmount: 0.4,
             jitterDensity: 3,
-            animationInterval: 1500, // Time in ms between animation updates
+            animationInterval: 500, // Time in ms between animation updates (Stop-motion speed)
         },
         'eraser-default': { 
             name: 'Default Eraser',
