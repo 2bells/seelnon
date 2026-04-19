@@ -1,4 +1,4 @@
-import { init as initCanvas, startDrawingLoop, clearCanvas } from './canvas.js';
+import { init as initCanvas, startDrawingLoop, clearCanvas, setSelectedStrokes } from './canvas.js';
 import { init as initEvents } from './events.js';
 import { state } from './state.js';
 import { loadState } from './storage.js';
@@ -69,7 +69,7 @@ function initUI() {
 
         // Clear selection when switching tools away from selection
         if (toolName !== 'selection') {
-            state.selectedStrokes = [];
+            setSelectedStrokes([]);
             state.selection = null;
         }
 

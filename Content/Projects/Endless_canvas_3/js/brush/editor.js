@@ -240,6 +240,20 @@ function createBrushEditor() {
                 </div>
                 <input type="range" id="canvasBgLineWidth" min="0.5" max="20" value="${state.canvasSettings.backgroundLineWidth || 1}" step="0.5">
             </div>
+
+            <div class="toolbar-separator" style="margin: 15px 0 10px 0; opacity: 0.2;"></div>
+
+            <div class="canvas-setting">
+                <label for="renderMode">Render Engine</label>
+                <select id="renderMode">
+                    <option value="bitmap">Optimized (Chunks)</option>
+                    <option value="vector">Raw (Full Vector)</option>
+                </select>
+                <div class="setting-hint" style="font-size: 10px; opacity: 0.5; margin-top: 6px; line-height: 1.3;">
+                    'Optimized' caches parts of the canvas to keep things smooth. 
+                    'Raw' redraws every single point every frame—true to the holy trinity, but can get laggy.
+                </div>
+            </div>
         </div>
     `;
     return editor;
@@ -280,6 +294,7 @@ export function init() {
     const canvasBgLineColor = editor.querySelector('#canvasBgLineColor');
     const canvasBgLineWidth = editor.querySelector('#canvasBgLineWidth');
     const canvasBgLineWidthValue = editor.querySelector('#canvasBgLineWidthValue');
+    const renderMode = editor.querySelector('#renderMode');
 
     // Advanced Brush Settings elements (now in their own tab)
     const enableSmoothingToggle = editor.querySelector('#enableSmoothingToggle');
@@ -552,6 +567,7 @@ export function init() {
         canvasBgLineColor.value = state.canvasSettings.backgroundLineColor || '#D1D1D1';
         canvasBgLineWidth.value = state.canvasSettings.backgroundLineWidth || 1;
         canvasBgLineWidthValue.textContent = `${state.canvasSettings.backgroundLineWidth || 1}px`;
+        renderMode.value = state.renderMode || 'bitmap';
     }
     
     syncUiWithState();
@@ -768,6 +784,16 @@ export function init() {
         state.canvasSettings.backgroundLineWidth = newWidth;
         canvasBgLineWidthValue.textContent = `${newWidth}px`;
         scheduleSave();
+    });
+
+    renderMode.addEventListener('change', (e) => {
+        state.renderMode = e.target.value;
+        scheduleSave();
+        
+        // If switching to bitmap, we might need a visual refresh of chunks
+        if (state.renderMode === 'bitmap') {
+            window.dispatchEvent(new CustomEvent('rebuildChunksRequest'));
+        }
     });
 
     // Preset save/load functionality

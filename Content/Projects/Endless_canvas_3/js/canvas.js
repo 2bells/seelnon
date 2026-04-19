@@ -24,6 +24,138 @@ import { drawSketchyStroke, drawAnimatedSketchyStroke } from './brush/sketchy.js
 let canvas;
 let ctx;
 
+// --- Rendering Optimization: Chunk-Based Cache ---
+const CHUNK_SIZE = 1024; // In world units
+const chunkCache = new Map(); // key: "cx,cy" -> { canvas, ctx, needsUpdate, strokes: Set }
+
+function getChunkKey(cx, cy) {
+    return `${cx},${cy}`;
+}
+
+function getVisibleChunks(viewport) {
+    const startCx = Math.floor(viewport.minX / CHUNK_SIZE);
+    const endCx = Math.floor(viewport.maxX / CHUNK_SIZE);
+    const startCy = Math.floor(viewport.minY / CHUNK_SIZE);
+    const endCy = Math.floor(viewport.maxY / CHUNK_SIZE);
+
+    const chunks = [];
+    for (let cx = startCx; cx <= endCx; cx++) {
+        for (let cy = startCy; cy <= endCy; cy++) {
+            const key = getChunkKey(cx, cy);
+            let chunk = chunkCache.get(key);
+            if (!chunk) {
+                chunk = {
+                    cx, cy,
+                    worldX: cx * CHUNK_SIZE,
+                    worldY: cy * CHUNK_SIZE,
+                    canvas: null,
+                    ctx: null,
+                    needsUpdate: true,
+                    strokes: new Set()
+                };
+                chunkCache.set(key, chunk);
+            }
+            chunks.push(chunk);
+        }
+    }
+    return chunks;
+}
+
+function invalidateChunksForStroke(stroke, forceRemove = false) {
+    if (!stroke.bounds) stroke.bounds = calculateStrokeBounds(stroke);
+    const startCx = Math.floor(stroke.bounds.minX / CHUNK_SIZE);
+    const endCx = Math.floor(stroke.bounds.maxX / CHUNK_SIZE);
+    const startCy = Math.floor(stroke.bounds.minY / CHUNK_SIZE);
+    const endCy = Math.floor(stroke.bounds.maxY / CHUNK_SIZE);
+
+    for (let cx = startCx; cx <= endCx; cx++) {
+        for (let cy = startCy; cy <= endCy; cy++) {
+            const key = getChunkKey(cx, cy);
+            const chunk = chunkCache.get(key);
+            if (chunk) {
+                chunk.needsUpdate = true;
+                
+                if (forceRemove) {
+                    chunk.strokes.delete(stroke);
+                } else {
+                    // Double check membership
+                    if (isStrokeInChunk(stroke, cx, cy)) {
+                        chunk.strokes.add(stroke);
+                    } else {
+                        chunk.strokes.delete(stroke);
+                    }
+                }
+            }
+        }
+    }
+}
+
+function isStrokeInChunk(stroke, cx, cy) {
+    const worldX = cx * CHUNK_SIZE;
+    const worldY = cy * CHUNK_SIZE;
+    return !(stroke.bounds.maxX < worldX || 
+             stroke.bounds.minX > worldX + CHUNK_SIZE || 
+             stroke.bounds.maxY < worldY || 
+             stroke.bounds.minY > worldY + CHUNK_SIZE);
+}
+
+function rebuildChunkMemberships() {
+    chunkCache.forEach(chunk => {
+        chunk.strokes.clear();
+        chunk.needsUpdate = true;
+    });
+
+    state.strokes.forEach(stroke => {
+        if (!stroke.bounds) stroke.bounds = calculateStrokeBounds(stroke);
+        const startCx = Math.floor(stroke.bounds.minX / CHUNK_SIZE);
+        const endCx = Math.floor(stroke.bounds.maxX / CHUNK_SIZE);
+        const startCy = Math.floor(stroke.bounds.minY / CHUNK_SIZE);
+        const endCy = Math.floor(stroke.bounds.maxY / CHUNK_SIZE);
+
+        for (let cx = startCx; cx <= endCx; cx++) {
+            for (let cy = startCy; cy <= endCy; cy++) {
+                const key = getChunkKey(cx, cy);
+                let chunk = chunkCache.get(key);
+                if (!chunk) {
+                    chunk = { cx, cy, worldX: cx * CHUNK_SIZE, worldY: cy * CHUNK_SIZE, canvas: null, ctx: null, needsUpdate: true, strokes: new Set() };
+                    chunkCache.set(key, chunk);
+                }
+                chunk.strokes.add(stroke);
+            }
+        }
+    });
+}
+
+function renderChunk(chunk, targetScale) {
+    // Determine resolution based on current zoom for sharpness, but clamp it to avoid huge bitmaps
+    const resolution = Math.min(2.0, Math.max(0.5, targetScale)); // 0.5 to 2.0 scale for caching
+    const pSize = Math.ceil(CHUNK_SIZE * resolution);
+
+    if (!chunk.canvas || chunk.canvas.width !== pSize || chunk.canvas.height !== pSize) {
+        chunk.canvas = new OffscreenCanvas(pSize, pSize);
+        chunk.ctx = chunk.canvas.getContext('2d', { alpha: true });
+    }
+
+    const cctx = chunk.ctx;
+    cctx.clearRect(0, 0, pSize, pSize);
+    cctx.save();
+    cctx.scale(resolution, resolution);
+    cctx.translate(-chunk.worldX, -chunk.worldY);
+
+    chunk.strokes.forEach(stroke => {
+        // Only draw non-selected strokes in chunks to keep selection transformations "live"
+        if (state.selectedStrokes.includes(stroke)) return;
+        
+        drawStroke(cctx, stroke, false, targetScale);
+    });
+
+    cctx.restore();
+    chunk.needsUpdate = false;
+    chunk.cachedResolution = resolution;
+}
+
+// --- End Chunk Logic ---
+
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -34,6 +166,20 @@ export function init(canvasElement) {
     ctx = canvas.getContext('2d');
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+
+    // Initial build of chunks if strokes exist (e.g. from state loading)
+    rebuildChunkMemberships();
+
+    window.addEventListener('rebuildChunksRequest', () => {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+
+        // Delay processing slightly to allow UI to render the loading state
+        setTimeout(() => {
+            rebuildChunkMemberships();
+            if (overlay) overlay.classList.add('hidden');
+        }, 100);
+    });
 }
 
 // Function to rotate points around a pivot
@@ -41,6 +187,9 @@ export function rotateStrokes(strokes, angle, pivot) {
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     for (const stroke of strokes) {
+        // Invalidate old position in chunks before moving
+        invalidateChunksForStroke(stroke, true);
+        
         for (const p of stroke.points) {
             const dx = p.x - pivot.x;
             const dy = p.y - pivot.y;
@@ -48,18 +197,25 @@ export function rotateStrokes(strokes, angle, pivot) {
             p.y = pivot.y + (dx * sin + dy * cos);
         }
         invalidateStrokeCaches(stroke);
+        // Invalidate new position
+        invalidateChunksForStroke(stroke);
     }
 }
 
 // Function to scale points relative to a pivot
 export function scaleStrokes(strokes, scaleX, scaleY, pivot) {
     for (const stroke of strokes) {
+        // Invalidate old position
+        invalidateChunksForStroke(stroke, true);
+
         for (const p of stroke.points) {
             p.x = pivot.x + (p.x - pivot.x) * scaleX;
             p.y = pivot.y + (p.y - pivot.y) * scaleY;
             p.size *= (Math.abs(scaleX) + Math.abs(scaleY)) / 2;
         }
         invalidateStrokeCaches(stroke);
+        // Invalidate new position
+        invalidateChunksForStroke(stroke);
     }
 }
 
@@ -69,12 +225,12 @@ export function drawBackgroundPattern(context, type, spacing, viewportWorldX, vi
 
     context.save();
     context.strokeStyle = state.canvasSettings.backgroundLineColor || '#D1D1D1';
-    context.lineWidth = (state.canvasSettings.backgroundLineWidth || 1) / targetScale; // Make lines consistent thickness regardless of targetScale
+    context.lineWidth = (state.canvasSettings.backgroundLineWidth || 1); // Respect zoom for thickness
 
     context.beginPath();
 
     if (type === 'dots') {
-        const dotRadius = (state.canvasSettings.backgroundLineWidth || 1) / targetScale; // Use line width for dot size
+        const dotRadius = (state.canvasSettings.backgroundLineWidth || 1); // Respect zoom for dot size
         context.fillStyle = state.canvasSettings.backgroundLineColor || '#D1D1D1';
         for (let x = Math.floor(viewportWorldX / spacing) * spacing; x < viewportWorldX + viewportWorldWidth + spacing; x += spacing) {
             for (let y = Math.floor(viewportWorldY / spacing) * spacing; y < viewportWorldY + viewportWorldHeight + spacing; y += spacing) {
@@ -181,78 +337,93 @@ function draw() {
     ctx.scale(state.zoom, state.zoom);
 
     // Draw canvas background patterns (dots, grid, lines)
+    const viewport = getWorldViewport();
     drawBackgroundPattern(ctx, state.canvasSettings.backgroundType, state.canvasSettings.backgroundSpacing, 
-                          -state.panOffset.x / state.zoom, -state.panOffset.y / state.zoom, 
-                          canvas.width / state.zoom, canvas.height / state.zoom, state.zoom);
+                          viewport.minX, viewport.minY, 
+                          viewport.maxX - viewport.minX, viewport.maxY - viewport.minY, state.zoom);
     
     // Draw symmetry line if mirror mode is on
     if (state.mirrorMode) {
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.lineWidth = 1 / state.zoom; // Keep line thin regardless of zoom
+        ctx.lineWidth = 1 / state.zoom;
         ctx.beginPath();
-        const viewportTop = -state.panOffset.y / state.zoom;
-        const viewportBottom = (canvas.height - state.panOffset.y) / state.zoom;
-        ctx.moveTo(0, viewportTop);
-        ctx.lineTo(0, viewportBottom);
+        ctx.moveTo(0, viewport.minY);
+        ctx.lineTo(0, viewport.maxY);
         ctx.stroke();
     }
 
-    // Draw selection rectangle if it exists
-    if (state.selection && (state.selection.width > 0 || state.selection.height > 0)) {
-        drawSelectionBox(ctx, state.selection, state.zoom, true);
-    } else if (state.selectedStrokes.length > 0) {
-        // Use exactly state.selection if present, otherwise calculate from strokes
-        const bounds = state.selection || getSelectionBounds(state.selectedStrokes);
-        if (bounds) {
-            drawSelectionBox(ctx, bounds, state.zoom, true);
-        }
-    }
+    if (state.renderMode === 'bitmap') {
+        // --- Draw Cached Chunks ---
+        const visibleChunks = getVisibleChunks(viewport);
+        visibleChunks.forEach(chunk => {
+            // If zoom changed significantly, or first load, invalidate
+            const currentResolution = Math.min(2.0, Math.max(0.5, state.zoom));
+            if (Math.abs(chunk.cachedResolution - currentResolution) > 0.4) {
+                chunk.needsUpdate = true;
+            }
 
-    // Use `performance.now()` for smoother, more reliable timing than `Date.now()`
-    const now = performance.now();
+            if (chunk.needsUpdate) {
+                renderChunk(chunk, state.zoom);
+            }
+            
+            if (chunk.canvas) {
+                ctx.drawImage(chunk.canvas, chunk.worldX, chunk.worldY, CHUNK_SIZE, CHUNK_SIZE);
+            }
+        });
+    } else {
+        // --- Draw Full Vector ---
+        state.strokes.forEach(stroke => {
+            // Only draw non-selected strokes (selected are drawn later)
+            if (state.selectedStrokes.includes(stroke)) return;
 
-    // Draw all stored strokes (finalized strokes)
-    const viewport = getWorldViewport();
-    state.strokes.forEach(stroke => {
-        // --- Spatial Culling: Skip if completely outside viewport ---
-        if (stroke.bounds) {
+            // Bounding box culling for vector mode
+            if (!stroke.bounds) {
+                const calculateStrokeBounds = (s) => {
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    s.points.forEach(p => {
+                        minX = Math.min(minX, p.x);
+                        minY = Math.min(minY, p.y);
+                        maxX = Math.max(maxX, p.x);
+                        maxY = Math.max(maxY, p.y);
+                    });
+                    const padding = s.size || 5;
+                    return { minX: minX - padding, minY: minY - padding, maxX: maxX + padding, maxY: maxY + padding };
+                };
+                stroke.bounds = calculateStrokeBounds(stroke);
+            }
+
             if (stroke.bounds.maxX < viewport.minX || 
                 stroke.bounds.minX > viewport.maxX || 
                 stroke.bounds.maxY < viewport.minY || 
                 stroke.bounds.minY > viewport.maxY) {
                 return;
             }
-        } else {
-            // Fallback: calculate bounds if missing (e.g. legacy data)
-            stroke.bounds = calculateStrokeBounds(stroke);
-        }
 
-        // --- Animation Logic for Sketchy Brush ---
-        if (stroke.type === 'sketchy-animated' && stroke.animationInterval > 0 && now - (stroke.lastAnimationTime || 0) > stroke.animationInterval) {
-            stroke.lastAnimationTime = now;
-            // Set a flag to regenerate the jittered passes in the drawing function
-            stroke.needsJitterUpdate = true;
-        }
-        // --- Animation Logic for Wireframe Brush ---
-        if (stroke.type === 'wireframe' && (stroke.wireframeAnimationSpeed || 0) > 0 && now - (stroke.lastAnimationTime || 0) > stroke.wireframeAnimationSpeed) {
-            stroke.lastAnimationTime = now;
-            stroke.needsJitterUpdate = true; // Trigger recalculation of jiggled points
-        }
+            drawStroke(ctx, stroke, false, state.zoom);
+        });
+    }
 
-        // --- End Animation Logic ---
-        
-        // Simple draw call for all strokes. 
-        // Selection feedback is handled by drawSelectionBox separately.
+    // Draw selected strokes (they stay "live" and un-cached for smooth transformation)
+    state.selectedStrokes.forEach(stroke => {
         drawStroke(ctx, stroke, false, state.zoom);
     });
 
-    // Draw current stroke preview (only if actively drawing, and not yet part of state.strokes)
-    // The `isPreview` flag ensures it's handled correctly if `nonCompoundingOpacity` is on.
+    // Draw current stroke preview
     if (state.isDrawing && state.currentStroke) {
         drawStroke(ctx, state.currentStroke, true, state.zoom);
     }
     if (state.isDrawing && state.mirrorMode && state.currentMirrorStroke) {
         drawStroke(ctx, state.currentMirrorStroke, true, state.zoom);
+    }
+
+    // Draw selection handles/box on TOP
+    if (state.selection && (state.selection.width > 0 || state.selection.height > 0)) {
+        drawSelectionBox(ctx, state.selection, state.zoom, true);
+    } else if (state.selectedStrokes.length > 0) {
+        const bounds = state.selection || getSelectionBounds(state.selectedStrokes);
+        if (bounds) {
+            drawSelectionBox(ctx, bounds, state.zoom, true);
+        }
     }
 
     // Restore context state
@@ -552,8 +723,11 @@ export async function endStroke() {
 
         // Now that the stroke is finalized (and bitmap potentially rendered), add it to the main strokes array
         state.strokes.push(state.currentStroke);
+        invalidateChunksForStroke(state.currentStroke);
+        
         if (state.mirrorMode && state.currentMirrorStroke) {
             state.strokes.push(state.currentMirrorStroke);
+            invalidateChunksForStroke(state.currentMirrorStroke);
         }
 
         saveHistory();
@@ -567,6 +741,9 @@ export async function endStroke() {
 
 // Function to invalidate all caches for a stroke (call after transformations)
 function invalidateStrokeCaches(stroke) {
+    // Before wiping bounds, notify current chunks to remove this stroke
+    invalidateChunksForStroke(stroke);
+
     stroke.bounds = null;
     stroke.bitmap = null;
     stroke.pathObject = null;
@@ -654,6 +831,7 @@ export function deleteStrokeAt(worldX, worldY) {
     for (let i = state.strokes.length - 1; i >= 0; i--) {
         const stroke = state.strokes[i];
         if (isPointOnStroke(worldX, worldY, stroke, state.brush.size / 2)) {
+            invalidateChunksForStroke(stroke, true);
             state.strokes.splice(i, 1);
             deleted = true;
             
@@ -673,6 +851,17 @@ export function deleteStrokeAt(worldX, worldY) {
     if (deleted) {
         saveHistory();
     }
+}
+
+// Function to update selected strokes and invalidate chunks
+export function setSelectedStrokes(newStrokes) {
+    // Invalidate old selected strokes so they re-bake into chunks
+    state.selectedStrokes.forEach(s => invalidateChunksForStroke(s));
+    
+    state.selectedStrokes = newStrokes;
+    
+    // Invalidate new selected strokes so they are removed from chunks (rendered live)
+    state.selectedStrokes.forEach(s => invalidateChunksForStroke(s));
 }
 
 // Function to find strokes within a selection rectangle
@@ -703,11 +892,16 @@ export function selectStrokesInRect(rect) {
 // Function to move strokes by a delta
 export function moveStrokes(strokes, dx, dy) {
     for (const stroke of strokes) {
+        // Invalidate old position
+        invalidateChunksForStroke(stroke, true);
+
         for (const p of stroke.points) {
             p.x += dx;
             p.y += dy;
         }
         invalidateStrokeCaches(stroke);
+        // Invalidate new position
+        invalidateChunksForStroke(stroke);
     }
 }
 
@@ -779,15 +973,21 @@ export function undo() {
         // When loading from history, bitmaps are nullified, they will be regenerated by the draw loop
         // Use structuredClone here as well for consistency and potentially better performance
         state.strokes = structuredClone(state.history[state.historyIndex]).map(s => ({ ...s, bitmap: null }));
+        setSelectedStrokes([]);
+        rebuildChunkMemberships();
     } else if (state.historyIndex === 0 && state.history.length > 0) {
         // If at the first state in history, undoing means going to empty canvas
         state.historyIndex = -1;
         state.strokes = [];
+        setSelectedStrokes([]);
+        rebuildChunkMemberships();
     } else if (state.historyIndex === -1 && state.history.length > 0) {
          // If already at empty canvas (before first history item), and history exists, move to first actual state.
          // This can happen if canvas was cleared and then undo is pressed.
          state.historyIndex = 0;
          state.strokes = structuredClone(state.history[state.historyIndex]).map(s => ({ ...s, bitmap: null }));
+         setSelectedStrokes([]);
+         rebuildChunkMemberships();
     }
     scheduleSave();
 }
@@ -798,18 +998,21 @@ export function redo() {
         // When loading from history, bitmaps are nullified, they will be regenerated by the draw loop
         // Use structuredClone here as well for consistency and potentially better performance
         state.strokes = structuredClone(state.history[state.historyIndex]).map(s => ({ ...s, bitmap: null }));
+        setSelectedStrokes([]);
+        rebuildChunkMemberships();
     }
     scheduleSave();
 }
 
 export function clearCanvas() {
     state.strokes = [];
-    state.selectedStrokes = [];
+    setSelectedStrokes([]);
     state.selection = null;
     state.history = [];
     state.historyIndex = -1; // Indicate empty state, not part of history array
     state.history.push([]); // Push an empty canvas state as the first history item
     state.historyIndex = 0; // Point to the new empty state
+    rebuildChunkMemberships();
     scheduleSave();
 }
 

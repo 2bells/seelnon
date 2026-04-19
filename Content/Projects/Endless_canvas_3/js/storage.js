@@ -82,6 +82,8 @@ function saveStateToLocalStorage() {
             version: state.version, // Save the state version
             paletteColors: state.paletteColors, // Save custom palette colors
             selectedSwatchIndex: state.selectedSwatchIndex, // Save which swatch is active
+            activeColor: state.brush.color, // Save the actual current color as a fallback
+            renderMode: state.renderMode, // Save current render mode (bitmap or vector)
 
             canvasSettings: { // Save canvas settings
                 backgroundColor: state.canvasSettings.backgroundColor,
@@ -179,9 +181,19 @@ export function loadState() {
             // Apply saved palette
             if (savedState.paletteColors) state.paletteColors = savedState.paletteColors;
             if (savedState.selectedSwatchIndex !== undefined) state.selectedSwatchIndex = savedState.selectedSwatchIndex;
+            if (savedState.renderMode) state.renderMode = savedState.renderMode;
 
             // Populate state.brush with a deep copy of the active preset
             state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
+
+            // Restore color: Priority: saved activeColor > active swatch > #000000
+            if (savedState.activeColor) {
+                state.brush.color = savedState.activeColor;
+            } else if (state.selectedSwatchIndex !== null && state.paletteColors[state.selectedSwatchIndex]) {
+                state.brush.color = state.paletteColors[state.selectedSwatchIndex];
+            } else {
+                state.brush.color = '#000000';
+            }
 
             // Apply canvas settings
             if (savedState.canvasSettings) {

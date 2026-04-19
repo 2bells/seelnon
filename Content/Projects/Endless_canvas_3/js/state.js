@@ -291,4 +291,5 @@ export const state = {
     // Modes
     mirrorMode: false,
     isCanvasFlipped: false,
+    renderMode: 'bitmap', // 'bitmap' (chunk-based cache) or 'vector' (redraw all raw data)
 };

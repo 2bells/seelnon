@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke } from './canvas.js';
+import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes } from './canvas.js';
 import { scheduleSave } from './storage.js';
 
 function getPointerPos(event) {
@@ -210,7 +210,7 @@ export function init(canvas) {
                     state.clickHitStroke = hitStroke;
                     
                     if (!hitStroke) {
-                        state.selectedStrokes = []; // Deselect on empty click start
+                        setSelectedStrokes([]); // Deselect on empty click start
                     }
 
                     state.selection = {
@@ -460,12 +460,12 @@ export function init(canvas) {
 
             if (isClick && state.clickHitStroke) {
                 // Clicked on a stroke: Select it exclusively and fit bounds
-                state.selectedStrokes = [state.clickHitStroke];
+                setSelectedStrokes([state.clickHitStroke]);
                 state.selection = getSelectionBounds(state.selectedStrokes);
                 state.clickHitStroke = null;
             } else {
                 // Dragged a box: Select all strokes inside
-                state.selectedStrokes = selectStrokesInRect(bounds);
+                setSelectedStrokes(selectStrokesInRect(bounds));
                 state.clickHitStroke = null;
 
                 if (state.selectedStrokes.length === 0) {
