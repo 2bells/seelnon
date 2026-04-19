@@ -84,6 +84,23 @@ function saveStateToLocalStorage() {
             selectedSwatchIndex: state.selectedSwatchIndex, // Save which swatch is active
             activeColor: state.brush.color, // Save the actual current color as a fallback
             renderMode: state.renderMode, // Save current render mode (bitmap or vector)
+            
+            // Save Image Layers
+            images: state.images.map(img => ({
+                id: img.id,
+                url: img.url,
+                x: img.x,
+                y: img.y,
+                scaleX: img.scaleX,
+                scaleY: img.scaleY,
+                rotation: img.rotation,
+                opacity: img.opacity,
+                visible: img.visible,
+                locked: img.locked,
+                width: img.width,
+                height: img.height
+                // (Don't save img.element, it's transient)
+            })),
 
             canvasSettings: { // Save canvas settings
                 backgroundColor: state.canvasSettings.backgroundColor,
@@ -183,6 +200,19 @@ export function loadState() {
             if (savedState.paletteColors) state.paletteColors = savedState.paletteColors;
             if (savedState.selectedSwatchIndex !== undefined) state.selectedSwatchIndex = savedState.selectedSwatchIndex;
             if (savedState.renderMode) state.renderMode = savedState.renderMode;
+
+            // Load image layers
+            if (savedState.images) {
+                state.images = savedState.images.map(imgData => {
+                    const img = { ...imgData, element: null };
+                    // Pre-load the image element from the saved URL
+                    const imageEl = new Image();
+                    imageEl.src = img.url;
+                    img.element = imageEl;
+                    // Note: Drawing loop will catch this once element.complete is true
+                    return img;
+                });
+            }
 
             // Populate state.brush with a deep copy of the active preset
             state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);

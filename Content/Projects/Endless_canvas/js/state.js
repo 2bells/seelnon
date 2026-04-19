@@ -57,10 +57,21 @@ export const state = {
     currentMirrorStroke: null, // For mirror mode
     isStylusActive: false, // For custom cursor logic
     
+    // Image Layers
+    images: [], // { id, url, x, y, scaleX, scaleY, rotation, opacity, visible, locked, width, height, element (HTMLImageElement) }
+    selectedImageId: null, // The ID of the currently selected image object
+    isMovingImage: false,
+    isScalingImage: false,
+    isRotatingImage: false,
+    isChangingImageOpacity: false,
+    isRotating3D: false,
+    imageHandle: null, // Handle used for transformation ('nw', 'se', 'rotate', 'opacity', etc)
+    
     // Selection rectangle
     selection: null, // { x, y, width, height } in world coordinates
     initialSelection: null, // Selection at start of a transform
     moveOrigin: { x: 0, y: 0 }, // For tracking move delta
+    initialOpacity: 1, // Store opacity at start of interaction
     rotationStartAngle: 0, 
     totalRotationAngle: 0,
     selectionPivot: { x: 0, y: 0 }, // Rotation/Scale pivot point
@@ -292,4 +303,24 @@ export const state = {
     mirrorMode: false,
     isCanvasFlipped: false,
     renderMode: 'bitmap', // 'bitmap' (chunk-based cache) or 'vector' (redraw all raw data)
+
+    // Phase 5: 3D Reference Generator
+    camera3D: {
+        x: 0,
+        y: 0,
+        z: -500, // Distance from origin
+        rotationX: -0.5, // Standard isometric-ish starting angle
+        rotationY: 0.5,
+        rotationZ: 0,
+        focalLength: 50, // in mm
+        show: false
+    },
+    box3D: {
+        width: 100,
+        height: 100,
+        depth: 100,
+        x: 0,
+        y: 0,
+        z: 0
+    }
 };

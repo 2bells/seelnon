@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes } from './canvas.js';
+import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw, draw3DReference } from './canvas.js';
 import { scheduleSave } from './storage.js';
 
 function getPointerPos(event) {
@@ -89,6 +89,54 @@ function getSelectionHandleAt(worldX, worldY, rect, zoom) {
     return null;
 }
 
+function isPointOnImage(worldX, worldY, img, zoom) {
+    if (!img.visible) return false;
+    
+    // Convert world coordinate to local image coordinate
+    const dx = worldX - img.x;
+    const dy = worldY - img.y;
+    
+    const cos = Math.cos(-img.rotation || 0);
+    const sin = Math.sin(-img.rotation || 0);
+    
+    const localX = (dx * cos - dy * sin) / (img.scaleX || 1);
+    const localY = (dx * sin + dy * cos) / (img.scaleY || 1);
+    
+    return localX >= -img.width / 2 && localX <= img.width / 2 &&
+           localY >= -img.height / 2 && localY <= img.height / 2;
+}
+
+function getImageHandleAt(worldX, worldY, img, zoom) {
+    if (!img) return null;
+    const handleSize = 12 / zoom;
+    const hs = handleSize / 2;
+    
+    const getPos = (lx, ly) => {
+        const sx = lx * (img.scaleX || 1);
+        const sy = ly * (img.scaleY || 1);
+        const cos = Math.cos(img.rotation || 0);
+        const sin = Math.sin(img.rotation || 0);
+        return {
+            x: img.x + (sx * cos - sy * sin),
+            y: img.y + (sx * sin + sy * cos)
+        };
+    };
+    
+    const handles = {
+        nw: getPos(-img.width / 2, -img.height / 2),
+        se: getPos(img.width / 2, img.height / 2),
+        rotate: getPos(0, -img.height / 2 - 20 / zoom),
+        opacity: getPos(0, img.height / 2 + 20 / zoom)
+    };
+    
+    for (const [name, p] of Object.entries(handles)) {
+        if (worldX >= p.x - hs && worldX <= p.x + hs && worldY >= p.y - hs && worldY <= p.y + hs) {
+            return name;
+        }
+    }
+    return null;
+}
+
 export function init(canvas) {
     // Initial update of project info
     updateProjectInfo();
@@ -137,7 +185,14 @@ export function init(canvas) {
         }
 
         // Priority 2: Tool-specific actions
-        // Eraser tool behavior: continuous erase on hold
+        if (state.activeTool === '3d-box' && e.button === 0) {
+            canvas.setPointerCapture(e.pointerId);
+            state.isRotating3D = true;
+            state.moveOrigin = { x: worldPos.x, y: worldPos.y };
+            return;
+        }
+
+        // Eraser tool behavior
         if (state.activeTool === 'eraser') {
             canvas.setPointerCapture(e.pointerId); // Capture to prevent unintended scroll/pan
             state.isErasing = true; // Set erasing flag
@@ -154,7 +209,27 @@ export function init(canvas) {
                 startStroke(worldPos.x, worldPos.y, currentPointerPos.pressure);
                 state.lastDrawPosition = { ...worldPos, timestamp: now };
             } else if (state.activeTool === 'selection') {
-                // Check if clicking on handles first
+                // Priority: 1. Selected Image handles
+                const selectedImg = state.images.find(img => img.id === state.selectedImageId);
+                const imgHandle = getImageHandleAt(worldPos.x, worldPos.y, selectedImg, state.zoom);
+                
+                if (imgHandle) {
+                    canvas.setPointerCapture(e.pointerId);
+                    state.moveOrigin = { x: worldPos.x, y: worldPos.y };
+                    state.imageHandle = imgHandle;
+                    if (imgHandle === 'rotate') {
+                        state.isRotatingImage = true;
+                        state.rotationStartAngle = Math.atan2(worldPos.y - selectedImg.y, worldPos.x - selectedImg.x) - selectedImg.rotation;
+                    } else if (imgHandle === 'opacity') {
+                        state.isChangingImageOpacity = true;
+                        state.initialOpacity = selectedImg.opacity !== undefined ? selectedImg.opacity : 1;
+                    } else {
+                        state.isScalingImage = true;
+                    }
+                    return;
+                }
+
+                // Priority: 2. Stroke selection handles
                 const handle = getSelectionHandleAt(worldPos.x, worldPos.y, state.selection, state.zoom);
                 if (handle) {
                     state.initialSelection = { ...state.selection };
@@ -174,7 +249,7 @@ export function init(canvas) {
                     return;
                 }
 
-                // Check if clicking inside current selection to start move
+                // Priority: 3. Is clicking inside current Stroke selection?
                 const bounds = state.selection || getSelectionBounds(state.selectedStrokes);
                 let hitSelection = false;
                 if (bounds) {
@@ -188,15 +263,34 @@ export function init(canvas) {
                 if (hitSelection) {
                     state.isMovingSelection = true;
                     state.moveOrigin = { x: worldPos.x, y: worldPos.y };
-                    // If moving, we use bounds as our current state.selection if it wasn't set
                     if (!state.selection) {
                         state.selection = bounds;
                     }
-                } else {
-                    // Start new selection
-                    state.isSelecting = true;
-                    
-                    // Hit-test strokes for single-click selection
+                    return;
+                } 
+                
+                // Priority: 4. Is clicking on an image?
+                let hitImageId = null;
+                for (let i = state.images.length - 1; i >= 0; i--) {
+                    if (isPointOnImage(worldPos.x, worldPos.y, state.images[i], state.zoom)) {
+                        hitImageId = state.images[i].id;
+                        break;
+                    }
+                }
+
+                if (hitImageId) {
+                    canvas.setPointerCapture(e.pointerId);
+                    state.selectedImageId = hitImageId;
+                    state.isMovingImage = true;
+                    state.moveOrigin = { x: worldPos.x, y: worldPos.y };
+                    setSelectedStrokes([]);
+                    state.selection = null;
+                    return;
+                }
+
+                // Priority: 5. Start new stroke selection
+                state.isSelecting = true;
+                state.selectedImageId = null; // Clear image selection when starting box select
                     let hitStroke = null;
                     const tolerance = 10 / state.zoom;
                     // Check from top to bottom (reverse order)
@@ -223,7 +317,6 @@ export function init(canvas) {
                     };
                 }
             }
-        }
     });
 
     canvas.addEventListener('pointermove', (e) => {
@@ -393,6 +486,54 @@ export function init(canvas) {
                 }
             }
             state.moveOrigin = { x: worldPos.x, y: worldPos.y };
+        } else if (state.isMovingImage) {
+            const dx = worldPos.x - state.moveOrigin.x;
+            const dy = worldPos.y - state.moveOrigin.y;
+            const img = state.images.find(i => i.id === state.selectedImageId);
+            if (img) {
+                img.x += dx;
+                img.y += dy;
+            }
+            state.moveOrigin = { x: worldPos.x, y: worldPos.y };
+        } else if (state.isRotatingImage) {
+            const img = state.images.find(i => i.id === state.selectedImageId);
+            if (img) {
+                const currentAngle = Math.atan2(worldPos.y - img.y, worldPos.x - img.x);
+                img.rotation = currentAngle - state.rotationStartAngle;
+            }
+        } else if (state.isRotating3D) {
+            const dx = worldPos.x - state.moveOrigin.x;
+            const dy = worldPos.y - state.moveOrigin.y;
+            state.camera3D.rotationY += dx * 0.01;
+            state.camera3D.rotationX += dy * 0.01;
+            state.moveOrigin = { x: worldPos.x, y: worldPos.y };
+        } else if (state.isScalingImage) {
+            const img = state.images.find(i => i.id === state.selectedImageId);
+            if (img) {
+                const dx = worldPos.x - img.x;
+                const dy = worldPos.y - img.y;
+                const cos = Math.cos(-img.rotation || 0);
+                const sin = Math.sin(-img.rotation || 0);
+                const localX = (dx * cos - dy * sin);
+                const localY = (dx * sin + dy * cos);
+                
+                const factor = state.imageHandle === 'se' ? 2 : -2;
+                const newScaleX = (localX * factor) / img.width;
+                const newScaleY = (localY * factor) / img.height;
+                
+                // Uniform scaling by default for images
+                const scale = Math.max(0.01, Math.min(Math.abs(newScaleX), Math.abs(newScaleY)));
+                img.scaleX = scale;
+                img.scaleY = scale;
+            }
+        } else if (state.isChangingImageOpacity) {
+            const img = state.images.find(i => i.id === state.selectedImageId);
+            if (img) {
+                const dx = worldPos.x - state.moveOrigin.x;
+                // Sensible range: dragging 200 world units across results in 0 to 1 change
+                const sensitivity = 200;
+                img.opacity = Math.max(0, Math.min(1, state.initialOpacity + dx / sensitivity));
+            }
         } else if (state.isSelecting) {
             state.selection.x = Math.min(state.selection.startX, worldPos.x);
             state.selection.y = Math.min(state.selection.startY, worldPos.y);
@@ -483,6 +624,16 @@ export function init(canvas) {
                 if (selectionOption) selectionOption.disabled = true;
             }
         }
+        if (state.isRotatingImage || state.isScalingImage || state.isMovingImage || state.isChangingImageOpacity || state.isRotating3D) {
+            canvas.releasePointerCapture(e.pointerId);
+            state.isRotatingImage = false;
+            state.isScalingImage = false;
+            state.isMovingImage = false;
+            state.isChangingImageOpacity = false;
+            state.isRotating3D = false;
+            state.imageHandle = null;
+            scheduleSave();
+        }
         if (state.isErasing) { // Release pointer capture and reset flag for eraser tool
             canvas.releasePointerCapture(e.pointerId);
             state.isErasing = false;
@@ -509,6 +660,7 @@ export function init(canvas) {
                 endStroke();
             }
         }
+        state.isRotating3D = false;
         state.isDrawing = false;
         state.isPanning = false;
         state.isZoomingWithMouse = false;
@@ -620,9 +772,17 @@ export function init(canvas) {
             e.preventDefault();
             document.getElementById('eraser-tool')?.click();
         }
+        if(e.key === '6') { // Hotkey '6' for 3D Box Tool
+            e.preventDefault();
+            document.getElementById('box-3d-tool')?.click();
+        }
         if(e.key.toLowerCase() === 's') { // Hotkey 'S' for Selection Tool
             e.preventDefault();
             document.getElementById('selection-tool')?.click();
+        }
+        if(e.key.toLowerCase() === 'i') { // Hotkey 'I' for Import Image
+            e.preventDefault();
+            document.getElementById('import-image-btn')?.click();
         }
 
         // Mirror mode
@@ -669,19 +829,29 @@ export function init(canvas) {
             updateCanvasCursor();
         }
 
-        // Delete selected strokes
-        if ((e.key === 'Delete' || e.key === 'Backspace') && state.activeTool === 'selection' && state.selectedStrokes.length > 0) {
-            e.preventDefault();
-            for (const stroke of state.selectedStrokes) {
-                const idx = state.strokes.indexOf(stroke);
-                if (idx !== -1) {
-                    state.strokes.splice(idx, 1);
+        // Delete selected strokes or images
+        if ((e.key === 'Delete' || e.key === 'Backspace') && state.activeTool === 'selection') {
+            if (state.selectedStrokes.length > 0) {
+                e.preventDefault();
+                for (const stroke of state.selectedStrokes) {
+                    const idx = state.strokes.indexOf(stroke);
+                    if (idx !== -1) {
+                        state.strokes.splice(idx, 1);
+                    }
                 }
+                state.selectedStrokes = [];
+                state.selection = null;
+                saveHistory();
+                updateCanvasCursor();
+            } else if (state.selectedImageId) {
+                e.preventDefault();
+                const idx = state.images.findIndex(img => img.id === state.selectedImageId);
+                if (idx !== -1) {
+                    state.images.splice(idx, 1);
+                }
+                state.selectedImageId = null;
+                scheduleSave();
             }
-            state.selectedStrokes = [];
-            state.selection = null;
-            saveHistory();
-            updateCanvasCursor();
         }
     });
 
@@ -839,7 +1009,166 @@ export function init(canvas) {
         }, 100); 
     }, { passive: true });
 
-    // Also update cursor when activeTool or state.brush.type changes
-    // This is handled via a custom event dispatched from main.js when the active brush changes
+    // also update cursor when activeTool or state.brush.type changes
     window.addEventListener('activeBrushChanged', updateCanvasCursor);
+
+    // Image Import Logic
+    const importBtn = document.getElementById('import-image-btn');
+    const imageInput = document.getElementById('image-input');
+
+    if (importBtn && imageInput) {
+        importBtn.addEventListener('click', () => {
+            imageInput.click();
+        });
+
+        // 3D Tool logic
+        const box3dBtn = document.getElementById('box-3d-tool');
+        const threeDPanel = document.getElementById('three-d-panel');
+        const close3DPanel = document.getElementById('close-3d-panel');
+        const reset3DCamera = document.getElementById('reset-3d-camera');
+        const bake3DBtn = document.getElementById('bake-3d-btn');
+        const focalLengthInput = document.getElementById('camera-focal-length');
+        const focalLengthValue = document.getElementById('focal-length-value');
+        const boxSizeInput = document.getElementById('box-size');
+        const boxSizeValue = document.getElementById('box-size-value');
+
+        const activate3DTool = () => {
+            state.activeTool = '3d-box';
+            state.camera3D.show = true;
+            document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+            box3dBtn?.classList.add('active');
+            threeDPanel?.classList.remove('hidden');
+            requestAnimationFrame(draw);
+        };
+
+        box3dBtn?.addEventListener('click', activate3DTool);
+        
+        close3DPanel?.addEventListener('click', () => {
+            threeDPanel?.classList.add('hidden');
+            state.camera3D.show = false;
+            requestAnimationFrame(draw);
+        });
+
+        focalLengthInput?.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            state.camera3D.focalLength = val;
+            if (focalLengthValue) focalLengthValue.textContent = val;
+            requestAnimationFrame(draw);
+        });
+
+        boxSizeInput?.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            state.box3D.width = val;
+            state.box3D.height = val;
+            state.box3D.depth = val;
+            if (boxSizeValue) boxSizeValue.textContent = val;
+            requestAnimationFrame(draw);
+        });
+
+        reset3DCamera?.addEventListener('click', () => {
+            state.camera3D.rotationX = -0.5;
+            state.camera3D.rotationY = 0.5;
+            state.camera3D.z = -500;
+            requestAnimationFrame(draw);
+        });
+
+        bake3DBtn?.addEventListener('click', () => {
+            // Bake 3D to Image Layer
+            const viewport = getWorldViewport();
+            const width = viewport.maxX - viewport.minX;
+            const height = viewport.maxY - viewport.minY;
+            
+            const bakeCanvas = document.createElement('canvas');
+            const scale = 2; // Higher quality bake
+            bakeCanvas.width = width * scale;
+            bakeCanvas.height = height * scale;
+            const bCtx = bakeCanvas.getContext('2d');
+            
+            // Setup bake context to match world space
+            bCtx.scale(scale, scale);
+            bCtx.translate(-viewport.minX, -viewport.minY);
+            
+            // Draw 3D reference onto it
+            draw3DReference(bCtx, viewport);
+            
+            const url = bakeCanvas.toDataURL('image/png');
+            const img = new Image();
+            img.onload = () => {
+                const newImage = {
+                    id: 'bake-' + Date.now().toString(),
+                    url: url,
+                    x: (viewport.minX + viewport.maxX) / 2,
+                    y: (viewport.minY + viewport.maxY) / 2,
+                    scaleX: 1,
+                    scaleY: 1,
+                    rotation: 0,
+                    opacity: 0.5, // Default to 50% for tracing
+                    visible: true,
+                    locked: false,
+                    width: width,
+                    height: height,
+                    element: img
+                };
+                state.images.push(newImage);
+                scheduleSave();
+                requestAnimationFrame(draw);
+            };
+            img.src = url;
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const url = event.target.result;
+                const img = new Image();
+                img.onload = () => {
+                    // Center image in viewport
+                    const viewport = getWorldViewport();
+                    const centerX = (viewport.minX + viewport.maxX) / 2;
+                    const centerY = (viewport.minY + viewport.maxY) / 2;
+                    
+                    // Constrain image size to viewport if too large
+                    const maxDim = Math.min(viewport.maxX - viewport.minX, viewport.maxY - viewport.minY) * 0.8;
+                    let scale = 1.0;
+                    if (img.width > maxDim || img.height > maxDim) {
+                        scale = maxDim / Math.max(img.width, img.height);
+                    }
+
+                    const newImage = {
+                        id: Date.now().toString(),
+                        url: url,
+                        x: centerX,
+                        y: centerY,
+                        scaleX: scale,
+                        scaleY: scale,
+                        rotation: 0,
+                        opacity: 1,
+                        visible: true,
+                        locked: false,
+                        width: img.width,
+                        height: img.height,
+                        element: img
+                    };
+
+                    state.images.push(newImage);
+                    state.selectedImageId = newImage.id;
+                    state.activeTool = 'selection';
+                    
+                    // Reset tool buttons
+                    document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+                    document.getElementById('selection-tool')?.classList.add('active');
+                    
+                    scheduleSave();
+                    requestAnimationFrame(draw);
+                };
+                img.src = url;
+            };
+            reader.readAsDataURL(file);
+            // Reset input so searching for same file works
+            imageInput.value = '';
+        });
+    }
 }
