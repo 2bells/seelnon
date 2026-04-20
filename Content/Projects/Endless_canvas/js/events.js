@@ -163,8 +163,9 @@ function optimizeImageForStorage(imgElement) {
     const ctx = offCanvas.getContext('2d');
     ctx.drawImage(imgElement, 0, 0, targetWidth, targetHeight);
     
-    // image/jpeg with 0.8 quality is a good balance for web comics/sketches
-    return offCanvas.toDataURL('image/jpeg', 0.8);
+    // Use image/png to preserve alpha transparency for imported assets.
+    // We can afford slightly larger files now since they are stored in IndexedDB "Project Drive".
+    return offCanvas.toDataURL('image/png');
 }
 
 export function init(canvas) {
