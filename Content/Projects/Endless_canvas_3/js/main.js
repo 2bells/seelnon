@@ -6,14 +6,14 @@ import { init as initBrushEditor } from './brush/editor.js';
 import { init as initColorPalette } from './ui/palette.js';
 import { init as initExport } from './export.js';
 
-async function main() {
+function main() {
     const canvas = document.getElementById('drawing-canvas');
     if (!canvas) {
         console.error("Canvas element not found!");
         return;
     }
 
-    await loadState();
+    loadState();
     
     // Create status indicator (if not already in index.html)
     // const statusIndicator = document.createElement('div');
@@ -71,7 +71,6 @@ function initUI() {
         if (toolName !== 'selection') {
             setSelectedStrokes([]);
             state.selection = null;
-            state.selectedImageId = null;
         }
 
         // Clear active class from all main tool buttons and dropdown items

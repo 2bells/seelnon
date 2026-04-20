@@ -19,7 +19,6 @@
             "./brush/wireframe": "./js/brush/wireframe.js",
             "./brush/pixel": "./js/brush/pixel.js",
             "./brush/sketchy": "./js/brush/sketchy.js",
-            "./db": "./js/db.js",
             "d3-delaunay": "https://cdn.jsdelivr.net/npm/d3-delaunay@6/+esm"
         }
     }
@@ -81,6 +80,11 @@
             <div class="tool-button-container">
                 <button id="selection-tool" class="tool-button" title="Select (S)">
                     <svg class="tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 3 3.057 14.947L10 11l7.947-1.943Z"/><path d="m13 13 9 9"/></svg>
+                </button>
+            </div>
+            <div class="tool-button-container">
+                <button id="box-3d-tool" class="tool-button" title="3D Box Tool (6)">
+                    <svg class="tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                 </button>
             </div>
             <div class="tool-button-container">
@@ -225,6 +229,34 @@
     <div id="loading-overlay" class="hidden">
         <div class="loading-spinner"></div>
         <div id="loading-text">Rebuilding Engine...</div>
+    </div>
+
+    <div id="three-d-panel" class="floating-panel hidden">
+        <div class="panel-header">
+            <h3>3D Reference</h3>
+            <button id="close-3d-panel" class="close-button">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="setting-group">
+                <label>Focal Length (mm):</label>
+                <div class="slider-container">
+                    <input type="range" id="camera-focal-length" min="10" max="200" step="1" value="50">
+                    <span id="focal-length-value">50</span>
+                </div>
+            </div>
+            <div class="setting-group">
+                <label>Box Size:</label>
+                <div class="slider-container">
+                    <input type="range" id="box-size" min="10" max="500" step="1" value="100">
+                    <span id="box-size-value">100</span>
+                </div>
+            </div>
+            <div class="button-group">
+                <button id="reset-3d-camera" class="action-button secondary">Reset Camera</button>
+                <button id="bake-3d-btn" class="action-button">Bake to Layer</button>
+            </div>
+            <p class="hint">Left Click + Drag on canvas to rotate box.</p>
+        </div>
     </div>
 
     <script type="module" src="js/main.js"></script>

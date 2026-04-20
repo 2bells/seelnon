@@ -1138,20 +1138,3 @@ select {
 .danger-button:hover {
     background-color: #D73229;
 }
-
-/* Storage Bar */
-.storage-bar-container {
-    width: 100%;
-    height: 6px;
-    background: #e0e0e0;
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 4px;
-}
-
-.storage-bar {
-    height: 100%;
-    width: 0%;
-    background-color: #44ff44;
-    transition: width 0.3s ease, background-color 0.3s ease;
-}

@@ -1,7 +1,6 @@
 import { state } from './state.js';
 import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw } from './canvas.js';
 import { scheduleSave } from './storage.js';
-import { saveImageAsset } from './db.js';
 
 function getPointerPos(event) {
     let pressure = 1.0;
@@ -109,10 +108,9 @@ function isPointOnImage(worldX, worldY, img, zoom) {
 
 function getImageHandleAt(worldX, worldY, img, zoom) {
     if (!img) return null;
-    const handleSize = 18 / zoom; // Generous hit area
+    const handleSize = 12 / zoom;
     const hs = handleSize / 2;
     
-    // Convert world to local image space (accounting for scale)
     const getPos = (lx, ly) => {
         const sx = lx * (img.scaleX || 1);
         const sy = ly * (img.scaleY || 1);
@@ -124,12 +122,11 @@ function getImageHandleAt(worldX, worldY, img, zoom) {
         };
     };
     
-    const scY = img.scaleY || 1;
     const handles = {
         nw: getPos(-img.width / 2, -img.height / 2),
         se: getPos(img.width / 2, img.height / 2),
-        rotate: getPos(0, -img.height / 2 - 25 / (zoom * scY)),
-        opacity: getPos(0, img.height / 2 + 25 / (zoom * scY))
+        rotate: getPos(0, -img.height / 2 - 20 / zoom),
+        opacity: getPos(0, img.height / 2 + 20 / zoom)
     };
     
     for (const [name, p] of Object.entries(handles)) {
@@ -138,33 +135,6 @@ function getImageHandleAt(worldX, worldY, img, zoom) {
         }
     }
     return null;
-}
-
-/**
- * Optimizes an image for storage by downscaling and compressing it.
- * @param {HTMLImageElement} imgElement 
- * @returns {string} DataURL of the optimized image
- */
-function optimizeImageForStorage(imgElement) {
-    const MAX_STORAGE_DIM = 2000; // Limit to 2000px if it's huge
-    
-    let targetWidth = imgElement.naturalWidth;
-    let targetHeight = imgElement.naturalHeight;
-    
-    if (targetWidth > MAX_STORAGE_DIM || targetHeight > MAX_STORAGE_DIM) {
-        const ratio = Math.min(MAX_STORAGE_DIM / targetWidth, MAX_STORAGE_DIM / targetHeight);
-        targetWidth = Math.round(targetWidth * ratio);
-        targetHeight = Math.round(targetHeight * ratio);
-    }
-    
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = targetWidth;
-    offCanvas.height = targetHeight;
-    const ctx = offCanvas.getContext('2d');
-    ctx.drawImage(imgElement, 0, 0, targetWidth, targetHeight);
-    
-    // image/jpeg with 0.8 quality is a good balance for web comics/sketches
-    return offCanvas.toDataURL('image/jpeg', 0.8);
 }
 
 export function init(canvas) {
@@ -1039,64 +1009,48 @@ export function init(canvas) {
             const reader = new FileReader();
             reader.onload = (event) => {
                 const url = event.target.result;
-                const tempImg = new Image();
-                tempImg.onload = async () => {
-                    // Optimize image for storage before adding to state
-                    const optimizedUrl = optimizeImageForStorage(tempImg);
-                    const imageId = Date.now().toString();
-
-                    // Save the bulky data to IndexedDB ("The Drive")
-                    try {
-                        await saveImageAsset(imageId, optimizedUrl);
-                    } catch (dbErr) {
-                        console.error("Failed to save image to Asset Drive:", dbErr);
-                    }
+                const img = new Image();
+                img.onload = () => {
+                    // Center image in viewport
+                    const viewport = getWorldViewport();
+                    const centerX = (viewport.minX + viewport.maxX) / 2;
+                    const centerY = (viewport.minY + viewport.maxY) / 2;
                     
-                    // Create the actual image element from the optimized URL
-                    const img = new Image();
-                    img.onload = () => {
-                        // Center image in viewport
-                        const viewport = getWorldViewport();
-                        const centerX = (viewport.minX + viewport.maxX) / 2;
-                        const centerY = (viewport.minY + viewport.maxY) / 2;
-                        
-                        // Constrain image display size to viewport if too large
-                        const maxDim = Math.min(viewport.maxX - viewport.minX, viewport.maxY - viewport.minY) * 0.8;
-                        let scale = 1.0;
-                        if (img.width > maxDim || img.height > maxDim) {
-                            scale = maxDim / Math.max(img.width, img.height);
-                        }
+                    // Constrain image size to viewport if too large
+                    const maxDim = Math.min(viewport.maxX - viewport.minX, viewport.maxY - viewport.minY) * 0.8;
+                    let scale = 1.0;
+                    if (img.width > maxDim || img.height > maxDim) {
+                        scale = maxDim / Math.max(img.width, img.height);
+                    }
 
-                        const newImage = {
-                            id: imageId,
-                            url: optimizedUrl, // Still kept in live state for rendering
-                            x: centerX,
-                            y: centerY,
-                            scaleX: scale,
-                            scaleY: scale,
-                            rotation: 0,
-                            opacity: 1,
-                            visible: true,
-                            locked: false,
-                            width: img.width,
-                            height: img.height,
-                            element: img
-                        };
-
-                        state.images.push(newImage);
-                        state.selectedImageId = newImage.id;
-                        state.activeTool = 'selection';
-                        
-                        // Reset tool buttons
-                        document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
-                        document.getElementById('selection-tool')?.classList.add('active');
-                        
-                        scheduleSave();
-                        requestAnimationFrame(draw);
+                    const newImage = {
+                        id: Date.now().toString(),
+                        url: url,
+                        x: centerX,
+                        y: centerY,
+                        scaleX: scale,
+                        scaleY: scale,
+                        rotation: 0,
+                        opacity: 1,
+                        visible: true,
+                        locked: false,
+                        width: img.width,
+                        height: img.height,
+                        element: img
                     };
-                    img.src = optimizedUrl;
+
+                    state.images.push(newImage);
+                    state.selectedImageId = newImage.id;
+                    state.activeTool = 'selection';
+                    
+                    // Reset tool buttons
+                    document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+                    document.getElementById('selection-tool')?.classList.add('active');
+                    
+                    scheduleSave();
+                    requestAnimationFrame(draw);
                 };
-                tempImg.src = url;
+                img.src = url;
             };
             reader.readAsDataURL(file);
             // Reset input so searching for same file works

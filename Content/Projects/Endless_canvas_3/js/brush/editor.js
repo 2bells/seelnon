@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { scheduleSave, getStorageUsageInfo } from '../storage.js';
+import { scheduleSave } from '../storage.js';
 
 function createBrushEditor() {
     const editor = document.createElement('div');
@@ -254,26 +254,6 @@ function createBrushEditor() {
                     'Raw' redraws every single point every frame—true to the holy trinity, but can get laggy.
                 </div>
             </div>
-
-            <div class="toolbar-separator" style="margin: 15px 0 10px 0; opacity: 0.2;"></div>
-
-            <div class="canvas-setting">
-                <div class="label-group">
-                    <label>State Cache (LocalStorage)</label>
-                    <span id="storageUsageValue">0.00 MB / 5MB</span>
-                </div>
-                <div class="storage-bar-container">
-                    <div id="storageUsageBar" class="storage-bar"></div>
-                </div>
-                
-                <div class="label-group" style="margin-top: 10px;">
-                    <label>Asset Drive (IndexedDB)</label>
-                    <span id="dbUsageValue">0.00 MB</span>
-                </div>
-                <div class="setting-hint" style="font-size: 10px; opacity: 0.5; margin-top: 6px; line-height: 1.3;">
-                    Strokes go in Cache. Imported images go in Asset Drive. Both are persistent on this machine.
-                </div>
-            </div>
         </div>
     `;
     return editor;
@@ -315,9 +295,6 @@ export function init() {
     const canvasBgLineWidth = editor.querySelector('#canvasBgLineWidth');
     const canvasBgLineWidthValue = editor.querySelector('#canvasBgLineWidthValue');
     const renderMode = editor.querySelector('#renderMode');
-    const storageUsageValue = editor.querySelector('#storageUsageValue');
-    const storageUsageBar = editor.querySelector('#storageUsageBar');
-    const dbUsageValue = editor.querySelector('#dbUsageValue');
 
     // Advanced Brush Settings elements (now in their own tab)
     const enableSmoothingToggle = editor.querySelector('#enableSmoothingToggle');
@@ -515,28 +492,7 @@ export function init() {
         }
     }
 
-    async function updateStorageUI() {
-        const info = await getStorageUsageInfo();
-        if (storageUsageValue) {
-            storageUsageValue.textContent = `${info.used} MB / ${info.limit}MB`;
-        }
-        if (dbUsageValue) {
-            dbUsageValue.textContent = `${info.dbUsed} MB`;
-        }
-        if (storageUsageBar) {
-            storageUsageBar.style.width = `${info.percentage}%`;
-            // Color coding the bar
-            if (info.percentage > 90) {
-                storageUsageBar.style.backgroundColor = '#ff4444';
-            } else if (info.percentage > 70) {
-                storageUsageBar.style.backgroundColor = '#ffaa00';
-            } else {
-                storageUsageBar.style.backgroundColor = '#44ff44';
-            }
-        }
-    }
-
-    // sync UI with initial state
+    // Sync UI with initial state
     function syncUiWithState() {
         // Update brush preset display
         let presetDisplayName = state.brushPresets[state.activeBrushPresetId]?.name;
@@ -612,8 +568,6 @@ export function init() {
         canvasBgLineWidth.value = state.canvasSettings.backgroundLineWidth || 1;
         canvasBgLineWidthValue.textContent = `${state.canvasSettings.backgroundLineWidth || 1}px`;
         renderMode.value = state.renderMode || 'bitmap';
-
-        updateStorageUI();
     }
     
     syncUiWithState();
@@ -841,8 +795,6 @@ export function init() {
             window.dispatchEvent(new CustomEvent('rebuildChunksRequest'));
         }
     });
-
-    window.addEventListener('storageUsageChanged', updateStorageUI);
 
     // Preset save/load functionality
     saveCurrentPresetBtn.addEventListener('click', () => {

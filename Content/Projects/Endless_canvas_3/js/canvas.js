@@ -366,14 +366,11 @@ export function draw() {
         if (!img.visible) return;
         
         ctx.save();
+        ctx.globalAlpha = img.opacity !== undefined ? img.opacity : 1;
         
         ctx.translate(img.x, img.y);
         ctx.rotate(img.rotation || 0);
-        
-        // 3.1 Draw the Image actual (Transformed by Scale and Opacity)
-        ctx.save();
         ctx.scale(img.scaleX || 1, img.scaleY || 1);
-        ctx.globalAlpha = img.opacity !== undefined ? img.opacity : 1;
         
         if (img.element && img.element.complete) {
             ctx.drawImage(img.element, -img.width / 2, -img.height / 2, img.width, img.height);
@@ -386,55 +383,41 @@ export function draw() {
                 requestAnimationFrame(draw);
             };
         }
-        ctx.restore(); // Back to Pos+Rot only (Opacity & Scale restored)
         
-        // 3.2 Draw selection highlight and handles (Drawn at full opacity and constant screen size)
+        // Draw selection highlight for the active image
         if (state.selectedImageId === img.id) {
-            const sw = img.width * (img.scaleX || 1);
-            const sh = img.height * (img.scaleY || 1);
-
             ctx.strokeStyle = '#007AFF';
             ctx.lineWidth = 2 / state.zoom;
             ctx.setLineDash([5 / state.zoom, 5 / state.zoom]);
-            ctx.strokeRect(-sw / 2, -sh / 2, sw, sh);
+            ctx.strokeRect(-img.width / 2, -img.height / 2, img.width, img.height);
             ctx.setLineDash([]);
             
-            // Handles (Always 10px on screen)
-            const handleSize = 10 / state.zoom;
-            const hs = handleSize / 2;
-            
+            // Draw handles
+            const handleSize = 8 / state.zoom;
             ctx.fillStyle = '#FFFFFF';
-            ctx.strokeStyle = '#007AFF';
-            ctx.lineWidth = 1.5 / state.zoom;
-
-            // Corners
-            ctx.fillRect(-sw / 2 - hs, -sh / 2 - hs, handleSize, handleSize); // NW
-            ctx.strokeRect(-sw / 2 - hs, -sh / 2 - hs, handleSize, handleSize);
+            ctx.fillRect(-img.width / 2 - handleSize / 2, -img.height / 2 - handleSize / 2, handleSize, handleSize); // NW
+            ctx.strokeRect(-img.width / 2 - handleSize / 2, -img.height / 2 - handleSize / 2, handleSize, handleSize);
             
-            ctx.fillRect(sw / 2 - hs, sh / 2 - hs, handleSize, handleSize); // SE
-            ctx.strokeRect(sw / 2 - hs, sh / 2 - hs, handleSize, handleSize);
+            ctx.fillRect(img.width / 2 - handleSize / 2, img.height / 2 - handleSize / 2, handleSize, handleSize); // SE
+            ctx.strokeRect(img.width / 2 - handleSize / 2, img.height / 2 - handleSize / 2, handleSize, handleSize);
             
-            // Rotation handle (Top)
-            const rotY = -sh / 2 - 25 / state.zoom;
+            // Rotation handle
             ctx.beginPath();
-            ctx.moveTo(0, -sh / 2);
-            ctx.lineTo(0, rotY);
+            ctx.moveTo(0, -img.height / 2);
+            ctx.lineTo(0, -img.height / 2 - 20 / state.zoom);
             ctx.stroke();
-            
             ctx.beginPath();
-            ctx.arc(0, rotY, hs, 0, Math.PI * 2);
+            ctx.arc(0, -img.height / 2 - 20 / state.zoom, handleSize / 2, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
             // Opacity handle (Bottom)
-            const opacY = sh / 2 + 25 / state.zoom;
             ctx.beginPath();
-            ctx.moveTo(0, sh / 2);
-            ctx.lineTo(0, opacY);
+            ctx.moveTo(0, img.height / 2);
+            ctx.lineTo(0, img.height / 2 + 20 / state.zoom);
             ctx.stroke();
-            
             ctx.beginPath();
-            ctx.arc(0, opacY, hs, 0, Math.PI * 2);
+            ctx.arc(0, img.height / 2 + 20 / state.zoom, handleSize / 2, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
         }

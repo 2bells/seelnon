@@ -1,5 +1,4 @@
 import { state } from './state.js';
-import { getImageAsset, getDBSize } from './db.js';
 
 const SAVE_KEY = 'endlessCanvasState';
 const SAVE_DELAY = 5000; // 5 seconds (changed from 2000)
@@ -86,10 +85,10 @@ function saveStateToLocalStorage() {
             activeColor: state.brush.color, // Save the actual current color as a fallback
             renderMode: state.renderMode, // Save current render mode (bitmap or vector)
             
-            // Save Image Layers (Metadata only, heavy bytes in IndexedDB)
+            // Save Image Layers
             images: state.images.map(img => ({
                 id: img.id,
-                // url: img.url, // EXCLUDED: Pulled from 'Asset Drive' on load
+                url: img.url,
                 x: img.x,
                 y: img.y,
                 scaleX: img.scaleX,
@@ -117,7 +116,6 @@ function saveStateToLocalStorage() {
         localStorage.setItem(SAVE_KEY, JSON.stringify(stateToSave));
         console.log('Canvas state saved.');
         showStatus('Saved');
-        window.dispatchEvent(new CustomEvent('storageUsageChanged'));
     } catch (error) {
         console.error("Could not save canvas state:", error);
         // More specific error for quota exceeded
@@ -135,7 +133,7 @@ export function scheduleSave() {
     saveTimeout = setTimeout(saveStateToLocalStorage, SAVE_DELAY);
 }
 
-export async function loadState() {
+export function loadState() {
     try {
         const savedStateJSON = localStorage.getItem(SAVE_KEY);
         if (savedStateJSON) {
@@ -203,26 +201,17 @@ export async function loadState() {
             if (savedState.selectedSwatchIndex !== undefined) state.selectedSwatchIndex = savedState.selectedSwatchIndex;
             if (savedState.renderMode) state.renderMode = savedState.renderMode;
 
-            // Load image layers (Pull from Asset Drive)
+            // Load image layers
             if (savedState.images) {
-                state.images = await Promise.all(savedState.images.map(async imgData => {
-                    const img = { ...imgData, url: null, element: null };
-                    
-                    // Fetch from 'hard drive'
-                    try {
-                        const cachedUrl = await getImageAsset(img.id);
-                        if (cachedUrl) {
-                            img.url = cachedUrl;
-                            const imageEl = new Image();
-                            imageEl.src = cachedUrl;
-                            img.element = imageEl;
-                        }
-                    } catch (e) {
-                        console.error("Failed to load image asset from IDB:", e);
-                    }
-                    
+                state.images = savedState.images.map(imgData => {
+                    const img = { ...imgData, element: null };
+                    // Pre-load the image element from the saved URL
+                    const imageEl = new Image();
+                    imageEl.src = img.url;
+                    img.element = imageEl;
+                    // Note: Drawing loop will catch this once element.complete is true
                     return img;
-                }));
+                });
             }
 
             // Populate state.brush with a deep copy of the active preset
@@ -252,8 +241,6 @@ export async function loadState() {
             state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
         }
         
-        window.dispatchEvent(new CustomEvent('storageUsageChanged'));
-
         // Re-initialize history based on loaded strokes or empty canvas
         state.history = [];
         // Use structuredClone here too for consistency, ensure non-bitmap properties are copied
@@ -292,35 +279,5 @@ export async function loadState() {
         // Ensure brush is at least the default pen on error
         state.activeBrushPresetId = 'pen-default';
         state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
-    }
-}
-
-export async function getStorageUsageInfo() {
-    try {
-        let total = 0;
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            const value = localStorage.getItem(key);
-            if (key && value) {
-                // Characters in localStorage are internally stored as UTF-16, so 2 bytes per char
-                total += (key.length + value.length) * 2;
-            }
-        }
-        
-        const dbSize = await getDBSize();
-        
-        const usedMB = total / (1024 * 1024);
-        const dbMB = dbSize / (1024 * 1024);
-        const limitMB = 5; // Standard localStorage limit
-        const percentage = (usedMB / limitMB) * 100;
-        
-        return {
-            used: usedMB.toFixed(2),
-            limit: limitMB,
-            percentage: Math.min(100, percentage).toFixed(1),
-            dbUsed: dbMB.toFixed(2)
-        };
-    } catch (e) {
-        return { used: "0.00", limit: 5, percentage: "0.0", dbUsed: "0.00" };
     }
 }
