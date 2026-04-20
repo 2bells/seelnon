@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { scheduleSave } from './storage.js';
+import { scheduleSave, clearAllProjectData } from './storage.js';
 import { hexToRgba, drawVariableWidthStrokePolygon, calculateStrokeBounds, getVariableWidthPath } from './utils/drawing.js';
 import { screenToWorld } from './events.js';
 
@@ -1120,15 +1120,22 @@ export function redo() {
     scheduleSave();
 }
 
-export function clearCanvas() {
+export async function clearCanvas() {
     state.strokes = [];
+    state.images = [];
     setSelectedStrokes([]);
     state.selection = null;
+    state.selectedImageId = null;
     state.history = [];
     state.historyIndex = -1; // Indicate empty state, not part of history array
     state.history.push([]); // Push an empty canvas state as the first history item
     state.historyIndex = 0; // Point to the new empty state
     rebuildChunkMemberships();
+    
+    // Deep wipe IndexedDB
+    await clearAllProjectData();
+    
+    // Final save to sync LocalStorage UI state
     scheduleSave();
 }
 

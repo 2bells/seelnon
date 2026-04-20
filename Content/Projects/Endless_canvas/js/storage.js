@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { getImageAsset, getDBSize, saveCanvasState, getCanvasState } from './db.js';
+import { getImageAsset, getDBSize, saveCanvasState, getCanvasState, clearAllAssets } from './db.js';
 
 const SAVE_KEY = 'endlessCanvasState';
 const SAVE_DELAY = 5000; // 5 seconds (changed from 2000)
@@ -115,6 +115,12 @@ async function saveState() {
 export function scheduleSave() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(saveState, SAVE_DELAY);
+}
+
+export async function clearAllProjectData() {
+    clearTimeout(saveTimeout);
+    await clearAllAssets();
+    console.log('Project Drive and Asset Drive cleared.');
 }
 
 export async function loadState() {

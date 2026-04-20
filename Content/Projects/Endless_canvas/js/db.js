@@ -104,3 +104,18 @@ export async function getDBSize() {
 
     return totalChars * 2;
 }
+
+export async function clearAllAssets() {
+    const db = await openDB();
+    const stores = [STORE_NAME, STATE_STORE];
+    
+    for (const storeName of stores) {
+        await new Promise((resolve, reject) => {
+            const transaction = db.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.clear();
+            request.onsuccess = () => resolve();
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+}
