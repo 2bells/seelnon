@@ -14,20 +14,21 @@ export async function preloadBlogPosts() {
           const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
           if (ghResponse.ok) {
             const files = await ghResponse.json();
-            dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name);
+            dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name).sort().reverse();
           }
         } catch (e) {}
       }
     }
     if (dynamicFiles.length === 0) {
       const fallbackResponse = await fetch('./blog/posts.json');
-      if (fallbackResponse.ok) dynamicFiles = await fallbackResponse.json();
+      if (fallbackResponse.ok) dynamicFiles = (await fallbackResponse.json()).sort().reverse();
     }
 
-    const italicPhrases = [];
+    // Only process the latest 5 posts for mascot hints to save time on startup
+    const filesToProcess = dynamicFiles.slice(0, 5);
     const postsWithDates = [];
 
-    for (const file of dynamicFiles) {
+    for (const file of filesToProcess) {
       const response = await fetch(`./blog/${file}`);
       if (response.ok) {
         const text = await response.text();
@@ -64,194 +65,124 @@ export async function preloadBlogPosts() {
 
 export async function openBlogWindow(title, openWindowFn) {
   // Function to load dynamic posts from the blog/ folder
-  async function fetchDynamicPosts() {
+  async function fetchDynamicPostsList() {
     try {
       let dynamicFiles = [];
-      
-      // Try to detect GitHub Pages environment for true automation
       const isGitHubPages = window.location.hostname.endsWith('github.io');
       if (isGitHubPages) {
         const pathParts = window.location.pathname.split('/').filter(Boolean);
-        // GitHub Pages usually hosts at username.github.io/repo/
-        // So the first part of the path is the repo name
         if (pathParts.length > 0) {
           const username = window.location.hostname.split('.')[0];
           const repo = pathParts[0];
           try {
-            // Fetch file list from GitHub API
             const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
             if (ghResponse.ok) {
               const files = await ghResponse.json();
-              dynamicFiles = files
-                .filter(f => f.name.endsWith('.md'))
-                .map(f => f.name);
+              dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name).sort().reverse();
             }
-          } catch (ghErr) {
-            console.warn("GitHub API fetch failed, falling back to posts.json", ghErr);
-          }
+          } catch (ghErr) {}
         }
       }
 
-      // Fallback to posts.json if GitHub API failed or not on GitHub Pages
       if (dynamicFiles.length === 0) {
         const fallbackResponse = await fetch('./blog/posts.json');
-        if (fallbackResponse.ok) {
-          dynamicFiles = await fallbackResponse.json();
-        }
-      }
-      
-      const posts = [];
-      let allItalicPhrases = [];
-
-      for (const file of dynamicFiles) {
-        const response = await fetch(`./blog/${file}`);
-        if (response.ok) {
-          const text = await response.text();
-          
-          // Extract title from first H1 if possible
-          const titleMatch = text.match(/^# (.*)/m);
-          const title = titleMatch ? titleMatch[1] : file.replace('.md', '');
-          
-          // Strip the first H1 from the content to avoid duplication
-          let cleanText = text;
-          if (titleMatch) {
-            cleanText = text.replace(/^# .*/m, '').trim();
-          }
-
-          // Extract italicized text for mascot and make it invisible in blog
-          // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
-          // Also avoids intra-word underscores (e.g., snake_case) and handles single-character italics
-          const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*a-zA-Z0-9])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
-          let match;
-          const postItalics = [];
-          while ((match = italicRegex.exec(cleanText)) !== null) {
-            const phrase = match[2] || match[4];
-            if (phrase) postItalics.push(phrase.trim());
-          }
-          
-          // Remove italics from the content sent to marked, preserving the character before the match
-          cleanText = cleanText.replace(italicRegex, (match, p1, p2, p3, p4) => {
-            return (p1 || p3 || '');
-          });
-          
-          // Extract youtubeId if present in a comment or specific line like [video: ID]
-          const videoMatch = cleanText.match(/\[video: (.*)\]/);
-          let youtubeId = null;
-          let isShort = false;
-          
-          if (videoMatch) {
-            const videoInput = videoMatch[1].trim();
-            const shortsMatch = videoInput.match(/youtube\.com\/shorts\/([^/?#&]+)/);
-            const watchMatch = videoInput.match(/[?&]v=([^/?#&]+)/);
-            const embedMatch = videoInput.match(/youtube\.com\/embed\/([^/?#&]+)/);
-            const shortUrlMatch = videoInput.match(/youtu\.be\/([^/?#&]+)/);
-
-            if (shortsMatch) {
-              isShort = true;
-              youtubeId = shortsMatch[1];
-            } else if (watchMatch) {
-              youtubeId = watchMatch[1];
-            } else if (embedMatch) {
-              youtubeId = embedMatch[1];
-            } else if (shortUrlMatch) {
-              youtubeId = shortUrlMatch[1];
-            } else {
-              youtubeId = videoInput; // Assume it's just the ID
-            }
-          }
-
-          // Extract custom icon if present like [icon: URL]
-          const iconMatch = cleanText.match(/\[icon: (.*)\]/);
-
-          // Remove video and icon tags from content so they don't render as text
-          if (videoMatch) {
-            cleanText = cleanText.replace(/\[video: .*\]/g, '').trim();
-          }
-          if (iconMatch) {
-            cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
-          }
-
-          let html = marked.parse(cleanText);
-          
-          // Post-process HTML to apply custom styles without breaking standard Markdown parsing
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = html;
-          
-          // 1. Style comment lines (// style)
-          tempDiv.querySelectorAll('p').forEach(p => {
-            if (p.textContent.trim().startsWith('//')) {
-              p.classList.add('blog-comment-line');
-            }
-          });
-          
-          // 2. Style links as buttons
-          tempDiv.querySelectorAll('a').forEach(a => {
-            a.classList.add('blog-link-btn');
-            if (!a.target) a.target = "_blank";
-            if (!a.rel) a.rel = "noopener noreferrer";
-            
-            // Add blinking cursor
-            const cursor = document.createElement('span');
-            cursor.className = 'blinking-cursor';
-            cursor.textContent = ' _';
-            a.appendChild(cursor);
-          });
-          
-          html = tempDiv.innerHTML;
-          
-          // Extract date from filename (YYYY-MM-DD)
-          const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
-          const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
-
-          // Fallback: extract first image URL from markdown if no custom icon
-          const firstImgMatch = text.match(/!\[.*\]\((.*)\)/);
-          const customIcon = iconMatch ? iconMatch[1] : (firstImgMatch ? firstImgMatch[1] : null);
-
-          const post = {
-            id: file,
-            title: title,
-            date: date,
-            content: html,
-            youtubeId: youtubeId,
-            isShort: isShort,
-            type: youtubeId ? 'video' : 'text',
-            thumbnail: customIcon || (youtubeId ? 'icons/videos_icon.png' : 'icons/projects_icon.png'),
-            italics: postItalics
-          };
-
-          posts.push(post);
-        }
+        if (fallbackResponse.ok) dynamicFiles = (await fallbackResponse.json()).sort().reverse();
       }
 
-      // Collect latest 3 italicized phrases from latest posts
-      const sortedPosts = [...posts].sort((a, b) => new Date(b.date) - new Date(a.date));
-      const latestItalics = [];
-      for (const p of sortedPosts) {
-        if (p.italics && p.italics.length > 0) {
-          for (const it of p.italics) {
-            if (latestItalics.length < 3) {
-              latestItalics.push(it);
-            } else {
-              break;
-            }
-          }
-        }
-        if (latestItalics.length >= 3) break;
-      }
-
-      if (latestItalics.length > 0) {
-        setDynamicHints(latestItalics);
-      }
-
-      return posts;
+      // Convert filenames to initial post metadata objects
+      return dynamicFiles.map(file => {
+        const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
+        const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+        // Clean title from filename if possible
+        const titleFromFilename = file.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace('.md', '').replace(/-/g, ' ');
+        
+        return {
+          id: file,
+          title: titleFromFilename.charAt(0).toUpperCase() + titleFromFilename.slice(1),
+          date: date,
+          content: null, // Lazy loaded
+          thumbnail: 'icons/projects_icon.png', // Default until metadata loads
+          isLoaded: false
+        };
+      });
     } catch (e) {
-      console.error("Failed to fetch dynamic posts", e);
+      console.error("Failed to fetch dynamic posts list", e);
       return [];
     }
   }
 
-  const dynamicPosts = await fetchDynamicPosts();
-  const blogPosts = dynamicPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Helper to parse post content and metadata
+  function processPostText(file, text) {
+    const titleMatch = text.match(/^# (.*)/m);
+    const title = titleMatch ? titleMatch[1] : file.replace('.md', '');
+    
+    let cleanText = text;
+    if (titleMatch) {
+      cleanText = text.replace(/^# .*/m, '').trim();
+    }
+
+    const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*a-zA-Z0-9])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
+    let match;
+    const postItalics = [];
+    while ((match = italicRegex.exec(cleanText)) !== null) {
+      const phrase = match[2] || match[4];
+      if (phrase) postItalics.push(phrase.trim());
+    }
+    
+    cleanText = cleanText.replace(italicRegex, (match, p1, p2, p3, p4) => p1 || p3 || '');
+    const videoMatch = cleanText.match(/\[video: (.*)\]/);
+    let youtubeId = null;
+    let isShort = false;
+    
+    if (videoMatch) {
+      const videoInput = videoMatch[1].trim();
+      const shortsMatch = videoInput.match(/youtube\.com\/shorts\/([^/?#&]+)/);
+      const watchMatch = videoInput.match(/[?&]v=([^/?#&]+)/);
+      const embedMatch = videoInput.match(/youtube\.com\/embed\/([^/?#&]+)/);
+      const shortUrlMatch = videoInput.match(/youtu\.be\/([^/?#&]+)/);
+
+      if (shortsMatch) { youtubeId = shortsMatch[1]; isShort = true; }
+      else if (watchMatch) youtubeId = watchMatch[1];
+      else if (embedMatch) youtubeId = embedMatch[1];
+      else if (shortUrlMatch) youtubeId = shortUrlMatch[1];
+      else youtubeId = videoInput;
+    }
+
+    const iconMatch = cleanText.match(/\[icon: (.*)\]/);
+    if (videoMatch) cleanText = cleanText.replace(/\[video: .*\]/g, '').trim();
+    if (iconMatch) cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
+
+    let html = marked.parse(cleanText);
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    tempDiv.querySelectorAll('p').forEach(p => {
+      if (p.textContent.trim().startsWith('//')) p.classList.add('blog-comment-line');
+    });
+    tempDiv.querySelectorAll('a').forEach(a => {
+      a.classList.add('blog-link-btn');
+      if (!a.target) a.target = "_blank";
+      if (!a.rel) a.rel = "noopener noreferrer";
+      const cursor = document.createElement('span');
+      cursor.className = 'blinking-cursor';
+      cursor.textContent = ' _';
+      a.appendChild(cursor);
+    });
+    
+    const firstImgMatch = text.match(/!\[.*\]\((.*)\)/);
+    const customIcon = iconMatch ? iconMatch[1] : (firstImgMatch ? firstImgMatch[1] : null);
+
+    return {
+      title,
+      content: tempDiv.innerHTML,
+      youtubeId,
+      isShort,
+      thumbnail: customIcon || (youtubeId ? 'icons/videos_icon.png' : 'icons/projects_icon.png'),
+      italics: postItalics,
+      isLoaded: true
+    };
+  }
+
+  const blogPosts = (await fetchDynamicPostsList()).sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const blogContainer = document.createElement('div');
   blogContainer.className = 'blog-container';
@@ -401,14 +332,50 @@ export async function openBlogWindow(title, openWindowFn) {
     renderTimelineGrid();
   });
 
-  function loadPost(postId) {
+  async function loadPost(postId) {
     const post = blogPosts.find(p => p.id === postId);
     if (!post) return;
+
+    // Show loading state if post content isn't available yet
+    if (!post.isLoaded) {
+      postTitleEl.textContent = "Loading...";
+      postDateEl.textContent = post.date;
+      postContentEl.innerHTML = '<div class="blog-loading-spinner">Decrypting data...</div>';
+      
+      try {
+        const response = await fetch(`./blog/${postId}`);
+        if (response.ok) {
+          const text = await response.text();
+          const processed = processPostText(postId, text);
+          Object.assign(post, processed);
+          
+          // Update the list and timeline metadata
+          const listItem = postListEl.querySelector(`.post-list-item[data-id="${postId}"]`);
+          if (listItem) {
+            listItem.querySelector('.post-thumb').src = post.thumbnail;
+            listItem.querySelector('.post-item-title').textContent = post.title;
+          }
+          // Update hint if it's one of the latest posts
+          if (blogPosts.indexOf(post) < 5 && post.italics.length > 0) {
+             // Gather all italics from first 5
+             const hints = [];
+             blogPosts.slice(0, 5).forEach(p => {
+               if(p.italics) hints.push(...p.italics);
+             });
+             if(hints.length > 0) setDynamicHints(hints.slice(0, 3));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to lazy load post", e);
+        postContentEl.innerHTML = '<p>Error loading post content.</p>';
+        return;
+      }
+    }
 
     postTitleEl.textContent = post.title;
     postDateEl.textContent = post.date;
     
-    let contentHtml = post.content;
+    let contentHtml = post.content || "";
     if (post.youtubeId) {
       const isShort = post.isShort;
       const containerStyle = isShort 
@@ -441,13 +408,45 @@ export async function openBlogWindow(title, openWindowFn) {
     postContentEl.scrollTop = 0;
   }
 
+  // Load metadata for items in list sequentially to not block
+  async function loadMetadata() {
+    // Process top 10 first for immediate results, then the rest
+    const queue = [...blogPosts];
+    for (const post of queue) {
+      if (!post.isLoaded) {
+        // Fetch only enough to get title and icon - for simplicity we fetch the whole small .md
+        // but we don't block the window opening
+        try {
+          const response = await fetch(`./blog/${post.id}`);
+          if (response.ok) {
+            const text = await response.text();
+            const processed = processPostText(post.id, text);
+            Object.assign(post, processed);
+            
+            // Update UI if user is still in the list
+            const listItem = postListEl.querySelector(`.post-list-item[data-id="${post.id}"]`);
+            if (listItem) {
+              listItem.querySelector('.post-thumb').src = post.thumbnail;
+              listItem.querySelector('.post-item-title').textContent = post.title;
+            }
+          }
+        } catch (e) {}
+        // Small delay to keep UI responsive
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+  }
+
   renderPostList();
   renderTimelineGrid();
 
-  // Load latest post by default
+  // Load latest post immediately
   if (blogPosts.length > 0) {
     loadPost(blogPosts[0].id);
   }
+
+  // Start background metadata loading
+  loadMetadata();
 
   openWindowFn({
     title: title,

@@ -1036,6 +1036,30 @@ html {
   50% { opacity: 0; }
 }
 
+.blog-loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'VT323', monospace;
+  color: var(--win95-title-active-start);
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.blog-loading-spinner::after {
+  content: '...';
+  animation: loading-dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes loading-dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80% { content: '...'; }
+}
+
 .blog-link-btn:hover {
   background-color: var(--win95-title-active-start);
   color: #fff;
