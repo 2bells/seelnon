@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { getImageAsset, getDBSize } from './db.js';
+import { getImageAsset, getDBSize, saveCanvasState, getCanvasState } from './db.js';
 
 const SAVE_KEY = 'endlessCanvasState';
 const SAVE_DELAY = 5000; // 5 seconds (changed from 2000)
@@ -27,32 +27,28 @@ function showStatus(message, isError = false) {
     }, 2000); // Hide after 2 seconds
 }
 
-function saveStateToLocalStorage() {
+async function saveState() {
     try {
-        // Only save the current strokes, history index, pan, zoom, and brush/canvas settings
-        // The full history array is not saved to reduce storage size.
-        // It's rebuilt from state.strokes + current historyIndex upon load.
-        // This means undo/redo history is reset on page reload, but current drawing is preserved.
-        const stateToSave = {
+        // --- 1. PROJECT DATA (Heavy, goes to IndexedDB) ---
+        const projectData = {
             strokes: state.strokes.map(stroke => ({
-                // Optimization: Round coordinates to 1 decimal place to save localStorage space
+                // Optimization: Round coordinates to 1 decimal place
                 points: stroke.points.map(p => ({
                     x: Math.round(p.x * 10) / 10,
                     y: Math.round(p.y * 10) / 10,
                     pressure: Math.round((p.pressure || 1.0) * 100) / 100,
                     size: Math.round(p.size * 10) / 10
                 })),
-                bounds: stroke.bounds, // Save bounds for faster culling on load
+                bounds: stroke.bounds,
                 color: stroke.color,
                 opacity: stroke.opacity,
-                tipShape: stroke.tipShape, // Save per-stroke properties
-                minSizeFactor: stroke.minSizeFactor, // Save per-stroke properties
-                nonCompoundingOpacity: stroke.nonCompoundingOpacity, // Save per-stroke properties
-                type: stroke.type, // Save brush type for stroke
-                pixelSize: stroke.pixelSize, // Save pixel size for stroke
-                enableSmoothing: stroke.enableSmoothing, // Save smoothing settings
+                tipShape: stroke.tipShape,
+                minSizeFactor: stroke.minSizeFactor,
+                nonCompoundingOpacity: stroke.nonCompoundingOpacity,
+                type: stroke.type,
+                pixelSize: stroke.pixelSize,
+                enableSmoothing: stroke.enableSmoothing,
                 smoothingFactor: stroke.smoothingFactor,
-                // Wireframe specific
                 wireframeMeshOpacity: stroke.wireframeMeshOpacity,
                 wireframeLineOpacity: stroke.wireframeLineOpacity,
                 wireframeHullLineThickness: stroke.wireframeHullLineThickness,
@@ -62,34 +58,20 @@ function saveStateToLocalStorage() {
                 wireframePointColor: stroke.wireframePointColor,
                 wireframeAnimationSpeed: stroke.wireframeAnimationSpeed,
                 wireframeAnimationAmount: stroke.wireframeAnimationAmount,
-                wireframeIsClosed: stroke.wireframeIsClosed, // New: Save wireframeIsClosed
-                wireframeMaxMeshLength: stroke.wireframeMaxMeshLength, // New: Save max mesh length
-                wireframeGradientMesh: stroke.wireframeGradientMesh, // New: Save gradient mesh setting
-                wireframeGradientMeshBoostFactor: stroke.wireframeGradientMeshBoostFactor, // New: Save gradient mesh boost factor
-                // Sketchy specific
+                wireframeIsClosed: stroke.wireframeIsClosed,
+                wireframeMaxMeshLength: stroke.wireframeMaxMeshLength,
+                wireframeGradientMesh: stroke.wireframeGradientMesh,
+                wireframeGradientMeshBoostFactor: stroke.wireframeGradientMeshBoostFactor,
                 jitterAmount: stroke.jitterAmount,
                 jitterDensity: stroke.jitterDensity,
                 animationInterval: stroke.animationInterval,
-                // Do not save lastAnimationTime or needsJitterUpdate, they are transient
             })),
-            historyIndex: state.historyIndex, // This is just an indicator for the current state, not for reconstructing full history
+            historyIndex: state.historyIndex,
             panOffset: state.panOffset,
             zoom: state.zoom,
-            activeTool: state.activeTool, // Save active tool
-            
-            // Save brush preset data and active preset ID
-            brushPresets: state.brushPresets, // Save all defined presets
-            activeBrushPresetId: state.activeBrushPresetId, // Save the ID of the currently active preset
-            version: state.version, // Save the state version
-            paletteColors: state.paletteColors, // Save custom palette colors
-            selectedSwatchIndex: state.selectedSwatchIndex, // Save which swatch is active
-            activeColor: state.brush.color, // Save the actual current color as a fallback
-            renderMode: state.renderMode, // Save current render mode (bitmap or vector)
-            
-            // Save Image Layers (Metadata only, heavy bytes in IndexedDB)
+            // Images metadata (Heavy bytes stay in 'imageAssets' store)
             images: state.images.map(img => ({
                 id: img.id,
-                // url: img.url, // EXCLUDED: Pulled from 'Asset Drive' on load
                 x: img.x,
                 y: img.y,
                 scaleX: img.scaleX,
@@ -100,88 +82,65 @@ function saveStateToLocalStorage() {
                 locked: img.locked,
                 width: img.width,
                 height: img.height
-                // (Don't save img.element, it's transient)
-            })),
-
-            canvasSettings: { // Save canvas settings
-                backgroundColor: state.canvasSettings.backgroundColor,
-                backgroundType: state.canvasSettings.backgroundType,
-                backgroundSpacing: state.canvasSettings.backgroundSpacing,
-                backgroundLineColor: state.canvasSettings.backgroundLineColor,
-                backgroundLineWidth: state.canvasSettings.backgroundLineWidth,
-            }
+            }))
         };
-        // Use structuredClone to create a deep copy for saving to localStorage
-        // though JSON.stringify already deep clones. The structuredClone here is for safety
-        // and consistency, but the main performance benefit for history is in canvas.js.
-        localStorage.setItem(SAVE_KEY, JSON.stringify(stateToSave));
-        console.log('Canvas state saved.');
+
+        // Save heavy project data to the "Drive" (IndexedDB)
+        await saveCanvasState('currentProject', projectData);
+
+        // --- 2. PRESETS & UI (Light, stays in LocalStorage for instant load) ---
+        const uiState = {
+            activeTool: state.activeTool,
+            brushPresets: state.brushPresets,
+            activeBrushPresetId: state.activeBrushPresetId,
+            version: state.version,
+            paletteColors: state.paletteColors,
+            selectedSwatchIndex: state.selectedSwatchIndex,
+            activeColor: state.brush.color,
+            renderMode: state.renderMode,
+            canvasSettings: state.canvasSettings
+        };
+
+        localStorage.setItem(SAVE_KEY, JSON.stringify(uiState));
+        
+        console.log('Project saved (DB + LocalStorage).');
         showStatus('Saved');
         window.dispatchEvent(new CustomEvent('storageUsageChanged'));
     } catch (error) {
         console.error("Could not save canvas state:", error);
-        // More specific error for quota exceeded
-        if (error.code === 22 || error.name === 'QuotaExceededError') {
-            showStatus('Storage full! Cannot save.', true);
-            console.error('Local Storage Quota Exceeded. History may be too large.');
-        } else {
-            showStatus('Error saving', true);
-        }
+        showStatus('Save Error', true);
     }
 }
 
 export function scheduleSave() {
     clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(saveStateToLocalStorage, SAVE_DELAY);
+    saveTimeout = setTimeout(saveState, SAVE_DELAY);
 }
 
 export async function loadState() {
     try {
-        const savedStateJSON = localStorage.getItem(SAVE_KEY);
-        if (savedStateJSON) {
-            const savedState = JSON.parse(savedStateJSON);
+        // --- 1. LOAD UI SHELL (LocalStorage) ---
+        const savedUIStateJSON = localStorage.getItem(SAVE_KEY);
+        if (savedUIStateJSON) {
+            const savedUIState = JSON.parse(savedUIStateJSON);
 
-            // Apply saved state
-            if (savedState.strokes) {
-                // Ensure loaded strokes have 'bitmap: null' as it's not serializable
-                state.strokes = savedState.strokes.map(stroke => ({ ...stroke, bitmap: null }));
-            }
-            if (savedState.panOffset) state.panOffset = savedState.panOffset;
-            if (savedState.zoom) state.zoom = savedState.zoom;
-            if (savedState.activeTool) state.activeTool = savedState.activeTool; // Load active tool
+            if (savedUIState.activeTool) state.activeTool = savedUIState.activeTool;
             
-            // Check for state version and handle migrations if necessary
-            const savedVersion = savedState.version || 0;
-            const currentVersion = state.version || 0;
+            const savedVersion = savedUIState.version || 0;
 
-            // Load brush presets and set active preset
-            if (savedState.brushPresets) {
-                // Iterate over saved presets and merge them with existing or default definitions
-                for (const presetId in savedState.brushPresets) {
-                    const savedPreset = savedState.brushPresets[presetId];
-
-                    // FORCED REMOVAL: 'Open Wireframe' is no longer supported/wanted
-                    if (presetId === 'wireframe-open' || savedPreset.name === 'Open Wireframe') {
-                        continue; 
-                    }
+            // Load brush presets
+            if (savedUIState.brushPresets) {
+                for (const presetId in savedUIState.brushPresets) {
+                    const savedPreset = savedUIState.brushPresets[presetId];
+                    if (presetId === 'wireframe-open' || savedPreset.name === 'Open Wireframe') continue; 
 
                     if (state.brushPresets[presetId]) {
-                        // Always ignore the saved 'name' property to ensure new hardcoded names take effect
                         const sanitizedSavedPreset = { ...savedPreset };
                         delete sanitizedSavedPreset.name;
                         delete sanitizedSavedPreset.color;
-                        
-                        // If it's a default preset and version is older, we might want to be selective.
-                        // Force update 'wireframe-hull' if version < 6
-                        if (presetId === 'wireframe-hull' && savedVersion < 6) {
-                            // Don't merge user changes for Hull if we are upgrading its core definition
-                            continue; 
-                        }
-                        
-                        // Merge saved values into current default definition
+                        if (presetId === 'wireframe-hull' && savedVersion < 6) continue; 
                         state.brushPresets[presetId] = { ...state.brushPresets[presetId], ...sanitizedSavedPreset };
                     } else {
-                        // It's a custom preset from the saved state.
                         const sanitizedSavedPreset = { ...savedPreset };
                         delete sanitizedSavedPreset.color;
                         state.brushPresets[presetId] = { ...state.brushPresets['pen-default'], ...sanitizedSavedPreset };
@@ -189,26 +148,46 @@ export async function loadState() {
                 }
             }
             
-            if (savedState.activeBrushPresetId && state.brushPresets[savedState.activeBrushPresetId]) {
-                state.activeBrushPresetId = savedState.activeBrushPresetId;
-            } else if (savedState.activeBrushPresetId === 'wireframe-open') {
-                 // Migration for old wireframe-open users
-                 state.activeBrushPresetId = 'wireframe-hull';
+            if (savedUIState.activeBrushPresetId && state.brushPresets[savedUIState.activeBrushPresetId]) {
+                state.activeBrushPresetId = savedUIState.activeBrushPresetId;
             } else {
-                state.activeBrushPresetId = 'pen-default'; // Fallback
+                state.activeBrushPresetId = 'pen-default';
             }
 
-            // Apply saved palette
-            if (savedState.paletteColors) state.paletteColors = savedState.paletteColors;
-            if (savedState.selectedSwatchIndex !== undefined) state.selectedSwatchIndex = savedState.selectedSwatchIndex;
-            if (savedState.renderMode) state.renderMode = savedState.renderMode;
+            if (savedUIState.paletteColors) state.paletteColors = savedUIState.paletteColors;
+            if (savedUIState.selectedSwatchIndex !== undefined) state.selectedSwatchIndex = savedUIState.selectedSwatchIndex;
+            if (savedUIState.renderMode) state.renderMode = savedUIState.renderMode;
 
-            // Load image layers (Pull from Asset Drive)
-            if (savedState.images) {
-                state.images = await Promise.all(savedState.images.map(async imgData => {
+            state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
+
+            if (savedUIState.activeColor) {
+                state.brush.color = savedUIState.activeColor;
+            } else if (state.selectedSwatchIndex !== null && state.paletteColors[state.selectedSwatchIndex]) {
+                state.brush.color = state.paletteColors[state.selectedSwatchIndex];
+            } else {
+                state.brush.color = '#000000';
+            }
+
+            if (savedUIState.canvasSettings) {
+                state.canvasSettings = { ...state.canvasSettings, ...savedUIState.canvasSettings };
+            }
+        } else {
+            state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
+        }
+
+        // --- 2. LOAD PROJECT DATA (IndexedDB) ---
+        const projectData = await getCanvasState('currentProject');
+        if (projectData) {
+            if (projectData.strokes) {
+                state.strokes = projectData.strokes.map(stroke => ({ ...stroke, bitmap: null }));
+            }
+            if (projectData.panOffset) state.panOffset = projectData.panOffset;
+            if (projectData.zoom) state.zoom = projectData.zoom;
+            if (projectData.historyIndex !== undefined) state.historyIndex = projectData.historyIndex;
+
+            if (projectData.images) {
+                state.images = await Promise.all(projectData.images.map(async imgData => {
                     const img = { ...imgData, url: null, element: null };
-                    
-                    // Fetch from 'hard drive'
                     try {
                         const cachedUrl = await getImageAsset(img.id);
                         if (cachedUrl) {
@@ -220,48 +199,20 @@ export async function loadState() {
                     } catch (e) {
                         console.error("Failed to load image asset from IDB:", e);
                     }
-                    
                     return img;
                 }));
             }
-
-            // Populate state.brush with a deep copy of the active preset
-            state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
-
-            // Restore color: Priority: saved activeColor > active swatch > #000000
-            if (savedState.activeColor) {
-                state.brush.color = savedState.activeColor;
-            } else if (state.selectedSwatchIndex !== null && state.paletteColors[state.selectedSwatchIndex]) {
-                state.brush.color = state.paletteColors[state.selectedSwatchIndex];
-            } else {
-                state.brush.color = '#000000';
-            }
-
-            // Apply canvas settings
-            if (savedState.canvasSettings) {
-                if (savedState.canvasSettings.backgroundColor) state.canvasSettings.backgroundColor = savedState.canvasSettings.backgroundColor;
-                if (savedState.canvasSettings.backgroundType) state.canvasSettings.backgroundType = savedState.canvasSettings.backgroundType;
-                if (savedState.canvasSettings.backgroundSpacing) state.canvasSettings.backgroundSpacing = savedState.canvasSettings.backgroundSpacing;
-                if (savedState.canvasSettings.backgroundLineColor) state.canvasSettings.backgroundLineColor = savedState.canvasSettings.backgroundLineColor;
-                if (savedState.canvasSettings.backgroundLineWidth) state.canvasSettings.backgroundLineWidth = savedState.canvasSettings.backgroundLineWidth;
-            }
-
-            console.log('Canvas state loaded from Local Storage.');
-        } else {
-             // If no saved state, ensure state.brush is initialized from the default preset
-            state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
         }
-        
+
         window.dispatchEvent(new CustomEvent('storageUsageChanged'));
 
         // Re-initialize history based on loaded strokes or empty canvas
         state.history = [];
-        // Use structuredClone here too for consistency, ensure non-bitmap properties are copied
         state.history.push(structuredClone(state.strokes.map(s => ({
             points: s.points, color: s.color, opacity: s.opacity,
             tipShape: s.tipShape, minSizeFactor: s.minSizeFactor, nonCompoundingOpacity: s.nonCompoundingOpacity,
-            type: s.type, // Include stroke type in history
-            pixelSize: s.pixelSize, // Include pixel size in history
+            type: s.type, 
+            pixelSize: s.pixelSize, 
             enableSmoothing: s.enableSmoothing,
             smoothingFactor: s.smoothingFactor,
             wireframeMeshOpacity: s.wireframeMeshOpacity,
@@ -273,10 +224,10 @@ export async function loadState() {
             wireframePointColor: s.wireframePointColor,
             wireframeAnimationSpeed: s.wireframeAnimationSpeed,
             wireframeAnimationAmount: s.wireframeAnimationAmount,
-            wireframeIsClosed: s.wireframeIsClosed, // New: Include wireframeIsClosed in history
-            wireframeMaxMeshLength: s.wireframeMaxMeshLength, // New: Include wireframeMaxMeshLength in history
-            wireframeGradientMesh: s.wireframeGradientMesh, // New: Include gradient mesh setting in history
-            wireframeGradientMeshBoostFactor: s.wireframeGradientMeshBoostFactor, // New: Include gradient mesh boost factor in history
+            wireframeIsClosed: s.wireframeIsClosed,
+            wireframeMaxMeshLength: s.wireframeMaxMeshLength,
+            wireframeGradientMesh: s.wireframeGradientMesh,
+            wireframeGradientMeshBoostFactor: s.wireframeGradientMeshBoostFactor,
             jitterAmount: s.jitterAmount,
             jitterDensity: s.jitterDensity,
             animationInterval: s.animationInterval,
@@ -285,11 +236,8 @@ export async function loadState() {
         
     } catch (error) {
         console.error("Could not load canvas state:", error);
-        // On error, ensure history is initialized correctly
-        state.history = [];
-        state.history.push([]); // Start with an empty canvas state
+        state.history = [[]];
         state.historyIndex = 0;
-        // Ensure brush is at least the default pen on error
         state.activeBrushPresetId = 'pen-default';
         state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
     }

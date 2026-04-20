@@ -259,7 +259,7 @@ function createBrushEditor() {
 
             <div class="canvas-setting">
                 <div class="label-group">
-                    <label>State Cache (LocalStorage)</label>
+                    <label>Settings & Presets</label>
                     <span id="storageUsageValue">0.00 MB / 5MB</span>
                 </div>
                 <div class="storage-bar-container">
@@ -267,11 +267,11 @@ function createBrushEditor() {
                 </div>
                 
                 <div class="label-group" style="margin-top: 10px;">
-                    <label>Asset Drive (IndexedDB)</label>
+                    <label>Project Drive (IndexedDB)</label>
                     <span id="dbUsageValue">0.00 MB</span>
                 </div>
                 <div class="setting-hint" style="font-size: 10px; opacity: 0.5; margin-top: 6px; line-height: 1.3;">
-                    Strokes go in Cache. Imported images go in Asset Drive. Both are persistent on this machine.
+                    Strokes and images go into the Project Drive. UI settings go into fast cache. Both are persistent on this machine.
                 </div>
             </div>
         </div>

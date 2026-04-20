@@ -5,7 +5,8 @@
 
 const DB_NAME = 'EndlessCanvasAssetDrive';
 const STORE_NAME = 'imageAssets';
-const DB_VERSION = 1;
+const STATE_STORE = 'canvasState';
+const DB_VERSION = 2; // Bump version for new store
 
 function openDB() {
     return new Promise((resolve, reject) => {
@@ -15,7 +16,32 @@ function openDB() {
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME);
             }
+            if (!db.objectStoreNames.contains(STATE_STORE)) {
+                db.createObjectStore(STATE_STORE);
+            }
         };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function saveCanvasState(key, data) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STATE_STORE, 'readwrite');
+        const store = transaction.objectStore(STATE_STORE);
+        const request = store.put(data, key);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function getCanvasState(key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STATE_STORE, 'readonly');
+        const store = transaction.objectStore(STATE_STORE);
+        const request = store.get(key);
         request.onsuccess = (e) => resolve(e.target.result);
         request.onerror = (e) => reject(e.target.error);
     });
@@ -55,22 +81,26 @@ export async function deleteImageAsset(id) {
 }
 
 export async function getDBSize() {
-    // Note: Estimating size in IndexedDB is browser-dependent, 
-    // but we can estimate based on stored string lengths for our simple use case.
     const db = await openDB();
-    return new Promise((resolve) => {
-        const transaction = db.transaction(STORE_NAME, 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.getAll();
-        request.onsuccess = (e) => {
-            const all = e.target.result;
-            let totalChars = 0;
-            all.forEach(str => {
-                if (typeof str === 'string') totalChars += str.length;
-            });
-            // Roughly 2 bytes per character for UTF-16 strings
-            resolve(totalChars * 2);
-        };
-        request.onerror = () => resolve(0);
-    });
+    const stores = [STORE_NAME, STATE_STORE];
+    let totalChars = 0;
+
+    for (const storeName of stores) {
+        await new Promise((resolve) => {
+            const transaction = db.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = (e) => {
+                const all = e.target.result;
+                all.forEach(item => {
+                    const str = typeof item === 'string' ? item : JSON.stringify(item);
+                    totalChars += str.length;
+                });
+                resolve();
+            };
+            request.onerror = () => resolve();
+        });
+    }
+
+    return totalChars * 2;
 }
