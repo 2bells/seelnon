@@ -43,11 +43,11 @@ const archiveData = [
         version: "v0.32",
         date: "2026-04-21",
         size: "366 KB",
-        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        image: "wonderlands/terrain_generator/terrain_thmb.jpg",
         description: "Generates terrain like MAGIC.",
         downloadUrl: "wonderlands/terrain_generator/procedural_terrain_generator.gil",
-        tags: ["#shooter", "#arena", "#fast", "#optimized"],
-        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+        tags: ["#terrain", "#generation", "#fast", "#can_break"],
+        banner: "GENERATION --- TERRAIN --- READY FOR IMPLEMENTATION"
     },    
     {
         id: "impact_lib_ss",
@@ -55,11 +55,11 @@ const archiveData = [
         version: "v0.72",
         date: "2026-04-21",
         size: "476 KB",
-        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        image: "wonderlands/scroll_shot/scroll_shot_thmb.jpg",
         description: "Guitar Hero, but GUN.",
         downloadUrl: "wonderlands/scroll_shot/scroll_shot++.gil",
-        tags: ["#shooter", "#arena", "#fast", "#optimized"],
-        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+        tags: ["#shooter", "#scroll", "#fast", "#fun"],
+        banner: "MOVING --- PROGRESSING --- READY FOR VIBES"
     },      
     {
         id: "impact_lib_fg",
@@ -67,23 +67,23 @@ const archiveData = [
         version: "v0.41",
         date: "2026-04-21",
         size: "525 KB",
-        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        image: "wonderlands/figthing_game/fighting_thmb.jpg",
         description: "Press buttons, animation happen, very fun, trust.",
         downloadUrl: "wonderlands/figthing_game/2d_fighting_game.gil",
         tags: ["#fighting", "#arena", "#2d", "#optimized"],
-        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+        banner: "BUTTONS --- FUN COMBOS --- READY FOR STREETS"
     },     
     {
         id: "impact_lib_c208",
-        title: "Cessna 208b Grand Caravan EX",
+        title: "Cessna 208B Grand Caravan EX",
         version: "v0.87",
         date: "2026-04-21",
         size: "721 KB",
-        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        image: "wonderlands/cessna_208/plane_thmb.jpg",
         description: "I love you. I love that plane, take care for it, anyone who downloads it.",
         downloadUrl: "wonderlands/cessna_208/cessna_208_caravan_EX.gil",
         tags: ["#plane", "#cessna", "#208caravan", "#detailed"],
-        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+        banner: "SHE WILL FLY --- OPTIMIZING WINGS --- READY FOR FLIGHT"
     }         
 ];
 
