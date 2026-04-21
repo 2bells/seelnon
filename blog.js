@@ -11,20 +11,47 @@ export async function preloadBlogPosts() {
         const username = window.location.hostname.split('.')[0];
         const repo = pathParts[0];
         try {
-          const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
-          if (ghResponse.ok) {
-            const files = await ghResponse.json();
-            dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name).sort().reverse();
+          // Recursive fetch helper for GitHub
+          async function fetchGithubDir(dirPath) {
+            const res = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${dirPath}`);
+            if (!res.ok) return [];
+            const items = await res.json();
+            let files = [];
+            for (const item of items) {
+              if (item.type === 'dir') {
+                 // Check if it looks like a month folder (YYYY-MM)
+                 if (/^\d{4}-\d{2}$/.test(item.name)) {
+                   const subFiles = await fetchGithubDir(item.path);
+                   files.push(...subFiles);
+                 }
+              } else if (item.name.endsWith('.md')) {
+                files.push(item.path); // Return full path relative to repo root
+              }
+            }
+            return files;
           }
+          dynamicFiles = (await fetchGithubDir('blog')).map(p => p.replace('blog/', ''));
         } catch (e) {}
       }
     }
     if (dynamicFiles.length === 0) {
       const fallbackResponse = await fetch('./blog/posts.json');
-      if (fallbackResponse.ok) dynamicFiles = (await fallbackResponse.json()).sort().reverse();
+      if (fallbackResponse.ok) dynamicFiles = await fallbackResponse.json();
     }
 
-    // Only process the latest 5 posts for mascot hints to save time on startup
+    // Sort to get latest first. Dates are derived from path/filename: YYYY-MM/DD-name.md
+    function getFileDate(file) {
+      const folderMatch = file.match(/^(\d{4}-\d{2})\//);
+      const fileMatch = file.match(/(\d{2})-/);
+      if (folderMatch && fileMatch) return `${folderMatch[1]}-${fileMatch[1]}`;
+      // Fallback for flat YYYY-MM-DD-name.md
+      const flatMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
+      return flatMatch ? flatMatch[1] : '1992-01-01';
+    }
+    
+    dynamicFiles.sort((a, b) => getFileDate(b).localeCompare(getFileDate(a)));
+    
+    // Only process the latest 5 posts for mascot hints
     const filesToProcess = dynamicFiles.slice(0, 5);
     const postsWithDates = [];
 
@@ -32,11 +59,8 @@ export async function preloadBlogPosts() {
       const response = await fetch(`./blog/${file}`);
       if (response.ok) {
         const text = await response.text();
-        const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
-        const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+        const date = getFileDate(file);
         
-        // Improved regex for single asterisks/underscores (italics) that avoids bold (double) and doesn't cross lines
-        // Also avoids intra-word underscores (e.g., snake_case) and handles single-character italics
         const italicRegex = /(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?![*a-zA-Z0-9])|(^|[^a-zA-Z0-9_])_([^_\s](?:[^_\n]*?[^\s_])?)_(?![a-zA-Z0-9_])/g;
         let match;
         const postItalics = [];
@@ -75,33 +99,56 @@ export async function openBlogWindow(title, openWindowFn) {
           const username = window.location.hostname.split('.')[0];
           const repo = pathParts[0];
           try {
-            const ghResponse = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/blog`);
-            if (ghResponse.ok) {
-              const files = await ghResponse.json();
-              dynamicFiles = files.filter(f => f.name.endsWith('.md')).map(f => f.name).sort().reverse();
+            async function fetchGithubDir(dirPath) {
+              const res = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${dirPath}`);
+              if (!res.ok) return [];
+              const items = await res.json();
+              let files = [];
+              for (const item of items) {
+                if (item.type === 'dir') {
+                   if (/^\d{4}-\d{2}$/.test(item.name)) {
+                     const subFiles = await fetchGithubDir(item.path);
+                     files.push(...subFiles);
+                   }
+                } else if (item.name.endsWith('.md')) {
+                  files.push(item.path);
+                }
+              }
+              return files;
             }
+            dynamicFiles = (await fetchGithubDir('blog')).map(p => p.replace('blog/', ''));
           } catch (ghErr) {}
         }
       }
 
       if (dynamicFiles.length === 0) {
         const fallbackResponse = await fetch('./blog/posts.json');
-        if (fallbackResponse.ok) dynamicFiles = (await fallbackResponse.json()).sort().reverse();
+        if (fallbackResponse.ok) dynamicFiles = await fallbackResponse.json();
       }
+
+      function getFileDate(file) {
+        const folderMatch = file.match(/^(\d{4}-\d{2})\//);
+        const fileMatch = file.match(/(\d{2})-/);
+        if (folderMatch && fileMatch) return `${folderMatch[1]}-${fileMatch[1]}`;
+        const flatMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
+        return flatMatch ? flatMatch[1] : '1992-01-01';
+      }
+
+      // Sort files by date descending
+      dynamicFiles.sort((a, b) => getFileDate(b).localeCompare(getFileDate(a)));
 
       // Convert filenames to initial post metadata objects
       return dynamicFiles.map(file => {
-        const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
-        const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+        const date = getFileDate(file);
         // Clean title from filename if possible
-        const titleFromFilename = file.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace('.md', '').replace(/-/g, ' ');
+        const titleFromFilename = file.split('/').pop().replace(/^\d{2}-/, '').replace('.md', '').replace(/-/g, ' ');
         
         return {
           id: file,
           title: titleFromFilename.charAt(0).toUpperCase() + titleFromFilename.slice(1),
           date: date,
-          content: null, // Lazy loaded
-          thumbnail: 'icons/projects_icon.png', // Default until metadata loads
+          content: null, 
+          thumbnail: 'icons/projects_icon.png', 
           isLoaded: false
         };
       });
