@@ -1,0 +1,300 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+:root {
+    --bg-color: #0a0a0f;
+    --panel-bg: #111119;
+    --accent-gold: #ffd700;
+    --accent-green: #4ecca3;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+}
+
+/* Custom Yellow Scrollbar for GIL Archive */
+::-webkit-scrollbar {
+    width: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #000;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border: 2px solid #000;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #fff;
+}
+
+/* For Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-gold) #000;
+}
+
+body.archive-body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+#archive-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.archive-nav {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.back-btn {
+    background: transparent;
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    padding: 8px 16px;
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.back-btn:hover {
+    background: var(--accent-gold);
+    color: #000;
+}
+
+.archive-header {
+    text-align: center;
+    margin-bottom: 40px;
+    border-bottom: 2px solid var(--accent-gold);
+    padding-bottom: 20px;
+}
+
+.archive-main-title {
+    font-family: 'VT323', monospace;
+    font-size: 4rem;
+    color: var(--accent-gold);
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.archive-subtitle {
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+.archive-search-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    background: var(--panel-bg);
+    padding: 15px 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#archive-search {
+    background: #000;
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    padding: 10px 15px;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    width: 300px;
+}
+
+.archive-stats {
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+}
+
+.status-online { color: var(--accent-green); }
+
+.archive-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+/* WL-Inspired Item Box */
+.archive-item {
+    background: var(--panel-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.item-banner {
+    background: #000;
+    color: var(--accent-gold);
+    font-family: 'VT323', monospace;
+    padding: 5px 20px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+}
+
+.item-id {
+    font-family: 'VT323', monospace;
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.item-content-flex {
+    display: flex;
+    gap: 30px;
+    padding: 30px;
+}
+
+.item-media {
+    flex: 1.5;
+}
+
+.item-img-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.item-img-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.item-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 15px 0;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.item-title::before {
+    content: '✦';
+    color: var(--accent-gold);
+}
+
+.item-description-box {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 20px;
+    border-left: 3px solid var(--accent-gold);
+    margin-bottom: 20px;
+}
+
+.item-description {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.item-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.archive-hashtag {
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--accent-gold);
+    padding: 4px 10px;
+    font-size: 11px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    font-weight: 700;
+}
+
+.item-download-zone {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.item-meta {
+    font-family: 'VT323', monospace;
+    font-size: 14px;
+    color: var(--accent-green);
+    display: flex;
+    gap: 15px;
+}
+
+.download-btn {
+    background: #000;
+    color: #fff;
+    border: 2px solid #fff;
+    padding: 10px 20px;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 rgba(255, 255, 255, 0.2);
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.1s;
+}
+
+.download-btn:hover {
+    background: var(--accent-gold);
+    color: #000;
+    border-color: var(--accent-gold);
+}
+
+.download-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.archive-footer {
+    margin-top: 60px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    font-family: 'VT323', monospace;
+    color: var(--text-secondary);
+}
+
+.footer-path { font-size: 1.2rem; }
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+.blinking-cursor {
+    animation: blink 1s step-end infinite;
+}
+
+@media (max-width: 900px) {
+    .item-content-flex {
+        flex-direction: column;
+    }
+}

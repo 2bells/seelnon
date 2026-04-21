@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIL ARCHIVE - PORTFOLIO</title>
+    <link rel="stylesheet" href="archive.css">
+    <link rel="stylesheet" href="wonderlands.css">
+</head>
+<body class="archive-body">
+    <div id="archive-container">
+        <nav class="archive-nav">
+            <button id="back-to-portfolio" class="back-btn">&lt; BACK TO PORTFOLIO</button>
+        </nav>
+        <header class="archive-header">
+            <h1 class="archive-main-title">GIL_ARCHIVE.SYS</h1>
+            <p class="archive-subtitle">Genshin Impact Library - Project Storage & Downloads</p>
+        </header>
+
+        <div class="archive-search-container">
+            <input type="text" id="archive-search" placeholder="FILTER_PROJECTS...">
+            <div class="archive-stats">
+                FILES: <span id="file-count">0</span> | STATUS: <span class="status-online">READY</span>
+            </div>
+        </div>
+
+        <div id="archive-list" class="archive-grid">
+            <!-- Items injected by JS -->
+        </div>
+
+        <footer class="archive-footer">
+            <div class="footer-path">C:\ARCHIVE\GIL\> <span class="blinking-cursor">_</span></div>
+            <div id="clock"></div>
+        </footer>
+    </div>
+
+    <script src="archive.js" type="module"></script>
+</body>
+</html>

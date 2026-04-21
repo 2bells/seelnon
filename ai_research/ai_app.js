@@ -1,3 +1,7 @@
+// Load extra logs from the logs directory
+const logModules = import.meta.glob('./logs/*.js', { eager: true });
+const extraLogs = Object.values(logModules).map(m => m.default).filter(Boolean);
+
 const researchFiles = [
     {
         id: 'rl_intro',
@@ -322,7 +326,7 @@ After progressing through all 8t and 8c layers, make a compromise and only then 
 [SYSTEM] Awaiting...
 > _`
     }
-];
+].concat(extraLogs);
 
 // NEW: Import water pool functionality
 import { initWaterPool, addWaterDropFromPixel } from './water_pool.js';
@@ -546,48 +550,49 @@ function resizeNodeCanvas() {
 }
 
 function createNodes() {
-    if (!nodeCanvas) return;
-    const w = nodeCanvas.clientWidth, h = nodeCanvas.clientHeight; // Use nodeCanvas dimensions
-    const centerNodeId = 'gan_studies';
+    if (!nodeCanvas || researchFiles.length === 0) return;
+    const w = nodeCanvas.clientWidth, h = nodeCanvas.clientHeight; 
+    
+    // Determine the center (hub) node. Prefer 'gan_studies', otherwise use the first file.
+    let centerNodeId = 'gan_studies';
+    if (!researchFiles.find(f => f.id === centerNodeId)) {
+        centerNodeId = researchFiles[0].id;
+    }
+    
     const otherNodes = researchFiles.filter(f => f.id !== centerNodeId);
-    const radius = Math.min(w, h) * 0.25; // Radius for other nodes around the center
+    const radius = Math.min(w, h) * 0.25; 
 
     nodes = researchFiles.map((f, i) => {
-        if (f.id === centerNodeId) {
-            // Place GAN node exactly in the center
-            return {
-                id: f.id,
-                label: f.title,
-                x: w / 2,
-                y: h / 2,
-                vx: 0, vy: 0, size: 8 + (i % 3) * 2,
-                active: false
-            };
-        } else {
-            // Position other nodes in a circle around the center
-            const indexInOthers = otherNodes.findIndex(node => node.id === f.id);
-            const angle = (indexInOthers / otherNodes.length) * Math.PI * 2;
-            return {
-                id: f.id,
-                label: f.title,
-                x: w / 2 + Math.cos(angle) * radius,
-                y: h / 2 + Math.sin(angle) * radius,
-                vx: 0, vy: 0, size: 8 + (i % 3) * 2,
-                active: false
-            };
-        }
+        const isCenter = f.id === centerNodeId;
+        const angle = isCenter ? 0 : (otherNodes.findIndex(node => node.id === f.id) / otherNodes.length) * Math.PI * 2;
+        
+        return {
+            id: f.id,
+            parentId: f.parentId, // Support parentId from data
+            label: f.title,
+            x: isCenter ? w / 2 : w / 2 + Math.cos(angle) * radius,
+            y: isCenter ? h / 2 : h / 2 + Math.sin(angle) * radius,
+            vx: 0, vy: 0, size: 8 + (i % 3) * 2,
+            active: false
+        };
     });
 }
 
 function drawNodes() { // Renamed from draw()
-    if (!ctx || !nodeCanvas) return;
+    if (!ctx || !nodeCanvas || nodes.length === 0) return;
     const w = nodeCanvas.clientWidth, h = nodeCanvas.clientHeight;
     ctx.clearRect(0, 0, w, h); 
 
-    const ganNode = nodes.find(n => n.id === 'gan_studies');
+    // Find the hub node for fallback connections
+    let hubNode = nodes.find(n => n.id === 'gan_studies');
+    if (!hubNode && nodes.length > 0) hubNode = nodes[0];
+    
+    if (!hubNode) return;
+
     const drawnConnections = new Set(); 
 
     const drawAsciiConnection = (nodeA, nodeB) => {
+        if (!nodeA || !nodeB) return;
         const idPair = [nodeA.id, nodeB.id].sort().join('-'); 
         if (drawnConnections.has(idPair)) return;
 
@@ -617,10 +622,14 @@ function drawNodes() { // Renamed from draw()
         drawnConnections.add(idPair);
     };
 
-    // Connect all non-GAN nodes to the GAN node (hub)
+    // Connect nodes based on parentId or fallback to hub
     nodes.forEach(n => {
-        if (n.id !== ganNode.id) {
-            drawAsciiConnection(n, ganNode);
+        const parentId = n.parentId || (n.id !== hubNode.id ? hubNode.id : null);
+        if (parentId) {
+            const parentNode = nodes.find(pn => pn.id === parentId);
+            if (parentNode) {
+                drawAsciiConnection(n, parentNode);
+            }
         }
     });
 
@@ -654,13 +663,16 @@ function drawNodes() { // Renamed from draw()
 }
 
 function physics() {
-    if (!nodeCanvas) return;
+    if (!nodeCanvas || nodes.length === 0) return;
     const w = nodeCanvas.clientWidth, h = nodeCanvas.clientHeight;
-    const ganNode = nodes.find(n => n.id === 'gan_studies'); // Find GAN node once per physics step
+    
+    // Find the hub node for physics (anchor point)
+    let hubNode = nodes.find(n => n.id === 'gan_studies');
+    if (!hubNode && nodes.length > 0) hubNode = nodes[0];
 
     nodes.forEach((n1, i) => {
-        // --- ANCHOR FORCE for GAN node to the center ---
-        if (ganNode && n1.id === ganNode.id) {
+        // --- ANCHOR FORCE for hub node to the center ---
+        if (hubNode && n1.id === hubNode.id) {
             const centerX = w / 2;
             const centerY = h / 2;
             const dx_center = centerX - n1.x;
@@ -737,14 +749,15 @@ function physics() {
             n2.vy -= unit_dy * repulsionForce;
 
             // Connection Attraction (Hooke's Law for connected nodes)
-            if (ganNode) { // Only apply connection logic if GAN hub exists
-                const isN1Gan = (n1.id === ganNode.id);
-                const isN2Gan = (n2.id === ganNode.id);
+            if (hubNode) {
+                const parentId1 = n1.parentId || (n1.id !== hubNode.id ? hubNode.id : null);
+                const parentId2 = n2.parentId || (n2.id !== hubNode.id ? hubNode.id : null);
+                
+                const isConnected = (n1.id === parentId2) || (n2.id === parentId1);
 
-                // If one is GAN and the other is not, they are connected
-                if ((isN1Gan && !isN2Gan) || (!isN1Gan && isN2Gan)) {
-                    const spring_k = 0.001; // Spring constant (adjust for stiffness)
-                    const rest_length = 200; // Ideal distance between connected nodes (adjust for layout)
+                if (isConnected) {
+                    const spring_k = 0.001; 
+                    const rest_length = 200; 
 
                     const extension = dist_nodes - rest_length;
                     const attractionForce = -spring_k * extension; // Negative force for attraction, positive for repulsion when stretched
@@ -863,6 +876,13 @@ function bindNodeCanvasEvents() {
     window.addEventListener('message', (event) => {
         if (event.data === 'back-command') {
             backToNodesView();
+        }
+    });
+
+    // NEW: Listen for Escape key to exit
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            window.parent.postMessage('exit-command', '*');
         }
     });
 }

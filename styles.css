@@ -1467,6 +1467,29 @@ html {
   color: #FFFFFF;
 }
 
+/* GIL Archive Full-Screen Wrapper */
+.gil-archive-wrapper {
+  position: fixed;
+  inset: 0;
+  background-color: #000;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.gil-archive-wrapper.active {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.gil-archive-wrapper iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
 /* Hide desktop and taskbar when terminal wrapper is active */
 body.ai-terminal-active #desktop,
 body.ai-terminal-active #taskbar,

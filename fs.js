@@ -67,6 +67,7 @@ export const FS = (() => {
   const projs = folder('Projects', '/', { desktopShortcut: true });
   const wonderlands = folder('Wonderlands', '/', { desktopShortcut: true });
   const blog = folder('Blog', '/', { desktopShortcut: true, type: 'blog' }); // New 'Blog' entry
+  const gilArchive = html('GIL Archive', 'archive.html', '/', { desktopShortcut: true, icon: 'icons/talent_icon_pixel.png' }); // Pointer to archive.html
   const aboutMe = folder('About Me', '/', { desktopShortcut: true, type: 'about' }); // New 'About Me' entry
   // Path for aiResearchApp is already relative, but can be simplified for consistency if in root
   const aiResearchApp = html('AI_research', 'ai_research/new_index.html', '/', { desktopShortcut: true, icon: 'icons/ai_research_icon.png' });
@@ -98,7 +99,6 @@ export const FS = (() => {
   html('Panellum Viewer', 'Content/Projects/Panellum/index.html', '/Projects', { icon: 'Content/Projects/Panellum/panellum_thumbnail.jpg', description: 'A way to view images.' });  
 
 
-
   // Wonderlands
   wonderland('Guns Brooms Rockets', 'wonderlands/miliastra_prime/TAG.txt', '/Wonderlands', { 
     description: 'shoot + broom + explode = fun.',
@@ -123,6 +123,7 @@ export const FS = (() => {
   projs.icon = 'icons/projects_icon.png';
   wonderlands.icon = 'icons/chest_icon.png';
   blog.icon = 'icons/projects_icon.png';
+  gilArchive.icon = 'icons/talent_icon_pixel.png';
   aboutMe.icon = 'icons/about_me_icon.png';
   aiResearchApp.icon = 'icons/ai_research_icon.png'; // Kept as png as it's a specific app icon
 

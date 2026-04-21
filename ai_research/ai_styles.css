@@ -201,8 +201,6 @@ main {
     line-height: 1.5;
 }
 
-#text-content.visible {
-}
 
 main.ui-active {
     grid-template-columns: 280px 1fr;

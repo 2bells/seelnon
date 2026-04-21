@@ -428,6 +428,8 @@ function renderDesktop() {
       type = 'about-me';
     } else if (entry.name === 'AI_research') {
       type = 'ai-research';
+    } else if (entry.name === 'GIL Archive') {
+      type = 'gil-archive';
     } else {
       type = 'left-column';
     }
@@ -466,6 +468,9 @@ function renderDesktop() {
       }
       finalLeft = aiResearchBaseLeft;
       finalTop = topMargin;
+    } else if (type === 'gil-archive') {
+      finalLeft = desktop.clientWidth - iconEl.offsetWidth - rightMargin;
+      finalTop = topMargin + iconSpacingY;
     }
     
     // Apply calculated positions
@@ -1212,23 +1217,37 @@ function openAiResearchTerminal(entry) {
   input.placeholder = defaultPlaceholder; // Set a helpful placeholder
 
   input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeAiResearchTerminal(wrapper);
+      return;
+    }
     if (e.key === 'Enter') {
       const command = input.value.trim().toLowerCase();
       if (command === 'exit') {
         closeAiResearchTerminal(wrapper);
       } else if (command === 'back') {
-        // Send message to iframe to trigger going back to node view
         const iframe = wrapper.querySelector('iframe');
         if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage('back-command', '*');
+          iframe.contentWindow.postMessage('back-command', '*');
         }
-        input.value = ''; // Clear input
-        input.placeholder = defaultPlaceholder; // Always reset to default
+        input.value = '';
+        input.placeholder = defaultPlaceholder;
       } else {
-        // Optional: send command to iframe or display "command not found"
-        input.value = ''; // Clear input after command attempt
-        input.placeholder = defaultPlaceholder; // Always reset to default
+        input.value = '';
+        input.placeholder = defaultPlaceholder;
       }
+    }
+  });
+
+  // NEW: Listen for messages from iframe (for 'back' and 'exit' commands)
+  window.addEventListener('message', (event) => {
+    if (event.data === 'back-command') {
+      const iframe = wrapper.querySelector('iframe');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage('back-command', '*');
+      }
+    } else if (event.data === 'exit-command') {
+      closeAiResearchTerminal(wrapper);
     }
   });
 
@@ -1240,6 +1259,14 @@ function openAiResearchTerminal(entry) {
 
   // Focus the input after a short delay to ensure it's rendered
   setTimeout(() => input.focus(), 100);
+
+  // Global Escape listener for the terminal
+  window._terminalEscListener = (e) => {
+    if (e.key === 'Escape') {
+      closeAiResearchTerminal(wrapper);
+    }
+  };
+  window.addEventListener('keydown', window._terminalEscListener);
 }
 
 // NEW: Function to close the AI Research terminal
@@ -1250,6 +1277,37 @@ function closeAiResearchTerminal(wrapper) {
     
     // Restore mascot and speech bubble visibility + RE-INIT MASCOT
     initMascot(); // Re-initialize mascot (which includes adding its click listener and starting hints)
+
+    // Remove global escape listener if it exists
+    if (window._terminalEscListener) {
+      window.removeEventListener('keydown', window._terminalEscListener);
+      delete window._terminalEscListener;
+    }
+  }
+}
+
+function openGilArchive(entry) {
+  if (document.querySelector('.gil-archive-wrapper')) return;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'gil-archive-wrapper';
+  const iframe = document.createElement('iframe');
+  iframe.src = entry.url;
+  iframe.style.border = 'none';
+  iframe.setAttribute('title', entry.name);
+  wrapper.appendChild(iframe);
+  document.body.appendChild(wrapper);
+  
+  // Transition in
+  requestAnimationFrame(() => {
+    wrapper.classList.add('active');
+  });
+}
+
+function closeGilArchive() {
+  const wrapper = document.querySelector('.gil-archive-wrapper');
+  if (wrapper) {
+    wrapper.classList.remove('active');
+    wrapper.remove(); // Direct removal for Win95 feel
   }
 }
 
@@ -1262,6 +1320,12 @@ async function openEntry(path) {
   if (entry.path === FS.findByName('AI_research').path) {
     openAiResearchTerminal(entry);
     return; // Exit here, don't open as a regular window
+  }
+
+  // Handle GIL Archive separately
+  if (entry.path === FS.findByName('GIL Archive').path) {
+    openGilArchive(entry);
+    return;
   }
 
   if (entry.type === 'folder') windowId = openFolder(path);
@@ -1381,6 +1445,13 @@ async function startPreloading() {
 }
 
 function initializeApp() {
+    // Listen for messages from full-screen components
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'close-archive') {
+            closeGilArchive();
+        }
+    });
+
     // Re-get elements inside initializeApp to ensure they are available
     // This addresses potential timing issues where 'const' global variables might not be fully linked
     // to the DOM elements if they are created dynamically or the script loads too early.
