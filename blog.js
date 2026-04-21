@@ -42,7 +42,8 @@ export async function preloadBlogPosts() {
     // Sort to get latest first. Dates are derived from path/filename: YYYY-MM/DD-name.md
     function getFileDate(file) {
       const folderMatch = file.match(/^(\d{4}-\d{2})\//);
-      const fileMatch = file.match(/(\d{2})-/);
+      const filename = file.split('/').pop();
+      const fileMatch = filename.match(/^(\d{2})-/);
       if (folderMatch && fileMatch) return `${folderMatch[1]}-${fileMatch[1]}`;
       // Fallback for flat YYYY-MM-DD-name.md
       const flatMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
@@ -128,7 +129,8 @@ export async function openBlogWindow(title, openWindowFn) {
 
       function getFileDate(file) {
         const folderMatch = file.match(/^(\d{4}-\d{2})\//);
-        const fileMatch = file.match(/(\d{2})-/);
+        const filename = file.split('/').pop();
+        const fileMatch = filename.match(/^(\d{2})-/);
         if (folderMatch && fileMatch) return `${folderMatch[1]}-${fileMatch[1]}`;
         const flatMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
         return flatMatch ? flatMatch[1] : '1992-01-01';
