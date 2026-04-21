@@ -19,9 +19,9 @@ const archiveData = [
         version: "v1.0.0",
         date: "2026-03-12",
         size: "1.2 MB",
-        image: "wonderlands/Orszaghaz/shw_1.jpg",
+        image: "wonderlands/orszaghaz/shw_1.jpg",
         description: "The Hungarian Parliament Building (Országház) reimagined. A gothic revival architectural wonder, now available for your library as a high-fidelity environment asset.",
-        downloadUrl: "wonderlands/Orszaghaz/Orszaghaz_.gil",
+        downloadUrl: "wonderlands/orszaghaz/Orszaghaz_.gil",
         tags: ["#architecture", "#gothic", "#environment", "#asset"],
         banner: "STABLE RELEASE --- LEGACY ARCHIVE --- VERIFIED"
     }
