@@ -7,8 +7,8 @@ const archiveData = [
         version: "v2.02",
         date: "2026-04-21",
         size: "2.52 MB",
-        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
-        description: "Visual fidelity increased by 40%. Memory leak in the water pool simulation patched. Sector ready for public peeking. Final optimizations for the Guns Brooms Rockets experience are complete.",
+        image: "wonderlands/miliastra_prime/1.jpg",
+        description: "In full glory, fully free, fully available, everthing included, nothing is hidden. Enjoy.",
         downloadUrl: "wonderlands/miliastra_prime/GBR_v.2.02.gil",
         tags: ["#shooter", "#arena", "#fast", "#optimized"],
         banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
