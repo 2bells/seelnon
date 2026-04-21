@@ -2,8 +2,7 @@
 
 ![Image](https://i.pinimg.com/736x/30/59/4e/30594e2c97ecb60bae6b25b7c7c3f557.jpg)
 
-Was per file, now it is folder per month... checking if works.
----
+//It was extracting dates per file, now it is folder per month and files are dates... checking if works. [organisation is my passion (not really)]
 
 # GIL Archive
 
@@ -14,10 +13,10 @@ Sharing is caring.
 ```
 And I care about things.
 >_
-sometimes...
-*dramatic pause*
+sometimes . . .
+
 _
 deeply .
 ```
 
-[.gil hub](https://2bells.github.io/seelnon/archive.html)
+[.gil hub link](https://2bells.github.io/seelnon/archive.html)
