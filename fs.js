@@ -100,10 +100,10 @@ export const FS = (() => {
 
 
   // Wonderlands
-  wonderland('Guns Brooms Rockets', 'wonderlands/miliastra_prime/TAG.txt', '/Wonderlands', { 
+  wonderland('Guns Brooms Rockets', 'wonderlands/gbr/TAG.txt', '/Wonderlands', { 
     description: 'shoot + broom + explode = fun.',
-    updatesUrl: 'wonderlands/miliastra_prime/updates.md',
-    icon: 'wonderlands/miliastra_prime/GBR_Cover.jpg'
+    updatesUrl: 'wonderlands/gbr/updates.md',
+    icon: 'wonderlands/gbr/GBR_Cover.jpg'
   });
   wonderland('Országház', 'wonderlands/orszaghaz/TAG.txt', '/Wonderlands', { 
     description: 'Building.',
