@@ -6,7 +6,7 @@ const archiveData = [
         title: "Guns Brooms Rockets (GBR)",
         version: "v2.02",
         date: "2026-04-21",
-        size: "3.4 MB",
+        size: "2.52 MB",
         image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
         description: "Visual fidelity increased by 40%. Memory leak in the water pool simulation patched. Sector ready for public peeking. Final optimizations for the Guns Brooms Rockets experience are complete.",
         downloadUrl: "wonderlands/miliastra_prime/GBR_v.2.02.gil",
@@ -18,13 +18,73 @@ const archiveData = [
         title: "Orszaghaz Reimagined",
         version: "v1.0.0",
         date: "2026-03-12",
-        size: "1.2 MB",
+        size: "4.3 MB",
         image: "wonderlands/orszaghaz/shw_1.jpg",
         description: "The Hungarian Parliament Building (Országház) reimagined. A gothic revival architectural wonder, now available for your library as a high-fidelity environment asset.",
         downloadUrl: "wonderlands/orszaghaz/Orszaghaz_.gil",
         tags: ["#architecture", "#gothic", "#environment", "#asset"],
         banner: "STABLE RELEASE --- LEGACY ARCHIVE --- VERIFIED"
-    }
+    },
+    {
+        id: "impact_lib_log",
+        title: "League of Gun (LOG)",
+        version: "v1.00",
+        date: "2026-04-21",
+        size: "1.03 MB",
+        image: "wonderlands/league_of_gun/cover.jpg",
+        description: "League of legends map, but first person.",
+        downloadUrl: "wonderlands/league_of_gun/league_of_gun_v1.gil",
+        tags: ["#shooter", "#moba", "#concept"],
+        banner: "TOWERS --- MOBS --- GUN --- READY FOR USE"
+    },
+    {
+        id: "impact_lib_procedural",
+        title: "Terrain Generation",
+        version: "v0.32",
+        date: "2026-04-21",
+        size: "366 KB",
+        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        description: "Generates terrain like MAGIC.",
+        downloadUrl: "wonderlands/terrain_generator/procedural_terrain_generator.gil",
+        tags: ["#shooter", "#arena", "#fast", "#optimized"],
+        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+    },    
+    {
+        id: "impact_lib_ss",
+        title: "Scroll Shot ++",
+        version: "v0.72",
+        date: "2026-04-21",
+        size: "476 KB",
+        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        description: "Guitar Hero, but GUN.",
+        downloadUrl: "wonderlands/scroll_shot/scroll_shot++.gil",
+        tags: ["#shooter", "#arena", "#fast", "#optimized"],
+        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+    },      
+    {
+        id: "impact_lib_fg",
+        title: "2D fighter concept",
+        version: "v0.41",
+        date: "2026-04-21",
+        size: "525 KB",
+        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        description: "Press buttons, animation happen, very fun, trust.",
+        downloadUrl: "wonderlands/figthing_game/2d_fighting_game.gil",
+        tags: ["#fighting", "#arena", "#2d", "#optimized"],
+        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+    },     
+    {
+        id: "impact_lib_c208",
+        title: "Cessna 208b Grand Caravan EX",
+        version: "v0.87",
+        date: "2026-04-21",
+        size: "721 KB",
+        image: "wonderlands/miliastra_prime/GBR_Cover.jpg",
+        description: "I love you. I love that plane, take care for it, anyone who downloads it.",
+        downloadUrl: "wonderlands/cessna_208/cessna_208_caravan_EX.gil",
+        tags: ["#plane", "#cessna", "#208caravan", "#detailed"],
+        banner: "ALMOST DONE --- OPTIMIZING SECTOR --- READY FOR EXTRACTION"
+    }         
 ];
 
 const archiveList = document.getElementById('archive-list');
