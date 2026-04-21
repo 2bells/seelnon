@@ -38,7 +38,7 @@ Deciding if I want to go hard or extra hard. Building seems to want to bait me. 
 ---
 
 VERSION: v0.0.3
-DATE: 2026-04-18
+DATE: 2026-02-18
 STATUS: EXPANDING
 BG_COLOR: #000000
 WIP_TEXT: WORK IN PROGRESS
@@ -62,7 +62,7 @@ Even with a few pieces it is possible to create nice looking environments.
 ---
 
 VERSION: v0.0.4
-DATE: 2026-04-22
+DATE: 2026-02-22
 STATUS: EXPANDING
 BG_COLOR: #000000
 WIP_TEXT: WORK IN PROGRESS
@@ -85,7 +85,7 @@ Looks like 40k spaceship.
 ---
 
 VERSION: v1.0.0
-DATE: 2026-04-24
+DATE: 2026-02-24
 STATUS: OBSERVING
 BG_COLOR: #120A00
 MEDIA: wonderlands/orszaghaz/shw_1.jpg, wonderlands/orszaghaz/shw_2.jpg, wonderlands/orszaghaz/shw_3.jpg, wonderlands/orszaghaz/shw_4.jpg, wonderlands/orszaghaz/shw_5.jpg, wonderlands/orszaghaz/shw_6.jpg, wonderlands/orszaghaz/shw_7.jpg, wonderlands/orszaghaz/shw_8.jpg, wonderlands/orszaghaz/shw_9.jpg, wonderlands/orszaghaz/shw_10.jpg, wonderlands/orszaghaz/shw_11.jpg, wonderlands/orszaghaz/shw_12.jpg, wonderlands/orszaghaz/shw_13.jpg, wonderlands/orszaghaz/shw_14.jpg, wonderlands/orszaghaz/shw_15.jpg
@@ -96,9 +96,11 @@ DESCRIPTION: That's him, the building!
 
 ### Developments
 - Photosession!
+- **[2026-02-24]** Recovery project success
+- **[2026-04-01]** Recovery stable, but not complete
+- **[2026-04-21]** Access for share of .gil granted: [link](https://2bells.github.io/seelnon/wonderlands/orszaghaz/Orszaghaz_.gil)
+- **[FUTURE]** Full recovery, unknown.
 
 
 ### Observations
 He looks tall, proud and happy!
-
-*End of log.*

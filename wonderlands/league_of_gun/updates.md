@@ -1,5 +1,5 @@
 VERSION: v0.0.2
-DATE: 2025-12-09
+DATE: 2025-11-19
 STATUS: CONTEMPLATING
 WIP_TEXT: GUNS AND TOWERS
 SHOW_WIP: true
@@ -10,8 +10,11 @@ DESCRIPTION: Found exact placements for League towers. Schizo out -> made full r
 # Sector: League of GUN
 ## Status: CONTEMPLATING
 
-[link](https://www.youtube.com/shorts/N75uN9ioY-s)
+
 ### Recent Events
-- **[2026-04-09]** Initial sector stabilization complete.
-- **[2026-04-08]** Atmospheric simulation initialized.
-- **[2026-04-05]** Core reactor reached 100% capacity.
+- **[2026-11-12]** First test of FPS module.
+- **[2026-11-15]** Integration of the map.
+- **[2025-11-19]** Upload completed.
+- **[2026-04-21]** Access for share of .gil granted: [link](https://2bells.github.io/seelnon/wonderlands/league_of_gun/league_of_gun_v1.gil)
+
+

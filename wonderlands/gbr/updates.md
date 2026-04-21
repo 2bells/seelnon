@@ -1,5 +1,5 @@
 VERSION: v1.0.1
-DATE: 2026-04-09
+DATE: 2025-11-05
 STATUS: FORGING
 BG_COLOR: #000000
 MEDIA: wonderlands/gbr/GBR_loading.jpg
@@ -17,7 +17,7 @@ DESCRIPTION: Concepted ---wip---
 ---
 
 VERSION: v1.0.2
-DATE: 2026-04-10
+DATE: 2026-11-09
 STATUS: WIP
 BG_COLOR: #000000
 MEDIA: wonderlands/gbr/1.jpg, wonderlands/gbr/2.jpg
@@ -36,7 +36,7 @@ The environment is reacting positively to the new parameters.
 ---
 
 VERSION: v2.0.0
-DATE: 2026-04-15
+DATE: 2026-04-21
 STATUS: OPTIMIZING
 BG_COLOR: #0a0a14
 MEDIA: wonderlands/gbr/3.jpg, wonderlands/gbr/4.jpg, wonderlands/gbr/GBR_Cover.jpg, TRAILER
