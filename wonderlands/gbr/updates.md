@@ -49,7 +49,7 @@ SHOW_WIP: true
 
 ### Uncertain Phase
 - **[2025-12-17]** v2.0 is live.
-- **[2026-01-01]** Incoherent timeline, requres fixes.
+- **[2026-01-01]** Incoherent timeline, requires fixes.
 - **[2026-01-06]** Timeline adjusted. Actors require support.
 - **[2026-02-19]** **[10:42]** Date adjusted.
 - **[2026-02-24]** Outcome uncertain.
@@ -57,7 +57,7 @@ SHOW_WIP: true
 - **[2026-03-01]** First contact is made.
 - **[2026-03-09]** **[19:59]** Bond acquired.
 - **[2026-04-03]** Day of sound.
-- **[2026-04-04]** Gift transfered.
+- **[2026-04-04]** **[14:24]** Gift transfered.
 - **[2026-04-06]** Contact with global is lost.
 - **[2026-04-21]** Privilegies lost.
 - **[2026-04-21]** Access for share granted.
