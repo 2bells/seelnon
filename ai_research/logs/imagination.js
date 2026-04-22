@@ -16,10 +16,12 @@ export default {
 [SYSTEM] Creation of imagery from text output.
 [PROCESS] 
 -Analysing a sentence and isolating nouns that could be represented as images (ex. turtle, pie, purple tree, sky)
--Creating SVG graphics based on those nouns and describing to those SVG Images post factum to produce and store information in a more abstract way
--Ability to view those SVG graphics on the next pass with ability to extract information
--Idea is similar to encoding and decoding with purposefully loosing/gaining new information (almost forcing hallusinations, but in a controlled environment)
+-Creating SVG graphics for isolated nouns using only language model and math. (asking a blind person to paint)
+-Using VLM to describe those SVG Images to itself, to store information in a abstract way.
+-Viewing those SVG graphics + descriptions on the next pass with ability to extract information.
+-Idea is similar to encoding and decoding with purposefully loosing/gaining information. (almost forcing hallusinations, but in a controlled environment)
 --
+***
 [FEATURE] 
 -Ability to store multiple SVG images, similar to an inventory system.
 -Ability to place images on a table in a logical format, similar to minecraft crafting table. (ex. sky, sky, sky -> null, turtle, null -> purple tree, pie, purple tree)
@@ -29,6 +31,7 @@ export default {
 [SUMMARY] This should simulate abstract thinking.
 'Non-concrete'/fluid data of an icon type image + connected descriptions of those images should provide new outputs that are more likely to reseble a dream/imagination.
 --
+***
 [ISSUE] Artificial models get lost inside of their latent spaces already, providing more complexity might get them even more confused.
 [POSSIBLE BENEFIT] Providing a secondary navigation system could allow algorithms to triangulate information better.
 -----
