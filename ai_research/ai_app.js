@@ -253,12 +253,16 @@ function createNodes() {
         const isCenter = f.id === centerNodeId;
         const angle = isCenter ? 0 : (otherNodes.findIndex(node => node.id === f.id) / otherNodes.length) * Math.PI * 2;
         
+        // Use initialX/initialY if provided (0-100 scale for responsiveness), else fallback to circular layout
+        const startX = f.initialX !== undefined ? (f.initialX / 100) * w : (isCenter ? w / 2 : w / 2 + Math.cos(angle) * radius);
+        const startY = f.initialY !== undefined ? (f.initialY / 100) * h : (isCenter ? h / 2 : h / 2 + Math.sin(angle) * radius);
+
         return {
             id: f.id,
             parentId: f.parentId, // Support parentId from data
             label: f.title,
-            x: isCenter ? w / 2 : w / 2 + Math.cos(angle) * radius,
-            y: isCenter ? h / 2 : h / 2 + Math.sin(angle) * radius,
+            x: startX,
+            y: startY,
             vx: 0, vy: 0, size: 8 + (i % 3) * 2,
             active: false
         };
@@ -345,7 +349,17 @@ function drawNodes() { // Renamed from draw()
         ctx.fillStyle = hover || isActive ? NODE_ACTIVE_COLOR : NODE_INACTIVE_COLOR;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom'; // Place label above the @ symbol
-        ctx.fillText(n.label.replace(/\[[^\]]+\]/g, '').trim(), n.x, n.y - 12); // Adjusted y position, try to put it above the '@'
+        ctx.fillText(n.label.replace(/\[[^\]]+\]/g, '').trim(), n.x, n.y - 12); 
+
+        // Show coordinates on hover to help with manual positioning
+        if (hover) {
+            ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--font-family').split(',')[0];
+            ctx.textBaseline = 'top';
+            // Show normalized 0-100 coordinates for easy copy-pasting back into logs
+            const normX = Math.round((n.x / w) * 100);
+            const normY = Math.round((n.y / h) * 100);
+            ctx.fillText(`x: ${normX} y: ${normY}`, n.x, n.y + 12);
+        }
     });
 }
 

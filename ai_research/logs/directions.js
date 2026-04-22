@@ -1,5 +1,7 @@
 export default {
     id: 'future_scope',
+    initialX: 36,
+    initialY: 45,
     title: '[SYS] Research Directions',
     content: `> scheming.txt
 > 

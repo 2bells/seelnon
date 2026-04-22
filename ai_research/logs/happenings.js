@@ -1,5 +1,7 @@
 export default {
     id: 'happen',
+    initialX: 22,
+    initialY: 68,
     parentId: 'future_scope', // Connects to Awareness node
     title: '[HP] Happening',
     content: `> whatis_happening.exe

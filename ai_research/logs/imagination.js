@@ -1,5 +1,7 @@
 export default {
     id: 'sample_node',
+    initialX: 70,
+    initialY: 12,
     parentId: 'rl_intro', // Connects to Awareness node
     title: '[AI] Artificial imagination',
     content: `> modular_imagination.exe

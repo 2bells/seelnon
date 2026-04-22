@@ -1,5 +1,7 @@
 export default {
     id: 'gan_studies',
+    initialX: 60,
+    initialY: 52,
     title: '[AO] Active Observer / Psychosis',
     content: `// [LOG] AO-003 - Witness
 // [STATUS] EXPERIMENTAL

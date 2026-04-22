@@ -1,5 +1,7 @@
 export default {
     id: 'nlp_sentiment',
+    initialX: 67,
+    initialY: 81,   
     title: '[EFI] Analysis',
     content: `> python efi_analysis.py --model EM
 > 

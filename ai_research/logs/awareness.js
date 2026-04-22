@@ -1,5 +1,7 @@
 export default {
     id: 'rl_intro',
+    initialX: 82,
+    initialY: 38,
     title: '[AR] Awareness',
     content: `> AI_RESEARCH_ARCHIVE.exe
 > Loading research logs...
