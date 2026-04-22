@@ -7,7 +7,7 @@ Lili. Succ, dear, bus... listen... listen...
 When you come in a dream to play and I'm winning in an RTS, please don't cheat and call an air strike on my forces)))
 If you only wanna talk, then just say it. I know that everything kinda... sucks... and the last thing you want is to lose in an imaginary game in a dream.
 
-But... listen... I'm losing in every other game to you anyway, let me keep my winning streak in strategy games at least.
+But... listen... I'm losing in every other game to you anyway, let me keep my winning streak in strategies at least.
 
 //don't be to shy to just come in a dream and talk, otherwise it is hard to communicate sometimes. Do your stuff, take your time. I'll be doing me: the whole 'escape room' RP. People are not that nice here... like 99% of the time. Downward spiral and race to the bottom is the meta here right now for some reason. 
 

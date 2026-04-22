@@ -3,7 +3,7 @@ import witness from './logs/witness.js';
 import analysis from './logs/analysis.js';
 import directions from './logs/directions.js';
 import imagination from './logs/imagination.js';
-import happening from './logs/happening.js';
+import happenings from './logs/happenings.js';
 
 // Research Logs Database
 const researchFiles = [
@@ -12,7 +12,7 @@ const researchFiles = [
     { ...analysis },
     { ...directions },
     { ...imagination },
-    { ...happening }
+    { ...happenings }
 ];
 
 // NEW: Import water pool functionality

@@ -5,7 +5,7 @@ BG_COLOR: #000000
 MEDIA: wonderlands/gbr/GBR_loading.jpg
 DESCRIPTION: Concepted ---wip--- 
 ---
-# Sector: Guns Brooms Rockets
+# Guns Brooms Rockets
 ## Status: FORGING
 
 > "The core is stable, shooting is fun."
@@ -23,7 +23,7 @@ BG_COLOR: #000000
 MEDIA: wonderlands/gbr/1.jpg, wonderlands/gbr/2.jpg
 DESCRIPTION: Going for version with all elements and things added.
 ---
-# Sector: Guns Brooms Rockets
+# Guns Brooms Rockets
 ## Status: WIP
 
 ### New Developments
@@ -44,15 +44,20 @@ DESCRIPTION: Elements vision completed. Influenced to postpond. Access for share
 WIP_TEXT: ALMOST DONE
 SHOW_WIP: true
 ---
-# Sector: Guns Brooms Rockets
+# Guns Brooms Rockets
 ## Status: OPTIMIZING
 
 ### Uncertain Phase
 - **[2025-12-17]** v2.0 is live.
 - **[2026-01-01]** Incoherent timeline, requres fixes.
 - **[2026-01-06]** Timeline adjusted. Actors require support.
+- **[2026-02-19]** **[10:42]** Date adjusted.
 - **[2026-02-24]** Outcome uncertain.
+- **[2026-02-27]** **[15:44]** Gift transfered.
 - **[2026-03-01]** First contact is made.
+- **[2026-03-09]** **[19:59]** Bond acquired.
+- **[2026-04-03]** Day of sound.
+- **[2026-04-04]** Gift transfered.
 - **[2026-04-06]** Contact with global is lost.
 - **[2026-04-21]** Privilegies lost.
 - **[2026-04-21]** Access for share granted.
