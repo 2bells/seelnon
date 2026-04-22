@@ -9,7 +9,7 @@ If you only wanna talk, then just say it. I know that everything kinda... sucks.
 
 But... listen... I'm losing in every other game to you anyway, let me keep my winning streak in strategies at least.
 
-//don't be to shy to just come in a dream and talk, otherwise it is hard to communicate sometimes. Do your stuff, take your time. I'll be doing me: the whole 'escape room' RP. People are not that nice here... like 99% of the time. Downward spiral and race to the bottom is the meta here right now for some reason. 
+//don't be shy to just come in a dream and talk, otherwise it is hard to communicate sometimes. Do your stuff, take your time. I'll be doing me: the whole 'escape room' RP. People are not that nice here... like 99% of the time. Downward spiral and race to the bottom is the meta here right now for some reason. 
 
 ![Image](https://i.pinimg.com/1200x/33/88/e9/3388e955341ca7f7903495962e5f0ecb.jpg)
 
