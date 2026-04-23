@@ -41,6 +41,7 @@ export class Engine {
 
     this.lastPos = null;
     this.lastTime = null;
+    this.smoothedVelocity = 0;
     this.zoomAnchor = null;
     
     // Dedicated UI Layer for overlays (Selection, Lasso, etc)
@@ -408,7 +409,8 @@ export class Engine {
     this.isDrawing = true;
     const rect = this.container.getBoundingClientRect();
     this.lastPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    this.lastTime = Date.now();
+    this.lastTime = performance.now();
+    this.smoothedVelocity = 0;
     this.strokePoints = [];
     this.spacingAccumulator = 0;
     
@@ -462,17 +464,25 @@ export class Engine {
         return;
     }
 
-    const currentTime = Date.now();
+    const currentTime = performance.now();
 
     const dx = currentPos.x - this.lastPos.x;
     const dy = currentPos.y - this.lastPos.y;
-    const dt = Math.max(1, currentTime - this.lastTime);
+    const dt = Math.max(0.1, currentTime - this.lastTime); // Prevent division by zero or extreme near-zero
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     // Prevent artifacts from jitter (very small movements)
-    if (dist < 0.5) return;
+    if (dist < 0.1) return;
     
-    const velocity = dist / dt;
+    // Raw velocity
+    const rawVelocity = dist / dt;
+    
+    // Smooth velocity to prevent wild jumps (Exponential Moving Average)
+    // Using a factor of 0.2 for a good balance of responsiveness and stability
+    this.smoothedVelocity = this.smoothedVelocity * 0.8 + rawVelocity * 0.2;
+    
+    // Clamp smoothed velocity to avoid outliers from performance spikes
+    const velocity = Math.min(this.smoothedVelocity, 500); 
 
     const worldFrom = {
       x: (this.lastPos.x - this.pan.x) / this.zoom,
