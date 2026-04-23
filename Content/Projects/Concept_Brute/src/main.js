@@ -304,7 +304,7 @@ class App {
         case '2': this.setTool(TOOLS.ERASER); break;
         case '3': this.setTool(TOOLS.WIREFRAME); break;
         case '4': this.setTool(TOOLS.LASSO); break;
-        case 'b': this.setTool(TOOLS.BRUSH); break;
+        case 'b': this.engine.toggleMirror(); break;
         case 'x': this.setTool(TOOLS.ERASER); break; 
         case 's': this._adjOpacity(-5); break; // S lowers opacity
         case 'd': 
