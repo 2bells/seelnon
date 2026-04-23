@@ -217,7 +217,6 @@ body {
 }
 
 .brutal-range {
-    -webkit-appearance: none;
     background: white;
     border: 2px solid black;
     outline: none;
