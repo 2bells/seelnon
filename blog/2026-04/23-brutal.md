@@ -42,3 +42,7 @@ UPD: did a small drawing
 [click to test](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/index.html)
 
 *vibe coding my life away sometimes, but it is fun, I like it*
+
+//it is peak... no meme. Some fine tunings, but already it feels good: no pressure sensitivity, no drivers, no GPU, no dependencies.. and I mostly like the vibe of harsh black outlines/shadows.
+
+![Image](Content/Projects/Concept_Brute/img/showcase_brute_concept_thmb_7.jpg)
