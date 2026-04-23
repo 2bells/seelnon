@@ -11,7 +11,7 @@ So I did bring 'Endless Canvas' (EC) to a state I felt good about, but then it t
 My main problem is that even if I want to load quick and dirty app, it takes 20 minutes for some reason for every single one of them, even Krita.
 So... here we go: 
 
-## <div style="color: #000000; font-family: VT323;">**CONCEPT BRUTE!**</div>
+## <div style="color: #8c8c8c; font-family: VT323;">**CONCEPT BRUTE!**</div>
 
 ![Image](Content/Projects/Concept_Brute/img/showcase_brute_concept_thmb_2.jpg)
 
@@ -33,9 +33,9 @@ UPD: did a small drawing
 
 ![Image](Content/Projects/Concept_Brute/img/showcase_brute_concept_thmb_4.jpg)
 
-<div style="color: #88807b; font-family: Segoe UI;">Here you can see the 'wireframe brush' that is shading for you... it is one of the most interesting brushes I ever came along in Krita back in the day in ~2020. 
+<div style="color: #88807b; font-family: Segoe UI;">Here you can see the 'wireframe brush' that is shading for you... it is one of the most interesting brushes I ever came along in Krita back in the day in ~2020. </div>
 
-To the right those lines are made with the **same** color, but different upper settings for s-hue and s-value. And that allows to extract relativerly good looking colors from speed of your brush... very cool... </div>
+<div style="color: #88807b; font-family: Segoe UI;">To the right those lines are made with the **same** color, but different upper settings for s-hue and s-value. And that allows to extract relativerly good looking colors from speed of your brush... very cool... </div>
 
 //actually when making things like gold, it can work really well, because it adds rich oranges from yellows, or it adds highlights, so it is possible to just 1 stroke render things.
 
