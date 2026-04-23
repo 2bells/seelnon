@@ -1,7 +1,7 @@
 export class SketchStorage {
   constructor() {
     this.dbName = 'BrutSketchDB';
-    this.version = 1;
+    this.version = 2;
     this.db = null;
   }
 
@@ -12,6 +12,9 @@ export class SketchStorage {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('chunks')) {
           db.createObjectStore('chunks', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('settings')) {
+          db.createObjectStore('settings', { keyPath: 'id' });
         }
       };
       request.onsuccess = (e) => {
@@ -53,6 +56,28 @@ export class SketchStorage {
         const store = transaction.objectStore('chunks');
         const request = store.getAllKeys();
         request.onsuccess = () => resolve(request.result);
+        request.onerror = (e) => reject(e);
+    });
+  }
+
+  async saveSetting(id, value) {
+    if (!this.db) return;
+    return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(['settings'], 'readwrite');
+        const store = transaction.objectStore('settings');
+        store.put({ id, value });
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = (e) => reject(e);
+    });
+  }
+
+  async loadSetting(id) {
+    if (!this.db) return null;
+    return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(['settings'], 'readonly');
+        const store = transaction.objectStore('settings');
+        const request = store.get(id);
+        request.onsuccess = () => resolve(request.result ? request.result.value : null);
         request.onerror = (e) => reject(e);
     });
   }

@@ -33,13 +33,19 @@ export class Engine {
     this.floatingSelection = null;
     this.dirtyChunks = new Set(); // Tracks chunks that need persisting to storage
 
+    this.canvasBg = '#ffffff';
+    this.gridColor = '#cccccc';
+    this.showGrid = true;
+
+    this.brushCursor = document.getElementById('brush-cursor');
+
     this.lastPos = null;
     this.lastTime = null;
     this.zoomAnchor = null;
     
     // Dedicated UI Layer for overlays (Selection, Lasso, etc)
     this.uiLayer = document.createElement('div');
-    this.uiLayer.className = 'absolute inset-0 pointer-events-none z-[100]';
+    this.uiLayer.className = 'absolute inset-0 pointer-events-none z-100';
     this.container.appendChild(this.uiLayer);
 
     // Selection Viz Overlay
@@ -53,9 +59,7 @@ export class Engine {
 
   _startAnimationLoop() {
       const loop = () => {
-          if (this.activeSelectionPath) {
-              this._drawSelectionViz();
-          }
+          this._drawSelectionViz();
           requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
@@ -66,6 +70,7 @@ export class Engine {
     window.addEventListener('mousemove', (e) => {
       this._moveStroke(e);
       this._handlePickerMove(e);
+      this._updateBrushCursor(e);
     });
     window.addEventListener('mouseup', (e) => this._endStroke(e));
     
@@ -125,7 +130,7 @@ export class Engine {
       element: document.createElement('div')
     };
 
-    chunk.element.className = 'absolute border border-white/5 pointer-events-none';
+    chunk.element.className = 'absolute border-white-5 pointer-events-none';
     chunk.element.style.width = `${CHUNK_SIZE}px`;
     chunk.element.style.height = `${CHUNK_SIZE}px`;
     
@@ -157,6 +162,12 @@ export class Engine {
     
     // Sync Grid Background
     const gridSize = 20 * this.zoom;
+    this.container.style.backgroundColor = this.canvasBg;
+    if (this.showGrid) {
+        this.container.style.backgroundImage = `radial-gradient(${this.gridColor} 1px, transparent 1px)`;
+    } else {
+        this.container.style.backgroundImage = 'none';
+    }
     this.container.style.backgroundSize = `${gridSize}px ${gridSize}px`;
     this.container.style.backgroundPosition = `${this.pan.x}px ${this.pan.y}px`;
 
@@ -192,6 +203,24 @@ export class Engine {
           ctx.strokeStyle = '#fff';
           ctx.lineDashOffset = ((Date.now() / 50) % 10) + 5;
           ctx.stroke();
+
+          // NEW: Bounding box for selection
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          this.activeSelectionPath.forEach(p => {
+              minX = Math.min(minX, p.x);
+              minY = Math.min(minY, p.y);
+              maxX = Math.max(maxX, p.x);
+              maxY = Math.max(maxY, p.y);
+          });
+          
+          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+          ctx.setLineDash([2, 6]);
+          ctx.strokeRect(
+              minX * this.zoom + this.pan.x - 2,
+              minY * this.zoom + this.pan.y - 2,
+              (maxX - minX) * this.zoom + 4,
+              (maxY - minY) * this.zoom + 4
+          );
       }
   }
 
@@ -266,8 +295,6 @@ export class Engine {
           }
       }
 
-      this.history.push({ type: 'stroke', chunks: lassoHistory, zoom: this.zoom, pan: { ...this.pan } });
-
       this.floatingSelection = {
           canvas: selectionCanvas,
           x: minX,
@@ -275,7 +302,15 @@ export class Engine {
           width: width,
           height: height
       };
-      
+
+      this.history.push({ 
+          type: 'transform', 
+          chunks: lassoHistory, 
+          // Store old path so undo brings it back
+          path: this.activeSelectionPath,
+          selection: { ...this.floatingSelection }
+      });
+
       this.activeSelectionPath = null;
       this._updateSelectionPreview();
       this.refresh();
@@ -310,8 +345,9 @@ export class Engine {
   _startStroke(e) {
     this.lastMousePos = { x: e.clientX, y: e.clientY };
 
-    // Strict UI shielding
-    if (e.target.closest('.ui-shield') || e.target.closest('button') || e.target.closest('input') || e.target.closest('#top-bar')) {
+    // Expanded UI shielding to prevent drawing through panels
+    const target = e.target;
+    if (target.closest('.ui-panel') || target.closest('button') || target.closest('input') || target.closest('#top-bar')) {
         return;
     }
     
@@ -332,11 +368,41 @@ export class Engine {
         this.brush.color = this.pickColor(e.clientX, e.clientY);
     }
 
+    // NEW: Handle Alt-Click for picking
+    if (e.altKey) {
+        const color = this.pickColor(e.clientX, e.clientY);
+        this._notifyPicker(e.clientX, e.clientY, color, true); // true = SET color now
+        return; // STOP HERE, don't start drawing
+    }
+
     // Selection Apply Check: If we have a selection and click away, apply it
-    if (this.floatingSelection && this.brush.type !== TOOLS.LASSO) {
-        this._applySelection();
-        if (this.onDrawEnd) this.onDrawEnd();
-        return; 
+    if (this.floatingSelection) {
+        const rect = this.container.getBoundingClientRect();
+        const wx = (e.clientX - rect.left - this.pan.x) / this.zoom;
+        const wy = (e.clientY - rect.top - this.pan.y) / this.zoom;
+        const sel = this.floatingSelection;
+        
+        if (wx >= sel.x && wx <= sel.x + sel.canvas.width && 
+            wy >= sel.y && wy <= sel.y + sel.canvas.height) {
+            // Click inside selection: start moving regardless of tool
+            this.isDrawing = true;
+            this.lastMousePos = { x: e.clientX, y: e.clientY };
+            return;
+        } else {
+            // Click outside selection: apply it
+            this._applySelection();
+            if (this.onDrawEnd) this.onDrawEnd();
+            // Don't return, let it start a new stroke (e.g. new lasso)
+        }
+    }
+
+    // Clear Selection on new Lasso click if we aren't moving a transform
+    if (this.brush.type === TOOLS.LASSO) {
+        if (this.activeSelectionPath) {
+            // Store clear action in history
+            this.history.push({ type: 'selection', path: [...this.activeSelectionPath] });
+            this.clearSelection();
+        }
     }
 
     this.isDrawing = true;
@@ -418,17 +484,16 @@ export class Engine {
     };
 
     // --- Brush Sensitivity ---
-    // vFactor is normalized velocity (0 to 1)
-    // Flow affects the speed multiplier - higher flow = more speed needed for max effect
-    const threshold = 20 + (60 * this.brush.flow);
-    const vFactor = Math.min(velocity / threshold, 1); 
+    // Enhanced velocity factor with higher range
+    const threshold = 10 + (this.brush.flow * 40); 
+    const vFactor = Math.pow(Math.min(velocity / threshold, 1.5), 1.2); 
     
     // Size: positive speedSize means faster=smaller
-    const sizeMod = 1 - (vFactor * this.brush.speedSize);
+    const sizeMod = 1 - (vFactor * this.brush.speedSize * 0.2); 
     const dynamicSize = this.brush.size * Math.max(0.05, sizeMod);
     
     // Opacity: positive speedOpacity means faster=transparent
-    const opacMod = 1 - (vFactor * this.brush.speedOpacity);
+    const opacMod = 1 - (vFactor * this.brush.speedOpacity * 0.2);
     const dynamicOpacity = this.brush.opacity * Math.max(0.01, opacMod);
 
     let color = this.brush.color;
@@ -501,6 +566,51 @@ export class Engine {
     this.lassoOverlay = null;
   }
 
+  _updateBrushCursor(e) {
+    if (!this.brushCursor) return;
+
+    const rect = this.container.getBoundingClientRect();
+
+    // Hide if mouse is over UI
+    if (e.target.closest('.ui-panel') || e.target.closest('button') || e.target.closest('input') || e.target.closest('#top-bar')) {
+        this.brushCursor.style.display = 'none';
+        return;
+    } else {
+        this.brushCursor.style.display = 'block';
+    }
+
+    const s = this.brush.size * this.zoom;
+    let w = s;
+    let h = s;
+    let br = '0px';
+
+    if (this.brush.type === TOOLS.WIREFRAME) {
+        br = '50%';
+    } else if (this.brush.type === TOOLS.BRUSH) {
+        h = s / 2;
+    } else if (this.brush.type === TOOLS.LASSO) {
+        w = 10;
+        h = 10;
+        br = '50%';
+    }
+
+    this.brushCursor.style.width = `${w}px`;
+    this.brushCursor.style.height = `${h}px`;
+    this.brushCursor.style.borderRadius = br;
+    
+    // Position relative to container
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    this.brushCursor.style.left = `${x - w/2}px`;
+    this.brushCursor.style.top = `${y - h/2}px`;
+    
+    // Inverted contrast for high visibility
+    this.brushCursor.style.mixBlendMode = 'difference';
+    // Using high brightness for difference mode to result in inversion
+    this.brushCursor.style.borderColor = this.brush.type === TOOLS.ERASER ? '#ff6666' : '#ffffff';
+  }
+
   _drawLasso(from, to) {
       if (!this.lassoPath) {
           this.lassoPath = [];
@@ -533,10 +643,18 @@ export class Engine {
   }
 
   _updateSelectionPreview() {
-      // For Phase 2, we use a simple temporary absolute div to show the floating selection
+      if (!this.floatingSelection) {
+          if (this.selectionOverlay) this.selectionOverlay.remove();
+          this.selectionOverlay = null;
+          return;
+      }
+
       if (!this.selectionOverlay) {
           this.selectionOverlay = document.createElement('div');
-          this.selectionOverlay.className = 'absolute pointer-events-none border-2 border-dashed border-black';
+          // Multiple borders for visibility on any background
+          this.selectionOverlay.className = 'absolute pointer-events-none';
+          this.selectionOverlay.style.boxShadow = '0 0 0 1px white, 0 0 0 2px black';
+          this.selectionOverlay.style.border = '1px dashed white';
           this.uiLayer.appendChild(this.selectionOverlay);
           
           this.selectionCanvas = document.createElement('canvas');
@@ -545,23 +663,22 @@ export class Engine {
       }
 
       const sel = this.floatingSelection;
-      if (!sel) {
-          if (this.selectionOverlay) this.selectionOverlay.remove();
-          this.selectionOverlay = null;
-          return;
+      
+      // Only resize canvas if dimensions actually changed (performance)
+      if (this.selectionCanvas.width !== sel.canvas.width || this.selectionCanvas.height !== sel.canvas.height) {
+          this.selectionCanvas.width = sel.canvas.width;
+          this.selectionCanvas.height = sel.canvas.height;
+          const ctx = this.selectionCanvas.getContext('2d');
+          ctx.drawImage(sel.canvas, 0, 0);
       }
 
-      this.selectionOverlay.style.width = `${sel.canvas.width * this.zoom}px`;
-      this.selectionOverlay.style.height = `${sel.canvas.height * this.zoom}px`;
+      this.selectionOverlay.style.width = `${sel.canvas.width}px`;
+      this.selectionOverlay.style.height = `${sel.canvas.height}px`;
       
       const x = sel.x * this.zoom + this.pan.x;
       const y = sel.y * this.zoom + this.pan.y;
-      this.selectionOverlay.style.transform = `translate(${x}px, ${y}px)`;
-      
-      const ctx = this.selectionCanvas.getContext('2d');
-      this.selectionCanvas.width = sel.canvas.width;
-      this.selectionCanvas.height = sel.canvas.height;
-      ctx.drawImage(sel.canvas, 0, 0);
+      this.selectionOverlay.style.transform = `translate(${x}px, ${y}px) scale(${this.zoom})`;
+      this.selectionOverlay.style.transformOrigin = 'top left';
   }
 
   _processLassoSelection() {
@@ -572,8 +689,12 @@ export class Engine {
           this.refresh();
           return;
       }
-      this._status('SELECTION ACTIVE');
+      const prevPath = this.activeSelectionPath ? [...this.activeSelectionPath] : null;
       this.activeSelectionPath = [...this.lassoPath];
+      
+      // Push previous path to history so undo can go back
+      this.history.push({ type: 'selection', path: prevPath });
+
       this.lassoPath = null;
       if (this.lassoOverlay) this.lassoOverlay.remove();
       this.lassoOverlay = null;
@@ -596,17 +717,32 @@ export class Engine {
       const endCX = Math.floor((x + canvas.width) / CHUNK_SIZE);
       const endCY = Math.floor((y + canvas.height) / CHUNK_SIZE);
 
+      const applyHistory = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
           for (let cy = startCY; cy <= endCY; cy++) {
+              const id = `${cx},${cy}`;
               const chunk = this._getChunk(cx, cy);
               const ctx = chunk.ctxs[this.activeLayer];
               const lx = cx * CHUNK_SIZE;
               const ly = cy * CHUNK_SIZE;
+
+              // Backup for undo
+              const backup = document.createElement('canvas');
+              backup.width = CHUNK_SIZE;
+              backup.height = CHUNK_SIZE;
+              backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+              applyHistory.set(id, { layer: this.activeLayer, canvas: backup });
+
               ctx.drawImage(canvas, x - lx, y - ly);
-              this._markDirty(`${cx},${cy}`, this.activeLayer);
+              this._markDirty(id, this.activeLayer);
           }
       }
 
+      this.history.push({ 
+          type: 'stroke', 
+          chunks: applyHistory,
+          selection: { ...this.floatingSelection } 
+      });
       this.floatingSelection = null;
       this._updateSelectionPreview();
       this.refresh();
@@ -614,27 +750,29 @@ export class Engine {
   }
 
   _handlePickerMove(e) {
-    if (e.altKey) {
+    if (e.altKey && !this.isDrawing) {
       const color = this.pickColor(e.clientX, e.clientY);
-      this._notifyPicker(e.clientX, e.clientY, color);
+      this._notifyPicker(e.clientX, e.clientY, color, false);
     } else {
       this._notifyPicker(null);
     }
   }
 
-  _notifyPicker(x, y, color) {
+  _notifyPicker(x, y, color, shouldSet = true) {
     const el = document.getElementById('color-picker-indicator');
     if (!x) {
-      el.classList.add('hidden');
+      if (el) el.classList.add('hidden');
       return;
     }
-    el.classList.remove('hidden');
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
-    el.style.backgroundColor = color;
+    if (el) {
+      el.classList.remove('hidden');
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.backgroundColor = color;
+    }
     
     // Callback to main app
-    if (this.onColorPicked) this.onColorPicked(color);
+    if (shouldSet && this.onColorPicked) this.onColorPicked(color);
   }
 
   _shiftColor(hex, hDelta, lDelta) {
@@ -810,31 +948,42 @@ export class Engine {
     
     const action = this.history.pop();
     const redoAction = {
-        type: 'stroke',
+        type: action.type,
         chunks: new Map(),
-        zoom: this.zoom,
-        pan: { ...this.pan }
+        path: this.activeSelectionPath ? [...this.activeSelectionPath] : null,
+        selection: this.floatingSelection ? { ...this.floatingSelection } : null
     };
 
-    // Restore chunks and save current state to redo
-    action.chunks.forEach((data, id) => {
-        const chunk = this.chunks.get(id);
-        if (chunk) {
-            // Save current for redo
-            const redoBackup = document.createElement('canvas');
-            redoBackup.width = CHUNK_SIZE;
-            redoBackup.height = CHUNK_SIZE;
-            redoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
-            redoAction.chunks.set(id, { layer: data.layer, canvas: redoBackup });
+    // Restore chunks
+    if (action.chunks) {
+        action.chunks.forEach((data, id) => {
+            const chunk = this.chunks.get(id);
+            if (chunk) {
+                const redoBackup = document.createElement('canvas');
+                redoBackup.width = CHUNK_SIZE;
+                redoBackup.height = CHUNK_SIZE;
+                redoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
+                redoAction.chunks.set(id, { layer: data.layer, canvas: redoBackup });
 
-            // Restore
-            chunk.ctxs[data.layer].clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
-            chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
-            this._markDirty(id, data.layer);
-        }
-    });
+                chunk.ctxs[data.layer].clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
+                chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
+                this._markDirty(id, data.layer);
+            }
+        });
+    }
+
+    // Restore Selection/Transform state
+    if (action.type === 'selection') {
+        this.activeSelectionPath = action.path;
+    } else if (action.type === 'transform') {
+        this.floatingSelection = null;
+        this.activeSelectionPath = action.path;
+    } else if (action.type === 'stroke') {
+        if (action.selection) this.floatingSelection = action.selection;
+    }
 
     this.redoStack.push(redoAction);
+    this._updateSelectionPreview();
     this.refresh();
     this._status('UNDO');
   }
@@ -844,28 +993,40 @@ export class Engine {
     
     const action = this.redoStack.pop();
     const undoAction = {
-        type: 'stroke',
+        type: action.type,
         chunks: new Map(),
-        zoom: this.zoom,
-        pan: { ...this.pan }
+        path: this.activeSelectionPath ? [...this.activeSelectionPath] : null,
+        selection: this.floatingSelection ? { ...this.floatingSelection } : null
     };
 
-    action.chunks.forEach((data, id) => {
-        const chunk = this.chunks.get(id);
-        if (chunk) {
-            const undoBackup = document.createElement('canvas');
-            undoBackup.width = CHUNK_SIZE;
-            undoBackup.height = CHUNK_SIZE;
-            undoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
-            undoAction.chunks.set(id, { layer: data.layer, canvas: undoBackup });
+    if (action.chunks) {
+        action.chunks.forEach((data, id) => {
+            const chunk = this.chunks.get(id);
+            if (chunk) {
+                const undoBackup = document.createElement('canvas');
+                undoBackup.width = CHUNK_SIZE;
+                undoBackup.height = CHUNK_SIZE;
+                undoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
+                undoAction.chunks.set(id, { layer: data.layer, canvas: undoBackup });
 
-            chunk.ctxs[data.layer].clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
-            chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
-            this._markDirty(id, data.layer);
-        }
-    });
+                chunk.ctxs[data.layer].clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
+                chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
+                this._markDirty(id, data.layer);
+            }
+        });
+    }
+
+    if (action.type === 'selection') {
+        this.activeSelectionPath = action.path;
+    } else if (action.type === 'transform') {
+        this.floatingSelection = action.selection;
+        this.activeSelectionPath = null;
+    } else if (action.type === 'stroke') {
+        if (action.selection) this.floatingSelection = null; // Re-applying stroke clears the "source" floating selection
+    }
 
     this.history.push(undoAction);
+    this._updateSelectionPreview();
     this.refresh();
     this._status('REDO');
   }
