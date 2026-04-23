@@ -48,8 +48,6 @@ body {
     position: relative;
     overflow: hidden;
     background-color: white;
-    background-image: radial-gradient(#ccc 1px, transparent 1px);
-    background-size: 20px 20px;
 }
 
 #brush-cursor {

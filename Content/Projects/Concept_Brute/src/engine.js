@@ -36,8 +36,15 @@ export class Engine {
     this.canvasBg = '#ffffff';
     this.gridColor = '#cccccc';
     this.showGrid = true;
+    this.isMirrored = false;
+
+    // Dedicated wrapper for all canvas content that can be mirrored
+    this.canvasWrapper = document.createElement('div');
+    this.canvasWrapper.className = 'absolute inset-0 pointer-events-none w-full h-full';
+    this.container.appendChild(this.canvasWrapper);
 
     this.brushCursor = document.getElementById('brush-cursor');
+    this.canvasWrapper.appendChild(this.brushCursor);
 
     this.lastPos = null;
     this.lastTime = null;
@@ -47,7 +54,7 @@ export class Engine {
     // Dedicated UI Layer for overlays (Selection, Lasso, etc)
     this.uiLayer = document.createElement('div');
     this.uiLayer.className = 'absolute inset-0 pointer-events-none z-100';
-    this.container.appendChild(this.uiLayer);
+    this.canvasWrapper.appendChild(this.uiLayer);
 
     // Selection Viz Overlay
     this.selectionViz = document.createElement('canvas');
@@ -100,6 +107,33 @@ export class Engine {
     }, { passive: false });
   }
 
+  toggleMirror() {
+    this.isMirrored = !this.isMirrored;
+    if (this.isMirrored) {
+        this.canvasWrapper.style.transform = 'scaleX(-1)';
+    } else {
+        this.canvasWrapper.style.transform = '';
+    }
+    this._status(this.isMirrored ? 'MIRRORED' : 'NORMAL');
+  }
+
+  _getMousePos(e) {
+    const rect = this.container.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+    
+    if (this.isMirrored) {
+        x = rect.width - x;
+    }
+    
+    return {
+        x: x, 
+        y: y,
+        wx: (x - this.pan.x) / this.zoom,
+        wy: (y - this.pan.y) / this.zoom
+    };
+  }
+
   _updateCursor() {
     if (this.isPanning || this.keys[' ']) {
         this.container.style.cursor = 'grab';
@@ -145,7 +179,7 @@ export class Engine {
       chunk.ctxs.push(canv.getContext('2d', { alpha: true }));
     }
 
-    this.container.appendChild(chunk.element);
+    this.canvasWrapper.appendChild(chunk.element);
     this.chunks.set(id, chunk);
     this._updateChunkTransform(chunk);
     return chunk;
@@ -164,13 +198,15 @@ export class Engine {
     // Sync Grid Background
     const gridSize = 20 * this.zoom;
     this.container.style.backgroundColor = this.canvasBg;
+    this.container.style.backgroundImage = 'none'; // Clear from container to avoid doubling with canvasWrapper
+
     if (this.showGrid) {
-        this.container.style.backgroundImage = `radial-gradient(${this.gridColor} 1px, transparent 1px)`;
+        this.canvasWrapper.style.backgroundImage = `radial-gradient(${this.gridColor} 1px, transparent 1px)`;
     } else {
-        this.container.style.backgroundImage = 'none';
+        this.canvasWrapper.style.backgroundImage = 'none';
     }
-    this.container.style.backgroundSize = `${gridSize}px ${gridSize}px`;
-    this.container.style.backgroundPosition = `${this.pan.x}px ${this.pan.y}px`;
+    this.canvasWrapper.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+    this.canvasWrapper.style.backgroundPosition = `${this.pan.x}px ${this.pan.y}px`;
 
     this._drawSelectionViz();
     this._updateSelectionPreview();
@@ -322,17 +358,21 @@ export class Engine {
   }
 
   pickColor(x, y) {
-    const rect = this.container.getBoundingClientRect();
-    const wx = (x - rect.left - this.pan.x) / this.zoom;
-    const wy = (y - rect.top - this.pan.y) / this.zoom;
+    const m = this._getMousePos({ clientX: x, clientY: y });
+    const wx = m.wx;
+    const wy = m.wy;
     
-    const { cx, cy } = this._getChunkCoords(x - rect.left, y - rect.top);
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
     const chunk = this.chunks.get(`${cx},${cy}`);
     if (!chunk) return '#000000';
 
     // Pick from top-most non-transparent layer
     for (let i = LAYERS_COUNT - 1; i >= 0; i--) {
-        const data = chunk.ctxs[i].getImageData(wx - cx * CHUNK_SIZE, wy - cy * CHUNK_SIZE, 1, 1).data;
+        const lx = wx - cx * CHUNK_SIZE;
+        const ly = wy - cy * CHUNK_SIZE;
+        if (lx < 0 || lx >= CHUNK_SIZE || ly < 0 || ly >= CHUNK_SIZE) continue;
+        const data = chunk.ctxs[i].getImageData(lx, ly, 1, 1).data;
         if (data[3] > 10) { // If not transparent
             const r = data[0].toString(16).padStart(2, '0');
             const g = data[1].toString(16).padStart(2, '0');
@@ -378,9 +418,9 @@ export class Engine {
 
     // Selection Apply Check: If we have a selection and click away, apply it
     if (this.floatingSelection) {
-        const rect = this.container.getBoundingClientRect();
-        const wx = (e.clientX - rect.left - this.pan.x) / this.zoom;
-        const wy = (e.clientY - rect.top - this.pan.y) / this.zoom;
+        const m = this._getMousePos(e);
+        const wx = m.wx;
+        const wy = m.wy;
         const sel = this.floatingSelection;
         
         if (wx >= sel.x && wx <= sel.x + sel.canvas.width && 
@@ -407,8 +447,8 @@ export class Engine {
     }
 
     this.isDrawing = true;
-    const rect = this.container.getBoundingClientRect();
-    this.lastPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const m = this._getMousePos(e);
+    this.lastPos = { x: m.x, y: m.y };
     this.lastTime = performance.now();
     this.smoothedVelocity = 0;
     this.strokePoints = [];
@@ -421,8 +461,11 @@ export class Engine {
 
   _moveStroke(e) {
     if (this.isPanning) {
-        const dx = e.clientX - this.lastMousePos.x;
+        let dx = e.clientX - this.lastMousePos.x;
         const dy = e.clientY - this.lastMousePos.y;
+        
+        if (this.isMirrored) dx = -dx;
+        
         this.pan.x += dx;
         this.pan.y += dy;
         this.lastMousePos = { x: e.clientX, y: e.clientY };
@@ -444,9 +487,10 @@ export class Engine {
     }
 
     if (this.floatingSelection && this.isDrawing) {
-        const rect = this.container.getBoundingClientRect();
-        const pdx = (e.clientX - this.lastMousePos.x) / this.zoom;
+        const pdx_raw = (e.clientX - this.lastMousePos.x) / this.zoom;
         const pdy = (e.clientY - this.lastMousePos.y) / this.zoom;
+        // If mirrored, screen movement X is visually reversed relative to world storage
+        const pdx = this.isMirrored ? -pdx_raw : pdx_raw;
         this.floatingSelection.x += pdx;
         this.floatingSelection.y += pdy;
         this.lastMousePos = { x: e.clientX, y: e.clientY };
@@ -455,8 +499,8 @@ export class Engine {
     }
 
     if (!this.isDrawing) return;
-    const rect = this.container.getBoundingClientRect();
-    const currentPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const m = this._getMousePos(e);
+    const currentPos = { x: m.x, y: m.y };
 
     if (this.brush.type === TOOLS.LASSO) {
         this._drawLasso(this.lastPos, currentPos);
@@ -609,8 +653,12 @@ export class Engine {
     this.brushCursor.style.borderRadius = br;
     
     // Position relative to container
-    const x = e.clientX - rect.left;
+    let x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    if (this.isMirrored) {
+        x = rect.width - x;
+    }
     
     this.brushCursor.style.left = `${x - w/2}px`;
     this.brushCursor.style.top = `${y - h/2}px`;
