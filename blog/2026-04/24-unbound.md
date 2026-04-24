@@ -16,7 +16,7 @@ Other crazy part: my electric stove broke day one... it is over a month it was l
 
 ![Image](blog/2026-04/img/before_after1.jpg)
 
-It was broken display since March 20th, now it is 24th and as soon as I make a pancake, it just 'puff' MAGIC! And it is normal...
+It had broken display since March 20th, now it is April 24th and as soon as I make a pancake, it just 'puff' MAGIC! Back to behaving...
 
 //I was doing this.. it was peak, recommend. Tasted like sunlight.
 
@@ -37,7 +37,9 @@ Remember that thing I was making? Look at it now:
 
 I mean... I mean...
 
-I made the brush tip editor that is possible to just alter your brush on the fly with auto generated additional brushes: same idea as color palette!
+I made the brush tip editor, so it is possible to just alter your brush on the fly and also get auto generated additional brushes: same idea as color palette! Generation is procedural, it just clamps stuff together.
+
+![Image](Content/Projects/Concept_Brute/img/textures_2.jpg)
 
 Smudging turned out good as well, it is not 'crazy' good smudging, but it is possible to achieve good results by playing with settings.
 
