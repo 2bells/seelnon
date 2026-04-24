@@ -79,7 +79,7 @@ export const FS = (() => {
   image('Deathless Traveler', 'Content/Images/deathless_traveler.jpg', '/Pictures', { description: 'If Frieren was depressing. Something I was concepting in 2020 with MSFS' });
   image('Character Designs - 2016', 'Content/Images/2016_december.jpg', '/Pictures', { description: 'Had a 14 day grind, designing different characters. December 2016' });
   image('Ex-Mansion Designs - 2024', 'Content/Images/2024-april-ex-mansion.jpg', '/Pictures', { description: 'Godot game dev, did some designs for myself. April 2024' });
-  
+  image('Ex-Mansion Sketches', 'Content/Images/2024_sketches.jpg', '/Pictures', { description: 'Ex-Mansion. Lore, redesigns, exploration' });
 
 
 
