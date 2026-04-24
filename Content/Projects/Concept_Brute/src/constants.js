@@ -8,5 +8,6 @@ export const TOOLS = {
   ERASER: 'eraser',
   WIREFRAME: 'wireframe',
   LASSO: 'lasso',
-  PICKER: 'picker'
+  PICKER: 'picker',
+  SMUDGE: 'smudge'
 };

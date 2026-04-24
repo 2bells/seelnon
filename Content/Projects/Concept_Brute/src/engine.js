@@ -7,7 +7,10 @@ export class Engine {
     this.activeLayer = 1; // Default to first paint layer
     this.zoom = 1;
     this.pan = { x: 0, y: 0 };
+    this.rotation = 0; // In radians
     this.keys = {};
+    this.lastRKeyTime = 0;
+    this.isMouseDown = false;
     
     this.brush = {
       size: 40,
@@ -30,6 +33,7 @@ export class Engine {
     this.currentStrokeDirtyChunks = new Map();
     
     this.activeSelectionPath = null;
+    this.clipboard = null;
     this.floatingSelection = null;
     this.dirtyChunks = new Set(); // Tracks chunks that need persisting to storage
 
@@ -40,11 +44,22 @@ export class Engine {
 
     // Dedicated wrapper for all canvas content that can be mirrored
     this.canvasWrapper = document.createElement('div');
-    this.canvasWrapper.className = 'absolute inset-0 pointer-events-none w-full h-full';
+    this.canvasWrapper.id = 'canvas-wrapper';
+    this.canvasWrapper.className = 'absolute';
+    // Make wrapper larger to handle rotation without edges showing
+    this.canvasWrapper.style.width = '10000px';
+    this.canvasWrapper.style.height = '10000px';
+    this.canvasWrapper.style.left = '-5000px';
+    this.canvasWrapper.style.top = '-5000px';
     this.container.appendChild(this.canvasWrapper);
 
+    if (!this.scratchCanvas) {
+        this.scratchCanvas = document.createElement('canvas');
+        this.scratchCtx = this.scratchCanvas.getContext('2d', { alpha: true });
+    }
+
     this.brushCursor = document.getElementById('brush-cursor');
-    this.canvasWrapper.appendChild(this.brushCursor);
+    this.container.appendChild(this.brushCursor);
 
     this.lastPos = null;
     this.lastTime = null;
@@ -53,8 +68,8 @@ export class Engine {
     
     // Dedicated UI Layer for overlays (Selection, Lasso, etc)
     this.uiLayer = document.createElement('div');
-    this.uiLayer.className = 'absolute inset-0 pointer-events-none z-100';
-    this.canvasWrapper.appendChild(this.uiLayer);
+    this.uiLayer.className = 'absolute inset-0 pointer-events-none z-100 w-full h-full';
+    this.container.appendChild(this.uiLayer);
 
     // Selection Viz Overlay
     this.selectionViz = document.createElement('canvas');
@@ -74,16 +89,46 @@ export class Engine {
   }
 
   _initEvents() {
-    this.container.addEventListener('mousedown', (e) => this._startStroke(e));
+    this.container.addEventListener('mousedown', (e) => {
+        this.isMouseDown = true;
+        if (e.button === 1) { // Middle click
+            this.isPanning = true;
+            this.lastMousePos = { x: e.clientX, y: e.clientY };
+            this._updateCursor();
+            return;
+        }
+        this._startStroke(e);
+    });
     window.addEventListener('mousemove', (e) => {
       this._moveStroke(e);
       this._handlePickerMove(e);
       this._updateBrushCursor(e);
     });
-    window.addEventListener('mouseup', (e) => this._endStroke(e));
+    window.addEventListener('mouseup', (e) => {
+        this.isMouseDown = false;
+        if (e.button === 1) {
+            this.isPanning = false;
+            this._updateCursor();
+            return;
+        }
+        this._endStroke(e);
+    });
     
     window.addEventListener('keydown', (e) => {
-        this.keys[e.key.toLowerCase()] = true;
+        const key = e.key.toLowerCase();
+        
+        if (key === 'r') {
+            if (e.repeat) return;
+            const now = performance.now();
+            if (now - this.lastRKeyTime < 300) {
+                this.rotation = 0;
+                this.refresh();
+                this._status('ROTATION RESET');
+            }
+            this.lastRKeyTime = now;
+        }
+
+        this.keys[key] = true;
         this._updateCursor();
     });
     window.addEventListener('keyup', (e) => {
@@ -94,14 +139,13 @@ export class Engine {
     this.container.addEventListener('wheel', (e) => {
       e.preventDefault();
       if (e.ctrlKey) {
-        // Zoom centered on cursor
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        this.setZoom(this.zoom * delta, e.clientX, e.clientY);
-      } else {
-        // Pan
-        this.pan.x -= e.deltaX;
+        // Pan Y with Ctrl+Scroll
         this.pan.y -= e.deltaY;
         this.refresh();
+      } else {
+        // Zoom with Scroll
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        this.setZoom(this.zoom * delta, e.clientX, e.clientY);
       }
       this._updateCursor();
     }, { passive: false });
@@ -109,11 +153,7 @@ export class Engine {
 
   toggleMirror() {
     this.isMirrored = !this.isMirrored;
-    if (this.isMirrored) {
-        this.canvasWrapper.style.transform = 'scaleX(-1)';
-    } else {
-        this.canvasWrapper.style.transform = '';
-    }
+    this.refresh();
     this._status(this.isMirrored ? 'MIRRORED' : 'NORMAL');
   }
 
@@ -122,6 +162,18 @@ export class Engine {
     let x = e.clientX - rect.left;
     let y = e.clientY - rect.top;
     
+    // Account for rotation around container center
+    if (this.rotation !== 0) {
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const dx = x - cx;
+        const dy = y - cy;
+        const cos = Math.cos(-this.rotation);
+        const sin = Math.sin(-this.rotation);
+        x = dx * cos - dy * sin + cx;
+        y = dx * sin + dy * cos + cy;
+    }
+
     if (this.isMirrored) {
         x = rect.width - x;
     }
@@ -174,10 +226,27 @@ export class Engine {
       canv.width = CHUNK_SIZE;
       canv.height = CHUNK_SIZE;
       canv.className = 'absolute inset-0';
+      // Use default rendering when potentially rotating to reduce seams
+      canv.style.imageRendering = 'auto';
+      canv.style.backfaceVisibility = 'hidden';
+      canv.style.webkitBackfaceVisibility = 'hidden';
       chunk.element.appendChild(canv);
       chunk.canvases.push(canv);
       chunk.ctxs.push(canv.getContext('2d', { alpha: true }));
     }
+
+    // Per-stroke buffer
+    const strokeCanv = document.createElement('canvas');
+    strokeCanv.width = CHUNK_SIZE;
+    strokeCanv.height = CHUNK_SIZE;
+    strokeCanv.className = 'absolute inset-0';
+    strokeCanv.style.imageRendering = 'auto';
+    strokeCanv.style.backfaceVisibility = 'hidden';
+    strokeCanv.style.webkitBackfaceVisibility = 'hidden';
+    strokeCanv.style.opacity = '0';
+    chunk.element.appendChild(strokeCanv);
+    chunk.strokeCanvas = strokeCanv;
+    chunk.strokeCtx = strokeCanv.getContext('2d', { alpha: true });
 
     this.canvasWrapper.appendChild(chunk.element);
     this.chunks.set(id, chunk);
@@ -186,8 +255,8 @@ export class Engine {
   }
 
   _updateChunkTransform(chunk) {
-    const x = chunk.cx * CHUNK_SIZE * this.zoom + this.pan.x;
-    const y = chunk.cy * CHUNK_SIZE * this.zoom + this.pan.y;
+    const x = chunk.cx * CHUNK_SIZE * this.zoom + this.pan.x + 5000;
+    const y = chunk.cy * CHUNK_SIZE * this.zoom + this.pan.y + 5000;
     chunk.element.style.transform = `translate(${x}px, ${y}px) scale(${this.zoom})`;
     chunk.element.style.transformOrigin = 'top left';
   }
@@ -195,18 +264,34 @@ export class Engine {
   refresh() {
     this.chunks.forEach(chunk => this._updateChunkTransform(chunk));
     
+    const rect = this.container.getBoundingClientRect();
+    // Center of container relative to wrapper
+    // wrapper is -5000, -5000
+    const cx = rect.width / 2 + 5000;
+    const cy = rect.height / 2 + 5000;
+    this.canvasWrapper.style.transformOrigin = `${cx}px ${cy}px`;
+    
+    let transform = `rotate(${this.rotation}rad)`;
+    if (this.isMirrored) {
+        transform += ' scaleX(-1)';
+    }
+    this.canvasWrapper.style.transform = transform;
+
     // Sync Grid Background
     const gridSize = 20 * this.zoom;
     this.container.style.backgroundColor = this.canvasBg;
-    this.container.style.backgroundImage = 'none'; // Clear from container to avoid doubling with canvasWrapper
-
+    
     if (this.showGrid) {
         this.canvasWrapper.style.backgroundImage = `radial-gradient(${this.gridColor} 1px, transparent 1px)`;
+        this.canvasWrapper.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+        // background-position should align with viewport center at pan 0,0
+        // Wrapper offset is 5000. 
+        // We want the grid point to be at pan.x in container coords.
+        // Container center is at 5000 in wrapper coords.
+        this.canvasWrapper.style.backgroundPosition = `${5000 + this.pan.x}px ${5000 + this.pan.y}px`;
     } else {
         this.canvasWrapper.style.backgroundImage = 'none';
     }
-    this.canvasWrapper.style.backgroundSize = `${gridSize}px ${gridSize}px`;
-    this.canvasWrapper.style.backgroundPosition = `${this.pan.x}px ${this.pan.y}px`;
 
     this._drawSelectionViz();
     this._updateSelectionPreview();
@@ -222,50 +307,41 @@ export class Engine {
       }
       ctx.clearRect(0,0, rect.width, rect.height);
       
-      if (this.activeSelectionPath) {
+      const pathToShow = this.lassoPath || this.activeSelectionPath;
+      
+      if (pathToShow) {
+          ctx.save();
+          // Apply Camera Transform
+          ctx.translate(rect.width/2, rect.height/2);
+          if (this.isMirrored) ctx.scale(-1, 1);
+          ctx.rotate(this.rotation);
+          ctx.translate(-rect.width/2, -rect.height/2);
+
           ctx.strokeStyle = '#000';
           ctx.setLineDash([5, 5]);
           ctx.lineDashOffset = (Date.now() / 50) % 10;
           ctx.lineWidth = 1.5;
           ctx.beginPath();
-          this.activeSelectionPath.forEach((p, i) => {
+          pathToShow.forEach((p, i) => {
               const sx = p.x * this.zoom + this.pan.x;
               const sy = p.y * this.zoom + this.pan.y;
               if (i === 0) ctx.moveTo(sx, sy);
               else ctx.lineTo(sx, sy);
           });
-          ctx.closePath();
+          if (this.activeSelectionPath) ctx.closePath();
           ctx.stroke();
           
           ctx.strokeStyle = '#fff';
-          ctx.lineDashOffset = ((Date.now() / 50) % 10) + 5;
+          ctx.setLineDash([5, 5]);
+          ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
           ctx.stroke();
-
-          // NEW: Bounding box for selection
-          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          this.activeSelectionPath.forEach(p => {
-              minX = Math.min(minX, p.x);
-              minY = Math.min(minY, p.y);
-              maxX = Math.max(maxX, p.x);
-              maxY = Math.max(maxY, p.y);
-          });
-          
-          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-          ctx.setLineDash([2, 6]);
-          ctx.strokeRect(
-              minX * this.zoom + this.pan.x - 2,
-              minY * this.zoom + this.pan.y - 2,
-              (maxX - minX) * this.zoom + 4,
-              (maxY - minY) * this.zoom + 4
-          );
+          ctx.restore();
       }
   }
 
-  startTransform() {
-      if (!this.activeSelectionPath) return;
-      this._status('TRANSFORMING');
+  _getSelectionData(clearSource = false) {
+      if (!this.activeSelectionPath) return null;
       
-      // Perform final cut-out now
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       this.activeSelectionPath.forEach(p => {
           minX = Math.min(minX, p.x);
@@ -276,7 +352,7 @@ export class Engine {
 
       const width = Math.ceil(maxX - minX);
       const height = Math.ceil(maxY - minY);
-      if (width < 1 || height < 1) return;
+      if (width < 1 || height < 1) return null;
 
       const selectionCanvas = document.createElement('canvas');
       selectionCanvas.width = width;
@@ -288,7 +364,7 @@ export class Engine {
       const endCX = Math.floor(maxX / CHUNK_SIZE);
       const endCY = Math.floor(maxY / CHUNK_SIZE);
 
-      const lassoHistory = new Map();
+      const affectedChunks = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
           for (let cy = startCY; cy <= endCY; cy++) {
               const id = `${cx},${cy}`;
@@ -309,12 +385,180 @@ export class Engine {
               sCtx.drawImage(chunk.canvases[this.activeLayer], lx - minX, ly - minY);
               sCtx.restore();
               
+              if (clearSource) {
+                  // Backup for undo
+                  const backup = document.createElement('canvas');
+                  backup.width = CHUNK_SIZE;
+                  backup.height = CHUNK_SIZE;
+                  backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+                  affectedChunks.set(id, { layer: this.activeLayer, canvas: backup });
+
+                  // Clear source
+                  const ctx = chunk.ctxs[this.activeLayer];
+                  ctx.save();
+                  ctx.beginPath();
+                  this.activeSelectionPath.forEach((p, i) => {
+                      if (i === 0) ctx.moveTo(p.x - lx, p.y - ly);
+                      else ctx.lineTo(p.x - lx, p.y - ly);
+                  });
+                  ctx.closePath();
+                  ctx.clip();
+                  ctx.clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
+                  ctx.restore();
+                  this._markDirty(id, this.activeLayer);
+              }
+          }
+      }
+
+      return {
+          canvas: selectionCanvas,
+          x: minX,
+          y: minY,
+          width: width,
+          height: height,
+          affectedChunks: affectedChunks
+      };
+  }
+
+  copy() {
+      const data = this._getSelectionData(false);
+      if (data) {
+          const clip = document.createElement('canvas');
+          clip.width = data.width;
+          clip.height = data.height;
+          clip.getContext('2d').drawImage(data.canvas, 0, 0);
+          this.clipboard = clip;
+          this._status('COPIED');
+          return true;
+      }
+      return false;
+  }
+
+  cut() {
+      if (this.floatingSelection) {
+          // If we already have a floating selection, "cutting" it just moves it to clipboard and clears it
+          const clip = document.createElement('canvas');
+          clip.width = this.floatingSelection.canvas.width;
+          clip.height = this.floatingSelection.canvas.height;
+          clip.getContext('2d').drawImage(this.floatingSelection.canvas, 0, 0);
+          this.clipboard = clip;
+          this.floatingSelection = null;
+          this.refresh();
+          this._updateSelectionPreview();
+          this._status('CUT');
+          return true;
+      }
+
+      const data = this._getSelectionData(true);
+      if (data) {
+          this.clipboard = data.canvas;
+          this.history.push({ 
+              type: 'stroke', 
+              chunks: data.affectedChunks 
+          });
+          this.activeSelectionPath = null;
+          this.refresh();
+          this._status('CUT');
+          if (this.onDrawEnd) this.onDrawEnd();
+          return true;
+      }
+      return false;
+  }
+
+  paste() {
+      if (!this.clipboard) return false;
+      
+      if (this.floatingSelection) {
+          this._applySelection();
+      }
+
+      const rect = this.container.getBoundingClientRect();
+      const center = this._getMousePos({ clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2 });
+      
+      const clip = this.clipboard;
+      this.floatingSelection = {
+          canvas: clip,
+          x: center.wx - clip.width/2,
+          y: center.wy - clip.height/2,
+          width: clip.width,
+          height: clip.height,
+          opacity: 1,
+          scale: 1,
+          rotation: 0,
+          mirrorX: false,
+          mirrorY: false
+      };
+
+      this.activeSelectionPath = null;
+      this.refresh();
+      this._updateSelectionPreview();
+      this._status('TRANSFORMING');
+      return true;
+  }
+
+  startTransform() {
+      if (!this.activeSelectionPath) return;
+      this._status('TRANSFORMING');
+      
+      const data = this._getSelectionData(true);
+      if (!data) return;
+
+      this.floatingSelection = {
+          canvas: data.canvas,
+          x: data.x,
+          y: data.y,
+          width: data.width,
+          height: data.height,
+          opacity: 1,
+          scale: 1,
+          rotation: 0,
+          mirrorX: false,
+          mirrorY: false
+      };
+
+      this.history.push({ 
+          type: 'transform', 
+          chunks: data.affectedChunks, 
+          path: this.activeSelectionPath,
+          selection: { ...this.floatingSelection }
+      });
+
+      this.activeSelectionPath = null;
+      this._updateSelectionPreview();
+      this.refresh();
+      if (this.onDrawEnd) this.onDrawEnd();
+  }
+
+  deleteSelection() {
+      if (!this.activeSelectionPath) return;
+      
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      this.activeSelectionPath.forEach(p => {
+          minX = Math.min(minX, p.x);
+          minY = Math.min(minY, p.y);
+          maxX = Math.max(maxX, p.x);
+          maxY = Math.max(maxY, p.y);
+      });
+
+      const startCX = Math.floor(minX / CHUNK_SIZE);
+      const startCY = Math.floor(minY / CHUNK_SIZE);
+      const endCX = Math.floor(maxX / CHUNK_SIZE);
+      const endCY = Math.floor(maxY / CHUNK_SIZE);
+
+      const deleteHistory = new Map();
+      for (let cx = startCX; cx <= endCX; cx++) {
+          for (let cy = startCY; cy <= endCY; cy++) {
+              const id = `${cx},${cy}`;
+              const chunk = this._getChunk(cx, cy);
+              const lx = cx * CHUNK_SIZE;
+              const ly = cy * CHUNK_SIZE;
+
               // Backup for undo
               const backup = document.createElement('canvas');
               backup.width = CHUNK_SIZE;
               backup.height = CHUNK_SIZE;
               backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
-              lassoHistory.set(id, { layer: this.activeLayer, canvas: backup });
+              deleteHistory.set(id, { layer: this.activeLayer, canvas: backup });
 
               // Clear source
               const ctx = chunk.ctxs[this.activeLayer];
@@ -332,25 +576,15 @@ export class Engine {
           }
       }
 
-      this.floatingSelection = {
-          canvas: selectionCanvas,
-          x: minX,
-          y: minY,
-          width: width,
-          height: height
-      };
-
       this.history.push({ 
-          type: 'transform', 
-          chunks: lassoHistory, 
-          // Store old path so undo brings it back
-          path: this.activeSelectionPath,
-          selection: { ...this.floatingSelection }
+          type: 'stroke', // Reusing stroke type since it handles chunk Map history
+          chunks: deleteHistory
       });
 
-      this.activeSelectionPath = null;
-      this._updateSelectionPreview();
+      this.clearSelection();
       this.refresh();
+      this._status('DELETED');
+      if (this.onDrawEnd) this.onDrawEnd();
   }
 
   _status(text) {
@@ -426,13 +660,13 @@ export class Engine {
         if (wx >= sel.x && wx <= sel.x + sel.canvas.width && 
             wy >= sel.y && wy <= sel.y + sel.canvas.height) {
             // Click inside selection: start moving regardless of tool
+            if (this.onDrawStart) this.onDrawStart();
             this.isDrawing = true;
             this.lastMousePos = { x: e.clientX, y: e.clientY };
             return;
         } else {
             // Click outside selection: apply it
             this._applySelection();
-            if (this.onDrawEnd) this.onDrawEnd();
             // Don't return, let it start a new stroke (e.g. new lasso)
         }
     }
@@ -446,6 +680,7 @@ export class Engine {
         }
     }
 
+    if (this.onDrawStart) this.onDrawStart();
     this.isDrawing = true;
     const m = this._getMousePos(e);
     this.lastPos = { x: m.x, y: m.y };
@@ -460,14 +695,39 @@ export class Engine {
   }
 
   _moveStroke(e) {
-    if (this.isPanning) {
+    if (this.isDrawing && this.onDrawMove) this.onDrawMove();
+
+    if (this.isPanning || (this.keys['r'] && this.isMouseDown)) {
         let dx = e.clientX - this.lastMousePos.x;
-        const dy = e.clientY - this.lastMousePos.y;
+        let dy = e.clientY - this.lastMousePos.y;
         
-        if (this.isMirrored) dx = -dx;
+        if (this.keys['r']) {
+            // Rotate
+            const rect = this.container.getBoundingClientRect();
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            
+            const a1 = Math.atan2(this.lastMousePos.y - cy, this.lastMousePos.x - cx);
+            const a2 = Math.atan2(e.clientY - cy, e.clientX - cx);
+            this.rotation += (a2 - a1);
+        } else {
+            // Pan
+            let dx = e.clientX - this.lastMousePos.x;
+            let dy = e.clientY - this.lastMousePos.y;
+            
+            // Account for rotation in panning
+            if (this.rotation !== 0) {
+                const rx = dx * Math.cos(-this.rotation) - dy * Math.sin(-this.rotation);
+                const ry = dx * Math.sin(-this.rotation) + dy * Math.cos(-this.rotation);
+                dx = rx;
+                dy = ry;
+            }
+
+            if (this.isMirrored) dx = -dx;
+            this.pan.x += dx;
+            this.pan.y += dy;
+        }
         
-        this.pan.x += dx;
-        this.pan.y += dy;
         this.lastMousePos = { x: e.clientX, y: e.clientY };
         this.refresh();
         return;
@@ -487,20 +747,60 @@ export class Engine {
     }
 
     if (this.floatingSelection && this.isDrawing) {
-        const pdx_raw = (e.clientX - this.lastMousePos.x) / this.zoom;
-        const pdy = (e.clientY - this.lastMousePos.y) / this.zoom;
-        // If mirrored, screen movement X is visually reversed relative to world storage
-        const pdx = this.isMirrored ? -pdx_raw : pdx_raw;
-        this.floatingSelection.x += pdx;
-        this.floatingSelection.y += pdy;
+        const sel = this.floatingSelection;
+        const m1 = this._getMousePos({ clientX: this.lastMousePos.x, clientY: this.lastMousePos.y });
+        const m2 = this._getMousePos(e);
+        const dwx = m2.wx - m1.wx;
+        const dwy = m2.wy - m1.wy;
+
+        if (this.keys['t']) {
+            // T + Drag: Opacity
+            const dy = e.clientY - this.lastMousePos.y;
+            const opDelta = -dy * 0.01;
+            sel.opacity = Math.max(0, Math.min(1, (sel.opacity !== undefined ? sel.opacity : 1) + opDelta));
+            this._status(`OPACITY: ${Math.round(sel.opacity * 100)}%`);
+        } else if (this.keys['shift']) {
+            // Scale
+            const dy = e.clientY - this.lastMousePos.y;
+            const factor = 1 + dy * 0.01;
+            sel.scale = (sel.scale || 1) * factor;
+        } else if (this.keys['alt'] || this.keys['control']) {
+            // Rotate (5x slower sensitivity as requested)
+            const dx = e.clientX - this.lastMousePos.x;
+            const factor = dx * 0.01;
+            sel.rotation = (sel.rotation || 0) + factor;
+        } else {
+            // Move using world space deltas
+            sel.x += dwx;
+            sel.y += dwy;
+        }
+        
         this.lastMousePos = { x: e.clientX, y: e.clientY };
         this._updateSelectionPreview();
         return;
     }
 
     if (!this.isDrawing) return;
+    
     const m = this._getMousePos(e);
-    const currentPos = { x: m.x, y: m.y };
+    let currentPos = { x: m.x, y: m.y };
+
+    // Shift Constraint
+    if (this.keys['shift'] && this.lastPos) {
+        const dx = currentPos.x - this.lastPos.x;
+        const dy = currentPos.y - this.lastPos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        
+        // Snap to 45 degrees (Pi / 4)
+        const snap = Math.PI / 4;
+        const snappedAngle = Math.round(angle / snap) * snap;
+        
+        currentPos = {
+            x: this.lastPos.x + Math.cos(snappedAngle) * dist,
+            y: this.lastPos.y + Math.sin(snappedAngle) * dist
+        };
+    }
 
     if (this.brush.type === TOOLS.LASSO) {
         this._drawLasso(this.lastPos, currentPos);
@@ -542,25 +842,27 @@ export class Engine {
     const threshold = 10 + (this.brush.flow * 40); 
     const vFactor = Math.pow(Math.min(velocity / threshold, 1.5), 1.2); 
     
+    // Multiplier for speed sensitivity to make them much more pronounced
+    const sensitivityMult = 2.0; 
+    
     // Size: positive speedSize means faster=smaller
-    const sizeMod = 1 - (vFactor * this.brush.speedSize * 0.2); 
+    const sizeMod = 1 - (vFactor * this.brush.speedSize * sensitivityMult); 
     const dynamicSize = this.brush.size * Math.max(0.05, sizeMod);
     
     // Opacity: positive speedOpacity means faster=transparent
-    const opacMod = 1 - (vFactor * this.brush.speedOpacity * 0.2);
-    const dynamicOpacity = this.brush.opacity * Math.max(0.01, opacMod);
+    const opacMod = Math.max(0.01, 1 - (vFactor * this.brush.speedOpacity * sensitivityMult));
 
     let color = this.brush.color;
     // Color shift: Value and Hue
     if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
         // Value: speedValue (positive = faster:darker, negative = faster:lighter)
-        color = this._shiftColor(color, vFactor * this.brush.speedHue * 60, -vFactor * (this.brush.speedValue / 10)); // Fixed mapping
+        color = this._shiftColor(color, vFactor * this.brush.speedHue * 60, -vFactor * (this.brush.speedValue / 5)); // More sensitive value shift
     }
 
     if (this.brush.type === TOOLS.WIREFRAME) {
         this.strokePoints.push(worldTo);
         // 1. Core Ink Line
-        this._paintOnChunks(worldFrom, worldTo, Math.max(1, dynamicSize * 0.1), dynamicOpacity, color);
+        this._paintOnChunks(worldFrom, worldTo, Math.max(1, dynamicSize * 0.1), opacMod, color);
         // 2. Wire connections
         const thresholdMax = dynamicSize * 4;
         const thresholdMin = dynamicSize * 0.5;
@@ -572,11 +874,11 @@ export class Engine {
             const p = points[i];
             const d = Math.sqrt((p.x - worldTo.x)**2 + (p.y - worldTo.y)**2);
             if (d > thresholdMin && d < thresholdMax) {
-                this._paintOnChunks(p, worldTo, 1, dynamicOpacity * 0.2, color);
+                this._paintOnChunks(p, worldTo, 1, opacMod * 0.2, color);
             }
         }
     } else {
-        this._paintOnChunks(worldFrom, worldTo, dynamicSize, dynamicOpacity, color);
+        this._paintOnChunks(worldFrom, worldTo, dynamicSize, opacMod, color);
     }
     
     // Maintain spacing continuity
@@ -597,6 +899,34 @@ export class Engine {
         this._processLassoSelection();
     }
 
+    // Bake per-stroke buffer
+    if (this.brush.type !== TOOLS.ERASER && this.brush.type !== TOOLS.SMUDGE) {
+        this.currentStrokeDirtyChunks.forEach((data, id) => {
+            const chunk = this.chunks.get(id);
+            if (chunk) {
+                const ctx = chunk.ctxs[this.activeLayer];
+                ctx.save();
+                ctx.globalAlpha = this.brush.opacity; // Per-stroke opacity from UI
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(chunk.strokeCanvas, 0, 0);
+                ctx.restore();
+
+                // Clear stroke buffer for next stroke
+                chunk.strokeCtx.clearRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
+                chunk.strokeCanvas.style.opacity = '0';
+            }
+        });
+    } else {
+        // Just clear stroke buffers just in case, though they shouldn't have been used
+        this.currentStrokeDirtyChunks.forEach((data, id) => {
+            const chunk = this.chunks.get(id);
+            if (chunk) {
+                chunk.strokeCtx.clearRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
+                chunk.strokeCanvas.style.opacity = '0';
+            }
+        });
+    }
+
     // Store the dirty chunks as a history state
     if (this.currentStrokeDirtyChunks.size > 0) {
         this.history.push({
@@ -606,8 +936,9 @@ export class Engine {
             pan: { ...this.pan }
         });
         if (this.history.length > 30) this.history.shift();
-        if (this.onDrawEnd) this.onDrawEnd();
     }
+    
+    if (this.onDrawEnd && this.isDrawing) this.onDrawEnd();
     
     this.isDrawing = false;
     this.isPanning = false;
@@ -615,9 +946,6 @@ export class Engine {
     this.lastPos = null;
     this.lassoPath = null;
     this._status('READY');
-    
-    if (this.lassoOverlay) this.lassoOverlay.remove();
-    this.lassoOverlay = null;
   }
 
   _updateBrushCursor(e) {
@@ -637,66 +965,67 @@ export class Engine {
     let w = s;
     let h = s;
     let br = '0px';
+    let bgColor = this.brush.color;
+    let border = '1px solid rgba(0, 0, 0, 0.4)';
+    let mask = 'none';
 
     if (this.brush.type === TOOLS.WIREFRAME) {
         br = '50%';
+        bgColor = 'transparent';
     } else if (this.brush.type === TOOLS.BRUSH) {
         h = s / 2;
+        if (this.brush.tip) {
+            h = s; // Tips are 1:1 usually
+            mask = `url(${this.brush.tip.toDataURL()})`;
+        }
+    } else if (this.brush.type === TOOLS.ERASER || this.brush.type === TOOLS.SMUDGE) {
+        h = s / 2;
+        bgColor = 'transparent';
+        border = '1px solid black';
+        if (this.brush.tip) {
+            h = s;
+            mask = `url(${this.brush.tip.toDataURL()})`;
+            bgColor = 'rgba(0,0,0,0.1)'; // Small fill for eraser tip visibility
+        }
     } else if (this.brush.type === TOOLS.LASSO) {
         w = 10;
         h = 10;
         br = '50%';
+        bgColor = 'transparent';
+        border = '1px solid black';
     }
 
     this.brushCursor.style.width = `${w}px`;
     this.brushCursor.style.height = `${h}px`;
     this.brushCursor.style.borderRadius = br;
-    
-    // Position relative to container
-    let x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    this.brushCursor.style.backgroundColor = bgColor;
+    this.brushCursor.style.border = border;
+    this.brushCursor.style.webkitMaskImage = mask;
+    this.brushCursor.style.webkitMaskSize = '100% 100%';
+    this.brushCursor.style.maskImage = mask;
+    this.brushCursor.style.maskSize = '100% 100%';
 
+    // Position relative to container
+    let mouseX = e.clientX - rect.left;
+    let mouseY = e.clientY - rect.top;
+
+    this.brushCursor.style.left = `${mouseX - w/2}px`;
+    this.brushCursor.style.top = `${mouseY - h/2}px`;
+    
+    let transform = `rotate(${this.rotation}rad)`;
     if (this.isMirrored) {
-        x = rect.width - x;
+        transform += ' scaleX(-1)';
     }
-    
-    this.brushCursor.style.left = `${x - w/2}px`;
-    this.brushCursor.style.top = `${y - h/2}px`;
-    
-    // Inverted contrast for high visibility
-    this.brushCursor.style.mixBlendMode = 'difference';
-    // Using high brightness for difference mode to result in inversion
-    this.brushCursor.style.borderColor = this.brush.type === TOOLS.ERASER ? '#ff6666' : '#ffffff';
+    this.brushCursor.style.transform = transform;
   }
 
   _drawLasso(from, to) {
       if (!this.lassoPath) {
           this.lassoPath = [];
-          this.lassoOverlay = document.createElement('canvas');
-          this.lassoOverlay.className = 'absolute inset-0 pointer-events-none';
-          const rect = this.container.getBoundingClientRect();
-          this.lassoOverlay.width = rect.width;
-          this.lassoOverlay.height = rect.height;
-          this.uiLayer.appendChild(this.lassoOverlay);
       }
       const wx = (to.x - this.pan.x) / this.zoom;
       const wy = (to.y - this.pan.y) / this.zoom;
       this.lassoPath.push({ x: wx, y: wy });
-      
-      const ctx = this.lassoOverlay.getContext('2d');
-      ctx.clearRect(0,0, this.lassoOverlay.width, this.lassoOverlay.height);
-      ctx.strokeStyle = '#000';
-      ctx.setLineDash([5, 5]);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      this.lassoPath.forEach((p, i) => {
-          const sx = p.x * this.zoom + this.pan.x;
-          const sy = p.y * this.zoom + this.pan.y;
-          if (i === 0) ctx.moveTo(sx, sy);
-          else ctx.lineTo(sx, sy);
-      });
-      ctx.stroke();
-      
       this._status('LASSOING...');
   }
 
@@ -720,6 +1049,7 @@ export class Engine {
           this.selectionOverlay.appendChild(this.selectionCanvas);
       }
 
+      const rect = this.container.getBoundingClientRect();
       const sel = this.floatingSelection;
       
       // Only resize canvas if dimensions actually changed (performance)
@@ -733,17 +1063,42 @@ export class Engine {
       this.selectionOverlay.style.width = `${sel.canvas.width}px`;
       this.selectionOverlay.style.height = `${sel.canvas.height}px`;
       
-      const x = sel.x * this.zoom + this.pan.x;
-      const y = sel.y * this.zoom + this.pan.y;
-      this.selectionOverlay.style.transform = `translate(${x}px, ${y}px) scale(${this.zoom})`;
-      this.selectionOverlay.style.transformOrigin = 'top left';
+      // pivot point calculation
+      const worldPivotX = sel.x + sel.canvas.width / 2;
+      const worldPivotY = sel.y + sel.canvas.height / 2;
+      
+      const screenPivotX = worldPivotX * this.zoom + this.pan.x;
+      const screenPivotY = worldPivotY * this.zoom + this.pan.y;
+      
+      let rot = sel.rotation || 0;
+      const sc = (sel.scale || 1);
+      const displayScale = sc * this.zoom;
+      const opacity = (sel.opacity !== undefined ? sel.opacity : 1);
+      
+      let mirrorX = sel.mirrorX ? -1 : 1;
+      let mirrorY = sel.mirrorY ? -1 : 1;
+      
+      let finalX = screenPivotX;
+      if (this.isMirrored) {
+          finalX = rect.width - screenPivotX;
+          mirrorX *= -1;
+          rot = -rot;
+      }
+
+      this.selectionOverlay.style.left = '0px';
+      this.selectionOverlay.style.top = '0px';
+      this.selectionOverlay.style.transformOrigin = 'center center';
+      // Center on pivot, then rotate and scale
+      this.selectionOverlay.style.transform = `translate(${finalX}px, ${screenPivotY}px) translate(-50%, -50%) rotate(${rot}rad) scale(${displayScale * mirrorX}, ${displayScale * mirrorY})`;
+      this.selectionOverlay.style.opacity = opacity;
+      
+      // Update info status
+      this._status(`TRANSFORM: ${Math.round(sc * 100)}% | ${Math.round(rot * 180 / Math.PI)}° | OPACITY: ${Math.round(opacity * 100)}%`);
   }
 
   _processLassoSelection() {
       if (!this.lassoPath || this.lassoPath.length < 3) {
           this.lassoPath = null;
-          if (this.lassoOverlay) this.lassoOverlay.remove();
-          this.lassoOverlay = null;
           this.refresh();
           return;
       }
@@ -754,8 +1109,6 @@ export class Engine {
       this.history.push({ type: 'selection', path: prevPath });
 
       this.lassoPath = null;
-      if (this.lassoOverlay) this.lassoOverlay.remove();
-      this.lassoOverlay = null;
       this.refresh();
   }
 
@@ -769,11 +1122,20 @@ export class Engine {
   _applySelection() {
       if (!this.floatingSelection) return;
       
-      const { canvas, x, y } = this.floatingSelection;
-      const startCX = Math.floor(x / CHUNK_SIZE);
-      const startCY = Math.floor(y / CHUNK_SIZE);
-      const endCX = Math.floor((x + canvas.width) / CHUNK_SIZE);
-      const endCY = Math.floor((y + canvas.height) / CHUNK_SIZE);
+      const sel = this.floatingSelection;
+      const { canvas, x, y, rotation, scale, opacity, mirrorX, mirrorY } = sel;
+      const rot = rotation || 0;
+      const sc = scale || 1;
+      const op = opacity !== undefined ? opacity : 1;
+      
+      // Calculate bounding box for rotated/scaled canvas to find relevant chunks
+      const halfW = (canvas.width * sc * 1.5) / 2;
+      const halfH = (canvas.height * sc * 1.5) / 2;
+
+      const startCX = Math.floor((x - halfW) / CHUNK_SIZE);
+      const startCY = Math.floor((y - halfH) / CHUNK_SIZE);
+      const endCX = Math.floor((x + canvas.width + halfW) / CHUNK_SIZE);
+      const endCY = Math.floor((y + canvas.height + halfH) / CHUNK_SIZE);
 
       const applyHistory = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
@@ -785,13 +1147,27 @@ export class Engine {
               const ly = cy * CHUNK_SIZE;
 
               // Backup for undo
-              const backup = document.createElement('canvas');
-              backup.width = CHUNK_SIZE;
-              backup.height = CHUNK_SIZE;
-              backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
-              applyHistory.set(id, { layer: this.activeLayer, canvas: backup });
+              if (!applyHistory.has(id)) {
+                const backup = document.createElement('canvas');
+                backup.width = CHUNK_SIZE;
+                backup.height = CHUNK_SIZE;
+                backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+                applyHistory.set(id, { layer: this.activeLayer, canvas: backup });
+              }
 
-              ctx.drawImage(canvas, x - lx, y - ly);
+              ctx.save();
+              // Pivot around the center of the selection in world space
+              const worldPivotX = x + canvas.width / 2;
+              const worldPivotY = y + canvas.height / 2;
+              
+              ctx.translate(worldPivotX - lx, worldPivotY - ly);
+              ctx.rotate(rot);
+              ctx.scale(sc * (mirrorX ? -1 : 1), sc * (mirrorY ? -1 : 1));
+              ctx.globalAlpha = op;
+              // Draw centered at the pivot
+              ctx.drawImage(canvas, -canvas.width/2, -canvas.height/2);
+              ctx.restore();
+              
               this._markDirty(id, this.activeLayer);
           }
       }
@@ -805,6 +1181,7 @@ export class Engine {
       this._updateSelectionPreview();
       this.refresh();
       this._status('APPLIED');
+      if (this.onDrawEnd) this.onDrawEnd();
   }
 
   _handlePickerMove(e) {
@@ -886,9 +1263,9 @@ export class Engine {
       for (let cy = startCY; cy <= endCY; cy++) {
         const id = `${cx},${cy}`;
         const chunk = this._getChunk(cx, cy);
-        const ctx = chunk.ctxs[this.activeLayer];
         
-        // Lazy snapshot for undo
+        // Lazy snapshot for undo (must happen before we start drawing on strokeCtx if we used it as source, 
+        // but here it's for the main layer which we bake into later)
         if (this.isDrawing && !this.currentStrokeDirtyChunks.has(id)) {
             const backup = document.createElement('canvas');
             backup.width = CHUNK_SIZE;
@@ -899,6 +1276,16 @@ export class Engine {
         
         this._markDirty(id, this.activeLayer);
 
+        const isEraser = this.brush.type === TOOLS.ERASER;
+        const isSmudge = this.brush.type === TOOLS.SMUDGE;
+        const ctx = (isEraser || isSmudge) ? chunk.ctxs[this.activeLayer] : chunk.strokeCtx;
+        
+        if (!isEraser && !isSmudge) {
+            chunk.strokeCanvas.style.opacity = this.brush.opacity; // Per-stroke opacity
+        } else {
+            chunk.strokeCanvas.style.opacity = '0';
+        }
+        
         ctx.save();
         const lx = cx * CHUNK_SIZE;
         const ly = cy * CHUNK_SIZE;
@@ -914,21 +1301,20 @@ export class Engine {
             ctx.clip();
         }
         
-        if (this.brush.type === TOOLS.ERASER) {
+        if (isEraser) {
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.fillStyle = `rgba(0,0,0,1)`;
-        } else if (this.brush.type === TOOLS.WIREFRAME) {
+            ctx.fillStyle = 'rgba(0,0,0,1)';
+            ctx.globalAlpha = opacity * this.brush.flow * this.brush.opacity;
+        } else if (isSmudge) {
             ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = color;
+            ctx.globalAlpha = opacity * this.brush.flow * this.brush.opacity * 0.5; // Smudge is softer
         } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = color;
+            ctx.globalAlpha = opacity * this.brush.flow; // Flow * Modulation is per-stamp opacity
         }
-
-        ctx.globalAlpha = opacity * this.brush.flow;
         
         // Rectangular "Concept Art" Brush with texture/taper
-        const angle = Math.atan2(to.y - from.y, to.x - from.x);
         const dist = Math.sqrt((to.x - from.x)**2 + (to.y - from.y)**2);
         
         // Spacing based on brush size
@@ -945,26 +1331,74 @@ export class Engine {
             
             ctx.save();
             ctx.translate(px, py);
+            ctx.rotate(this.rotation);
             
             if (this.brush.type === TOOLS.WIREFRAME) {
-                // Round brush for wireframe as requested
+                // Outline brush for wireframe
                 ctx.beginPath();
                 ctx.arc(0, 0, s / 2, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            } else if (isSmudge) {
+                // Smudge Pick and Stamp
+                const sW = Math.max(1, Math.round(s));
+                const sH = Math.max(1, Math.round(s / 2));
+                
+                // Pick center in world coordinates
+                const pickX = from.x + (to.x - from.x) * lerpVal - (to.x - from.x) * 0.4;
+                const pickY = from.y + (to.y - from.y) * lerpVal - (to.y - from.y) * 0.4;
+
+                this.scratchCanvas.width = sW;
+                this.scratchCanvas.height = sH;
+                this.scratchCtx.clearRect(0, 0, sW, sH);
+
+                // Sample from nearby chunks
+                const pMinX = pickX - sW / 2;
+                const pMinY = pickY - sH / 2;
+                const pcxS = Math.floor(pMinX / CHUNK_SIZE);
+                const pcyS = Math.floor(pMinY / CHUNK_SIZE);
+                const pcxE = Math.floor((pickX + sW / 2) / CHUNK_SIZE);
+                const pcyE = Math.floor((pickY + sH / 2) / CHUNK_SIZE);
+
+                for (let pcx = pcxS; pcx <= pcxE; pcx++) {
+                    for (let pcy = pcyS; pcy <= pcyE; pcy++) {
+                        const sID = `${pcx},${pcy}`;
+                        const sChunk = this.chunks.get(sID);
+                        if (sChunk) {
+                            const clx = pcx * CHUNK_SIZE;
+                            const cly = pcy * CHUNK_SIZE;
+                            this.scratchCtx.drawImage(sChunk.canvases[this.activeLayer], clx - pMinX, cly - pMinY);
+                        }
+                    }
+                }
+                ctx.drawImage(this.scratchCanvas, -sW / 2, -sH / 4, sW, sH);
             } else {
-                // Rectangular "Concept Art" Core stamp 
-                ctx.fillRect(-s / 2, -s / 4, s, s / 2);
+                // TOOLS.BRUSH or TOOLS.ERASER (Eraser draws into stroke buffer as solid color first)
+                if (this.brush.tip) {
+                    // Update tip cache if needed
+                    if (!this._tipColorCache || this._tipColorCache.srcTip !== this.brush.tip || this._tipColorCache.color !== color) {
+                        const temp = document.createElement('canvas');
+                        temp.width = 128;
+                        temp.height = 128;
+                        const tctx = temp.getContext('2d');
+                        tctx.fillStyle = color;
+                        tctx.fillRect(0, 0, 128, 128);
+                        tctx.globalCompositeOperation = 'destination-in';
+                        tctx.drawImage(this.brush.tip, 0, 0);
+                        this._tipColorCache = { canvas: temp, srcTip: this.brush.tip, color: color };
+                    }
+                    ctx.drawImage(this._tipColorCache.canvas, -s / 2, -s / 2, s, s);
+                } else {
+                    ctx.fillRect(-s / 2, -s / 4, s, s / 2);
+                }
             }
             
             ctx.restore();
             currentPos += Math.max(0.5, step);
         }
         
-        // Don't update accumulator here because _paintOnChunks is called multiple times for DIFFERENT chunks.
-        // We need to keep a per-stroke accumulator in moveStroke.
-        
         ctx.restore();
-        this._markDirty(id, this.activeLayer);
       }
     }
   }
@@ -999,6 +1433,7 @@ export class Engine {
       }
     }
     this.refresh();
+    if (this.onDrawEnd) this.onDrawEnd();
   }
 
   undo() {
@@ -1044,6 +1479,7 @@ export class Engine {
     this._updateSelectionPreview();
     this.refresh();
     this._status('UNDO');
+    if (this.onDrawEnd) this.onDrawEnd();
   }
 
   redo() {
@@ -1087,6 +1523,7 @@ export class Engine {
     this._updateSelectionPreview();
     this.refresh();
     this._status('REDO');
+    if (this.onDrawEnd) this.onDrawEnd();
   }
 
   clearLayer(index) {
@@ -1105,6 +1542,7 @@ export class Engine {
           this._markDirty(id, index);
       });
       this._status(`LAYER ${index} CLEARED`);
+      if (this.onDrawEnd) this.onDrawEnd();
   }
 
   clear() {
@@ -1114,6 +1552,7 @@ export class Engine {
           this._markDirty(id, index);
       });
     });
+    if (this.onDrawEnd) this.onDrawEnd();
   }
 
   setZoom(z, cursorX = null, cursorY = null) {

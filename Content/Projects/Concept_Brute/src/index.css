@@ -47,9 +47,14 @@ body {
     flex-grow: 1;
     position: relative;
     overflow: hidden;
-    background-color: white;
-    background-image: radial-gradient(#ccc 1px, transparent 1px);
-    background-size: 20px 20px;
+    background-color: #f0f0f0;
+}
+
+#canvas-wrapper {
+    position: absolute;
+    width: 2048px;
+    height: 2048px;
+    background-repeat: repeat;
 }
 
 #brush-cursor {
@@ -58,6 +63,96 @@ body {
     border: 1px solid rgba(0, 0, 0, 0.4);
     border-radius: 2px;
     z-index: 1000;
+    transition: none;
+    will-change: left, top, width, height;
+}
+
+/* BRUSH TIP PANEL */
+#panel-brush-tips {
+    top: 60px;
+    right: 220px;
+    width: 180px;
+}
+
+#tip-editor-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    background: #fff;
+    border-bottom: 2px solid #000;
+    cursor: crosshair;
+}
+
+#tip-editor-canvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+#tip-editor-controls {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+}
+
+#tip-palette {
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.tip-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+}
+
+.tip-swatch {
+    aspect-ratio: 1;
+    border: 2px solid #000;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+}
+
+.tip-swatch canvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.tip-swatch.active-swatch {
+    background: #000;
+    border-color: #fff;
+}
+
+.tip-swatch.active-swatch canvas {
+    filter: invert(1);
+}
+
+.mini-btn.active-btn {
+    background: #000;
+    color: #fff;
+}
+
+.mini-btn.active-btn:hover {
+    background: #333;
+}
+
+.panel-toggle {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.panel-toggle:hover {
+    background: rgba(0,0,0,0.1);
 }
 
 /* REUSABLE UI COMPONENTS */
@@ -219,7 +314,7 @@ body {
 }
 
 .brutal-range {
-    -webkit-appearance: none;
+    appearance: none;
     background: white;
     border: 2px solid black;
     outline: none;
@@ -228,7 +323,7 @@ body {
 }
 
 .brutal-range::-webkit-slider-thumb {
-    -webkit-appearance: none;
+    appearance: none;
     width: 16px;
     height: 24px;
     background: black;
@@ -302,14 +397,13 @@ body {
 #hue-slider {
     width: 100%;
     height: 16px;
-    -webkit-appearance: none;
     appearance: none;
     background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
     border: 2px solid black;
 }
 
 #hue-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
+    appearance: none;
     width: 8px;
     height: 20px;
     background: white;

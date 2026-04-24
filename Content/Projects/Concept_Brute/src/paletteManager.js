@@ -10,11 +10,23 @@ export class PaletteManager {
             '#F97316', // 5: Orange
             '#4338CA'  // 6: Indigo
         ];
+
+        try {
+            const saved = localStorage.getItem('canvas_palette');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length === 6) {
+                    this.baseColors = parsed;
+                }
+            }
+        } catch(e) {}
+
         this.activeIndex = 0;
     }
 
     setBaseColor(index, color) {
         this.baseColors[index] = color;
+        localStorage.setItem('canvas_palette', JSON.stringify(this.baseColors));
     }
 
     generate() {

@@ -2,6 +2,7 @@ import { Engine } from './engine.js';
 import { SketchStorage } from './storage.js';
 import { TOOLS, LAYERS_COUNT } from './constants.js';
 import { PaletteManager } from './paletteManager.js';
+import { TipManager } from './tipManager.js';
 import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from './colorUtils.js';
 
 class App {
@@ -11,9 +12,36 @@ class App {
     this.engine.onStatus = (text) => this._status(text);
     this.storage = new SketchStorage();
     this.palette = new PaletteManager();
+    this.tipManager = new TipManager(document.getElementById('panel-brush-tips'), (tip) => {
+        this.brushSettings[TOOLS.BRUSH].tip = tip;
+        if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE) {
+            this.engine.brush.tip = tip;
+        }
+    }, this.storage);
     this.activeTool = TOOLS.BRUSH;
     this.lastBrush = TOOLS.BRUSH; // Track for smart switching back to painting
     this.prevTool = TOOLS.BRUSH; 
+    
+    // Per-brush settings
+    this.brushSettings = {};
+    Object.values(TOOLS).forEach(tool => {
+        this.brushSettings[tool] = {
+            size: 40,
+            opacity: 1.0,
+            flow: 1.0,
+            speedSize: 8.0,
+            speedOpacity: 6.0,
+            speedValue: -4.0,
+            speedHue: -10.0,
+            tip: null
+        };
+    });
+    // Set some defaults
+    this.brushSettings[TOOLS.ERASER].opacity = 1.0;
+    this.brushSettings[TOOLS.SMUDGE].opacity = 0.5;
+    this.brushSettings[TOOLS.SMUDGE].flow = 0.5;
+    this.brushSettings[TOOLS.WIREFRAME].size = 20;
+
     this.hsv = { h: 0, s: 70, v: 70 };
     
     this.init();
@@ -55,29 +83,42 @@ class App {
             document.getElementById('settings-grid-show').checked = showGrid;
         }
 
+        const savedSensitivities = await this.storage.loadSetting('sensitivities');
+        if (savedSensitivities) {
+            // Migrating old sensitivities to default brush if present
+            this.brushSettings[TOOLS.BRUSH].speedSize = savedSensitivities.size ?? 8.0;
+            this.brushSettings[TOOLS.BRUSH].speedOpacity = savedSensitivities.opacity ?? 6.0;
+            this.brushSettings[TOOLS.BRUSH].speedValue = savedSensitivities.value ?? -4.0;
+            this.brushSettings[TOOLS.BRUSH].speedHue = savedSensitivities.hue ?? -10.0;
+        }
+
+        let savedBrushes = null;
+        try {
+            const raw = localStorage.getItem('brushSettings');
+            if (raw) savedBrushes = JSON.parse(raw);
+        } catch(e) {}
+
+        if (!savedBrushes) {
+            // Fallback for legacy
+            savedBrushes = await this.storage.loadSetting('brushSettings');
+        }
+
+        if (savedBrushes) {
+            Object.keys(savedBrushes).forEach(tool => {
+                if (this.brushSettings[tool]) {
+                    this.brushSettings[tool] = { ...this.brushSettings[tool], ...savedBrushes[tool] };
+                }
+            });
+        }
+
+        // Apply initial tool settings
+        this.setTool(this.activeTool);
+
         const spacing = await this.storage.loadSetting('brushSpacing');
         if (spacing) {
             this.engine.brush.spacing = parseFloat(spacing);
-            document.getElementById('settings-brush-spacing').value = spacing;
-        }
-
-        const sensitivities = await this.storage.loadSetting('sensitivities');
-        if (sensitivities) {
-            if (sensitivities.size !== undefined) {
-                this.engine.brush.speedSize = sensitivities.size;
-                document.getElementById('speed-size').value = sensitivities.size * 100;
-            }
-            if (sensitivities.opacity !== undefined) {
-                this.engine.brush.speedOpacity = sensitivities.opacity;
-                document.getElementById('speed-opacity').value = sensitivities.opacity * 100;
-            }
-            if (sensitivities.value !== undefined) {
-                this.engine.brush.speedValue = sensitivities.value;
-                document.getElementById('speed-value').value = sensitivities.value * 100;
-            }
-            if (sensitivities.hue !== undefined) {
-                this.engine.brush.speedHue = sensitivities.hue;
-                document.getElementById('speed-hue').value = sensitivities.hue * 100;
+            if (document.getElementById('settings-brush-spacing')) {
+                document.getElementById('settings-brush-spacing').value = spacing;
             }
         }
 
@@ -89,6 +130,8 @@ class App {
     this._renderPalette();
     
     this._status('READY');
+    this.engine.onDrawStart = () => this._clearSaveTimer();
+    this.engine.onDrawMove = () => this._triggerAutoSave();
     this.engine.onDrawEnd = () => this._triggerAutoSave();
     this.engine.onZoomChange = () => this._updateZoomUI();
 
@@ -98,8 +141,15 @@ class App {
     this._initColorSelector();
   }
 
+  _clearSaveTimer() {
+    if (this.saveTimeout) {
+        clearTimeout(this.saveTimeout);
+        this.saveTimeout = null;
+    }
+  }
+
   _triggerAutoSave() {
-    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this._clearSaveTimer();
     this.saveTimeout = setTimeout(() => this.save(), 4000);
   }
 
@@ -109,9 +159,43 @@ class App {
     document.getElementById('btn-eraser').onclick = () => this.setTool(TOOLS.ERASER);
     document.getElementById('btn-wireframe').onclick = () => this.setTool(TOOLS.WIREFRAME);
     document.getElementById('btn-lasso').onclick = () => this.setTool(TOOLS.LASSO);
+    document.getElementById('btn-smudge').onclick = () => this.setTool(TOOLS.SMUDGE);
     document.getElementById('btn-undo').onclick = () => this.engine.undo();
     document.getElementById('btn-redo').onclick = () => this.engine.redo();
-    document.getElementById('btn-clear').onclick = () => this.engine.clear();
+    const btnClear = document.getElementById('btn-clear');
+    if (btnClear) {
+        btnClear.dataset.state = 'idle';
+        btnClear.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (btnClear.dataset.state === 'idle') {
+                btnClear.dataset.state = 'confirm';
+                btnClear.innerText = 'REALLY?';
+                btnClear.style.backgroundColor = '#ff0000';
+                btnClear.style.color = 'white';
+                
+                setTimeout(() => {
+                    if (btnClear.dataset.state === 'confirm') {
+                        btnClear.dataset.state = 'idle';
+                        btnClear.innerText = 'Clear';
+                        btnClear.style.backgroundColor = '';
+                        btnClear.style.color = '';
+                    }
+                }, 3000);
+            } else {
+                this.engine.clear();
+                this._status('CANVAS PURGED');
+                btnClear.dataset.state = 'idle';
+                btnClear.innerText = 'PURGED!';
+                setTimeout(() => {
+                    btnClear.innerText = 'Clear';
+                    btnClear.style.backgroundColor = '';
+                    btnClear.style.color = '';
+                }, 1000);
+            }
+        });
+    }
     document.getElementById('btn-fullscreen').onclick = () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen();
@@ -191,11 +275,11 @@ class App {
     }
     this.engine.activeLayer = 1; // Default to first paint layer
 
-    // Settings
     const sizeSlider = document.getElementById('brush-size');
     const sizeVal = document.getElementById('size-val');
     sizeSlider.oninput = (e) => {
       const val = parseInt(e.target.value);
+      this.brushSettings[this.activeTool].size = val;
       this.engine.brush.size = val;
       sizeVal.innerText = val;
     };
@@ -205,6 +289,7 @@ class App {
     if (opacitySlider) {
         opacitySlider.oninput = (e) => {
           const val = parseInt(e.target.value);
+          this.brushSettings[this.activeTool].opacity = val / 100;
           this.engine.brush.opacity = val / 100;
           opacityVal.innerText = `${val}%`;
         };
@@ -215,6 +300,7 @@ class App {
     if (flowSlider) {
         flowSlider.oninput = (e) => {
           const val = parseInt(e.target.value);
+          this.brushSettings[this.activeTool].flow = val / 100;
           this.engine.brush.flow = val / 100;
           flowVal.innerText = `${val}%`;
         };
@@ -226,30 +312,29 @@ class App {
     const sVal = document.getElementById('speed-value');
     const sHue = document.getElementById('speed-hue');
 
-    const saveSens = () => {
-        this.storage.saveSetting('sensitivities', {
-            size: this.engine.brush.speedSize,
-            opacity: this.engine.brush.speedOpacity,
-            value: this.engine.brush.speedValue,
-            hue: this.engine.brush.speedHue
-        });
-    };
-
     if (sSize) sSize.oninput = (e) => {
-        this.engine.brush.speedSize = parseInt(e.target.value) / 100;
-        saveSens();
+        const val = parseInt(e.target.value) / 100;
+        this.engine.brush.speedSize = val;
+        this.brushSettings[this.activeTool].speedSize = val;
+        this._saveBrushSettings();
     };
     if (sOpac) sOpac.oninput = (e) => {
-        this.engine.brush.speedOpacity = parseInt(e.target.value) / 100;
-        saveSens();
+        const val = parseInt(e.target.value) / 100;
+        this.engine.brush.speedOpacity = val;
+        this.brushSettings[this.activeTool].speedOpacity = val;
+        this._saveBrushSettings();
     };
     if (sVal) sVal.oninput = (e) => {
-        this.engine.brush.speedValue = parseInt(e.target.value) / 100;
-        saveSens();
+        const val = parseInt(e.target.value) / 100;
+        this.engine.brush.speedValue = val;
+        this.brushSettings[this.activeTool].speedValue = val;
+        this._saveBrushSettings();
     };
     if (sHue) sHue.oninput = (e) => {
-        this.engine.brush.speedHue = parseInt(e.target.value) / 100;
-        saveSens();
+        const val = parseInt(e.target.value) / 100;
+        this.engine.brush.speedHue = val;
+        this.brushSettings[this.activeTool].speedHue = val;
+        this._saveBrushSettings();
     };
 
     // Draggable Panels
@@ -257,6 +342,7 @@ class App {
     this._makeDraggable(document.getElementById('panel-images'), document.getElementById('handle-images'));
     this._makeDraggable(document.getElementById('panel-layers'), document.getElementById('handle-layers'));
     this._makeDraggable(document.getElementById('panel-settings'), document.getElementById('handle-settings'));
+    this._makeDraggable(document.getElementById('panel-brush-tips'), document.getElementById('handle-brush-tips'));
   }
 
   _makeDraggable(el, handle) {
@@ -301,10 +387,18 @@ class App {
       const key = e.key.toLowerCase();
       switch (key) {
         case '1': this.setTool(TOOLS.BRUSH); break;
-        case '2': this.setTool(TOOLS.ERASER); break;
-        case '3': this.setTool(TOOLS.WIREFRAME); break;
-        case '4': this.setTool(TOOLS.LASSO); break;
-        case 'b': this.engine.toggleMirror(); break;
+        case '2': this.setTool(TOOLS.WIREFRAME); break;
+        case '3': this.setTool(TOOLS.LASSO); break;
+        case '4': this.setTool(TOOLS.SMUDGE); break;
+        case '5': this.setTool(TOOLS.ERASER); break;
+        case 'b': 
+          if (this.engine.floatingSelection) {
+              this.engine.floatingSelection.mirrorX = !this.engine.floatingSelection.mirrorX;
+              this.engine.refresh();
+          } else {
+              this.engine.toggleMirror(); 
+          }
+          break;
         case 'x': this.setTool(TOOLS.ERASER); break; 
         case 's': this._adjOpacity(-5); break; // S lowers opacity
         case 'd': 
@@ -318,14 +412,45 @@ class App {
             this._adjOpacity(5); 
           }
           break;
+        case 'delete':
+        case 'backspace':
+          if (this.engine.activeSelectionPath) {
+            this.engine.deleteSelection();
+            e.preventDefault();
+          }
+          break;
         case 't':
           this.engine.startTransform();
           break;
         case 'l': this.setTool(TOOLS.LASSO); break;
+        case 'c':
+          if (e.ctrlKey) {
+            this.engine.copy();
+            e.preventDefault();
+          }
+          break;
+        case 'v':
+          if (e.ctrlKey) {
+            this.engine.paste();
+            e.preventDefault();
+          }
+          break;
+        case 'x':
+          if (e.ctrlKey) {
+            this.engine.cut();
+            e.preventDefault();
+          }
+          break;
         case 'z': 
           if (e.ctrlKey) {
               if (e.shiftKey) this.engine.redo();
               else this.engine.undo();
+              e.preventDefault();
+          }
+          break;
+        case 'enter':
+          if (this.engine.floatingSelection) {
+              this.engine._applySelection();
               e.preventDefault();
           }
           break;
@@ -343,17 +468,22 @@ class App {
     const valEl = document.getElementById('size-val');
     const newVal = Math.max(1, Math.min(500, parseInt(el.value) + delta));
     el.value = newVal;
+    this.brushSettings[this.activeTool].size = newVal;
     this.engine.brush.size = newVal;
     if (valEl) valEl.innerText = newVal;
+    this._saveBrushSettings();
   }
 
   _adjOpacity(delta) {
     const el = document.getElementById('brush-opacity');
     const valEl = document.getElementById('opacity-val');
-    const newVal = Math.max(0, Math.min(100, parseInt(el.value) + delta));
-    el.value = newVal;
+    const pVal = el ? parseInt(el.value) : (this.brushSettings[this.activeTool].opacity * 100);
+    const newVal = Math.max(0, Math.min(100, pVal + delta));
+    if (el) el.value = newVal;
+    this.brushSettings[this.activeTool].opacity = newVal / 100;
     this.engine.brush.opacity = newVal / 100;
     if (valEl) valEl.innerText = `${newVal}%`;
+    this._saveBrushSettings();
   }
 
   _handleImport(e) {
@@ -513,9 +643,48 @@ class App {
     if (tool === TOOLS.BRUSH || tool === TOOLS.WIREFRAME) {
         this.lastBrush = tool;
     }
-    this.engine.brush.type = tool;
     
-    // Update UI
+    // Apply per-brush settings
+    const settings = this.brushSettings[tool];
+    this.engine.brush.type = tool;
+    this.engine.brush.size = settings.size;
+    this.engine.brush.opacity = settings.opacity;
+    this.engine.brush.flow = settings.flow;
+    this.engine.brush.speedSize = settings.speedSize;
+    this.engine.brush.speedOpacity = settings.speedOpacity;
+    this.engine.brush.speedValue = settings.speedValue;
+    this.engine.brush.speedHue = settings.speedHue;
+
+    if (tool === TOOLS.ERASER || tool === TOOLS.SMUDGE) {
+        // Shared tip from Brush 1
+        this.engine.brush.tip = this.brushSettings[TOOLS.BRUSH].tip;
+    } else {
+        this.engine.brush.tip = settings.tip;
+    }
+
+    // Update UI Sliders
+    document.getElementById('brush-size').value = settings.size;
+    document.getElementById('size-val').innerText = settings.size;
+    
+    const opacEl = document.getElementById('brush-opacity');
+    if (opacEl) {
+        opacEl.value = settings.opacity * 100;
+        document.getElementById('opacity-val').innerText = `${Math.round(settings.opacity * 100)}%`;
+    }
+
+    const flowEl = document.getElementById('brush-flow');
+    if (flowEl) {
+        flowEl.value = settings.flow * 100;
+        document.getElementById('flow-val').innerText = `${Math.round(settings.flow * 100)}%`;
+    }
+
+    // Update Sensitivity UI
+    if (document.getElementById('speed-size')) document.getElementById('speed-size').value = settings.speedSize * 100;
+    if (document.getElementById('speed-opacity')) document.getElementById('speed-opacity').value = settings.speedOpacity * 100;
+    if (document.getElementById('speed-value')) document.getElementById('speed-value').value = settings.speedValue * 100;
+    if (document.getElementById('speed-hue')) document.getElementById('speed-hue').value = settings.speedHue * 100;
+    
+    // Update UI Buttons
     document.querySelectorAll('.tool-group .tool-btn').forEach(btn => {
       btn.classList.remove('active-tool');
     });
@@ -542,7 +711,7 @@ class App {
     this._updateColorUI();
 
     // Smart Switch check: if color picked while using non-painting tools, switch to last brush
-    if (this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.LASSO) {
+    if (this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.LASSO || this.activeTool === TOOLS.SMUDGE) {
         this.setTool(this.lastBrush);
     }
   }
@@ -595,6 +764,11 @@ class App {
   }
 
   async save() {
+    if (this.engine.isDrawing) {
+        // If we are still drawing, defer save again
+        this._triggerAutoSave();
+        return;
+    }
     if (this.engine.dirtyChunks.size === 0) return;
 
     this._status('SAVING...');
@@ -637,6 +811,19 @@ class App {
   _status(text) {
     const el = document.getElementById('status');
     if (el) el.innerText = text;
+  }
+
+  _saveBrushSettings() {
+    const toSave = {};
+    Object.keys(this.brushSettings).forEach(tool => {
+        const s = this.brushSettings[tool];
+        toSave[tool] = { ...s };
+        // Canvas elements cannot be cloned in IndexedDB/Storage
+        if (toSave[tool].tip instanceof HTMLCanvasElement) {
+            toSave[tool].tip = null; 
+        }
+    });
+    localStorage.setItem('brushSettings', JSON.stringify(toSave));
   }
 
   async _updateStorageStat() {
