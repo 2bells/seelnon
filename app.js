@@ -547,14 +547,15 @@ function openFolder(path) {
   openWindow({ title: folder.name, content: wrap, width: 560, height: 380, x: 80, y: 80 });
 }
 
-function openImage(currentPath) {
-  const entry = FS.get(currentPath);
+function openImage(entry) {
   if (!entry || entry.type !== 'image') return;
 
+  const currentPath = entry.path;
   const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
   const parentFolder = FS.get(parentPath);
-  const imageEntries = parentFolder.children.filter(ch => ch.type === 'image');
+  const imageEntries = parentFolder ? parentFolder.children.filter(ch => ch.type === 'image') : [entry];
   let currentIndex = imageEntries.findIndex(e => e.path === currentPath);
+  if (currentIndex === -1) currentIndex = 0;
 
   const viewerContainer = document.createElement('div');
   viewerContainer.style.display = 'flex';
@@ -1316,20 +1317,22 @@ async function openEntry(path) {
   if (!entry) return;
   let windowId = null;
 
-  // NEW: Handle AI_research separately with the terminal wrapper
-  if (entry.path === FS.findByName('AI_research').path) {
+  // Handle AI_research separately with the terminal wrapper
+  const aiNode = FS.findByName('AI_research');
+  if (aiNode && entry.path === aiNode.path) {
     openAiResearchTerminal(entry);
     return; // Exit here, don't open as a regular window
   }
 
   // Handle GIL Archive separately
-  if (entry.path === FS.findByName('GIL Archive').path) {
+  const gilNode = FS.findByName('GIL Archive');
+  if (gilNode && entry.path === gilNode.path) {
     openGilArchive(entry);
     return;
   }
 
   if (entry.type === 'folder') windowId = openFolder(path);
-  else if (entry.type === 'image') windowId = openImage(entry.path); // Pass path for image viewer
+  else if (entry.type === 'image') windowId = openImage(entry); // Pass entry directly for consistency
   else if (entry.type === 'video') windowId = openVideo(entry);
   else if (entry.type === 'html') {
     windowId = openHtml(entry);
