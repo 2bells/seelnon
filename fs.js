@@ -74,12 +74,12 @@ export const FS = (() => {
 
   // Pictures
   // Corrected paths to be relative to the root index.html file
-  image('Concept Art Collage', 'Content/Images/image-board-export-1756292941378.png', '/Pictures', { description: 'A collection of diverse concept art pieces.' });
-  image('Red Eyes Solo Game Dreams', 'Content/Images/Red_Eyes_SoloGame_Dreams.png', '/Pictures', { description: 'Scenes from a dark, atmospheric Dreams game.' });
-  image('Deathless Traveler', 'Content/Images/deathless_traveler.jpg', '/Pictures', { description: 'If Frieren was depressing. Something I was concepting in 2020 with MSFS' });
+  image('Concept Art Collage 2016-2020', 'Content/Images/image-board-export-1756292941378.png', '/Pictures', { description: 'A collection of diverse concept art pieces.' });
+  image('Red Eyes Solo Game Dreams - 2020', 'Content/Images/Red_Eyes_SoloGame_Dreams.png', '/Pictures', { description: 'Scenes from a dark, atmospheric Dreams game.' });
+  image('Deathless Traveler - 2020', 'Content/Images/deathless_traveler.jpg', '/Pictures', { description: 'If Frieren was depressing. Something I was concepting in 2020 with MSFS' });
   image('Character Designs - 2016', 'Content/Images/2016_december.jpg', '/Pictures', { description: 'Had a 14 day grind, designing different characters. December 2016' });
   image('Ex-Mansion Designs - 2024', 'Content/Images/2024-april-ex-mansion.jpg', '/Pictures', { description: 'Godot game dev, did some designs for myself. April 2024' });
-  image('Ex-Mansion Sketches', 'Content/Images/2024_sketches.jpg', '/Pictures', { description: 'Ex-Mansion. Lore, redesigns, exploration' });
+  image('Ex-Mansion Sketches - 2024', 'Content/Images/2024_sketches.jpg', '/Pictures', { description: 'Ex-Mansion. Lore, redesigns, exploration' });
 
 
 
