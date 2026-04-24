@@ -77,6 +77,8 @@ export const FS = (() => {
   image('Concept Art Collage', 'Content/Images/image-board-export-1756292941378.png', '/Pictures', { description: 'A collection of diverse concept art pieces.' });
   image('Red Eyes Solo Game Dreams', 'Content/Images/Red_Eyes_SoloGame_Dreams.png', '/Pictures', { description: 'Scenes from a dark, atmospheric Dreams game.' });
   image('Deathless Traveler', 'Content/Images/deathless_traveler.jpg', '/Pictures', { description: 'If Frieren was depressing. Something I was concepting in 2020 with MSFS' });
+  image('2016 - Character Designs', 'Content/Images/2016_december.jpg', '/Pictures', { description: 'Had a 14 day grind, designing different characters. December 2016' });
+
 
 
   // Videos
