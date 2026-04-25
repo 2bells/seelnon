@@ -9,5 +9,6 @@ export const TOOLS = {
   WIREFRAME: 'wireframe',
   LASSO: 'lasso',
   PICKER: 'picker',
-  SMUDGE: 'smudge'
+  SMUDGE: 'smudge',
+  REF_MOVE: 'ref_move'
 };

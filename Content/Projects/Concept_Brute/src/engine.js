@@ -22,6 +22,9 @@ export class Engine {
       speedOpacity: 6.0,
       speedValue: -4.0, // Requested default
       speedHue: -10.0,
+      paintHeight: 0,
+      oiliness: 0.5,
+      airbrush: 0.0,
       type: TOOLS.BRUSH 
     };
 
@@ -36,16 +39,26 @@ export class Engine {
     this.clipboard = null;
     this.floatingSelection = null;
     this.dirtyChunks = new Set(); // Tracks chunks that need persisting to storage
+    this.referenceImages = [];
+    this.selectedRefIndex = -1;
 
     this.canvasBg = '#ffffff';
     this.gridColor = '#cccccc';
     this.showGrid = true;
     this.isMirrored = false;
-
+    this.isCapturingTip = false;
+    this.captureReticle = document.getElementById('capture-reticle');
+    
     // Dedicated wrapper for all canvas content that can be mirrored
     this.canvasWrapper = document.createElement('div');
     this.canvasWrapper.id = 'canvas-wrapper';
     this.canvasWrapper.className = 'absolute';
+    
+    // Dedicated layer for reference images
+    this.refLayer = document.createElement('div');
+    this.refLayer.className = 'absolute inset-0';
+    this.canvasWrapper.appendChild(this.refLayer);
+
     // Make wrapper larger to handle rotation without edges showing
     this.canvasWrapper.style.width = '10000px';
     this.canvasWrapper.style.height = '10000px';
@@ -88,8 +101,73 @@ export class Engine {
       requestAnimationFrame(loop);
   }
 
+  captureArea(screenX, screenY, size = 128) {
+    const temp = document.createElement('canvas');
+    temp.width = size;
+    temp.height = size;
+    const tctx = temp.getContext('2d');
+    
+    // Account for container's offset on screen
+    const containerRect = this.container.getBoundingClientRect();
+    const localX = screenX - containerRect.left;
+    const localY = screenY - containerRect.top;
+
+    const rect = {
+      x: (localX - this.pan.x) / this.zoom - (size / (2 * this.zoom)),
+      y: (localY - this.pan.y) / this.zoom - (size / (2 * this.zoom)),
+      w: size / this.zoom,
+      h: size / this.zoom
+    };
+    
+    this.chunks.forEach(chunk => {
+        const chunkX = chunk.cx * CHUNK_SIZE;
+        const chunkY = chunk.cy * CHUNK_SIZE;
+        
+        if (chunkX < rect.x + rect.w && chunkX + CHUNK_SIZE > rect.x &&
+            chunkY < rect.y + rect.h && chunkY + CHUNK_SIZE > rect.y) {
+            
+            for (let i = 1; i < LAYERS_COUNT; i++) {
+                const srcX = Math.max(0, rect.x - chunkX);
+                const srcY = Math.max(0, rect.y - chunkY);
+                const overlapX = Math.max(chunkX, rect.x);
+                const overlapY = Math.max(chunkY, rect.y);
+                const overlapW = Math.min(chunkX + CHUNK_SIZE, rect.x + rect.w) - overlapX;
+                const overlapH = Math.min(chunkY + CHUNK_SIZE, rect.y + rect.h) - overlapY;
+
+                if (overlapW > 0 && overlapH > 0) {
+                    const dstX = (overlapX - rect.x) * this.zoom;
+                    const dstY = (overlapY - rect.y) * this.zoom;
+                    const dstW = overlapW * this.zoom;
+                    const dstH = overlapH * this.zoom;
+                    
+                    tctx.drawImage(chunk.canvases[i], overlapX - chunkX, overlapY - chunkY, overlapW, overlapH, dstX, dstY, dstW, dstH);
+                }
+            }
+        }
+    });
+
+    const imageData = tctx.getImageData(0,0,size,size);
+    const data = imageData.data;
+    for(let i=0; i<data.length; i+=4) {
+        const grayscale = (data[i] + data[i+1] + data[i+2]) / 3;
+        const alpha = 255 - grayscale;
+        data[i] = 0; data[i+1] = 0; data[i+2] = 0;
+        data[i+3] = Math.min(255, (alpha * data[i+3]) / 255);
+    }
+    tctx.putImageData(imageData, 0, 0);
+    return temp;
+  }
+
   _initEvents() {
     this.container.addEventListener('mousedown', (e) => {
+        if (this.isCapturingTip) {
+            const tip = this.captureArea(e.clientX, e.clientY);
+            this.isCapturingTip = false;
+            this.captureReticle.style.display = 'none';
+            if (this.onTipCaptured) this.onTipCaptured(tip);
+            return;
+        }
+
         this.isMouseDown = true;
         if (e.button === 1) { // Middle click
             this.isPanning = true;
@@ -100,6 +178,11 @@ export class Engine {
         this._startStroke(e);
     });
     window.addEventListener('mousemove', (e) => {
+      if (this.isCapturingTip) {
+          this.captureReticle.style.left = (e.clientX - 64) + 'px';
+          this.captureReticle.style.top = (e.clientY - 64) + 'px';
+          return;
+      }
       this._moveStroke(e);
       this._handlePickerMove(e);
       this._updateBrushCursor(e);
@@ -113,7 +196,7 @@ export class Engine {
         }
         this._endStroke(e);
     });
-    
+       
     window.addEventListener('keydown', (e) => {
         const key = e.key.toLowerCase();
         
@@ -261,8 +344,34 @@ export class Engine {
     chunk.element.style.transformOrigin = 'top left';
   }
 
+  _updateRefImagesTransform() {
+    this.referenceImages.forEach((ref, index) => {
+        if (!ref.element) return;
+        const x = ref.x * this.zoom + this.pan.x + 5000;
+        const y = ref.y * this.zoom + this.pan.y + 5000;
+        
+        let transform = `translate(${x}px, ${y}px) rotate(${ref.rotation}rad) scale(${ref.scale * this.zoom})`;
+        if (ref.mirrorX) transform += ' scaleX(-1)';
+        if (ref.mirrorY) transform += ' scaleY(-1)';
+        
+        ref.element.style.transform = transform;
+        ref.element.style.transformOrigin = 'center center';
+        ref.element.style.opacity = ref.opacity;
+        
+        if (index === this.selectedRefIndex) {
+            ref.element.style.outline = '2px dashed #000';
+            ref.element.style.outlineOffset = '2px';
+            ref.element.style.boxShadow = '0 0 0 3px #fff';
+        } else {
+            ref.element.style.outline = 'none';
+            ref.element.style.boxShadow = 'none';
+        }
+    });
+  }
+
   refresh() {
     this.chunks.forEach(chunk => this._updateChunkTransform(chunk));
+    this._updateRefImagesTransform();
     
     const rect = this.container.getBoundingClientRect();
     // Center of container relative to wrapper
@@ -595,26 +704,69 @@ export class Engine {
     const m = this._getMousePos({ clientX: x, clientY: y });
     const wx = m.wx;
     const wy = m.wy;
+
+    if (!this._pickerCanvas) {
+      this._pickerCanvas = document.createElement('canvas');
+      this._pickerCanvas.width = 1;
+      this._pickerCanvas.height = 1;
+      // using willReadFrequently: true is key for GPU->CPU readback performance
+      this._pickerCtx = this._pickerCanvas.getContext('2d', { willReadFrequently: true });
+    }
     
+    const pctx = this._pickerCtx;
+    pctx.imageSmoothingEnabled = false;
+    pctx.clearRect(0, 0, 1, 1);
+    
+    // 1. Fill with background
+    pctx.fillStyle = this.canvasBg || '#ffffff';
+    pctx.fillRect(0, 0, 1, 1);
+
+    // 2. Draw reference images (bottom to top)
+    for (let i = 0; i < this.referenceImages.length; i++) {
+        const ref = this.referenceImages[i];
+        const dx = wx - ref.x;
+        const dy = wy - ref.y;
+        const cos = Math.cos(-ref.rotation);
+        const sin = Math.sin(-ref.rotation);
+        let lx = dx * cos - dy * sin;
+        let ly = dx * sin + dy * cos;
+        lx /= ref.scale;
+        ly /= ref.scale;
+        if (ref.mirrorX) lx = -lx;
+        if (ref.mirrorY) ly = -ly;
+
+        const imgX = lx + ref.img.width / 2;
+        const imgY = ly + ref.img.height / 2;
+
+        if (imgX >= 0 && imgX < ref.img.width && imgY >= 0 && imgY < ref.img.height) {
+            pctx.save();
+            pctx.globalAlpha = ref.opacity;
+            // Draw 1x1 to scratch to get pixel
+            pctx.drawImage(ref.img, Math.floor(imgX), Math.floor(imgY), 1, 1, 0, 0, 1, 1);
+            pctx.restore();
+        }
+    }
+    
+    // 3. Draw paint layers (bottom to top)
     const cx = Math.floor(wx / CHUNK_SIZE);
     const cy = Math.floor(wy / CHUNK_SIZE);
     const chunk = this.chunks.get(`${cx},${cy}`);
-    if (!chunk) return '#000000';
 
-    // Pick from top-most non-transparent layer
-    for (let i = LAYERS_COUNT - 1; i >= 0; i--) {
-        const lx = wx - cx * CHUNK_SIZE;
-        const ly = wy - cy * CHUNK_SIZE;
-        if (lx < 0 || lx >= CHUNK_SIZE || ly < 0 || ly >= CHUNK_SIZE) continue;
-        const data = chunk.ctxs[i].getImageData(lx, ly, 1, 1).data;
-        if (data[3] > 10) { // If not transparent
-            const r = data[0].toString(16).padStart(2, '0');
-            const g = data[1].toString(16).padStart(2, '0');
-            const b = data[2].toString(16).padStart(2, '0');
-            return `#${r}${g}${b}`;
+    if (chunk) {
+        const lx = Math.floor(wx - cx * CHUNK_SIZE);
+        const ly = Math.floor(wy - cy * CHUNK_SIZE);
+        if (lx >= 0 && lx < CHUNK_SIZE && ly >= 0 && ly < CHUNK_SIZE) {
+            for (let i = 1; i < LAYERS_COUNT; i++) {
+                pctx.drawImage(chunk.canvases[i], lx, ly, 1, 1, 0, 0, 1, 1);
+            }
         }
     }
-    return '#ffffff';
+
+    const data = pctx.getImageData(0, 0, 1, 1).data;
+    const r = data[0].toString(16).padStart(2, '0');
+    const g = data[1].toString(16).padStart(2, '0');
+    const b = data[2].toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
   }
 
   _startStroke(e) {
@@ -648,6 +800,19 @@ export class Engine {
         const color = this.pickColor(e.clientX, e.clientY);
         this._notifyPicker(e.clientX, e.clientY, color, true); // true = SET color now
         return; // STOP HERE, don't start drawing
+    }
+
+    if (this.brush.type === TOOLS.REF_MOVE) {
+        const m = this._getMousePos(e);
+        if (this.selectReferenceAt(m.wx, m.wy)) {
+            this.isDrawing = true;
+            this.lastMousePos = { x: e.clientX, y: e.clientY };
+            if (this.onDrawStart) this.onDrawStart();
+            return;
+        } else {
+            this.selectedRefIndex = -1;
+            this.refresh();
+        }
     }
 
     // Selection Apply Check: If we have a selection and click away, apply it
@@ -777,6 +942,38 @@ export class Engine {
         
         this.lastMousePos = { x: e.clientX, y: e.clientY };
         this._updateSelectionPreview();
+        return;
+    }
+
+    if (this.brush.type === TOOLS.REF_MOVE && this.isDrawing && this.selectedRefIndex !== -1) {
+        const sel = this.referenceImages[this.selectedRefIndex];
+        const m1 = this._getMousePos({ clientX: this.lastMousePos.x, clientY: this.lastMousePos.y });
+        const m2 = this._getMousePos(e);
+        const dwx = m2.wx - m1.wx;
+        const dwy = m2.wy - m1.wy;
+
+        if (this.keys['t']) {
+            const dy = e.clientY - this.lastMousePos.y;
+            const opDelta = -dy * 0.01;
+            sel.opacity = Math.max(0, Math.min(1, (sel.opacity !== undefined ? sel.opacity : 1) + opDelta));
+            this._status(`OPACITY: ${Math.round(sel.opacity * 100)}%`);
+        } else if (this.keys['shift']) {
+            const dy = e.clientY - this.lastMousePos.y;
+            const factor = 1 + dy * 0.01;
+            sel.scale = (sel.scale || 1) * factor;
+        } else if (this.keys['alt'] || this.keys['control']) {
+            const dx = e.clientX - this.lastMousePos.x;
+            const factor = dx * 0.01;
+            sel.rotation = (sel.rotation || 0) + factor;
+        } else if (this.keys['b']) { // Mirror hotkey while dragging
+            // This might be better as a toggle on keydown, but let's see
+        } else {
+            sel.x += dwx;
+            sel.y += dwy;
+        }
+        
+        this.lastMousePos = { x: e.clientX, y: e.clientY };
+        this.refresh();
         return;
     }
 
@@ -1280,6 +1477,17 @@ export class Engine {
         const isSmudge = this.brush.type === TOOLS.SMUDGE;
         const ctx = (isEraser || isSmudge) ? chunk.ctxs[this.activeLayer] : chunk.strokeCtx;
         
+        // Ensure height canvas exists if needed
+        if (this.brush.paintHeight > 0 && !chunk.heightCanvas) {
+            chunk.heightCanvas = document.createElement('canvas');
+            chunk.heightCanvas.width = CHUNK_SIZE;
+            chunk.heightCanvas.height = CHUNK_SIZE;
+            chunk.heightCtx = chunk.heightCanvas.getContext('2d');
+            // Background is 128 (flat)
+            chunk.heightCtx.fillStyle = '#808080';
+            chunk.heightCtx.fillRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
+        }
+
         if (!isEraser && !isSmudge) {
             chunk.strokeCanvas.style.opacity = this.brush.opacity; // Per-stroke opacity
         } else {
@@ -1377,18 +1585,92 @@ export class Engine {
                 // TOOLS.BRUSH or TOOLS.ERASER (Eraser draws into stroke buffer as solid color first)
                 if (this.brush.tip) {
                     // Update tip cache if needed
-                    if (!this._tipColorCache || this._tipColorCache.srcTip !== this.brush.tip || this._tipColorCache.color !== color) {
+                    const airbrushAmount = this.brush.airbrush || 0;
+                    const airbrushBlur = airbrushAmount * size * 0.45; // x3 factor (was 0.15)
+                    const drawScale = 1.0 / (1.0 + airbrushAmount * 1.5); // compensated scale
+                    const drawSize = Math.max(1, size * drawScale);
+                    const offset = (size - drawSize) / 2;
+
+                    const cacheKey = `${airbrushAmount}_${size}`;
+                    
+                    if (!this._tipColorCache || this._tipColorCache.srcTip !== this.brush.tip || this._tipColorCache.color !== color || this._tipColorCache.key !== cacheKey) {
+                        const tempSize = Math.max(1, size);
                         const temp = document.createElement('canvas');
-                        temp.width = 128;
-                        temp.height = 128;
+                        temp.width = tempSize;
+                        temp.height = tempSize;
                         const tctx = temp.getContext('2d');
+                        
+                        if (airbrushAmount > 0) {
+                            tctx.filter = `blur(${airbrushBlur}px)`;
+                        }
+                        
                         tctx.fillStyle = color;
-                        tctx.fillRect(0, 0, 128, 128);
+                        tctx.fillRect(0, 0, tempSize, tempSize);
                         tctx.globalCompositeOperation = 'destination-in';
-                        tctx.drawImage(this.brush.tip, 0, 0);
-                        this._tipColorCache = { canvas: temp, srcTip: this.brush.tip, color: color };
+                        tctx.drawImage(this.brush.tip, offset, offset, drawSize, drawSize);
+                        tctx.filter = 'none';
+                        this._tipColorCache = { canvas: temp, srcTip: this.brush.tip, color: color, key: cacheKey };
                     }
-                    ctx.drawImage(this._tipColorCache.canvas, -s / 2, -s / 2, s, s);
+                    
+                    const tipCanvas = this._tipColorCache.canvas;
+                    
+                    if (this.brush.paintHeight > 0 && !isEraser && !isSmudge) {
+                        const h = this.brush.paintHeight;
+                        const opacityBase = opacity * this.brush.flow * this.brush.opacity;
+                        const oil = this.brush.oiliness ?? 0.5;
+                        const airbrushAmount = this.brush.airbrush || 0;
+                        // Reduce extra blur from oiliness if tip is already blurred by airbrush
+                        const reliefBlur = oil * 4 * (1 - airbrushAmount * 0.4); 
+
+                        // Pre-prepare relief tips for the segment if possible
+                        const reliefKey = `${size}_${reliefBlur}_${airbrushAmount}`;
+                        if (!this._reliefCache || this._reliefCache.srcTip !== this.brush.tip || this._reliefCache.key !== reliefKey) {
+                            const tempSize = Math.max(1, size);
+                            
+                            const sTip = document.createElement('canvas');
+                            sTip.width = tempSize; sTip.height = tempSize;
+                            const sCtx = sTip.getContext('2d');
+                            
+                            const hTip = document.createElement('canvas');
+                            hTip.width = tempSize; hTip.height = tempSize;
+                            const hCtx = hTip.getContext('2d');
+
+                            // Use the already colored (and potentially blurred) tip as source for height map
+                            const sourceForRelief = this._tipColorCache.canvas;
+
+                            if (reliefBlur > 0) sCtx.filter = `blur(${reliefBlur}px)`;
+                            sCtx.fillStyle = 'black';
+                            sCtx.fillRect(0,0,tempSize,tempSize);
+                            sCtx.globalCompositeOperation = 'destination-in';
+                            sCtx.drawImage(sourceForRelief, 0, 0);
+                            
+                            if (reliefBlur > 0) hCtx.filter = `blur(${reliefBlur}px)`;
+                            hCtx.fillStyle = 'white';
+                            hCtx.fillRect(0,0,tempSize,tempSize);
+                            hCtx.globalCompositeOperation = 'destination-in';
+                            hCtx.drawImage(sourceForRelief, 0, 0);
+                            
+                            this._reliefCache = { key: reliefKey, shadow: sTip, highlight: hTip, srcTip: this.brush.tip };
+                        }
+
+                        // Shadow (offset south-east)
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'multiply';
+                        ctx.translate(1, 1);
+                        ctx.globalAlpha = opacityBase * h * 0.4;
+                        ctx.drawImage(this._reliefCache.shadow, -size/2, -size/2);
+                        ctx.restore();
+
+                        // Highlight (offset north-west)
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'screen';
+                        ctx.translate(-1, -1);
+                        ctx.globalAlpha = opacityBase * h * 0.25; // More subtle highlight
+                        ctx.drawImage(this._reliefCache.highlight, -size/2, -size/2);
+                        ctx.restore();
+                    }
+
+                    ctx.drawImage(tipCanvas, -size / 2, -size / 2);
                 } else {
                     ctx.fillRect(-s / 2, -s / 4, s, s / 2);
                 }
@@ -1403,37 +1685,82 @@ export class Engine {
     }
   }
 
-  importImage(img) {
-    const layer = 0; // Bottom layer is image/reference
+  addReferenceImage(img, name, x = null, y = null, config = {}) {
     const rect = this.container.getBoundingClientRect();
-    
-    // Position image in the absolute center of the world
-    const worldX = (-this.pan.x + rect.width / 2) / this.zoom;
-    const worldY = (-this.pan.y + rect.height / 2) / this.zoom;
-    
-    const drawX = worldX - img.width / 2;
-    const drawY = worldY - img.height / 2;
+    const wx = x !== null ? x : (-this.pan.x + rect.width / 2) / this.zoom;
+    const wy = y !== null ? y : (-this.pan.y + rect.height / 2) / this.zoom;
 
-    // Draw across all affected chunks
-    const startCX = Math.floor(drawX / CHUNK_SIZE);
-    const endCX = Math.floor((drawX + img.width) / CHUNK_SIZE);
-    const startCY = Math.floor(drawY / CHUNK_SIZE);
-    const endCY = Math.floor((drawY + img.height) / CHUNK_SIZE);
+    const el = document.createElement('img');
+    el.src = img.src;
+    el.className = 'absolute pointer-events-none';
+    el.style.left = `-${img.width/2}px`; // Center on pivot
+    el.style.top = `-${img.height/2}px`;
+    
+    this.refLayer.appendChild(el);
 
-    for (let cx = startCX; cx <= endCX; cx++) {
-      for (let cy = startCY; cy <= endCY; cy++) {
-        const chunk = this._getChunk(cx, cy);
-        const ctx = chunk.ctxs[layer];
-        
-        const lx = cx * CHUNK_SIZE;
-        const ly = cy * CHUNK_SIZE;
-        
-        ctx.drawImage(img, drawX - lx, drawY - ly);
-        this._markDirty(`${cx},${cy}`, layer);
-      }
-    }
+    const ref = {
+      id: Math.random().toString(36).substring(7),
+      name: name || 'Untitled',
+      img: img,
+      element: el,
+      x: wx,
+      y: wy,
+      rotation: config.rotation || 0,
+      scale: config.scale || 1.0,
+      opacity: config.opacity !== undefined ? config.opacity : 1.0,
+      mirrorX: config.mirrorX || false,
+      mirrorY: config.mirrorY || false
+    };
+
+    this.referenceImages.push(ref);
+    this.selectedRefIndex = this.referenceImages.length - 1;
     this.refresh();
-    if (this.onDrawEnd) this.onDrawEnd();
+    return ref;
+  }
+
+  removeReferenceImage(index) {
+    if (this.referenceImages[index]) {
+      const ref = this.referenceImages[index];
+      if (ref.element) ref.element.remove();
+      this.referenceImages.splice(index, 1);
+      if (this.selectedRefIndex >= this.referenceImages.length) {
+          this.selectedRefIndex = this.referenceImages.length - 1;
+      }
+      this.refresh();
+    }
+  }
+
+  selectReferenceAt(wx, wy) {
+    // Check from top to bottom
+    for (let i = this.referenceImages.length - 1; i >= 0; i--) {
+        const ref = this.referenceImages[i];
+        
+        // Transform wx, wy to image local space (relative to pivot)
+        const dx = wx - ref.x;
+        const dy = wy - ref.y;
+        const cos = Math.cos(-ref.rotation);
+        const sin = Math.sin(-ref.rotation);
+        let lx = dx * cos - dy * sin;
+        let ly = dx * sin + dy * cos;
+        
+        lx /= ref.scale;
+        ly /= ref.scale;
+        
+        if (ref.mirrorX) lx = -lx;
+        if (ref.mirrorY) ly = -ly;
+
+        if (lx >= -ref.img.width/2 && lx <= ref.img.width/2 &&
+            ly >= -ref.img.height/2 && ly <= ref.img.height/2) {
+            this.selectedRefIndex = i;
+            this.refresh();
+            return true;
+        }
+    }
+    return false;
+  }
+
+  importImage(img) {
+      this.addReferenceImage(img, 'Imported');
   }
 
   undo() {

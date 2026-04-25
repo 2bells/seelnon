@@ -26,23 +26,22 @@ export class TipManager {
             console.error("Failed to load brush tips from localStorage", e);
         }
 
-        if (!saved) {
-            // Fallback to IDB for legacy migration
-            saved = await this.storage.loadSetting('brushTips');
-        }
-
         if (saved && Array.isArray(saved)) {
             for (let i = 0; i < saved.length && i < this.tips.length; i++) {
                 if (saved[i]) {
+                    const tipData = (typeof saved[i] === 'string') ? { src: saved[i], paintHeight: 0, oiliness: 0.5, airbrush: 0 } : saved[i];
                     const img = new Image();
                     await new Promise(r => {
                         img.onload = r;
-                        img.src = saved[i];
+                        img.src = tipData.src;
                     });
                     const c = document.createElement('canvas');
                     c.width = 128; c.height = 128;
                     c.getContext('2d').drawImage(img, 0, 0);
                     this.tips[i].canvas = c;
+                    this.tips[i].paintHeight = tipData.paintHeight || 0;
+                    this.tips[i].oiliness = tipData.oiliness ?? 0.5;
+                    this.tips[i].airbrush = tipData.airbrush || 0;
                 }
             }
         }
@@ -62,7 +61,7 @@ export class TipManager {
     const types = ['rect', 'circle', 'triangle', 'scatter', 'scratchy', 'hollow'];
     types.forEach(type => {
       const canvas = this._createShape(type);
-      this.tips.push({ canvas });
+      this.tips.push({ canvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 });
       const backup = document.createElement('canvas');
       backup.width = 128; backup.height = 128;
       backup.getContext('2d').drawImage(canvas, 0, 0);
@@ -141,6 +140,35 @@ export class TipManager {
         content.style.display = isHidden ? 'block' : 'none';
         document.getElementById('btn-tips-collapse').innerText = isHidden ? '_' : '+';
     };
+
+    document.getElementById('btn-tip-capture').onclick = () => {
+        // This will be handled by App which coordination engine and tipManager
+        if (this.onCaptureRequest) this.onCaptureRequest();
+    };
+  }
+
+  setTipFromCanvas(canvas) {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(canvas, 0, 0, 128, 128);
+    
+    this.selectedTipCanvas = c;
+    if (this.activeBankIndex >= 0) {
+        this.tips[this.activeBankIndex].canvas = c;
+    } else {
+        // If we were on generated, we stay on "temporary" selectedTipCanvas
+    }
+    
+    this.editorCtx.save();
+    this.editorCtx.globalCompositeOperation = 'source-over';
+    this.editorCtx.clearRect(0,0,128,128);
+    this.editorCtx.drawImage(c, 0, 0);
+    this.editorCtx.restore();
+    
+    this._renderPalette();
+    this._updateActiveTip();
+    this._saveToStorage();
   }
 
   _drawEditor(e, isStart = false) {
@@ -241,14 +269,20 @@ export class TipManager {
 
   _updateActiveTip() {
     if (this.onTipChange) {
-      this.onTipChange(this.selectedTipCanvas);
+      const tip = this.activeBankIndex >= 0 ? this.tips[this.activeBankIndex] : { canvas: this.selectedTipCanvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 };
+      this.onTipChange(tip.canvas, tip.paintHeight, tip.oiliness, tip.airbrush);
     }
   }
 
   _saveToStorage() {
       if (this.storage) {
-          const dataUrls = this.tips.map(t => t.canvas.toDataURL());
-          localStorage.setItem('brushTips', JSON.stringify(dataUrls));
+          const data = this.tips.map(t => ({ 
+              src: t.canvas.toDataURL(), 
+              paintHeight: t.paintHeight || 0,
+              oiliness: t.oiliness ?? 0.5,
+              airbrush: t.airbrush || 0
+          }));
+          localStorage.setItem('brushTips', JSON.stringify(data));
       }
   }
 }

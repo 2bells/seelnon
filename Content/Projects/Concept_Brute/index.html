@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>BRUT_SKETCH</title>
+    <title>CONCEPT_BRUTE</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='black'/><rect x='20' y='20' width='60' height='60' fill='white'/></svg>">
     <link rel="stylesheet" href="./src/index.css">
   </head>
@@ -41,12 +41,15 @@
           <button id="btn-eraser" class="tool-btn" title="Eraser (5)">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.9-9.9c1-1 2.5-1 3.4 0l4.4 4.4c1 1 1 2.5 0 3.4l-4.4 4.4"/><path d="M22 21H7"/></svg>
           </button>
+          <button id="btn-ref_move" class="tool-btn" title="Ref Move (6)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 9  -3 3 3 3"/><path d="M22 12H2"/><path d="m19 9 3 3-3 3"/><path d="m15 5-3-3-3 3"/><path d="M12 2v20"/><path d="m15 19-3 3-3-3"/></svg>
+          </button>
         </div>
 
 
         <div class="slider-group">
             <div class="slider-container">
-                <label class="slider-label">Size</label>
+                <label class="slider-label">SIZE</label>
                 <div class="slider-controls">
                     <input type="range" id="brush-size" min="1" max="500" value="40" class="brutal-range">
                     <span id="size-val" class="slider-value">40</span>
@@ -54,7 +57,7 @@
             </div>
 
             <div class="slider-container">
-                <label class="slider-label">Opacity</label>
+                <label class="slider-label">OPACITY</label>
                 <div class="slider-controls">
                     <input type="range" id="brush-opacity" min="0" max="100" value="100" class="brutal-range">
                     <span id="opacity-val" class="slider-value">100%</span>
@@ -62,7 +65,7 @@
             </div>
 
             <div class="slider-container">
-                <label class="slider-label">Flow</label>
+                <label class="slider-label">FLOW</label>
                 <div class="slider-controls">
                     <input type="range" id="brush-flow" min="0" max="100" value="100" class="brutal-range">
                     <span id="flow-val" class="slider-value">100%</span>
@@ -74,19 +77,19 @@
         
         <div class="sensitivity-group">
           <div class="slider-container">
-            <label class="slider-label" title="Speed Size Sensitivity">S-Size</label>
+            <label class="slider-label" title="Speed Size Sensitivity">S-SIZE</label>
             <input type="range" id="speed-size" min="-2000" max="2000" value="800" class="brutal-range s-range">
           </div>
           <div class="slider-container">
-            <label class="slider-label" title="Speed Opacity Sensitivity">S-Opac</label>
+            <label class="slider-label" title="Speed Opacity Sensitivity">S-OPAC</label>
             <input type="range" id="speed-opacity" min="-2000" max="2000" value="600" class="brutal-range s-range">
           </div>
           <div class="slider-container">
-            <label class="slider-label" title="Speed Value Sensitivity">S-Val</label>
+            <label class="slider-label" title="Speed Value Sensitivity">S-VAL</label>
             <input type="range" id="speed-value" min="-2000" max="2000" value="-400" class="brutal-range s-range">
           </div>
           <div class="slider-container">
-            <label class="slider-label" title="Speed Hue Sensitivity">S-Hue</label>
+            <label class="slider-label" title="Speed Hue Sensitivity">S-HUE</label>
             <input type="range" id="speed-hue" min="-2000" max="2000" value="-1000" class="brutal-range s-range">
           </div>
         </div>
@@ -111,7 +114,7 @@
         <!-- FLOATING PANELS -->
         <div id="panel-color" class="ui-panel">
           <div id="handle-color" class="panel-handle">
-            <span class="panel-title">Color Palette</span>
+            <span class="panel-title">COLOR PALETTE</span>
             <div id="current-color-preview"></div>
           </div>
           <div class="panel-content">
@@ -130,7 +133,7 @@
 
         <div id="panel-images" class="ui-panel">
            <div id="handle-images" class="panel-handle">
-            <span class="panel-title">Reference</span>
+            <span class="panel-title">REFERENCE</span>
           </div>
           <div class="panel-content">
             <div id="image-list">
@@ -144,8 +147,8 @@
         </div>
 
         <div id="panel-brush-tips" class="ui-panel">
-           <div id="handle-brush-tips" class="panel-handle">
-            <span class="panel-title">Brush Textures</span>
+          <div id="handle-brush-tips" class="panel-handle">
+            <span class="panel-title">BRUSH TEXTURES</span>
             <button id="btn-tips-collapse" class="panel-toggle">_</button>
           </div>
           <div id="tips-content" class="panel-content">
@@ -157,8 +160,34 @@
                    <button id="btn-tip-reset" class="mini-btn">R</button>
                    <button id="btn-tip-clear" class="mini-btn">C</button>
                 </div>
+                <button id="btn-tip-capture" class="mini-btn" title="Sample from Canvas" style="position: absolute; bottom: 4px; left: 4px;">T</button>
              </div>
              <!-- TEXTURE SWATCHES -->
+              <div class="brush-settings-container" style="padding: 0 8px;">
+                  <div id="height-control" class="brush-setting" style="margin: 8px 0;">
+                    <div class="setting-label" style="display: flex; justify-content: space-between; align-items: center;">
+                      <span class="uppercase font-black" style="font-size: 9px; font-weight: 900;">IMPASTO</span>
+                      <span id="height-val" class="font-black" style="font-size: 9px; font-weight: 900;">0%</span>
+                    </div>
+                    <input type="range" id="brush-height" min="0" max="100" value="0" class="minimal-range" style="width: 100%;">
+                  </div>
+
+                  <div id="oiliness-control" class="brush-setting" style="margin: 8px 0;">
+                    <div class="setting-label" style="display: flex; justify-content: space-between; align-items: center;">
+                      <span class="uppercase font-black" style="font-size: 9px; font-weight: 900;">OILINESS</span>
+                      <span id="oiliness-val" class="font-black" style="font-size: 9px; font-weight: 900;">0%</span>
+                    </div>
+                    <input type="range" id="brush-oiliness" min="0" max="100" value="50" class="minimal-range" style="width: 100%;">
+                  </div>
+
+                  <div id="airbrush-control" class="brush-setting" style="margin: 8px 0;">
+                    <div class="setting-label" style="display: flex; justify-content: space-between; align-items: center;">
+                      <span class="uppercase font-black" style="font-size: 9px; font-weight: 900;">AIRBRUSH</span>
+                      <span id="airbrush-val" class="font-black" style="font-size: 9px; font-weight: 900;">0%</span>
+                    </div>
+                    <input type="range" id="brush-airbrush" min="0" max="100" value="0" class="minimal-range" style="width: 100%;">
+                  </div>
+              </div>
              <div id="tip-palette">
                 <!-- 6 main slots -->
                 <div id="tip-main-slots" class="tip-grid"></div>
@@ -171,7 +200,7 @@
 
         <div id="panel-layers" class="ui-panel">
            <div id="handle-layers" class="panel-handle">
-            <span class="panel-title">Layers</span>
+            <span class="panel-title">LAYERS</span>
             <div id="status" class="status-indicator">READY</div>
           </div>
           <div id="layer-stack"></div>
@@ -191,25 +220,25 @@
         <!-- SETTINGS PANEL -->
         <div id="panel-settings" class="ui-panel hidden">
           <div id="handle-settings" class="panel-handle">
-            <span class="panel-title">Settings</span>
+            <span class="panel-title">SETTINGS</span>
             <button id="btn-close-settings" class="mini-btn">X</button>
           </div>
           <div class="panel-content settings-main">
              <div class="settings-group">
-                <label class="settings-label">Canvas Background</label>
+                <label class="settings-label">CANVAS BACKGROUND</label>
                 <input type="color" id="settings-bg-color" value="#ffffff" class="settings-input-color">
              </div>
              <div class="settings-group">
-                <label class="settings-label">Grid Color</label>
+                <label class="settings-label">GRID COLOR</label>
                 <input type="color" id="settings-grid-color" value="#cccccc" class="settings-input-color">
              </div>
              <div class="settings-row">
-                <label class="settings-label">Show Grid</label>
+                <label class="settings-label">SHOW GRID</label>
                 <input type="checkbox" id="settings-grid-show" checked class="settings-input-check">
              </div>
              <div class="settings-divider"></div>
              <div class="settings-group">
-                <label class="settings-label">Brush Spacing</label>
+                <label class="settings-label">BRUSH SPACING</label>
                 <input type="range" id="settings-brush-spacing" min="0.01" max="0.5" step="0.01" value="0.05" class="brutal-range" style="width: 100%;">
              </div>
              <div class="storage-stat">Storage used: <span id="storage-stat">...</span></div>
@@ -218,6 +247,7 @@
       </div>
     </div>
 
+    <div id="capture-reticle"></div>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
