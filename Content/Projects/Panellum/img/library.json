@@ -1,7 +1,7 @@
 [
   {
-    "file": "../../Images/2024_sketches.jpg",
-    "name": "2024_sketches_test",
+    "file": "../../../Images/2024_sketches.jpg",
+    "name": "2024_sktch_tst",
     "hfov": "auto",
     "haov": "auto",
     "vaov": "auto"
