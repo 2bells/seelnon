@@ -16,6 +16,20 @@ Now it also has oiliness, airbrushing, ability to 'snapshot' the canvas to make 
 ```
 btw...
 I'm not stopping.
+UPD: added to Projects folder.
 ```
 
+But can you do something... fun... in Concept Brute? Maybe.
+
+What brush do I use? Frieren's head of course.
+
+![Image](Content/Projects/Concept_Brute/img/concept_brute_thmb.jpg)
+
+
 [click to test](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/index.html)
+
+```
+Power Creep kinda slowed down.
+It needs just some tuning and fixes.
+And it is great in my humble.
+```
