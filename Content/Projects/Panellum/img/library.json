@@ -7,29 +7,22 @@
     "vaov": "auto"
   },
   {
-    "file": "../../../Images/2016_december.jpg",
-    "name": "2016_december",
-    "hfov": "auto",
-    "haov": "auto",
-    "vaov": "auto"
-  },
-  {
-    "file": "../../../Images/2017_designs.jpg",
-    "name": "2017_designs",
-    "hfov": "auto",
-    "haov": "auto",
-    "vaov": "auto"
-  },
-  {
     "file": "../../../Images/2024-april-ex-mansion.jpg",
     "name": "2024_ex_mansion",
     "hfov": "auto",
     "haov": "auto",
     "vaov": "auto"
-  },
+  },  
   {
     "file": "../../../Images/deathless_traveler.jpg",
     "name": "Deathless_Trvlr",
+    "hfov": "auto",
+    "haov": "auto",
+    "vaov": "auto"
+  },  
+  {
+    "file": "../../../Images/2016_december.jpg",
+    "name": "2016_december",
     "hfov": "auto",
     "haov": "auto",
     "vaov": "auto"
@@ -41,6 +34,13 @@
     "haov": "auto",
     "vaov": "auto"
   },
+  {
+    "file": "../../../Images/2017_designs.jpg",
+    "name": "2017_designs",
+    "hfov": "auto",
+    "haov": "auto",
+    "vaov": "auto"
+  },  
   {
     "file": "../../../Images/Red_Eyes_SoloGame_Dreams.png",
     "name": "Dreams",
