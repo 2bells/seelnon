@@ -236,22 +236,43 @@ export class TipManager {
         
         const t1 = this.tips[Math.floor(Math.random()*this.tips.length)];
         const t2 = this.tips[Math.floor(Math.random()*this.tips.length)];
+        
+        // Random rotation based on slot index
+        let rotation = 0;
+        if (i < 3) {
+            // 90 deg random: 0, 90, 180, 270
+            rotation = Math.floor(Math.random() * 4) * 90;
+        } else if (i < 6) {
+            // 45 deg random: 0, 45, 90, 135, ...
+            rotation = Math.floor(Math.random() * 8) * 45;
+        } else {
+            // 1 deg random
+            rotation = Math.floor(Math.random() * 360);
+        }
+        const angleRad = (rotation * Math.PI) / 180;
+
+        tctx.save();
+        tctx.translate(32, 32);
+        tctx.rotate(angleRad);
         tctx.globalAlpha = 0.5;
-        tctx.drawImage(t1.canvas, 0, 0, 64, 64);
-        tctx.drawImage(t2.canvas, 0, 0, 64, 64);
+        tctx.drawImage(t1.canvas, -32, -32, 64, 64);
+        tctx.drawImage(t2.canvas, -32, -32, 64, 64);
+        tctx.restore();
         slot.appendChild(thumb);
         
         slot.onclick = () => {
             const combined = document.createElement('canvas');
             combined.width = 128; combined.height = 128;
             const cctx = combined.getContext('2d');
-            cctx.globalAlpha = 0.5;
-            cctx.drawImage(t1.canvas, 0, 0);
-            cctx.drawImage(t2.canvas, 0, 0);
             
-            // Selecting a generated one DOES NOT overwrite a main slot unless we draw in editor while bank is selected
-            // But we want to see it in editor to draw further?
-            // "if I pick a brush tip not from the main 6, it doesn't change the main brush tip"
+            cctx.save();
+            cctx.translate(64, 64);
+            cctx.rotate(angleRad);
+            cctx.globalAlpha = 0.5;
+            cctx.drawImage(t1.canvas, -64, -64);
+            cctx.drawImage(t2.canvas, -64, -64);
+            cctx.restore();
+            
             this.activeBankIndex = -1; // Unselect bank slots
             this.selectedTipCanvas = combined;
             this.editorCtx.save();
@@ -264,6 +285,16 @@ export class TipManager {
             this._updateActiveTip();
         };
         genGrid.appendChild(slot);
+    }
+  }
+
+  updateActiveTipSettings(height, oiliness, airbrush) {
+    if (this.activeBankIndex >= 0) {
+        const tip = this.tips[this.activeBankIndex];
+        if (height !== undefined) tip.paintHeight = height;
+        if (oiliness !== undefined) tip.oiliness = oiliness;
+        if (airbrush !== undefined) tip.airbrush = airbrush;
+        this._saveToStorage();
     }
   }
 

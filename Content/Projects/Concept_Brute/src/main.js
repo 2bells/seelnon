@@ -350,6 +350,10 @@ class App {
             this.brushSettings[this.activeTool].paintHeight = val / 100;
             this.engine.brush.paintHeight = val / 100;
             heightVal.innerText = `${val}%`;
+            
+            if (this.activeTool === TOOLS.BRUSH) {
+                this.tipManager.updateActiveTipSettings(val / 100, undefined, undefined);
+            }
         };
     }
 
@@ -361,11 +365,9 @@ class App {
             this.brushSettings[this.activeTool].oiliness = val / 100;
             this.engine.brush.oiliness = val / 100;
             oilinessVal.innerText = `${val}%`;
-            // If it's a brush, we might want to save it to the tip data in TipManager?
-            // Actually, for now, let's just update TipManager's active tip if it's BRUSH tool
-            if (this.activeTool === TOOLS.BRUSH && this.tipManager.activeBankIndex >= 0) {
-                this.tipManager.tips[this.tipManager.activeBankIndex].oiliness = val / 100;
-                this.tipManager._saveToStorage();
+            
+            if (this.activeTool === TOOLS.BRUSH) {
+                this.tipManager.updateActiveTipSettings(undefined, val / 100, undefined);
             }
         };
     }
@@ -378,9 +380,9 @@ class App {
             this.brushSettings[this.activeTool].airbrush = val / 100;
             this.engine.brush.airbrush = val / 100;
             airbrushVal.innerText = `${val}%`;
-            if (this.activeTool === TOOLS.BRUSH && this.tipManager.activeBankIndex >= 0) {
-                this.tipManager.tips[this.tipManager.activeBankIndex].airbrush = val / 100;
-                this.tipManager._saveToStorage();
+            
+            if (this.activeTool === TOOLS.BRUSH) {
+                this.tipManager.updateActiveTipSettings(undefined, undefined, val / 100);
             }
         };
     }
@@ -886,11 +888,15 @@ class App {
 
     if (index === 0) {
         this.setTool(TOOLS.REF_MOVE);
-    } else if (this.activeTool === TOOLS.REF_MOVE) {
-        this.setTool(this.lastBrush);
+        this.imgHandler.activate();
+    } else {
+        if (this.activeTool === TOOLS.REF_MOVE) {
+            this.setTool(this.lastBrush);
+        }
+        this.imgHandler.deactivate();
     }
 
-    this._status(`L${index + 1}`);
+    this._status(index === 0 ? 'IMG REF' : `L${index + 1}`);
   }
 
   async load() {
