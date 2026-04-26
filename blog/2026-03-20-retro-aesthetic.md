@@ -1,6 +1,6 @@
 # Exploring the Retro
 
-<i style="color: #6a9955; font-family: monospace;">// Filler post</i>
+<div style="color: #6a9955; font-family: monospace;">// Filler post</div>
 
 Why Windows 95? Some things get better with age.
 
