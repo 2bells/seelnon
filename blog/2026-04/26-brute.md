@@ -18,11 +18,7 @@ Of course information about brushstrokes, etc is being lost, but it is not like 
 
 Hard to say if it is because I'm piloting damn thing or?... 
 
-```
-[let's be real, 
-I saw people use AI, 
-they can't pilot text-to-speech]...
-```
+
 ## ANYWAY!
 
 She is now a mascot of the APP, because why not. So there were updates to 'Concept Brute'... previous save is gone. But there are:
