@@ -12,7 +12,7 @@ So yesterday I did a painterly sketch of a lady in CONCEPT BRUTE. For her I got 
 
 ![IMAGE](blog/2026-04/img/brute_AI.jpg)
 
-Of course information about brushstrokes, etc is being lost, but it is not like I can't use it as a secondary reference and just enjoy the AI-Human pipeline even more. But that was the first time I had my... ...oh... it is really close to: '<i style="font-family: monospace;">I sketch my vision, you make my vision</i>'... So I told my fellow AI: "<i style="font-family: monospace;">just do me</i>", and it did.
+Of course information about brushstrokes, etc is being lost, but it is not like I can't use it as a secondary reference and just enjoy the AI-Human pipeline even more. But that was the first time I had my... ...oh... it is really close to: 'I sketch my vision, you make my vision'... So I told my fellow AI: "just do me", and it did.
 
 ![IMAGE](blog/2026-04/img/sit_CBGirl.jpg)
 
@@ -37,9 +37,9 @@ She is now a mascot of the APP, because why not. So there were updates to 'Conce
 - **IMG REF:** Some stuff you can do with images (some buttons don't work yet)
 
 
-but if you are allergic to AI, here is my hand handy verison to cleanse your pretty eyes:
+but if you are allergic to AI, here is my hand handy verison to soothe thy eyes:
 
-![Image](Content/Projects/Concept_Brute/img/concept_brute_thmb.jpg)
+![Image](blog/2026-04/img/Hi_there.jpg)
 
 
 [CLICK TO BRUTE](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/index.html)
