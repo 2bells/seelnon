@@ -75,7 +75,7 @@
 
         
         
-        <div class="sensitivity-group">
+        <div class="sensitivity-group hidden">
           <div class="slider-container">
             <label class="slider-label" title="Speed Size Sensitivity">S-SIZE</label>
             <input type="range" id="speed-size" min="-2000" max="2000" value="800" class="brutal-range s-range">
@@ -98,6 +98,12 @@
 
         <div class="flex-grow"></div>
 
+        <div class="toolbar-divider"></div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-right: 8px;">
+           <div id="brush-preview-container" style="width: 32px; height: 32px; border: 2px solid black; background: white; position: relative;">
+               <canvas id="brush-preview-canvas" width="32" height="32" style="width: 100%; height: 100%; display: block;"></canvas>
+           </div>
+        </div>
         <div class="history-group" style="margin-right: 8px;">
           <button id="btn-settings" title="Settings" class="tool-btn with-shadow">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -105,6 +111,40 @@
           <button id="btn-clear" class="brutal-btn">Clear</button>
           <button id="btn-fullscreen" class="brutal-btn">Full</button>
         </div>
+      </div>
+
+      <!-- REFERENCE TOOLBAR (HIDDEN BY DEFAULT) -->
+      <div id="top-bar-ref" class="hidden">
+        <button id="btn-ref-back" class="tool-btn" title="Back to Drawing">
+           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="toolbar-divider"></div>
+        <div class="tool-group">
+          <button id="btn-ref-move" class="tool-btn active-tool" title="Move Image">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 9-3 3 3 3"/><path d="M22 12H2"/><path d="m19 9 3 3-3 3"/><path d="m15 5-3-3-3 3"/><path d="M12 2v20"/><path d="m15 19-3 3-3-3"/></svg>
+          </button>
+          <button id="btn-ref-crop" class="tool-btn" title="Crop Image">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+          </button>
+          <button id="btn-ref-knife" class="tool-btn" title="Knife / Split">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.77 3.77z"/></svg>
+          </button>
+          <button id="btn-ref-color" class="tool-btn" title="Color Correct">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>
+          </button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <button id="btn-ref-extract" class="brutal-btn" title="Extract Palette">EXTRACT</button>
+        <div class="flex-grow"></div>
+        <div class="slider-container">
+            <label class="slider-label">REF OPACITY</label>
+            <div class="slider-controls">
+                <input type="range" id="ref-opacity" min="0" max="100" value="100" class="brutal-range">
+                <span id="ref-opacity-val" class="slider-value">100%</span>
+            </div>
+        </div>
+        <div class="toolbar-divider"></div>
+        <button id="btn-ref-delete" class="brutal-btn" style="background: #ff4444; color: white;">DELETE</button>
       </div>
 
       <!-- WORKSPACE -->
@@ -218,36 +258,200 @@
         </div>
 
         <!-- SETTINGS PANEL -->
-        <div id="panel-settings" class="ui-panel hidden">
+        <div id="panel-settings" class="ui-panel hidden" style="width: 320px; height: 500px;">
           <div id="handle-settings" class="panel-handle">
             <span class="panel-title">SETTINGS</span>
             <button id="btn-close-settings" class="mini-btn">X</button>
           </div>
-          <div class="panel-content settings-main">
-             <div class="settings-group">
-                <label class="settings-label">CANVAS BACKGROUND</label>
-                <input type="color" id="settings-bg-color" value="#ffffff" class="settings-input-color">
-             </div>
-             <div class="settings-group">
-                <label class="settings-label">GRID COLOR</label>
-                <input type="color" id="settings-grid-color" value="#cccccc" class="settings-input-color">
-             </div>
-             <div class="settings-row">
-                <label class="settings-label">SHOW GRID</label>
-                <input type="checkbox" id="settings-grid-show" checked class="settings-input-check">
-             </div>
-             <div class="settings-divider"></div>
-             <div class="settings-group">
-                <label class="settings-label">BRUSH SPACING</label>
-                <input type="range" id="settings-brush-spacing" min="0.01" max="0.5" step="0.01" value="0.05" class="brutal-range" style="width: 100%;">
-             </div>
-             <div class="storage-stat">Storage used: <span id="storage-stat">...</span></div>
+          
+          <!-- TAB HEADERS -->
+          <div class="settings-tabs">
+            <button class="settings-tab active" data-tab="general">GEN</button>
+            <button class="settings-tab" data-tab="projects">PRJ</button>
+            <button class="settings-tab" data-tab="data">DATA</button>
+            <button class="settings-tab" data-tab="info">INFO</button>
           </div>
+
+          <div class="panel-content settings-main" style="flex-grow: 1; overflow-y: auto;">
+             <!-- GENERAL TAB -->
+              <div id="tab-general" class="tab-pane active">
+                  <div class="settings-group">
+                     <label class="settings-label">CANVAS BACKGROUND</label>
+                     <input type="color" id="settings-bg-color" value="#ffffff" class="settings-input-color">
+                  </div>
+                  <div class="settings-divider"></div>
+                  <div class="settings-group">
+                     <label class="settings-label">GRID PATTERN</label>
+                     <select id="settings-grid-pattern" class="full-width" style="border: 2px solid #000; font-family: inherit; font-size: 10px;">
+                         <option value="dots">DOTS</option>
+                         <option value="lines">LINES</option>
+                         <option value="squares">SQUARES</option>
+                         <option value="crosses">CROSSES</option>
+                     </select>
+                  </div>
+                  <div class="settings-group">
+                     <label class="settings-label">GRID COLOR</label>
+                     <input type="color" id="settings-grid-color" value="#cccccc" class="settings-input-color">
+                  </div>
+                  <div class="settings-group">
+                     <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="settings-label">GRID SIZE</label>
+                        <span id="grid-size-val" style="font-size: 9px; font-weight: 900;">20px</span>
+                     </div>
+                     <input type="range" id="settings-grid-size" min="10" max="200" step="10" value="20" class="brutal-range" style="width: 100%;">
+                  </div>
+                  <div class="settings-group">
+                     <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="settings-label">GRID INTENSITY</label>
+                        <span id="grid-intensity-val" style="font-size: 9px; font-weight: 900;">100%</span>
+                     </div>
+                     <input type="range" id="settings-grid-intensity" min="0" max="100" value="100" class="brutal-range" style="width: 100%;">
+                  </div>
+                  <div class="settings-row">
+                     <label class="settings-label">SHOW GRID</label>
+                     <div class="checkbox-wrapper">
+                        <input type="checkbox" id="settings-grid-show" checked class="settings-input-check">
+                        <span class="checkbox-custom"></span>
+                     </div>
+                  </div>
+                  <div class="settings-divider"></div>
+                  <div class="settings-group">
+                     <label class="settings-label">BRUSH SPACING</label>
+                     <input type="range" id="settings-brush-spacing" min="0.01" max="0.5" step="0.01" value="0.05" class="brutal-range" style="width: 100%;">
+                  </div>
+              </div>
+
+             <!-- PROJECTS TAB -->
+             <div id="tab-projects" class="tab-pane">
+                 <label class="settings-label">CANVAS PROJECTS</label>
+                 <button id="btn-project-new" class="brutal-btn full-width" style="margin-bottom: 8px;">+ NEW</button>
+                 <div id="project-list" class="project-grid"></div>
+             </div>
+
+             <!-- DATA TAB -->
+             <div id="tab-data" class="tab-pane">
+                 <div class="settings-group">
+                    <label class="settings-label">STORAGE INFO</label>
+                    <div class="data-info">
+                        <span id="storage-chunks">0</span> CHUNKS
+                    </div>
+                    <div class="data-info">
+                        <span id="storage-size">0.00</span> MB
+                    </div>
+                 </div>
+                 <div class="settings-divider"></div>
+                 <button id="btn-clear-storage" class="brutal-btn full-width" style="background: #ff4444; color: white;">RESET SYSTEM</button>
+                 <p style="font-size: 8px; margin-top: 8px; opacity: 0.6; line-height: 1.2;">WARNING: Reset deletes all projects and data forever.</p>
+             </div>
+
+             <div id="tab-info" class="tab-pane">
+                 <label class="settings-label">HOTKEYS</label>
+                 <div class="hotkey-list" style="font-size: 9px; line-height: 1.6;">
+                    <div class="hotkey-item"><span>[1 - 6]</span> <span>BRUSH/WIRE/LASSO/SMUDGE/ERASE/REF</span></div>
+                    <div class="hotkey-item"><span>[B]</span> <span>MIRROR VIEW (OR SELECTION)</span></div>
+                    <div class="hotkey-item"><span>[X]</span> <span>ERASER (OR CTRL+X CUT)</span></div>
+                    <div class="hotkey-item"><span>[ALT]</span> <span>EYEDROPPER</span></div>
+                    <div class="hotkey-item"><span>[SPACE]</span> <span>PAN CANVAS</span></div>
+                    <div class="hotkey-item"><span>[SHIFT]</span> <span>STRAIGHT LINES</span></div>
+                    <div class="settings-divider"></div>
+                    <div class="hotkey-item"><span>[CTRL+Z]</span> <span>UNDO</span></div>
+                    <div class="hotkey-item"><span>[CTRL+Y]</span> <span>REDO</span></div>
+                    <div class="hotkey-item"><span>[CTRL+S]</span> <span>SAVE / EXPORT SELECTION</span></div>
+                    <div class="hotkey-item"><span>[[ / ]]</span> <span>BRUSH SIZE (ALSO W / E)</span></div>
+                    <div class="hotkey-item"><span>[S / D]</span> <span>OPACITY +/- (CTRL+D DESELECT)</span></div>
+                    <div class="hotkey-item"><span>[T]</span> <span>TRANSFORM SELECTION</span></div>
+                    <div class="hotkey-item"><span>[ENTER]</span> <span>APPLY TRANSFORM</span></div>
+                    <div class="hotkey-item"><span>[F]</span> <span>FULLSCREEN</span></div>
+                    <div class="hotkey-item"><span>[ESC]</span> <span>CANCEL / CLOSE ALL</span></div>
+                 </div>
+                 <div class="settings-divider"></div>
+                 <p style="font-size: 8px; opacity: 0.6;">BRUTE_ENGINE v0.8.3</p>
+             </div>
+          </div>
+        </div>
+
+        <!-- NEW PROJECT MODAL -->
+        <div id="modal-new-project" class="ui-panel hidden" style="width: 200px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10000; box-shadow: 10px 10px 0 0 #000;">
+            <div class="panel-handle">
+                <span class="panel-title">NEW CANVAS</span>
+                <button id="btn-close-new-project" class="mini-btn">X</button>
+            </div>
+            <div class="panel-content">
+                 <div class="settings-divider"></div>
+                 <div class="settings-group" style="margin-top: 8px;">
+                     <label class="settings-label">NAME</label>
+                     <input type="text" id="new-project-name" class="brutal-input full-width" value="SKETCH_01" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px;">
+                 </div>
+                 <div class="settings-group" style="margin-top: 8px;">
+                     <label class="settings-label">CHUNK SIZE</label>
+                     <select id="new-project-chunk-size" class="full-width" style="border: 2px solid #000; font-family: inherit; font-size: 10px;">
+                         <option value="256">256 (TINY)</option>
+                         <option value="512" selected>512 (BALANCED)</option>
+                         <option value="1024">1024 (HD)</option>
+                     </select>
+                 </div>
+                 <div class="settings-group" style="margin-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="settings-label">WEBP QUALITY</label>
+                        <span id="new-quality-val" style="font-size: 9px; font-weight: 900;">0.5</span>
+                    </div>
+                    <input type="range" id="new-project-quality" min="0.1" max="1.0" step="0.1" value="0.5" class="minimal-range" style="width: 100%;">
+                 </div>
+                 <div style="height: 12px;"></div>
+                 <button id="btn-create-project-final" class="brutal-btn full-width">CREATE</button>
+            </div>
+        </div>
+
+        <!-- EXPORT MODAL -->
+        <div id="modal-export" class="ui-panel hidden" style="width: 280px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10002; box-shadow: 12px 12px 0 0 #000; height: auto; max-height: 90vh; overflow-y: auto;">
+            <div class="panel-handle">
+                <span class="panel-title">EXPORT SELECTION</span>
+                <button id="btn-close-export" class="mini-btn">X</button>
+            </div>
+            <div class="panel-content" style="padding: 12px; padding-top: 0; display: flex; flex-direction: column;">
+                 <div class="settings-divider"></div>
+                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+                    <div class="settings-group">
+                        <label class="settings-label">WIDTH</label>
+                        <input type="number" id="export-width" class="brutal-input full-width" style="border: 2px solid #000; padding: 4px; font-family: inherit; font-size: 11px; width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div class="settings-group">
+                        <label class="settings-label">HEIGHT</label>
+                        <input type="number" id="export-height" class="brutal-input full-width" style="border: 2px solid #000; padding: 4px; font-family: inherit; font-size: 11px; width: 100%; box-sizing: border-box;">
+                    </div>
+                 </div>
+                 <div class="settings-row" style="margin: 12px 0 8px 0;">
+                    <label class="settings-label">KEEP RATIO</label>
+                    <div class="checkbox-wrapper">
+                       <input type="checkbox" id="export-keep-ratio" checked class="settings-input-check">
+                       <span class="checkbox-custom"></span>
+                    </div>
+                 </div>
+                 <div class="settings-divider"></div>
+                 <div class="settings-row" style="margin: 12px 0 8px 0;">
+                    <label class="settings-label">ALPHA CHANNEL</label>
+                    <div class="checkbox-wrapper">
+                       <input type="checkbox" id="export-alpha" class="settings-input-check">
+                       <span class="checkbox-custom"></span>
+                    </div>
+                 </div>
+                 <div class="settings-group" style="margin-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="settings-label">SCALE</label>
+                        <span id="export-scale-val" style="font-size: 10px; font-weight: 900;">100%</span>
+                    </div>
+                    <input type="range" id="export-scale" min="10" max="200" step="10" value="100" class="minimal-range" style="width: 100%; margin: 8px 0;">
+                 </div>
+                 <div style="height: 12px;"></div>
+                 <button id="btn-export-final" class="brutal-btn full-width" style="padding: 10px; font-weight: 900; letter-spacing: 1px;">DOWNLOAD .PNG</button>
+            </div>
         </div>
       </div>
     </div>
 
-    <div id="capture-reticle"></div>
+    <div id="capture-reticle">
+      <div style="position:absolute; top: -4px; left: -4px; width: 8px; height: 8px; background: #3b82f6;"></div>
+    </div>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

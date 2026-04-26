@@ -1,10 +1,8 @@
-import { CHUNK_SIZE as DEFAULT_CHUNK_SIZE, LAYERS_COUNT, TOOLS } from './constants.js';
+import { CHUNK_SIZE, LAYERS_COUNT, TOOLS } from './constants.js';
 
 export class Engine {
-  constructor(container, settings = {}) {
+  constructor(container) {
     this.container = container;
-    this.chunkSize = settings.chunkSize || DEFAULT_CHUNK_SIZE;
-    this.saveQuality = settings.quality || 0.5;
     this.chunks = new Map(); // id -> { canvases: [canvas, canvas, canvas], ctxs: [ctx, ctx, ctx] }
     this.activeLayer = 1; // Default to first paint layer
     this.zoom = 1;
@@ -44,15 +42,8 @@ export class Engine {
     this.referenceImages = [];
     this.selectedRefIndex = -1;
 
-    this.isExportMode = false;
-    this.exportRect = null;
-    this.exportStartPos = null;
-
     this.canvasBg = '#ffffff';
     this.gridColor = '#cccccc';
-    this.gridPattern = 'dots';
-    this.gridSize = 20;
-    this.gridIntensity = 1.0;
     this.showGrid = true;
     this.isMirrored = false;
     this.isCapturingTip = false;
@@ -129,19 +120,19 @@ export class Engine {
     };
     
     this.chunks.forEach(chunk => {
-        const chunkX = chunk.cx * this.chunkSize;
-        const chunkY = chunk.cy * this.chunkSize;
+        const chunkX = chunk.cx * CHUNK_SIZE;
+        const chunkY = chunk.cy * CHUNK_SIZE;
         
-        if (chunkX < rect.x + rect.w && chunkX + this.chunkSize > rect.x &&
-            chunkY < rect.y + rect.h && chunkY + this.chunkSize > rect.y) {
+        if (chunkX < rect.x + rect.w && chunkX + CHUNK_SIZE > rect.x &&
+            chunkY < rect.y + rect.h && chunkY + CHUNK_SIZE > rect.y) {
             
             for (let i = 1; i < LAYERS_COUNT; i++) {
                 const srcX = Math.max(0, rect.x - chunkX);
                 const srcY = Math.max(0, rect.y - chunkY);
                 const overlapX = Math.max(chunkX, rect.x);
                 const overlapY = Math.max(chunkY, rect.y);
-                const overlapW = Math.min(chunkX + this.chunkSize, rect.x + rect.w) - overlapX;
-                const overlapH = Math.min(chunkY + this.chunkSize, rect.y + rect.h) - overlapY;
+                const overlapW = Math.min(chunkX + CHUNK_SIZE, rect.x + rect.w) - overlapX;
+                const overlapH = Math.min(chunkY + CHUNK_SIZE, rect.y + rect.h) - overlapY;
 
                 if (overlapW > 0 && overlapH > 0) {
                     const dstX = (overlapX - rect.x) * this.zoom;
@@ -169,14 +160,6 @@ export class Engine {
 
   _initEvents() {
     this.container.addEventListener('mousedown', (e) => {
-        if (this.isExportMode) {
-            const m = this._getMousePos(e);
-            this.exportStartPos = { x: m.wx, y: m.wy };
-            this.exportRect = { x: m.wx, y: m.wy, w: 0, h: 0 };
-            this.isDrawing = true;
-            return;
-        }
-
         if (this.isCapturingTip) {
             const tip = this.captureArea(e.clientX, e.clientY);
             this.isCapturingTip = false;
@@ -195,25 +178,7 @@ export class Engine {
         this._startStroke(e);
     });
     window.addEventListener('mousemove', (e) => {
-      if (this.isExportMode && this.isDrawing) {
-          const m = this._getMousePos(e);
-          const x1 = this.exportStartPos.x;
-          const y1 = this.exportStartPos.y;
-          const x2 = m.wx;
-          const y2 = m.wy;
-          
-          this.exportRect = {
-              x: Math.min(x1, x2),
-              y: Math.min(y1, y2),
-              w: Math.abs(x2 - x1),
-              h: Math.abs(y2 - y1)
-          };
-          this._updateExportReticle();
-          return;
-      }
       if (this.isCapturingTip) {
-          this.captureReticle.style.width = '128px';
-          this.captureReticle.style.height = '128px';
           this.captureReticle.style.left = (e.clientX - 64) + 'px';
           this.captureReticle.style.top = (e.clientY - 64) + 'px';
           return;
@@ -223,18 +188,6 @@ export class Engine {
       this._updateBrushCursor(e);
     });
     window.addEventListener('mouseup', (e) => {
-        if (this.isExportMode && this.isDrawing) {
-            this.isDrawing = false;
-            this.isExportMode = false;
-            this.container.classList.remove('export-mode');
-            
-            // Only trigger if selection has some area
-            if (this.exportRect && this.exportRect.w > 4 && this.exportRect.h > 4) {
-                if (this.onExportSelectionDone) this.onExportSelectionDone(this.exportRect);
-            }
-            this.exportRect = null;
-            return;
-        }
         this.isMouseDown = false;
         if (e.button === 1) {
             this.isPanning = false;
@@ -326,17 +279,13 @@ export class Engine {
     }
   }
 
-  _markDirty(id, layer, isEmpty = false) {
-      if (this.chunks.has(id)) {
-          const chunk = this.chunks.get(id);
-          if (chunk.isEmpty) chunk.isEmpty[layer] = isEmpty;
-      }
+  _markDirty(id, layer) {
       this.dirtyChunks.add(`${id}|${layer}`);
   }
 
   _getChunkCoords(x, y) {
-    const cx = Math.floor((x - this.pan.x) / (this.chunkSize * this.zoom));
-    const cy = Math.floor((y - this.pan.y) / (this.chunkSize * this.zoom));
+    const cx = Math.floor((x - this.pan.x) / (CHUNK_SIZE * this.zoom));
+    const cy = Math.floor((y - this.pan.y) / (CHUNK_SIZE * this.zoom));
     return { cx, cy };
   }
 
@@ -348,18 +297,17 @@ export class Engine {
       cx, cy,
       canvases: [],
       ctxs: [],
-      isEmpty: new Array(LAYERS_COUNT).fill(true),
       element: document.createElement('div')
     };
 
     chunk.element.className = 'absolute border-white-5 pointer-events-none';
-    chunk.element.style.width = `${this.chunkSize}px`;
-    chunk.element.style.height = `${this.chunkSize}px`;
+    chunk.element.style.width = `${CHUNK_SIZE}px`;
+    chunk.element.style.height = `${CHUNK_SIZE}px`;
     
     for (let i = 0; i < LAYERS_COUNT; i++) {
       const canv = document.createElement('canvas');
-      canv.width = this.chunkSize;
-      canv.height = this.chunkSize;
+      canv.width = CHUNK_SIZE;
+      canv.height = CHUNK_SIZE;
       canv.className = 'absolute inset-0';
       // Use default rendering when potentially rotating to reduce seams
       canv.style.imageRendering = 'auto';
@@ -372,8 +320,8 @@ export class Engine {
 
     // Per-stroke buffer
     const strokeCanv = document.createElement('canvas');
-    strokeCanv.width = this.chunkSize;
-    strokeCanv.height = this.chunkSize;
+    strokeCanv.width = CHUNK_SIZE;
+    strokeCanv.height = CHUNK_SIZE;
     strokeCanv.className = 'absolute inset-0';
     strokeCanv.style.imageRendering = 'auto';
     strokeCanv.style.backfaceVisibility = 'hidden';
@@ -390,8 +338,8 @@ export class Engine {
   }
 
   _updateChunkTransform(chunk) {
-    const x = chunk.cx * this.chunkSize * this.zoom + this.pan.x + 5000;
-    const y = chunk.cy * this.chunkSize * this.zoom + this.pan.y + 5000;
+    const x = chunk.cx * CHUNK_SIZE * this.zoom + this.pan.x + 5000;
+    const y = chunk.cy * CHUNK_SIZE * this.zoom + this.pan.y + 5000;
     chunk.element.style.transform = `translate(${x}px, ${y}px) scale(${this.zoom})`;
     chunk.element.style.transformOrigin = 'top left';
   }
@@ -421,11 +369,13 @@ export class Engine {
     });
   }
 
-  refreshTransforms() {
+  refresh() {
     this.chunks.forEach(chunk => this._updateChunkTransform(chunk));
     this._updateRefImagesTransform();
     
     const rect = this.container.getBoundingClientRect();
+    // Center of container relative to wrapper
+    // wrapper is -5000, -5000
     const cx = rect.width / 2 + 5000;
     const cy = rect.height / 2 + 5000;
     this.canvasWrapper.style.transformOrigin = `${cx}px ${cy}px`;
@@ -435,50 +385,23 @@ export class Engine {
         transform += ' scaleX(-1)';
     }
     this.canvasWrapper.style.transform = transform;
-  }
 
-  refreshGrid() {
-    // Sync Background
+    // Sync Grid Background
+    const gridSize = 20 * this.zoom;
     this.container.style.backgroundColor = this.canvasBg;
     
     if (this.showGrid) {
-        const scaledSize = this.gridSize * this.zoom;
-        const color = this.gridColor;
-        const opacity = this.gridIntensity;
-        
-        let gridColorWithOpacity = color;
-        if (color.startsWith('#')) {
-            const r = parseInt(color.slice(1, 3), 16);
-            const g = parseInt(color.slice(3, 5), 16);
-            const b = parseInt(color.slice(5, 7), 16);
-            gridColorWithOpacity = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-        }
-
-        let bgImage = '';
-        if (this.gridPattern === 'dots') {
-            bgImage = `radial-gradient(${gridColorWithOpacity} 1px, transparent 1px)`;
-        } else if (this.gridPattern === 'lines') {
-            bgImage = `linear-gradient(0deg, ${gridColorWithOpacity} 1px, transparent 1px)`;
-        } else if (this.gridPattern === 'squares') {
-            bgImage = `linear-gradient(90deg, ${gridColorWithOpacity} 1px, transparent 1px), linear-gradient(0deg, ${gridColorWithOpacity} 1px, transparent 1px)`;
-        } else if (this.gridPattern === 'crosses') {
-            // Crosses: small vertical and horizontal lines intersecting at grid points
-            bgImage = `linear-gradient(90deg, transparent 48%, ${gridColorWithOpacity} 48%, ${gridColorWithOpacity} 52%, transparent 52%), 
-                       linear-gradient(0deg, transparent 48%, ${gridColorWithOpacity} 48%, ${gridColorWithOpacity} 52%, transparent 52%)`;
-        }
-
-        this.canvasWrapper.style.backgroundImage = bgImage;
-        this.canvasWrapper.style.backgroundSize = `${scaledSize}px ${scaledSize}px`;
+        this.canvasWrapper.style.backgroundImage = `radial-gradient(${this.gridColor} 1px, transparent 1px)`;
+        this.canvasWrapper.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+        // background-position should align with viewport center at pan 0,0
+        // Wrapper offset is 5000. 
+        // We want the grid point to be at pan.x in container coords.
+        // Container center is at 5000 in wrapper coords.
         this.canvasWrapper.style.backgroundPosition = `${5000 + this.pan.x}px ${5000 + this.pan.y}px`;
     } else {
         this.canvasWrapper.style.backgroundImage = 'none';
-        this.canvasWrapper.style.backgroundPosition = '0 0';
     }
-  }
 
-  refresh() {
-    this.refreshTransforms();
-    this.refreshGrid();
     this._drawSelectionViz();
     this._updateSelectionPreview();
   }
@@ -495,7 +418,7 @@ export class Engine {
       
       const pathToShow = this.lassoPath || this.activeSelectionPath;
       
-      if (pathToShow || this.isExportMode) {
+      if (pathToShow) {
           ctx.save();
           // Apply Camera Transform
           ctx.translate(rect.width/2, rect.height/2);
@@ -503,71 +426,26 @@ export class Engine {
           ctx.rotate(this.rotation);
           ctx.translate(-rect.width/2, -rect.height/2);
 
-          if (this.isExportMode) {
-              // Draw dimming overlay
-              ctx.fillStyle = 'rgba(0,0,0,0.4)';
-              
-              if (this.exportRect) {
-                  const r = this.exportRect;
-                  const sx = r.x * this.zoom + this.pan.x;
-                  const sy = r.y * this.zoom + this.pan.y;
-                  const sw = r.w * this.zoom;
-                  const sh = r.h * this.zoom;
-
-                  // Dim around selection
-                  // Top
-                  ctx.fillRect(0, 0, rect.width, sy);
-                  // Bottom
-                  ctx.fillRect(0, sy + sh, rect.width, rect.height - (sy + sh));
-                  // Left
-                  ctx.fillRect(0, sy, sx, sh);
-                  // Right
-                  ctx.fillRect(sx + sw, sy, rect.width - (sx + sw), sh);
-
-                  // Border
-                  ctx.strokeStyle = '#3b82f6';
-                  ctx.setLineDash([5, 5]);
-                  ctx.lineDashOffset = (Date.now() / 50) % 10;
-                  ctx.lineWidth = 2;
-                  ctx.strokeRect(sx, sy, sw, sh);
-                  
-                  ctx.strokeStyle = '#fff';
-                  ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
-                  ctx.strokeRect(sx, sy, sw, sh);
-              } else {
-                  // Full screen dim if no selection yet
-                  ctx.fillRect(0, 0, rect.width, rect.height);
-              }
-          } else if (pathToShow) {
-              ctx.strokeStyle = '#3b82f6';
-              ctx.setLineDash([5, 5]);
-              ctx.lineDashOffset = (Date.now() / 50) % 10;
-              ctx.lineWidth = 1.5;
-              ctx.beginPath();
-              
-              const skip = Math.max(1, Math.floor(pathToShow.length / 500));
-              pathToShow.forEach((p, i) => {
-                  if (i % skip !== 0 && i !== pathToShow.length - 1) return;
-                  const sx = p.x * this.zoom + this.pan.x;
-                  const sy = p.y * this.zoom + this.pan.y;
-                  if (i === 0) ctx.moveTo(sx, sy);
-                  else ctx.lineTo(sx, sy);
-              });
-              
-              if (this.activeSelectionPath) ctx.closePath();
-              ctx.stroke();
-              
-              ctx.strokeStyle = '#fff';
-              ctx.setLineDash([5, 5]);
-              ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
-              ctx.stroke();
-          }
+          ctx.strokeStyle = '#000';
+          ctx.setLineDash([5, 5]);
+          ctx.lineDashOffset = (Date.now() / 50) % 10;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          pathToShow.forEach((p, i) => {
+              const sx = p.x * this.zoom + this.pan.x;
+              const sy = p.y * this.zoom + this.pan.y;
+              if (i === 0) ctx.moveTo(sx, sy);
+              else ctx.lineTo(sx, sy);
+          });
+          if (this.activeSelectionPath) ctx.closePath();
+          ctx.stroke();
+          
+          ctx.strokeStyle = '#fff';
+          ctx.setLineDash([5, 5]);
+          ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
+          ctx.stroke();
           ctx.restore();
       }
-  }
-
-  _updateExportReticle() {
-      // Reticle is just visual, mostly handled by _drawSelectionViz for precision
   }
 
   _getSelectionData(clearSource = false) {
@@ -590,10 +468,10 @@ export class Engine {
       selectionCanvas.height = height;
       const sCtx = selectionCanvas.getContext('2d');
 
-      const startCX = Math.floor(minX / this.chunkSize);
-      const startCY = Math.floor(minY / this.chunkSize);
-      const endCX = Math.floor(maxX / this.chunkSize);
-      const endCY = Math.floor(maxY / this.chunkSize);
+      const startCX = Math.floor(minX / CHUNK_SIZE);
+      const startCY = Math.floor(minY / CHUNK_SIZE);
+      const endCX = Math.floor(maxX / CHUNK_SIZE);
+      const endCY = Math.floor(maxY / CHUNK_SIZE);
 
       const affectedChunks = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
@@ -601,8 +479,8 @@ export class Engine {
               const id = `${cx},${cy}`;
               const chunk = this.chunks.get(id);
               if (!chunk) continue;
-              const lx = cx * this.chunkSize;
-              const ly = cy * this.chunkSize;
+              const lx = cx * CHUNK_SIZE;
+              const ly = cy * CHUNK_SIZE;
 
               // Copy to selection canvas
               sCtx.save();
@@ -619,8 +497,8 @@ export class Engine {
               if (clearSource) {
                   // Backup for undo
                   const backup = document.createElement('canvas');
-                  backup.width = this.chunkSize;
-                  backup.height = this.chunkSize;
+                  backup.width = CHUNK_SIZE;
+                  backup.height = CHUNK_SIZE;
                   backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
                   affectedChunks.set(id, { layer: this.activeLayer, canvas: backup });
 
@@ -634,7 +512,7 @@ export class Engine {
                   });
                   ctx.closePath();
                   ctx.clip();
-                  ctx.clearRect(0,0, this.chunkSize, this.chunkSize);
+                  ctx.clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
                   ctx.restore();
                   this._markDirty(id, this.activeLayer);
               }
@@ -771,23 +649,23 @@ export class Engine {
           maxY = Math.max(maxY, p.y);
       });
 
-      const startCX = Math.floor(minX / this.chunkSize);
-      const startCY = Math.floor(minY / this.chunkSize);
-      const endCX = Math.floor(maxX / this.chunkSize);
-      const endCY = Math.floor(maxY / this.chunkSize);
+      const startCX = Math.floor(minX / CHUNK_SIZE);
+      const startCY = Math.floor(minY / CHUNK_SIZE);
+      const endCX = Math.floor(maxX / CHUNK_SIZE);
+      const endCY = Math.floor(maxY / CHUNK_SIZE);
 
       const deleteHistory = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
           for (let cy = startCY; cy <= endCY; cy++) {
               const id = `${cx},${cy}`;
               const chunk = this._getChunk(cx, cy);
-              const lx = cx * this.chunkSize;
-              const ly = cy * this.chunkSize;
+              const lx = cx * CHUNK_SIZE;
+              const ly = cy * CHUNK_SIZE;
 
               // Backup for undo
               const backup = document.createElement('canvas');
-              backup.width = this.chunkSize;
-              backup.height = this.chunkSize;
+              backup.width = CHUNK_SIZE;
+              backup.height = CHUNK_SIZE;
               backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
               deleteHistory.set(id, { layer: this.activeLayer, canvas: backup });
 
@@ -801,7 +679,7 @@ export class Engine {
               });
               ctx.closePath();
               ctx.clip();
-              ctx.clearRect(0,0, this.chunkSize, this.chunkSize);
+              ctx.clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
               ctx.restore();
               this._markDirty(id, this.activeLayer);
           }
@@ -870,14 +748,14 @@ export class Engine {
     }
     
     // 3. Draw paint layers (bottom to top)
-    const cx = Math.floor(wx / this.chunkSize);
-    const cy = Math.floor(wy / this.chunkSize);
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
     const chunk = this.chunks.get(`${cx},${cy}`);
 
     if (chunk) {
-        const lx = Math.floor(wx - cx * this.chunkSize);
-        const ly = Math.floor(wy - cy * this.chunkSize);
-        if (lx >= 0 && lx < this.chunkSize && ly >= 0 && ly < this.chunkSize) {
+        const lx = Math.floor(wx - cx * CHUNK_SIZE);
+        const ly = Math.floor(wy - cy * CHUNK_SIZE);
+        if (lx >= 0 && lx < CHUNK_SIZE && ly >= 0 && ly < CHUNK_SIZE) {
             for (let i = 1; i < LAYERS_COUNT; i++) {
                 pctx.drawImage(chunk.canvases[i], lx, ly, 1, 1, 0, 0, 1, 1);
             }
@@ -893,8 +771,6 @@ export class Engine {
 
   _startStroke(e) {
     this.lastMousePos = { x: e.clientX, y: e.clientY };
-
-    if (this.isExportMode) return;
 
     // Expanded UI shielding to prevent drawing through panels
     const target = e.target;
@@ -936,7 +812,6 @@ export class Engine {
         } else {
             this.selectedRefIndex = -1;
             this.refresh();
-            return; // STOP HERE, don't start painting
         }
     }
 
@@ -1234,7 +1109,7 @@ export class Engine {
                 ctx.restore();
 
                 // Clear stroke buffer for next stroke
-                chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
+                chunk.strokeCtx.clearRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
                 chunk.strokeCanvas.style.opacity = '0';
             }
         });
@@ -1243,7 +1118,7 @@ export class Engine {
         this.currentStrokeDirtyChunks.forEach((data, id) => {
             const chunk = this.chunks.get(id);
             if (chunk) {
-                chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
+                chunk.strokeCtx.clearRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
                 chunk.strokeCanvas.style.opacity = '0';
             }
         });
@@ -1291,16 +1166,7 @@ export class Engine {
     let border = '1px solid rgba(0, 0, 0, 0.4)';
     let mask = 'none';
 
-    this.brushCursor.innerHTML = '';
-
-    if (this.isExportMode) {
-        w = 32; h = 32;
-        bgColor = 'transparent';
-        border = '2px solid #000';
-        br = '0';
-        mask = 'none';
-        this.brushCursor.innerHTML = '<div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(0,0,0,0.5)"></div><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(0,0,0,0.5)"></div><div style="position:absolute;top:0;left:0;width:4px;height:4px;border-top:2px solid black;border-left:2px solid black"></div><div style="position:absolute;bottom:0;right:0;width:4px;height:4px;border-bottom:2px solid black;border-right:2px solid black"></div>';
-    } else if (this.brush.type === TOOLS.WIREFRAME) {
+    if (this.brush.type === TOOLS.WIREFRAME) {
         br = '50%';
         bgColor = 'transparent';
     } else if (this.brush.type === TOOLS.BRUSH) {
@@ -1318,14 +1184,6 @@ export class Engine {
             mask = `url(${this.brush.tip.toDataURL()})`;
             bgColor = 'rgba(0,0,0,0.1)'; // Small fill for eraser tip visibility
         }
-    } else if (this.brush.type === TOOLS.REF_MOVE) {
-        w = 24;
-        h = 24;
-        bgColor = 'rgba(59, 130, 246, 0.4)';
-        border = '2px solid #fff';
-        br = '2px';
-        mask = 'none';
-        this.brushCursor.innerHTML = '<div style="position:absolute;top:50%;left:5px;right:5px;height:2px;background:white;transform:translateY(-50%)"></div><div style="position:absolute;left:50%;top:5px;bottom:5px;width:2px;background:white;transform:translateX(-50%)"></div>';
     } else if (this.brush.type === TOOLS.LASSO) {
         w = 10;
         h = 10;
@@ -1435,107 +1293,6 @@ export class Engine {
       this._status(`TRANSFORM: ${Math.round(sc * 100)}% | ${Math.round(rot * 180 / Math.PI)}° | OPACITY: ${Math.round(opacity * 100)}%`);
   }
 
-  removeReferenceImage(index) {
-      if (index >= 0 && index < this.referenceImages.length) {
-          const ref = this.referenceImages[index];
-          if (ref.element) ref.element.remove();
-          this.referenceImages.splice(index, 1);
-          if (this.selectedRefIndex === index) {
-              this.selectedRefIndex = this.referenceImages.length - 1;
-          } else if (this.selectedRefIndex > index) {
-              this.selectedRefIndex--;
-          }
-          this.refresh();
-      }
-  }
-
-  extractPaletteFromRef(index) {
-      const ref = this.referenceImages[index];
-      if (!ref) return Promise.resolve();
-      
-      return new Promise((resolve) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = 128;
-          canvas.height = 128;
-          ctx.drawImage(ref.img, 0, 0, 128, 128);
-          const data = ctx.getImageData(0, 0, 128, 128).data;
-          
-          const candidates = [];
-          for (let i = 0; i < data.length; i += 4 * 4) {
-              const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-              if (a < 220) continue;
-              const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-              candidates.push({ color: [r, g, b], lum });
-          }
-
-          // Categorize into 3 buckets
-          const lights = candidates.filter(c => c.lum >= 170).sort((a,b) => b.lum - a.lum);
-          const shadows = candidates.filter(c => c.lum <= 85).sort((a,b) => a.lum - b.lum);
-          const mids = candidates.filter(c => c.lum > 85 && c.lum < 170).sort((a,b) => Math.abs(128 - a.lum) - Math.abs(128 - b.lum));
-
-          const getUnique = (source, count, threshold) => {
-              const result = [];
-              for (const cand of source) {
-                  if (!result.some(r => {
-                      return Math.sqrt(Math.pow(r[0]-cand.color[0], 2) + Math.pow(r[1]-cand.color[1], 2) + Math.pow(r[2]-cand.color[2], 2)) < threshold;
-                  })) {
-                      result.push(cand.color);
-                  }
-                  if (result.length >= count) break;
-              }
-              return result;
-          };
-
-          const extractedLights = getUnique(lights, 4, 30);
-          const extractedMids = getUnique(mids, 4, 30);
-          const extractedShadows = getUnique(shadows, 4, 30);
-
-          while (extractedLights.length < 4 && lights.length > extractedLights.length) extractedLights.push(lights[extractedLights.length].color);
-          while (extractedMids.length < 4 && mids.length > extractedMids.length) extractedMids.push(mids[extractedMids.length].color);
-          while (extractedShadows.length < 4 && shadows.length > extractedShadows.length) extractedShadows.push(shadows[extractedShadows.length].color);
-
-          const colorToLum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
-          extractedLights.sort((a,b) => colorToLum(b) - colorToLum(a));
-
-          const final12 = [...extractedLights, ...extractedMids, ...extractedShadows];
-          final12.sort((a,b) => colorToLum(b) - colorToLum(a)); 
-
-          const colorArray = final12.map(c => {
-              return `#${((1 << 24) + (c[0] << 16) + (c[1] << 8) + c[2]).toString(16).slice(1).toUpperCase()}`;
-          });
-          
-          // Store on ref
-          ref.extractedPalette = colorArray;
-          
-          const swatchCanvas = document.createElement('canvas');
-          const sCtx = swatchCanvas.getContext('2d');
-          swatchCanvas.width = colorArray.length * 20; 
-          swatchCanvas.height = 20;
-          
-          colorArray.forEach((c, i) => {
-              sCtx.fillStyle = c;
-              sCtx.fillRect(i * 20, 0, 20, 20);
-          });
-          
-          const swatchImg = new Image();
-          swatchImg.onload = () => {
-              const x = ref.x;
-              const y = ref.y - (ref.img.height * ref.scale / 2) - 15;
-              this.addReferenceImage(swatchImg, `Palette: ${ref.name}`, x, y);
-              this.refresh();
-              this._status('PALETTE EXTRACTED (12 VALUES)');
-              if (this.onPaletteExtracted) this.onPaletteExtracted(colorArray);
-              resolve();
-          };
-          swatchImg.src = swatchCanvas.toDataURL();
-      });
-  }
-
-  cropRefImage(index) { this._status('CROP TOOL ACTIVE (WIP)'); }
-  knifeRefImage(index) { this._status('KNIFE TOOL ACTIVE (WIP)'); }
-  colorCorrectRefImage(index) { this._status('COLOR TOOLS ACTIVE (WIP)'); }
-
   _processLassoSelection() {
       if (!this.lassoPath || this.lassoPath.length < 3) {
           this.lassoPath = null;
@@ -1569,15 +1326,13 @@ export class Engine {
       const op = opacity !== undefined ? opacity : 1;
       
       // Calculate bounding box for rotated/scaled canvas to find relevant chunks
-      const cos = Math.abs(Math.cos(rot));
-      const sin = Math.abs(Math.sin(rot));
-      const bbW = (canvas.width * sc * cos + canvas.height * sc * sin);
-      const bbH = (canvas.width * sc * sin + canvas.height * sc * cos);
+      const halfW = (canvas.width * sc * 1.5) / 2;
+      const halfH = (canvas.height * sc * 1.5) / 2;
 
-      const startCX = Math.floor((x + canvas.width / 2 - bbW / 2) / this.chunkSize);
-      const startCY = Math.floor((y + canvas.height / 2 - bbH / 2) / this.chunkSize);
-      const endCX = Math.floor((x + canvas.width / 2 + bbW / 2) / this.chunkSize);
-      const endCY = Math.floor((y + canvas.height / 2 + bbH / 2) / this.chunkSize);
+      const startCX = Math.floor((x - halfW) / CHUNK_SIZE);
+      const startCY = Math.floor((y - halfH) / CHUNK_SIZE);
+      const endCX = Math.floor((x + canvas.width + halfW) / CHUNK_SIZE);
+      const endCY = Math.floor((y + canvas.height + halfH) / CHUNK_SIZE);
 
       const applyHistory = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
@@ -1585,14 +1340,14 @@ export class Engine {
               const id = `${cx},${cy}`;
               const chunk = this._getChunk(cx, cy);
               const ctx = chunk.ctxs[this.activeLayer];
-              const lx = cx * this.chunkSize;
-              const ly = cy * this.chunkSize;
+              const lx = cx * CHUNK_SIZE;
+              const ly = cy * CHUNK_SIZE;
 
               // Backup for undo
               if (!applyHistory.has(id)) {
                 const backup = document.createElement('canvas');
-                backup.width = this.chunkSize;
-                backup.height = this.chunkSize;
+                backup.width = CHUNK_SIZE;
+                backup.height = CHUNK_SIZE;
                 backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
                 applyHistory.set(id, { layer: this.activeLayer, canvas: backup });
               }
@@ -1691,16 +1446,15 @@ export class Engine {
   }
 
   _paintOnChunks(from, to, size, opacity, color) {
-    if (this.activeLayer === 0) return; // Guard: No painting on reference image layer
     const minX = Math.min(from.x, to.x) - size;
     const minY = Math.min(from.y, to.y) - size;
     const maxX = Math.max(from.x, to.x) + size;
     const maxY = Math.max(from.y, to.y) + size;
 
-    const startCX = Math.floor(minX / this.chunkSize);
-    const startCY = Math.floor(minY / this.chunkSize);
-    const endCX = Math.floor(maxX / this.chunkSize);
-    const endCY = Math.floor(maxY / this.chunkSize);
+    const startCX = Math.floor(minX / CHUNK_SIZE);
+    const startCY = Math.floor(minY / CHUNK_SIZE);
+    const endCX = Math.floor(maxX / CHUNK_SIZE);
+    const endCY = Math.floor(maxY / CHUNK_SIZE);
 
     for (let cx = startCX; cx <= endCX; cx++) {
       for (let cy = startCY; cy <= endCY; cy++) {
@@ -1711,8 +1465,8 @@ export class Engine {
         // but here it's for the main layer which we bake into later)
         if (this.isDrawing && !this.currentStrokeDirtyChunks.has(id)) {
             const backup = document.createElement('canvas');
-            backup.width = this.chunkSize;
-            backup.height = this.chunkSize;
+            backup.width = CHUNK_SIZE;
+            backup.height = CHUNK_SIZE;
             backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
             this.currentStrokeDirtyChunks.set(id, { layer: this.activeLayer, canvas: backup });
         }
@@ -1726,12 +1480,12 @@ export class Engine {
         // Ensure height canvas exists if needed
         if (this.brush.paintHeight > 0 && !chunk.heightCanvas) {
             chunk.heightCanvas = document.createElement('canvas');
-            chunk.heightCanvas.width = this.chunkSize;
-            chunk.heightCanvas.height = this.chunkSize;
+            chunk.heightCanvas.width = CHUNK_SIZE;
+            chunk.heightCanvas.height = CHUNK_SIZE;
             chunk.heightCtx = chunk.heightCanvas.getContext('2d');
             // Background is 128 (flat)
             chunk.heightCtx.fillStyle = '#808080';
-            chunk.heightCtx.fillRect(0,0, this.chunkSize, this.chunkSize);
+            chunk.heightCtx.fillRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
         }
 
         if (!isEraser && !isSmudge) {
@@ -1741,8 +1495,8 @@ export class Engine {
         }
         
         ctx.save();
-        const lx = cx * this.chunkSize;
-        const ly = cy * this.chunkSize;
+        const lx = cx * CHUNK_SIZE;
+        const ly = cy * CHUNK_SIZE;
 
         // Apply Selection Mask
         if (this.activeSelectionPath) {
@@ -1803,28 +1557,25 @@ export class Engine {
                 const pickX = from.x + (to.x - from.x) * lerpVal - (to.x - from.x) * 0.4;
                 const pickY = from.y + (to.y - from.y) * lerpVal - (to.y - from.y) * 0.4;
 
-                // Optimization: reuse scratch canvas without constant resizing unless size changes significantly
-                if (this.scratchCanvas.width !== sW || this.scratchCanvas.height !== sH) {
-                    this.scratchCanvas.width = sW;
-                    this.scratchCanvas.height = sH;
-                }
+                this.scratchCanvas.width = sW;
+                this.scratchCanvas.height = sH;
                 this.scratchCtx.clearRect(0, 0, sW, sH);
 
                 // Sample from nearby chunks
                 const pMinX = pickX - sW / 2;
                 const pMinY = pickY - sH / 2;
-                const pcxS = Math.floor(pMinX / this.chunkSize);
-                const pcyS = Math.floor(pMinY / this.chunkSize);
-                const pcxE = Math.floor((pickX + sW / 2) / this.chunkSize);
-                const pcyE = Math.floor((pickY + sH / 2) / this.chunkSize);
+                const pcxS = Math.floor(pMinX / CHUNK_SIZE);
+                const pcyS = Math.floor(pMinY / CHUNK_SIZE);
+                const pcxE = Math.floor((pickX + sW / 2) / CHUNK_SIZE);
+                const pcyE = Math.floor((pickY + sH / 2) / CHUNK_SIZE);
 
                 for (let pcx = pcxS; pcx <= pcxE; pcx++) {
                     for (let pcy = pcyS; pcy <= pcyE; pcy++) {
                         const sID = `${pcx},${pcy}`;
                         const sChunk = this.chunks.get(sID);
                         if (sChunk) {
-                            const clx = pcx * this.chunkSize;
-                            const cly = pcy * this.chunkSize;
+                            const clx = pcx * CHUNK_SIZE;
+                            const cly = pcy * CHUNK_SIZE;
                             this.scratchCtx.drawImage(sChunk.canvases[this.activeLayer], clx - pMinX, cly - pMinY);
                         }
                     }
@@ -1967,7 +1718,17 @@ export class Engine {
     return ref;
   }
 
-
+  removeReferenceImage(index) {
+    if (this.referenceImages[index]) {
+      const ref = this.referenceImages[index];
+      if (ref.element) ref.element.remove();
+      this.referenceImages.splice(index, 1);
+      if (this.selectedRefIndex >= this.referenceImages.length) {
+          this.selectedRefIndex = this.referenceImages.length - 1;
+      }
+      this.refresh();
+    }
+  }
 
   selectReferenceAt(wx, wy) {
     // Check from top to bottom
@@ -2019,12 +1780,12 @@ export class Engine {
             const chunk = this.chunks.get(id);
             if (chunk) {
                 const redoBackup = document.createElement('canvas');
-                redoBackup.width = this.chunkSize;
-                redoBackup.height = this.chunkSize;
+                redoBackup.width = CHUNK_SIZE;
+                redoBackup.height = CHUNK_SIZE;
                 redoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
                 redoAction.chunks.set(id, { layer: data.layer, canvas: redoBackup });
 
-                chunk.ctxs[data.layer].clearRect(0,0, this.chunkSize, this.chunkSize);
+                chunk.ctxs[data.layer].clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
                 chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
                 this._markDirty(id, data.layer);
             }
@@ -2064,12 +1825,12 @@ export class Engine {
             const chunk = this.chunks.get(id);
             if (chunk) {
                 const undoBackup = document.createElement('canvas');
-                undoBackup.width = this.chunkSize;
-                undoBackup.height = this.chunkSize;
+                undoBackup.width = CHUNK_SIZE;
+                undoBackup.height = CHUNK_SIZE;
                 undoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
                 undoAction.chunks.set(id, { layer: data.layer, canvas: undoBackup });
 
-                chunk.ctxs[data.layer].clearRect(0,0, this.chunkSize, this.chunkSize);
+                chunk.ctxs[data.layer].clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
                 chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
                 this._markDirty(id, data.layer);
             }
@@ -2096,16 +1857,16 @@ export class Engine {
       const snap = new Map();
       this.chunks.forEach((chunk, id) => {
           const backup = document.createElement('canvas');
-          backup.width = this.chunkSize;
-          backup.height = this.chunkSize;
+          backup.width = CHUNK_SIZE;
+          backup.height = CHUNK_SIZE;
           backup.getContext('2d').drawImage(chunk.canvases[index], 0, 0);
           snap.set(id, { layer: index, canvas: backup });
       });
       this.history.push({ type: 'stroke', chunks: snap, zoom: this.zoom, pan: { ...this.pan } });
 
       this.chunks.forEach((chunk, id) => {
-          chunk.ctxs[index].clearRect(0, 0, this.chunkSize, this.chunkSize);
-          this._markDirty(id, index, true);
+          chunk.ctxs[index].clearRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
+          this._markDirty(id, index);
       });
       this._status(`LAYER ${index} CLEARED`);
       if (this.onDrawEnd) this.onDrawEnd();
@@ -2114,8 +1875,8 @@ export class Engine {
   clear() {
     this.chunks.forEach((chunk, id) => {
       chunk.ctxs.forEach((ctx, index) => {
-          ctx.clearRect(0,0, this.chunkSize, this.chunkSize);
-          this._markDirty(id, index, true);
+          ctx.clearRect(0,0, CHUNK_SIZE, CHUNK_SIZE);
+          this._markDirty(id, index);
       });
     });
     if (this.onDrawEnd) this.onDrawEnd();

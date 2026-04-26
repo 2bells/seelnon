@@ -3,7 +3,6 @@ import { SketchStorage } from './storage.js';
 import { TOOLS, LAYERS_COUNT } from './constants.js';
 import { PaletteManager } from './paletteManager.js';
 import { TipManager } from './tipManager.js';
-import { ImgHandler } from './imgHandler.js';
 import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from './colorUtils.js';
 
 class App {
@@ -11,29 +10,28 @@ class App {
     this.engine = new Engine(document.getElementById('canvas-container'));
     this.engine.onColorPicked = (color) => this.setColor(color);
     this.engine.onStatus = (text) => this._status(text);
-    this.engine.onDrawEnd = () => this.save();
-    this.engine.onPaletteExtracted = (colors) => {
-        // Pick 2 bright, 2 mid, 2 dark from the 12 extracted values
-        // Extraction is sorted by lum: [0..3] Light, [4..7] Mid, [8..11] Dark
-        const indices = [0, 1, 5, 6, 10, 11];
-        indices.forEach((extractedIdx, paletteIdx) => {
-            if (colors[extractedIdx]) {
-                this.palette.setBaseColor(paletteIdx, colors[extractedIdx]);
-            }
-        });
-        this._renderPalette();
-        if (colors.length > 0) {
-            this.setColor(colors[0]);
-            this._updateHSVFromHex(colors[0]);
-        }
-        this._status('PALETTE UPDATED (6 SELECTED)');
-        this._updateRefImageList();
-        localStorage.setItem('canvas_palette', JSON.stringify(this.palette.baseColors));
-    };
     this.storage = new SketchStorage();
     this.palette = new PaletteManager();
-    this.imgHandler = new ImgHandler(this.engine, () => this._updateRefImageList());
-
+    this.tipManager = new TipManager(document.getElementById('panel-brush-tips'), (tip, height, oiliness, airbrush) => {
+        this.brushSettings[TOOLS.BRUSH].tip = tip;
+        if (height !== undefined) {
+            this.brushSettings[TOOLS.BRUSH].paintHeight = height;
+            this.engine.brush.paintHeight = height;
+        }
+        if (oiliness !== undefined) {
+            this.brushSettings[TOOLS.BRUSH].oiliness = oiliness;
+            this.engine.brush.oiliness = oiliness;
+        }
+        if (airbrush !== undefined) {
+            this.brushSettings[TOOLS.BRUSH].airbrush = airbrush;
+            this.engine.brush.airbrush = airbrush;
+        }
+        this._updateBrushSettingsUI(TOOLS.BRUSH);
+        
+        if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE) {
+            this.engine.brush.tip = tip;
+        }
+    }, this.storage);
     this.activeTool = TOOLS.BRUSH;
     this.lastBrush = TOOLS.BRUSH; // Track for smart switching back to painting
     this.prevTool = TOOLS.BRUSH; 
@@ -61,178 +59,14 @@ class App {
     this.brushSettings[TOOLS.SMUDGE].flow = 0.5;
     this.brushSettings[TOOLS.WIREFRAME].size = 20;
 
-    this.tipManager = new TipManager(document.getElementById('panel-brush-tips'), (tip, height, oiliness, airbrush) => {
-        if (!this.brushSettings[TOOLS.BRUSH]) return; // Safety
-        this.brushSettings[TOOLS.BRUSH].tip = tip;
-        if (height !== undefined) {
-            this.brushSettings[TOOLS.BRUSH].paintHeight = height;
-            this.engine.brush.paintHeight = height;
-        }
-        if (oiliness !== undefined) {
-            this.brushSettings[TOOLS.BRUSH].oiliness = oiliness;
-            this.engine.brush.oiliness = oiliness;
-        }
-        if (airbrush !== undefined) {
-            this.brushSettings[TOOLS.BRUSH].airbrush = airbrush;
-            this.engine.brush.airbrush = airbrush;
-        }
-        this._updateBrushSettingsUI(TOOLS.BRUSH);
-        
-        if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE) {
-            this.engine.brush.tip = tip;
-        }
-        this._updateBrushPreview();
-    }, this.storage);
-
     this.hsv = { h: 0, s: 70, v: 70 };
     
-    this.projects = [];
-    this.currentProjectId = 'default';
-
     this.init();
-  }
-
-  async initProjectSystem() {
-    const list = await this.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
-    this.projects = list;
-    const currentId = await this.storage.loadGlobalSetting('current_project_id') || 'default';
-    this.currentProjectId = currentId;
-    this.storage.setProjectId(currentId);
-    
-    // Set Engine settings from current project
-    const project = this.projects.find(p => p.id === currentId);
-    if (project && project.settings) {
-        this.engine.chunkSize = project.settings.chunkSize || 1024;
-        this.engine.saveQuality = project.settings.quality || 0.5;
-    }
-    
-    this._renderProjectList();
-  }
-
-  async _renderProjectList() {
-    const container = document.getElementById('project-list');
-    if (!container) return;
-    container.innerHTML = '';
-
-    this.projects.forEach(proj => {
-        const item = document.createElement('div');
-        item.className = 'project-item';
-        if (proj.id === this.currentProjectId) item.classList.add('active');
-
-        const thumbContainer = document.createElement('div');
-        thumbContainer.style.width = '100%';
-        thumbContainer.style.aspectRatio = '1';
-        thumbContainer.style.background = '#eee';
-        thumbContainer.style.border = '1px solid #000';
-        thumbContainer.style.marginBottom = '4px';
-        thumbContainer.style.overflow = 'hidden';
-        thumbContainer.style.display = 'flex';
-        thumbContainer.style.alignItems = 'center';
-        thumbContainer.style.justifyContent = 'center';
-
-        if (proj.thumbnail) {
-            const thumb = document.createElement('img');
-            thumb.className = 'project-thumb';
-            thumb.src = proj.thumbnail;
-            thumb.style.width = '100%';
-            thumb.style.height = '100%';
-            thumb.style.objectFit = 'cover';
-            thumbContainer.appendChild(thumb);
-        } else {
-            const placeholder = document.createElement('div');
-            placeholder.innerText = proj.name ? proj.name[0].toUpperCase() : '?';
-            placeholder.style.fontSize = '24px';
-            placeholder.style.fontWeight = '900';
-            placeholder.style.opacity = '0.2';
-            thumbContainer.appendChild(placeholder);
-        }
-        item.appendChild(thumbContainer);
-
-        const name = document.createElement('div');
-        name.className = 'project-name';
-        name.innerText = proj.name || proj.id;
-        item.appendChild(name);
-
-        const delBtn = document.createElement('button');
-        delBtn.className = 'btn-delete-proj';
-        delBtn.innerText = 'X';
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.deleteProject(proj.id);
-        };
-        item.appendChild(delBtn);
-
-        item.onclick = () => this.switchProject(proj.id);
-        container.appendChild(item);
-    });
-  }
-
-  async switchProject(id) {
-    if (id === this.currentProjectId) return;
-    this._status('SAVING...');
-    
-    // Generate thumbnail before switching
-    const thumbnail = await this._generateThumbnail();
-    const currentProj = this.projects.find(p => p.id === this.currentProjectId);
-    if (currentProj) currentProj.thumbnail = thumbnail;
-    await this.storage.saveGlobalSetting('projects_list', this.projects);
-    this._renderProjectList();
-
-    await this.save();
-    
-    this._status('SWITCHING...');
-    this.currentProjectId = id;
-    this.storage.setProjectId(id);
-    await this.storage.saveGlobalSetting('current_project_id', id);
-    
-    // Load project settings
-    const project = this.projects.find(p => p.id === id);
-    const settings = project ? project.settings : {};
-    
-    // Update Engine with new settings
-    this.engine.chunkSize = settings.chunkSize || 1024;
-    this.engine.saveQuality = settings.quality || 0.5;
-    
-    // Wipe engine state
-    this.engine.chunks.forEach(c => c.element.remove());
-    this.engine.chunks.clear();
-    this.engine.pan = { x: 0, y: 0 };
-    this.engine.zoom = 1;
-    this.engine.rotation = 0;
-    this.engine.history = [];
-    this.engine.redoStack = [];
-    this.engine.referenceImages.forEach(r => r.element.remove());
-    this.engine.referenceImages = [];
-    this.engine.dirtyChunks.clear();
-    
-    await this.load();
-    this.engine.fitZoom();
-    this.engine.refresh();
-    this._renderProjectList();
-    this._status('SWITCHED');
-  }
-
-  async deleteProject(id) {
-    if (id === 'default') {
-        this._status('CANNOT DELETE ORIGINAL');
-        return;
-    }
-    if (!confirm('DELETE THIS PROJECT FOREVER?')) return;
-
-    this.projects = this.projects.filter(p => p.id !== id);
-    await this.storage.saveGlobalSetting('projects_list', this.projects);
-    
-    if (this.currentProjectId === id) {
-        this.switchProject('default');
-    } else {
-        this._renderProjectList();
-    }
   }
 
   async init() {
     try {
         await this.storage.init();
-        await this.initProjectSystem();
     } catch (e) {
         console.error("Storage init failed", e);
         this._status('STORAGE ERROR');
@@ -260,26 +94,6 @@ class App {
             document.getElementById('settings-grid-color').value = gridColor;
         }
 
-        const gridPattern = await this.storage.loadSetting('gridPattern');
-        if (gridPattern) {
-            this.engine.gridPattern = gridPattern;
-            document.getElementById('settings-grid-pattern').value = gridPattern;
-        }
-
-        const gridSize = await this.storage.loadSetting('gridSize');
-        if (gridSize) {
-            this.engine.gridSize = parseInt(gridSize);
-            document.getElementById('settings-grid-size').value = gridSize;
-            document.getElementById('grid-size-val').innerText = `${gridSize}px`;
-        }
-
-        const gridIntensity = await this.storage.loadSetting('gridIntensity');
-        if (gridIntensity) {
-            this.engine.gridIntensity = parseInt(gridIntensity) / 100;
-            document.getElementById('settings-grid-intensity').value = gridIntensity;
-            document.getElementById('grid-intensity-val').innerText = `${gridIntensity}%`;
-        }
-
         const showGrid = await this.storage.loadSetting('showGrid');
         if (showGrid !== undefined) {
             this.engine.showGrid = showGrid;
@@ -287,14 +101,12 @@ class App {
         }
 
         const savedSensitivities = await this.storage.loadSetting('sensitivities');
-        if (savedSensitivities && typeof savedSensitivities === 'object') {
+        if (savedSensitivities) {
             // Migrating old sensitivities to default brush if present
-            if (this.brushSettings[TOOLS.BRUSH]) {
-                this.brushSettings[TOOLS.BRUSH].speedSize = savedSensitivities.size ?? 8.0;
-                this.brushSettings[TOOLS.BRUSH].speedOpacity = savedSensitivities.opacity ?? 6.0;
-                this.brushSettings[TOOLS.BRUSH].speedValue = savedSensitivities.value ?? -4.0;
-                this.brushSettings[TOOLS.BRUSH].speedHue = savedSensitivities.hue ?? -10.0;
-            }
+            this.brushSettings[TOOLS.BRUSH].speedSize = savedSensitivities.size ?? 8.0;
+            this.brushSettings[TOOLS.BRUSH].speedOpacity = savedSensitivities.opacity ?? 6.0;
+            this.brushSettings[TOOLS.BRUSH].speedValue = savedSensitivities.value ?? -4.0;
+            this.brushSettings[TOOLS.BRUSH].speedHue = savedSensitivities.hue ?? -10.0;
         }
 
         let savedBrushes = null;
@@ -339,7 +151,6 @@ class App {
     this.engine.onDrawMove = () => this._triggerAutoSave();
     this.engine.onDrawEnd = () => this._triggerAutoSave();
     this.engine.onZoomChange = () => this._updateZoomUI();
-    this.engine.onExportSelectionDone = (rect) => this._showExportModal(rect);
     this.engine.onTipCaptured = (canvas) => {
         this.tipManager.setTipFromCanvas(canvas);
         this.isCapturingTip = false;
@@ -385,10 +196,6 @@ class App {
     document.getElementById('btn-lasso').onclick = () => this.setTool(TOOLS.LASSO);
     document.getElementById('btn-smudge').onclick = () => this.setTool(TOOLS.SMUDGE);
     document.getElementById('btn-ref_move').onclick = () => this.setTool(TOOLS.REF_MOVE);
-    document.getElementById('btn-save').onclick = () => {
-        this._startExportMode();
-    };
-
     document.getElementById('btn-undo').onclick = () => this.engine.undo();
     document.getElementById('btn-redo').onclick = () => this.engine.redo();
     const btnClear = document.getElementById('btn-clear');
@@ -444,131 +251,19 @@ class App {
     };
     document.getElementById('btn-close-settings').onclick = () => settingsPanel.classList.add('hidden');
 
-    // Settings Tabs
-    document.querySelectorAll('.settings-tab').forEach(tab => {
-        tab.onclick = () => {
-            document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            
-            tab.classList.add('active');
-            const paneId = `tab-${tab.dataset.tab}`;
-            document.getElementById(paneId).classList.add('active');
-            
-            if (tab.dataset.tab === 'data') this._updateStorageStat();
-            if (tab.dataset.tab === 'projects') this._renderProjectList();
-        };
-    });
-
-    document.getElementById('btn-project-new').onclick = (e) => {
-        e.stopPropagation();
-        const modal = document.getElementById('modal-new-project');
-        modal.classList.remove('hidden');
-        // Reset/Sync quality value display
-        const qualitySlider = document.getElementById('new-project-quality');
-        document.getElementById('new-quality-val').innerText = qualitySlider.value;
-    };
-
-    document.getElementById('btn-close-new-project').onclick = () => {
-        document.getElementById('modal-new-project').classList.add('hidden');
-    };
-
-    document.getElementById('new-project-quality').oninput = (e) => {
-        document.getElementById('new-quality-val').innerText = e.target.value;
-    };
-
-    document.getElementById('btn-create-project-final').onclick = async () => {
-        const name = document.getElementById('new-project-name').value || 'SKETCH';
-        const id = 'prj_' + Date.now();
-        const chunkSize = parseInt(document.getElementById('new-project-chunk-size').value);
-        const quality = parseFloat(document.getElementById('new-project-quality').value);
-        
-        const newProj = { id, name, settings: { chunkSize, quality } };
-        this.projects.push(newProj);
-        await this.storage.saveGlobalSetting('projects_list', this.projects);
-        
-        document.getElementById('modal-new-project').classList.add('hidden');
-        this.switchProject(id);
-    };
-
-    // Export Modal
-    document.getElementById('btn-close-export').onclick = () => {
-        this._endExportMode();
-    };
-
-    document.getElementById('export-scale').oninput = (e) => {
-        document.getElementById('export-scale-val').innerText = `${e.target.value}%`;
-        this._updateExportDimensions();
-    };
-
-    const updateDim = () => {
-        if (document.getElementById('export-keep-ratio').checked) {
-            this._updateExportDimensions(true);
-        }
-    };
-    document.getElementById('export-width').oninput = updateDim;
-    document.getElementById('export-height').oninput = updateDim;
-
-    document.getElementById('btn-export-final').onclick = () => this._performExport();
-
-    let resetClicks = 0;
-    document.getElementById('btn-clear-storage').onclick = async (e) => {
-        resetClicks++;
-        if (resetClicks === 1) {
-            e.target.innerText = 'ARE YOU SURE?';
-            e.target.style.background = '#ff0000';
-        } else if (resetClicks === 2) {
-            e.target.innerText = 'TRULY SURE?';
-            e.target.style.background = '#880000';
-        } else if (resetClicks === 3) {
-            this._status('WIPING DATA...');
-            await this.storage.clearDatabase();
-            localStorage.clear();
-            location.reload();
-        }
-        
-        // Reset timer
-        setTimeout(() => {
-            if (resetClicks < 3) {
-                resetClicks = 0;
-                e.target.innerText = 'RESET SYSTEM';
-                e.target.style.background = '#ff4444';
-            }
-        }, 3000);
-    };
-
-    // Original Settings inputs
     document.getElementById('settings-bg-color').oninput = (e) => {
         this.engine.canvasBg = e.target.value;
-        this.engine.refreshGrid();
+        this.engine.refresh();
         this.storage.saveSetting('canvasBg', e.target.value);
     };
     document.getElementById('settings-grid-color').oninput = (e) => {
         this.engine.gridColor = e.target.value;
-        this.engine.refreshGrid();
+        this.engine.refresh();
         this.storage.saveSetting('gridColor', e.target.value);
-    };
-    document.getElementById('settings-grid-pattern').onchange = (e) => {
-        this.engine.gridPattern = e.target.value;
-        this.engine.refreshGrid();
-        this.storage.saveSetting('gridPattern', e.target.value);
-    };
-    document.getElementById('settings-grid-size').oninput = (e) => {
-        const val = parseInt(e.target.value);
-        this.engine.gridSize = val;
-        document.getElementById('grid-size-val').innerText = `${val}px`;
-        this.engine.refreshGrid();
-        this.storage.saveSetting('gridSize', val);
-    };
-    document.getElementById('settings-grid-intensity').oninput = (e) => {
-        const val = parseInt(e.target.value);
-        this.engine.gridIntensity = val / 100;
-        document.getElementById('grid-intensity-val').innerText = `${val}%`;
-        this.engine.refreshGrid();
-        this.storage.saveSetting('gridIntensity', val);
     };
     document.getElementById('settings-grid-show').onchange = (e) => {
         this.engine.showGrid = e.target.checked;
-        this.engine.refreshGrid();
+        this.engine.refresh();
         this.storage.saveSetting('showGrid', e.target.checked);
     };
     document.getElementById('settings-brush-spacing').oninput = (e) => {
@@ -620,7 +315,6 @@ class App {
     const sizeVal = document.getElementById('size-val');
     sizeSlider.oninput = (e) => {
       const val = parseInt(e.target.value);
-      if (!this.activeTool) return;
       this.brushSettings[this.activeTool].size = val;
       this.engine.brush.size = val;
       sizeVal.innerText = val;
@@ -631,7 +325,6 @@ class App {
     if (opacitySlider) {
         opacitySlider.oninput = (e) => {
           const val = parseInt(e.target.value);
-          if (!this.activeTool) return;
           this.brushSettings[this.activeTool].opacity = val / 100;
           this.engine.brush.opacity = val / 100;
           opacityVal.innerText = `${val}%`;
@@ -643,7 +336,6 @@ class App {
     if (flowSlider) {
         flowSlider.oninput = (e) => {
           const val = parseInt(e.target.value);
-          if (!this.activeTool) return;
           this.brushSettings[this.activeTool].flow = val / 100;
           this.engine.brush.flow = val / 100;
           flowVal.innerText = `${val}%`;
@@ -655,7 +347,6 @@ class App {
     if (heightSlider) {
         heightSlider.oninput = (e) => {
             const val = parseInt(e.target.value);
-            if (!this.activeTool) return;
             this.brushSettings[this.activeTool].paintHeight = val / 100;
             this.engine.brush.paintHeight = val / 100;
             heightVal.innerText = `${val}%`;
@@ -671,7 +362,6 @@ class App {
     if (oilinessSlider) {
         oilinessSlider.oninput = (e) => {
             const val = parseInt(e.target.value);
-            if (!this.activeTool) return;
             this.brushSettings[this.activeTool].oiliness = val / 100;
             this.engine.brush.oiliness = val / 100;
             oilinessVal.innerText = `${val}%`;
@@ -687,7 +377,6 @@ class App {
     if (airbrushSlider) {
         airbrushSlider.oninput = (e) => {
             const val = parseInt(e.target.value);
-            if (!this.activeTool) return;
             this.brushSettings[this.activeTool].airbrush = val / 100;
             this.engine.brush.airbrush = val / 100;
             airbrushVal.innerText = `${val}%`;
@@ -707,34 +396,26 @@ class App {
     if (sSize) sSize.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedSize = val;
-        if (this.activeTool) {
-            this.brushSettings[this.activeTool].speedSize = val;
-            this._saveBrushSettings();
-        }
+        this.brushSettings[this.activeTool].speedSize = val;
+        this._saveBrushSettings();
     };
     if (sOpac) sOpac.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedOpacity = val;
-        if (this.activeTool) {
-            this.brushSettings[this.activeTool].speedOpacity = val;
-            this._saveBrushSettings();
-        }
+        this.brushSettings[this.activeTool].speedOpacity = val;
+        this._saveBrushSettings();
     };
     if (sVal) sVal.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedValue = val;
-        if (this.activeTool) {
-            this.brushSettings[this.activeTool].speedValue = val;
-            this._saveBrushSettings();
-        }
+        this.brushSettings[this.activeTool].speedValue = val;
+        this._saveBrushSettings();
     };
     if (sHue) sHue.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedHue = val;
-        if (this.activeTool) {
-            this.brushSettings[this.activeTool].speedHue = val;
-            this._saveBrushSettings();
-        }
+        this.brushSettings[this.activeTool].speedHue = val;
+        this._saveBrushSettings();
     };
 
     // Draggable Panels
@@ -805,6 +486,8 @@ class App {
               this.engine.toggleMirror(); 
           }
           break;
+        case 'x': this.setTool(TOOLS.ERASER); break; 
+        case 's': this._adjOpacity(-5); break; // S lowers opacity
         case 'd': 
           if (e.ctrlKey) {
             if (this.engine.activeSelectionPath) {
@@ -839,20 +522,10 @@ class App {
             e.preventDefault();
           }
           break;
-        case 's':
-          if (e.ctrlKey) {
-            e.preventDefault();
-            this._startExportMode();
-          } else {
-            this._adjOpacity(-5);
-          }
-          break;
         case 'x':
           if (e.ctrlKey) {
             this.engine.cut();
             e.preventDefault();
-          } else {
-            this.setTool(TOOLS.ERASER); 
           }
           break;
         case 'z': 
@@ -868,18 +541,6 @@ class App {
               e.preventDefault();
           }
           break;
-        case 'escape':
-          if (this.engine.isExportMode) {
-              this._endExportMode();
-              this._status('EXPORT CANCELLED');
-          }
-          settingsPanel.classList.add('hidden');
-          document.getElementById('modal-new-project').classList.add('hidden');
-          document.getElementById('modal-export').classList.add('hidden');
-          this.isCapturingTip = false;
-          this.engine.isCapturingTip = false;
-          document.getElementById('capture-reticle').style.display = 'none';
-          break;
         case 'y': if (e.ctrlKey) { this.engine.redo(); e.preventDefault(); } break;
         case 'w': this._adjSize(-8); break; 
         case 'e': this._adjSize(8); break;  
@@ -890,7 +551,6 @@ class App {
   }
 
   _adjSize(delta) {
-    if (!this.activeTool) return;
     const el = document.getElementById('brush-size');
     const valEl = document.getElementById('size-val');
     const currentVal = parseInt(el.value);
@@ -910,7 +570,6 @@ class App {
   }
 
   _adjOpacity(delta) {
-    if (!this.activeTool) return;
     const el = document.getElementById('brush-opacity');
     const valEl = document.getElementById('opacity-val');
     const pVal = el ? parseInt(el.value) : (this.brushSettings[this.activeTool].opacity * 100);
@@ -945,7 +604,6 @@ class App {
       img.src = event.target.result;
     };
     reader.readAsDataURL(file);
-    e.target.value = ''; // Clear value
   }
 
   _updateRefImageList() {
@@ -974,18 +632,6 @@ class App {
           nameSpan.className = 'truncate';
           nameSpan.innerText = ref.name;
           item.appendChild(nameSpan);
-
-          // Add mini palette if exists
-          if (ref.extractedPalette) {
-              const palPreview = document.createElement('div');
-              palPreview.className = 'ref-mini-palette';
-              ref.extractedPalette.forEach(c => {
-                  const s = document.createElement('div');
-                  s.style.backgroundColor = c;
-                  palPreview.appendChild(s);
-              });
-              item.appendChild(palPreview);
-          }
 
           const delBtn = document.createElement('button');
           delBtn.className = 'btn-del-img';
@@ -1115,7 +761,6 @@ class App {
   }
 
   _updateBrushSettingsUI(tool) {
-    if (!tool) return;
     const settings = this.brushSettings[tool];
     if (this.activeTool === tool) {
         // Update UI Sliders
@@ -1164,37 +809,10 @@ class App {
   }
 
   setTool(tool) {
-    if (this.activeTool === tool) return;
-    this.prevTool = this.activeTool;
+    if (this.activeTool !== tool) {
+        this.prevTool = this.activeTool;
+    }
     this.activeTool = tool;
-    
-    // Deselect reference image when switching to anything that isn't generic move
-    if (tool !== TOOLS.REF_MOVE) {
-        this.engine.selectedRefIndex = -1;
-        this.engine.refresh();
-    }
-
-    if (tool === TOOLS.REF_MOVE) {
-        if (this.engine.activeLayer !== 0) this.setLayer(0);
-    }
-
-    const sensitivityGroup = document.querySelector('.sensitivity-group');
-    if (sensitivityGroup) {
-        if (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.ERASER) {
-            sensitivityGroup.classList.remove('hidden');
-        } else {
-            sensitivityGroup.classList.add('hidden');
-        }
-    }
-    
-    if (!tool) {
-        // Deselecting all tools
-        document.querySelectorAll('.tool-group .tool-btn').forEach(btn => {
-            btn.classList.remove('active-tool');
-        });
-        return;
-    }
-
     if (tool === TOOLS.BRUSH || tool === TOOLS.WIREFRAME) {
         this.lastBrush = tool;
     }
@@ -1233,14 +851,13 @@ class App {
       btn.classList.add('active-tool');
     }
 
-    if (tool) this._status(tool);
+    this._status(tool);
   }
 
   setColor(color) {
     this.engine.brush.color = color;
     const preview = document.getElementById('current-color-preview');
     if (preview) preview.style.backgroundColor = color;
-    this._updateBrushPreview();
     
     // Sync picker if it differs significantly or always sync?
     // Always sync to ensure the selector matches current color
@@ -1256,16 +873,7 @@ class App {
   }
 
   setLayer(index) {
-    if (this.engine.activeLayer === index) return;
     this.engine.activeLayer = index;
-
-    // Deselect reference when switching to paint layer
-    if (index !== 0) {
-        this.engine.selectedRefIndex = -1;
-        this.engine.refresh();
-        this._updateRefImageList();
-    }
-
     // Update UI
     for (let i = 0; i < LAYERS_COUNT; i++) {
         const btn = document.getElementById(`layer-btn-${i}`);
@@ -1279,7 +887,7 @@ class App {
     }
 
     if (index === 0) {
-        if (this.activeTool !== TOOLS.REF_MOVE) this.setTool(TOOLS.REF_MOVE);
+        this.setTool(TOOLS.REF_MOVE);
         this.imgHandler.activate();
     } else {
         if (this.activeTool === TOOLS.REF_MOVE) {
@@ -1288,17 +896,7 @@ class App {
         this.imgHandler.deactivate();
     }
 
-    this._status(index === 0 ? 'IMG REF' : `L${index}`);
-
-    const refToolbar = document.getElementById('top-bar-ref');
-    const mainToolbar = document.getElementById('top-bar');
-    if (index === 0) {
-        if (refToolbar) refToolbar.classList.remove('hidden');
-        if (mainToolbar) mainToolbar.classList.add('hidden');
-    } else {
-        if (refToolbar) refToolbar.classList.add('hidden');
-        if (mainToolbar) mainToolbar.classList.remove('hidden');
-    }
+    this._status(index === 0 ? 'IMG REF' : `L${index + 1}`);
   }
 
   async load() {
@@ -1340,7 +938,6 @@ class App {
                 });
                 const chunk = this.engine._getChunk(cx, cy);
                 chunk.ctxs[layerId].drawImage(img, 0, 0);
-                if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
             }
         }
         this.engine.refresh();
@@ -1373,7 +970,7 @@ class App {
         }));
         await this.storage.saveSetting('referenceImages', refData);
 
-        if (!this.engine.dirtyChunks || this.engine.dirtyChunks.size === 0) {
+        if (this.engine.dirtyChunks.size === 0) {
             this._status('SAVED');
             this._showSaved();
             return;
@@ -1390,20 +987,14 @@ class App {
             
             const chunk = this.engine.chunks.get(chunkId);
             if (chunk) {
-                // If the layer is empty, delete it from storage to keep it clean
-                if (chunk.isEmpty && chunk.isEmpty[l]) {
-                    promises.push(this.storage.deleteChunk(l, cx, cy));
-                } else {
-                    const dataUrl = chunk.canvases[l].toDataURL('image/webp', this.engine.saveQuality); 
-                    promises.push(this.storage.saveChunk(l, cx, cy, dataUrl));
-                }
+                const dataUrl = chunk.canvases[l].toDataURL('image/webp', 0.8);
+                promises.push(this.storage.saveChunk(l, cx, cy, dataUrl));
             }
         }
         
         await Promise.all(promises);
         this._status('SAVED');
         this._showSaved();
-        this._updateStorageStat();
     } catch (e) {
         console.error("Save failed", e);
         this._status('SAVE ERROR');
@@ -1438,212 +1029,10 @@ class App {
     localStorage.setItem('brushSettings', JSON.stringify(toSave));
   }
 
-  async _generateThumbnail() {
-      // Capture a small version of the canvas
-      const size = 128;
-      const thumbCanvas = document.createElement('canvas');
-      thumbCanvas.width = size;
-      thumbCanvas.height = size;
-      const tctx = thumbCanvas.getContext('2d');
-      
-      // Draw background
-      tctx.fillStyle = this.engine.canvasBg;
-      tctx.fillRect(0, 0, size, size);
-      
-      // We want to capture the "meat" of the drawing.
-      // Easiest is to just use engine.exportImage results but it might be too large.
-      // Instead, let's find the bounds of all chunks.
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      this.engine.chunks.forEach(c => {
-          minX = Math.min(minX, c.cx * this.engine.chunkSize);
-          minY = Math.min(minY, c.cy * this.engine.chunkSize);
-          maxX = Math.max(maxX, (c.cx + 1) * this.engine.chunkSize);
-          maxY = Math.max(maxY, (c.cy + 1) * this.engine.chunkSize);
-      });
-      
-      if (minX === Infinity) return ''; // Empty
-      
-      const w = maxX - minX;
-      const h = maxY - minY;
-      const scale = Math.min(size / w, size / h, 1);
-      
-      tctx.save();
-      tctx.translate(size/2, size/2);
-      tctx.scale(scale, scale);
-      tctx.translate(-(minX + w/2), -(minY + h/2));
-      
-      this.engine.chunks.forEach(chunk => {
-          for (let i = 1; i < LAYERS_COUNT; i++) {
-              tctx.drawImage(chunk.canvases[i], chunk.cx * this.engine.chunkSize, chunk.cy * this.engine.chunkSize);
-          }
-      });
-      tctx.restore();
-      
-      return thumbCanvas.toDataURL('image/webp', 0.5);
-  }
-
   async _updateStorageStat() {
       const keys = await this.storage.getAllKeys();
-      const chunksEl = document.getElementById('storage-chunks');
-      if (chunksEl) chunksEl.innerText = keys.length;
-
-      const size = await this.storage.estimateSize();
-      const sizeMB = (size / (1024 * 1024)).toFixed(2);
-      const sizeEl = document.getElementById('storage-size');
-      if (sizeEl) sizeEl.innerText = sizeMB;
-  }
-
-  _showExportModal(rect) {
-      if (!rect || rect.w <= 0 || rect.h <= 0) return;
-      this.currentExportRect = rect;
-      
-      const modal = document.getElementById('modal-export');
-      modal.classList.remove('hidden');
-      
-      const wInput = document.getElementById('export-width');
-      const hInput = document.getElementById('export-height');
-      wInput.value = Math.round(rect.w);
-      hInput.value = Math.round(rect.h);
-      
-      this.exportAspectRatio = rect.w / rect.h;
-      
-      document.getElementById('export-scale').value = 100;
-      document.getElementById('export-scale-val').innerText = '100%';
-      
-      // Force repaint/reflow to ensure it shows up
-      modal.style.display = 'none';
-      modal.offsetHeight; // reflow
-      modal.style.display = 'block';
-  }
-
-  _updateExportDimensions(ratioOnly = false) {
-      if (!this.currentExportRect) return;
-      
-      const wInput = document.getElementById('export-width');
-      const hInput = document.getElementById('export-height');
-      const scaleInput = document.getElementById('export-scale');
-      const keepRatio = document.getElementById('export-keep-ratio').checked;
-      
-      if (ratioOnly && keepRatio) {
-          // If width changed, update height, and vice versa
-          // We need to know which one was modified last. 
-          // For simplicity, let's assume width is master if both changed?
-          // Actually, let's just use the current active element.
-          if (document.activeElement === wInput) {
-              hInput.value = Math.round(wInput.value / this.exportAspectRatio);
-          } else if (document.activeElement === hInput) {
-              wInput.value = Math.round(hInput.value * this.exportAspectRatio);
-          }
-      } else {
-          // Scale changed
-          const scale = parseInt(scaleInput.value) / 100;
-          wInput.value = Math.round(this.currentExportRect.w * scale);
-          hInput.value = Math.round(this.currentExportRect.h * scale);
-      }
-  }
-
-  async _performExport() {
-      if (!this.currentExportRect) return;
-      
-      const w = parseInt(document.getElementById('export-width').value);
-      const h = parseInt(document.getElementById('export-height').value);
-      const alpha = document.getElementById('export-alpha').checked;
-      
-      const exportCanvas = document.createElement('canvas');
-      exportCanvas.width = w;
-      exportCanvas.height = h;
-      const exCtx = exportCanvas.getContext('2d');
-      
-      if (!alpha) {
-          exCtx.fillStyle = this.engine.canvasBg;
-          exCtx.fillRect(0, 0, w, h);
-      }
-      
-      const rect = this.currentExportRect;
-      const scaleX = w / rect.w;
-      const scaleY = h / rect.h;
-      
-      exCtx.save();
-      exCtx.scale(scaleX, scaleY);
-      exCtx.translate(-rect.x, -rect.y);
-      
-      // Draw reference images (Layer 0)
-      this.engine.referenceImages.forEach(ref => {
-          exCtx.save();
-          exCtx.translate(ref.x, ref.y);
-          exCtx.rotate(ref.rotation);
-          exCtx.scale(ref.scale, ref.scale);
-          if (ref.mirrorX) exCtx.scale(-1, 1);
-          if (ref.mirrorY) exCtx.scale(1, -1);
-          exCtx.globalAlpha = ref.opacity;
-          exCtx.drawImage(ref.img, -ref.img.width/2, -ref.img.height/2);
-          exCtx.restore();
-      });
-      
-      this.engine.chunks.forEach(chunk => {
-          const chunkX = chunk.cx * this.engine.chunkSize;
-          const chunkY = chunk.cy * this.engine.chunkSize;
-          
-          // Check overlap
-          if (chunkX < rect.x + rect.w && chunkX + this.engine.chunkSize > rect.x &&
-              chunkY < rect.y + rect.h && chunkY + this.engine.chunkSize > rect.y) {
-              
-              for (let i = 1; i < LAYERS_COUNT; i++) {
-                  exCtx.drawImage(chunk.canvases[i], chunkX, chunkY);
-              }
-          }
-      });
-      exCtx.restore();
-      
-      // Download
-      const link = document.createElement('a');
-      link.download = `CONCEPT_BRUTE_${Date.now()}.png`;
-      link.href = exportCanvas.toDataURL('image/png');
-      link.click();
-      
-      this._endExportMode();
-      this._status('EXPORTED');
-  }
-
-  _startExportMode() {
-      this.engine.isExportMode = true;
-      this.engine.container.classList.add('export-mode');
-      this.setTool(null);
-      this._status('DRAG TO SELECT EXPORT AREA (ESC TO CANCEL)');
-  }
-
-  _endExportMode() {
-      const modal = document.getElementById('modal-export');
-      if (modal) {
-          modal.classList.add('hidden');
-          modal.style.display = 'none';
-      }
-      this.engine.isExportMode = false;
-      this.engine.container.classList.remove('export-mode');
-      if (this.prevTool) this.setTool(this.prevTool);
-      else this.setTool(TOOLS.BRUSH);
-  }
-
-  _updateBrushPreview() {
-      const canvas = document.getElementById('brush-preview-canvas');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, 32, 32);
-      
-      const tip = this.engine.brush.tip;
-      if (!tip) return;
-      
-      const color = this.engine.brush.color;
-      
-      const temp = document.createElement('canvas');
-      temp.width = 32; temp.height = 32;
-      const tctx = temp.getContext('2d');
-      tctx.fillStyle = color;
-      tctx.fillRect(0, 0, 32, 32);
-      tctx.globalCompositeOperation = 'destination-in';
-      tctx.drawImage(tip, 4, 4, 24, 24);
-      
-      ctx.drawImage(temp, 0, 0);
+      const stat = document.getElementById('storage-stat');
+      if (stat) stat.innerText = `${keys.length} chunks`;
   }
 }
 
