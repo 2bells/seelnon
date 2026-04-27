@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, deleteSelectedStrokes, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw, updateAnimatedStrokesList } from './canvas.js';
+import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, deleteSelectedStrokes, selectStrokesInRect, selectStrokesInPolygon, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw, updateAnimatedStrokesList } from './canvas.js';
 import { scheduleSave } from './storage.js';
 import { saveImageAsset } from './db.js';
 
@@ -314,10 +314,15 @@ export function init(canvas) {
 
                 // Priority: 5. Start new stroke selection
                 state.isSelecting = true;
-                state.selectedImageId = null; // Clear image selection when starting box select
+                state.selectedImageId = null; // Clear image selection when starting select
+                
+                if (state.selectionMode === 'lasso') {
+                    state.lassoPoints = [worldPos];
+                    state.selection = null; // No rect bounds yet
+                } else {
+                    // Start Rectangle Selection
                     let hitStroke = null;
                     const tolerance = 10 / state.zoom;
-                    // Check from top to bottom (reverse order)
                     for (let i = state.strokes.length - 1; i >= 0; i--) {
                         if (isPointOnStroke(worldPos.x, worldPos.y, state.strokes[i], tolerance)) {
                             hitStroke = state.strokes[i];
@@ -328,7 +333,7 @@ export function init(canvas) {
                     state.clickHitStroke = hitStroke;
                     
                     if (!hitStroke) {
-                        setSelectedStrokes([]); // Deselect on empty click start
+                        setSelectedStrokes([]); 
                     }
 
                     state.selection = {
@@ -340,6 +345,7 @@ export function init(canvas) {
                         height: 0
                     };
                 }
+            }
             }
     });
 
@@ -394,7 +400,21 @@ export function init(canvas) {
                 const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
                 
                 for (const event of events) {
-                    const eventWorldPos = screenToWorld(event.clientX, event.clientY);
+                    let eventWorldPos = screenToWorld(event.clientX, event.clientY);
+                    
+                    // NEW: Shift-snapping for straight lines
+                    if (e.shiftKey && state.currentStroke && state.currentStroke.points.length > 0) {
+                        const firstPoint = state.currentStroke.points[0];
+                        const dx = Math.abs(eventWorldPos.x - firstPoint.x);
+                        const dy = Math.abs(eventWorldPos.y - firstPoint.y);
+                        
+                        if (dx > dy) {
+                            eventWorldPos.y = firstPoint.y;
+                        } else {
+                            eventWorldPos.x = firstPoint.x;
+                        }
+                    }
+
                     const eventTimestamp = event.timeStamp || performance.now();
                     let pressure = 1.0;
                     
@@ -571,10 +591,14 @@ export function init(canvas) {
                 img.opacity = Math.max(0, Math.min(1, state.initialOpacity + dx / sensitivity));
             }
         } else if (state.isSelecting) {
-            state.selection.x = Math.min(state.selection.startX, worldPos.x);
-            state.selection.y = Math.min(state.selection.startY, worldPos.y);
-            state.selection.width = Math.abs(state.selection.startX - worldPos.x);
-            state.selection.height = Math.abs(state.selection.startY - worldPos.y);
+            if (state.selectionMode === 'lasso') {
+                state.lassoPoints.push(worldPos);
+            } else {
+                state.selection.x = Math.min(state.selection.startX, worldPos.x);
+                state.selection.y = Math.min(state.selection.startY, worldPos.y);
+                state.selection.width = Math.abs(state.selection.startX - worldPos.x);
+                state.selection.height = Math.abs(state.selection.startY - worldPos.y);
+            }
         }
         
         // Always update project coords on move (throttled)
@@ -628,25 +652,35 @@ export function init(canvas) {
         if (state.isSelecting) {
             canvas.releasePointerCapture(e.pointerId);
             
-            // Finalize selection rect
-            const bounds = { x: state.selection.x, y: state.selection.y, width: state.selection.width, height: state.selection.height };
-            
-            // Determine if it was a click or a drag
-            const clickThreshold = 5 / state.zoom;
-            const isClick = bounds.width < clickThreshold && bounds.height < clickThreshold;
-
-            if (isClick && state.clickHitStroke) {
-                // Clicked on a stroke: Select it exclusively and fit bounds
-                setSelectedStrokes([state.clickHitStroke]);
-                state.selection = getSelectionBounds(state.selectedStrokes);
-                state.clickHitStroke = null;
+            if (state.selectionMode === 'lasso') {
+                if (state.lassoPoints.length > 2) {
+                    setSelectedStrokes(selectStrokesInPolygon(state.lassoPoints));
+                    if (state.selectedStrokes.length > 0) {
+                        state.selection = getSelectionBounds(state.selectedStrokes);
+                    }
+                }
+                state.lassoPoints = [];
             } else {
-                // Dragged a box: Select all strokes inside
-                setSelectedStrokes(selectStrokesInRect(bounds));
-                state.clickHitStroke = null;
+                // Finalize selection rect
+                const bounds = { x: state.selection.x, y: state.selection.y, width: state.selection.width, height: state.selection.height };
+                
+                // Determine if it was a click or a drag
+                const clickThreshold = 5 / state.zoom;
+                const isClick = bounds.width < clickThreshold && bounds.height < clickThreshold;
 
-                if (state.selectedStrokes.length === 0) {
-                    state.selection = null;
+                if (isClick && state.clickHitStroke) {
+                    // Clicked on a stroke: Select it exclusively and fit bounds
+                    setSelectedStrokes([state.clickHitStroke]);
+                    state.selection = getSelectionBounds(state.selectedStrokes);
+                    state.clickHitStroke = null;
+                } else {
+                    // Dragged a box: Select all strokes inside
+                    setSelectedStrokes(selectStrokesInRect(bounds));
+                    state.clickHitStroke = null;
+
+                    if (state.selectedStrokes.length === 0) {
+                        state.selection = null;
+                    }
                 }
             }
             
@@ -824,7 +858,13 @@ export function init(canvas) {
         }
         if(e.key.toLowerCase() === 's') { // Hotkey 'S' for Selection Tool
             e.preventDefault();
-            document.getElementById('selection-tool')?.click();
+            if (state.activeTool === 'selection') {
+                state.selectionMode = state.selectionMode === 'rectangle' ? 'lasso' : 'rectangle';
+                window.dispatchEvent(new CustomEvent('requestSyncUI'));
+            } else {
+                document.getElementById('selection-tool')?.click();
+                window.dispatchEvent(new CustomEvent('requestSyncUI'));
+            }
         }
         if(e.key.toLowerCase() === 'i') { // Hotkey 'I' for Import Image
             e.preventDefault();

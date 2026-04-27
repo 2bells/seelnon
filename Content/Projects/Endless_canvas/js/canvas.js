@@ -709,6 +709,10 @@ export function draw() {
         drawStroke(ctx, state.currentMirrorStroke, true, state.zoom);
     }
 
+    if (state.lassoPoints && state.lassoPoints.length > 1) {
+        drawLassoPath(ctx, state.lassoPoints, state.zoom);
+    }
+
     // Draw selection handles/box on TOP
     if (state.selection && (state.selection.width > 0 || state.selection.height > 0)) {
         drawSelectionBox(ctx, state.selection, state.zoom, true);
@@ -724,6 +728,7 @@ export function draw() {
 }
 
 function drawSelectionBox(context, rect, zoom, showHandles = false) {
+    if (!rect) return; 
     context.save();
     context.strokeStyle = 'rgba(0, 120, 212, 0.8)';
     context.lineWidth = 1 / zoom;
@@ -772,6 +777,26 @@ function drawSelectionBox(context, rect, zoom, showHandles = false) {
         context.fill();
         context.stroke();
     }
+    context.restore();
+}
+
+function drawLassoPath(context, points, zoom) {
+    if (points.length < 2) return;
+    context.save();
+    context.strokeStyle = 'rgba(0, 120, 212, 0.8)';
+    context.lineWidth = 1.5 / zoom;
+    context.setLineDash([5 / zoom, 3 / zoom]);
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        context.lineTo(points[i].x, points[i].y);
+    }
+    context.stroke();
+    
+    // Draw a semi-transparent fill to show the area
+    context.fillStyle = 'rgba(0, 120, 212, 0.1)';
+    context.fill();
+    
     context.restore();
 }
 
@@ -1220,12 +1245,6 @@ export function setSelectedStrokes(newStrokes) {
 export function selectStrokesInRect(rect) {
     const selected = [];
     for (const stroke of state.strokes) {
-        // A simple check: if any point of the stroke is inside the rectangle
-        // or if the stroke's bounding box intersects the rectangle.
-        // For precision, let's check if all points are inside or if the whole stroke is contained.
-        // Usually, in vector apps, if any part is touched it might be selected, 
-        // but 'entirely contained' is safer for box select.
-        
         let allInside = true;
         for (const p of stroke.points) {
             if (p.x < rect.x || p.x > rect.x + rect.width || p.y < rect.y || p.y > rect.y + rect.height) {
@@ -1239,6 +1258,39 @@ export function selectStrokesInRect(rect) {
         }
     }
     return selected;
+}
+
+export function selectStrokesInPolygon(polygon) {
+    if (polygon.length < 3) return [];
+    
+    const selected = [];
+    for (const stroke of state.strokes) {
+        let allInside = true;
+        for (const p of stroke.points) {
+            if (!pointInPolygon(p.x, p.y, polygon)) {
+                allInside = false;
+                break;
+            }
+        }
+        
+        if (allInside && stroke.points.length > 0) {
+            selected.push(stroke);
+        }
+    }
+    return selected;
+}
+
+function pointInPolygon(x, y, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        
+        const intersect = ((yi > y) !== (yj > y)) &&
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
 }
 
 // Function to move strokes by a delta

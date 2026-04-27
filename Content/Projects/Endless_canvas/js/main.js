@@ -144,6 +144,7 @@ function initUI() {
         // Notify brush editor to update its UI
         window.dispatchEvent(new CustomEvent('activeBrushChanged'));
         updateBrushCycleIndicators();
+        updateSelectionCycleIndicators();
     }
 
     function updateBrushCycleIndicators() {
@@ -178,6 +179,21 @@ function initUI() {
         });
     }
 
+    function updateSelectionCycleIndicators() {
+        const btn = document.getElementById('selection-tool');
+        if (!btn) return;
+
+        const dots = btn.querySelectorAll('.selection-cycle-indicator .cycle-dot');
+        dots.forEach(dot => {
+            dot.classList.toggle('active', dot.dataset.mode === state.selectionMode);
+        });
+
+        // Also update dropdown items
+        document.querySelectorAll('.selection-mode-btn').forEach(item => {
+            item.classList.toggle('active', item.dataset.mode === state.selectionMode);
+        });
+    }
+
     // Event Listeners for main tool buttons
     brushToolBtn.addEventListener('click', () => {
         // When main pen button is clicked, activate its default preset (or last active if known)
@@ -197,6 +213,16 @@ function initUI() {
     });
     eraserToolBtn.addEventListener('click', () => setActiveTool('eraser'));
     selectionToolBtn.addEventListener('click', () => setActiveTool('selection'));
+
+    // Selection mode items in dropdown
+    document.querySelectorAll('.selection-mode-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const mode = btn.dataset.mode;
+            state.selectionMode = mode;
+            setActiveTool('selection');
+        });
+    });
 
     // Event Listeners for brush preset dropdown items
     presetButtons.forEach(button => {
@@ -301,6 +327,7 @@ function initUI() {
             toolColorPicker.value = state.brush.color;
         }
         updateBrushCycleIndicators();
+        updateSelectionCycleIndicators();
     });
 }
 

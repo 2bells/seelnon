@@ -81,7 +81,17 @@
             <div class="tool-button-container">
                 <button id="selection-tool" class="tool-button" title="Select (S)">
                     <svg class="tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 3 3.057 14.947L10 11l7.947-1.943Z"/><path d="m13 13 9 9"/></svg>
+                    <div class="brush-cycle-indicator selection-cycle-indicator">
+                        <div class="cycle-dot selection-dot-rect active" data-mode="rectangle"></div>
+                        <div class="cycle-dot selection-dot-lasso" data-mode="lasso"></div>
+                    </div>
                 </button>
+                <div class="tool-dropdown">
+                    <div class="tool-dropdown-inner">
+                        <button class="tool-dropdown-item selection-mode-btn active" data-mode="rectangle">Rectangle Select</button>
+                        <button class="tool-dropdown-item selection-mode-btn" data-mode="lasso">Lasso (Freehand)</button>
+                    </div>
+                </div>
             </div>
             <div class="tool-button-container">
                 <button id="import-image-btn" class="tool-button" title="Import Image (I)">

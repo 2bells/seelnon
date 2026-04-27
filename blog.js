@@ -454,7 +454,8 @@ export async function openBlogWindow(title, openWindowFn) {
     });
 
     // Scroll to top of content
-    postContentEl.scrollTop = 0;
+    const blogMain = blogContainer.querySelector('.blog-main');
+    if (blogMain) blogMain.scrollTop = 0;
   }
 
   // Load metadata for items in list sequentially to not block
