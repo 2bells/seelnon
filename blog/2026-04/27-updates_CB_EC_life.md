@@ -34,10 +34,12 @@ UPD: fixed
 
 ## Notes!
 
-I mean...  I was vibing some things out... designing ideas... While I was doing it, that's why I went and started the whole Endless Canvas/Concept Brute side questing...
+I mean...  I was vibing some things out... designing ideas... And while I was doing it, I felt like... MAN, some stuff is missing... then MAN... some stuff is lagging... MAN! What if I also had a raster version like this... MAN! Vector version has really nice ideas, let me do them in raster... MAN! [BEWARE! It is ongoing process].
+
+So suddenly my quest log is full of side quests... not complaining btw. 
 
 ![Image](Content/Images/Sketches/game_design_notes_1.jpg)
 
-Kind of like my way of mind-mapping.
+Kind of like my way of mind-mapping and the ability to 'not lag' while doing so.
 
 //say whatever you want, but I think this is so fun to have your own software to use for your own personal needs. It is like double fun. Making fun mind maps + sketching = fun. Doing that in your own software = x2 fun.
