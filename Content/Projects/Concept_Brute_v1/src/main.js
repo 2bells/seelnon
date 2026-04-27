@@ -1,19 +1,17 @@
 import { Engine } from './engine.js';
 import { SketchStorage } from './storage.js';
-import { TOOLS, LAYERS_COUNT, SECTOR_SIZE } from './constants.js';
+import { TOOLS, LAYERS_COUNT } from './constants.js';
 import { PaletteManager } from './paletteManager.js';
 import { TipManager } from './tipManager.js';
 import { ImgHandler } from './imgHandler.js';
-import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb, isCanvasEmpty } from './colorUtils.js';
+import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from './colorUtils.js';
 
 class App {
   constructor() {
     this.engine = new Engine(document.getElementById('canvas-container'));
     this.engine.onColorPicked = (color) => this.setColor(color);
     this.engine.onStatus = (text) => this._status(text);
-    this.engine.onDrawEnd = () => {
-        if (this.autosaveEnabled) this._triggerAutoSave();
-    };
+    this.engine.onDrawEnd = () => this.save();
     this.engine.onPaletteExtracted = (colors) => {
         // Pick 2 bright, 2 mid, 2 dark from the 12 extracted values
         // Extraction is sorted by lum: [0..3] Light, [4..7] Mid, [8..11] Dark
@@ -88,9 +86,6 @@ class App {
 
     this.hsv = { h: 0, s: 70, v: 70 };
     
-    this.autosaveDelay = 4000;
-    this.autosaveEnabled = true;
-    
     this.projects = [];
     this.currentProjectId = 'default';
 
@@ -98,26 +93,11 @@ class App {
   }
 
   async initProjectSystem() {
-    let list = await this.storage.loadGlobalSetting('projects_list');
-    if (!list) {
-        const raw = localStorage.getItem('projects_list');
-        if (raw) {
-            try { list = JSON.parse(raw); } catch(e) {}
-        }
-    }
-    if (!list || !Array.isArray(list)) {
-        list = [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
-    }
+    const list = await this.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
     this.projects = list;
-
-    let currentId = await this.storage.loadGlobalSetting('current_project_id');
-    if (!currentId) {
-        currentId = localStorage.getItem('current_project_id') || 'default';
-    }
+    const currentId = await this.storage.loadGlobalSetting('current_project_id') || 'default';
     this.currentProjectId = currentId;
     this.storage.setProjectId(currentId);
-    this.engine.currentProjectId = currentId;
-    this.engine.loadViewport(currentId);
     
     // Set Engine settings from current project
     const project = this.projects.find(p => p.id === currentId);
@@ -216,7 +196,8 @@ class App {
     // Wipe engine state
     this.engine.chunks.forEach(c => c.element.remove());
     this.engine.chunks.clear();
-    this.engine.loadViewport(id);
+    this.engine.pan = { x: 0, y: 0 };
+    this.engine.zoom = 1;
     this.engine.rotation = 0;
     this.engine.history = [];
     this.engine.redoStack = [];
@@ -225,6 +206,7 @@ class App {
     this.engine.dirtyChunks.clear();
     
     await this.load();
+    this.engine.fitZoom();
     this.engine.refresh();
     this._renderProjectList();
     this._status('SWITCHED');
@@ -251,29 +233,6 @@ class App {
     try {
         await this.storage.init();
         await this.initProjectSystem();
-
-        // Load autosave settings
-        const savedAutosaveSlider = await this.storage.loadSetting('autosaveDelaySlider');
-        const savedAutosaveEnabled = await this.storage.loadSetting('autosaveEnabled');
-
-        if (savedAutosaveSlider !== null) {
-            const sliderEl = document.getElementById('settings-autosave');
-            if (sliderEl) sliderEl.value = savedAutosaveSlider;
-            const seconds = Math.round(4 * Math.pow(300 / 4, savedAutosaveSlider / 100));
-            this.autosaveDelay = seconds * 1000;
-            const valEl = document.getElementById('autosave-val');
-            if (valEl) valEl.innerText = `${seconds}s`;
-        } else {
-            this.autosaveDelay = 4000;
-        }
-
-        if (savedAutosaveEnabled !== null) {
-            this.autosaveEnabled = savedAutosaveEnabled;
-            const enableEl = document.getElementById('settings-autosave-enable');
-            if (enableEl) enableEl.checked = savedAutosaveEnabled;
-        } else {
-            this.autosaveEnabled = true;
-        }
     } catch (e) {
         console.error("Storage init failed", e);
         this._status('STORAGE ERROR');
@@ -415,9 +374,7 @@ class App {
 
   _triggerAutoSave() {
     this._clearSaveTimer();
-    if (this.autosaveEnabled) {
-        this.saveTimeout = setTimeout(() => this.save(), this.autosaveDelay);
-    }
+    this.saveTimeout = setTimeout(() => this.save(), 4000);
   }
 
   _setupUI() {
@@ -632,38 +589,6 @@ class App {
         this.engine.fitZoom();
         this._updateZoomUI();
     };
-
-    // Autosave inputs
-    const autosaveSlider = document.getElementById('settings-autosave');
-    const autosaveVal = document.getElementById('autosave-val');
-    const autosaveEnable = document.getElementById('settings-autosave-enable');
-    const btnForceSave = document.getElementById('btn-force-save');
-
-    if (autosaveSlider) {
-        autosaveSlider.oninput = (e) => {
-            const v = parseInt(e.target.value);
-            // Exponential mapping: 4 * pow(300/4, v/100)
-            const seconds = Math.round(4 * Math.pow(300 / 4, v / 100));
-            this.autosaveDelay = seconds * 1000;
-            autosaveVal.innerText = `${seconds}s`;
-            this.storage.saveSetting('autosaveDelaySlider', v);
-        };
-    }
-
-    if (autosaveEnable) {
-        autosaveEnable.onchange = (e) => {
-            this.autosaveEnabled = e.target.checked;
-            this.storage.saveSetting('autosaveEnabled', e.target.checked);
-            if (!this.autosaveEnabled) this._clearSaveTimer();
-        };
-    }
-
-    if (btnForceSave) {
-        btnForceSave.onclick = () => {
-            this.save();
-            this._status('FORCE SAVED');
-        };
-    }
 
     // Palette
     this._renderPalette();
@@ -1255,7 +1180,7 @@ class App {
 
     const sensitivityGroup = document.querySelector('.sensitivity-group');
     if (sensitivityGroup) {
-        if (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.ERASER || tool === TOOLS.WIREFRAME) {
+        if (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.ERASER) {
             sensitivityGroup.classList.remove('hidden');
         } else {
             sensitivityGroup.classList.add('hidden');
@@ -1385,10 +1310,6 @@ class App {
                 const img = new Image();
                 await new Promise(res => {
                     img.onload = res;
-                    img.onerror = () => {
-                        console.error("Failed to load reference image", r.src);
-                        res();
-                    };
                     img.src = r.src;
                 });
                 this.engine.addReferenceImage(img, r.name, r.x, r.y, {
@@ -1402,86 +1323,26 @@ class App {
             this._updateRefImageList();
         }
 
-        // 1. LEGACY MIGRATION
-        const legacyKeys = await this.storage.getAllLegacyKeys();
-        if (legacyKeys.length > 0) {
-            this._status('MIGRATING...');
-            for (const key of legacyKeys) {
-                const parts = key.split('_');
-                // Format: p_{projectId}_c_{layerId}_{cx}_{cy}
-                // Use indices from end to avoid projectId underscore issues
-                const cy = parseInt(parts[parts.length - 1]);
-                const cx = parseInt(parts[parts.length - 2]);
-                const layerId = parseInt(parts[parts.length - 3]);
-                
-                if (isNaN(layerId) || layerId < 0 || layerId >= LAYERS_COUNT) {
-                    // Invalid key or out of bounds, skip
-                    continue;
-                }
+        const allKeys = await this.storage.getAllKeys();
+        for (const key of allKeys) {
+            const parts = key.split('_');
+            if (parts.length !== 3) continue;
+            const [layerId, cx, cy] = parts.map(Number);
+            // Skip layer 0 as it's now handled by referenceImages
+            if (layerId === 0) continue;
 
-                if (layerId === 0) continue;
-
-                const dataUrl = await this.storage.loadLegacyChunk(key);
-                if (dataUrl) {
-                    const img = new Image();
-                    await new Promise(r => { 
-                        img.onload = r; 
-                        img.onerror = () => {
-                            console.error("Failed to load legacy chunk", dataUrl.substring(0, 50));
-                            r();
-                        };
-                        img.src = dataUrl; 
-                    });
-                    const chunk = this.engine._getChunk(cx, cy);
-                    if (chunk && chunk.ctxs[layerId]) {
-                        chunk.ctxs[layerId].drawImage(img, 0, 0);
-                        if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
-                        // Mark as dirty so it gets saved to the new sector store
-                        this.engine._markDirty(`${cx},${cy}`, layerId, false);
-                    }
-                }
-                // Delete legacy key after loading it into memory
-                await this.storage.deleteLegacyChunk(key);
+            const dataUrl = await this.storage.loadChunk(layerId, cx, cy);
+            if (dataUrl) {
+                const img = new Image();
+                await new Promise(r => {
+                    img.onload = r;
+                    img.src = dataUrl;
+                });
+                const chunk = this.engine._getChunk(cx, cy);
+                chunk.ctxs[layerId].drawImage(img, 0, 0);
+                if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
             }
         }
-
-        // 2. SECTOR LOADING
-        const sectorKeys = await this.storage.getAllSectorKeys();
-        for (const key of sectorKeys) {
-            const parts = key.split('_'); 
-            // Key format: p_${projectId}_s_${sx}_${sy}
-            const sy = parseInt(parts[parts.length - 1]);
-            const sx = parseInt(parts[parts.length - 2]);
-            
-            const sector = await this.storage.loadSector(sx, sy);
-            if (sector && sector.chunks) {
-                for (const chunkKey in sector.chunks) {
-                    const cParts = chunkKey.split('_');
-                    const cy = parseInt(cParts[cParts.length - 1]);
-                    const cx = parseInt(cParts[cParts.length - 2]);
-                    const layerId = parseInt(cParts[cParts.length - 3]);
-                    const dataUrl = sector.chunks[chunkKey];
-                    
-                    if (dataUrl && !isNaN(layerId) && layerId >= 0 && layerId < LAYERS_COUNT) {
-                        const img = new Image();
-                        await new Promise(r => { 
-                            img.onload = r; 
-                            img.onerror = () => {
-                                console.error("Failed to load sector chunk", dataUrl.substring(0, 50));
-                                r();
-                            };
-                            img.src = dataUrl; 
-                        });
-                        const chunk = this.engine._getChunk(cx, cy);
-                        if (chunk && chunk.ctxs[layerId]) {
-                            chunk.ctxs[layerId].drawImage(img, 0, 0);
-                            if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
-                        }
-                    }
-                }
-            }
-        }
-
         this.engine.refresh();
         this._status('READY');
     } catch (e) {
@@ -1521,57 +1382,22 @@ class App {
         const dirty = Array.from(this.engine.dirtyChunks);
         this.engine.dirtyChunks.clear(); 
 
-        // Group dirty chunks by sector
-        const sectorGroups = new Map(); // "sx,sy" -> Set of "cx,cy,l"
-        
+        const promises = [];
         for (const item of dirty) {
             const [chunkId, layerStr] = item.split('|');
+            const l = parseInt(layerStr);
             const [cx, cy] = chunkId.split(',').map(Number);
-            const sx = Math.floor(cx / SECTOR_SIZE);
-            const sy = Math.floor(cy / SECTOR_SIZE);
-            const sKey = `${sx},${sy}`;
             
-            if (!sectorGroups.has(sKey)) sectorGroups.set(sKey, new Set());
-            sectorGroups.get(sKey).add(item);
-        }
-
-        const promises = [];
-        
-        // Process each affected sector
-        for (const [sKey, affectedItems] of sectorGroups) {
-            const [sx, sy] = sKey.split(',').map(Number);
-            
-            // Load existing sector data
-            let sector = await this.storage.loadSector(sx, sy);
-            if (!sector) {
-                sector = { chunks: {} };
-            }
-
-            // Update sector with dirty chunks
-            for (const item of affectedItems) {
-                const [chunkId, layerStr] = item.split('|');
-                const l = parseInt(layerStr);
-                const [cx, cy] = chunkId.split(',').map(Number);
-                const chunkKey = `${l}_${cx}_${cy}`;
-
-                const chunk = this.engine.chunks.get(chunkId);
-                if (chunk) {
-                    // Double check emptiness to ensure we don't store "erased" but not "empty-flagged" chunks
-                    const isEmpty = chunk.isEmpty[l] || isCanvasEmpty(chunk.canvases[l]);
-                    
-                    if (isEmpty) {
-                        // Chunk is empty, remove from sector
-                        delete sector.chunks[chunkKey];
-                    } else {
-                        // Serialize chunk to data URL
-                        const dataUrl = chunk.canvases[l].toDataURL('image/webp', this.engine.saveQuality); 
-                        sector.chunks[chunkKey] = dataUrl;
-                    }
+            const chunk = this.engine.chunks.get(chunkId);
+            if (chunk) {
+                // If the layer is empty, delete it from storage to keep it clean
+                if (chunk.isEmpty && chunk.isEmpty[l]) {
+                    promises.push(this.storage.deleteChunk(l, cx, cy));
+                } else {
+                    const dataUrl = chunk.canvases[l].toDataURL('image/webp', this.engine.saveQuality); 
+                    promises.push(this.storage.saveChunk(l, cx, cy, dataUrl));
                 }
             }
-
-            // Save updated sector
-            promises.push(this.storage.saveSector(sx, sy, sector));
         }
         
         await Promise.all(promises);
@@ -1657,12 +1483,12 @@ class App {
   }
 
   async _updateStorageStat() {
-      const stats = await this.storage.getStorageStats();
-      
+      const keys = await this.storage.getAllKeys();
       const chunksEl = document.getElementById('storage-chunks');
-      if (chunksEl) chunksEl.innerText = `${stats.chunks} CHUNKS (${stats.sectors} SECTORS)`;
+      if (chunksEl) chunksEl.innerText = keys.length;
 
-      const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+      const size = await this.storage.estimateSize();
+      const sizeMB = (size / (1024 * 1024)).toFixed(2);
       const sizeEl = document.getElementById('storage-size');
       if (sizeEl) sizeEl.innerText = sizeMB;
   }

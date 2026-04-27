@@ -117,3 +117,14 @@ export function rgbToHsv(r, g, b) {
     }
     return { h: h * 360, s: s * 100, v: v * 100 };
 }
+
+export function isCanvasEmpty(canvas) {
+    const ctx = canvas.getContext('2d', { alpha: true });
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    // Check alpha channel for any non-zero value
+    for (let i = 3; i < data.length; i += 4) {
+        if (data[i] > 0) return false;
+    }
+    return true;
+}
