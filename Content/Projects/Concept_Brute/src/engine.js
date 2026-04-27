@@ -7,6 +7,7 @@ export class Engine {
     this.saveQuality = settings.quality || 0.5;
     this.chunks = new Map(); // id -> { canvases: [canvas, canvas, canvas], ctxs: [ctx, ctx, ctx] }
     this.activeLayer = 1; // Default to first paint layer
+    this.currentProjectId = null;
     this.zoom = 1;
     this.pan = { x: 0, y: 0 };
     this.rotation = 0; // In radians
@@ -87,6 +88,8 @@ export class Engine {
     this.lastTime = null;
     this.smoothedVelocity = 0;
     this.zoomAnchor = null;
+
+    this.loadViewport();
     
     // Dedicated UI Layer for overlays (Selection, Lasso, etc)
     this.uiLayer = document.createElement('div');
@@ -168,7 +171,7 @@ export class Engine {
   }
 
   _initEvents() {
-    this.container.addEventListener('mousedown', (e) => {
+    this.container.addEventListener('pointerdown', (e) => {
         if (this.isExportMode) {
             const m = this._getMousePos(e);
             this.exportStartPos = { x: m.wx, y: m.wy };
@@ -194,7 +197,8 @@ export class Engine {
         }
         this._startStroke(e);
     });
-    window.addEventListener('mousemove', (e) => {
+
+    window.addEventListener('pointermove', (e) => {
       if (this.isExportMode && this.isDrawing) {
           const m = this._getMousePos(e);
           const x1 = this.exportStartPos.x;
@@ -218,11 +222,26 @@ export class Engine {
           this.captureReticle.style.top = (e.clientY - 64) + 'px';
           return;
       }
-      this._moveStroke(e);
+
+      // Use coalesced events for smoother input, but cap them to prevent saturation
+      const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+      const maxEvents = 12; 
+      const step = Math.max(1, Math.ceil(events.length / maxEvents));
+      
+      for (let i = 0; i < events.length; i += step) {
+          this._moveStroke(events[i]);
+      }
+      
+      // Always process the final event to ensure accuracy
+      if ((events.length - 1) % step !== 0) {
+          this._moveStroke(events[events.length - 1]);
+      }
+
       this._handlePickerMove(e);
       this._updateBrushCursor(e);
     });
-    window.addEventListener('mouseup', (e) => {
+
+    window.addEventListener('pointerup', (e) => {
         if (this.isExportMode && this.isDrawing) {
             this.isDrawing = false;
             this.isExportMode = false;
@@ -271,6 +290,7 @@ export class Engine {
       if (e.ctrlKey) {
         // Pan Y with Ctrl+Scroll
         this.pan.y -= e.deltaY;
+        this.saveViewport();
         this.refresh();
       } else {
         // Zoom with Scroll
@@ -780,7 +800,8 @@ export class Engine {
       for (let cx = startCX; cx <= endCX; cx++) {
           for (let cy = startCY; cy <= endCY; cy++) {
               const id = `${cx},${cy}`;
-              const chunk = this._getChunk(cx, cy);
+              const chunk = this.chunks.get(id);
+              if (!chunk) continue;
               const lx = cx * this.chunkSize;
               const ly = cy * this.chunkSize;
 
@@ -974,10 +995,27 @@ export class Engine {
     this.isDrawing = true;
     const m = this._getMousePos(e);
     this.lastPos = { x: m.x, y: m.y };
-    this.lastTime = performance.now();
+    this.lastTime = e.timeStamp || performance.now();
     this.smoothedVelocity = 0;
-    this.strokePoints = [];
+    
+    const worldPos = {
+        x: (m.x - this.pan.x) / this.zoom,
+        y: (m.y - this.pan.y) / this.zoom,
+        size: this.brush.size,
+        opacity: 1.0,
+        color: this.brush.color
+    };
+    this.strokePoints = [worldPos];
+    this.lastDynamicSize = this.brush.size;
+    this.lastDynamicOpac = 1.0;
+    
     this.spacingAccumulator = 0;
+    this.shiftOrigin = null;
+    this.shiftLockAxis = null;
+
+    if (this.brush.type === TOOLS.SMUDGE) {
+        this.smudgeDirty = false;
+    }
     
     // Clear dirty chunks tracking for this stroke
     this.currentStrokeDirtyChunks = new Map();
@@ -1016,6 +1054,7 @@ export class Engine {
             if (this.isMirrored) dx = -dx;
             this.pan.x += dx;
             this.pan.y += dy;
+            this.saveViewport();
         }
         
         this.lastMousePos = { x: e.clientX, y: e.clientY };
@@ -1109,19 +1148,36 @@ export class Engine {
 
     // Shift Constraint
     if (this.keys['shift'] && this.lastPos) {
-        const dx = currentPos.x - this.lastPos.x;
-        const dy = currentPos.y - this.lastPos.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-        
-        // Snap to 45 degrees (Pi / 4)
-        const snap = Math.PI / 4;
-        const snappedAngle = Math.round(angle / snap) * snap;
-        
-        currentPos = {
-            x: this.lastPos.x + Math.cos(snappedAngle) * dist,
-            y: this.lastPos.y + Math.sin(snappedAngle) * dist
-        };
+        if (!this.shiftOrigin) {
+            this.shiftOrigin = { ...this.lastPos };
+            this.shiftLockAxis = null;
+        }
+
+        const dx = currentPos.x - this.shiftOrigin.x;
+        const dy = currentPos.y - this.shiftOrigin.y;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        // Increased tolerance to prevent accidental axis jumping
+        const tolerance = 4; 
+        if (!this.shiftLockAxis) {
+            if (absX > tolerance || absY > tolerance) {
+                this.shiftLockAxis = absX > absY ? 'x' : 'y';
+            }
+        }
+
+        if (this.shiftLockAxis === 'x') {
+            currentPos.y = this.shiftOrigin.y;
+        } else if (this.shiftLockAxis === 'y') {
+            currentPos.x = this.shiftOrigin.x;
+        } else {
+            // Not enough movement to lock yet, stay at origin to prevent "jitters"
+            currentPos.x = this.shiftOrigin.x;
+            currentPos.y = this.shiftOrigin.y;
+        }
+    } else {
+        this.shiftOrigin = null;
+        this.shiftLockAxis = null;
     }
 
     if (this.brush.type === TOOLS.LASSO) {
@@ -1130,7 +1186,7 @@ export class Engine {
         return;
     }
 
-    const currentTime = performance.now();
+    const currentTime = e.timeStamp || performance.now();
 
     const dx = currentPos.x - this.lastPos.x;
     const dy = currentPos.y - this.lastPos.y;
@@ -1144,27 +1200,20 @@ export class Engine {
     const rawVelocity = dist / dt;
     
     // Smooth velocity to prevent wild jumps (Exponential Moving Average)
-    // Using a factor of 0.2 for a good balance of responsiveness and stability
     this.smoothedVelocity = this.smoothedVelocity * 0.8 + rawVelocity * 0.2;
     
-    // Clamp smoothed velocity to avoid outliers from performance spikes
-    const velocity = Math.min(this.smoothedVelocity, 500); 
+    // Clamp smoothed velocity to avoid outliers - increased to 2000 for fast gestures
+    const velocity = Math.min(this.smoothedVelocity, 2000); 
 
-    const worldFrom = {
-      x: (this.lastPos.x - this.pan.x) / this.zoom,
-      y: (this.lastPos.y - this.pan.y) / this.zoom
-    };
     const worldTo = {
       x: (currentPos.x - this.pan.x) / this.zoom,
       y: (currentPos.y - this.pan.y) / this.zoom
     };
 
     // --- Brush Sensitivity ---
-    // Enhanced velocity factor with higher range
     const threshold = 10 + (this.brush.flow * 40); 
     const vFactor = Math.pow(Math.min(velocity / threshold, 1.5), 1.2); 
     
-    // Multiplier for speed sensitivity to make them much more pronounced
     const sensitivityMult = 2.0; 
     
     // Size: positive speedSize means faster=smaller
@@ -1175,22 +1224,29 @@ export class Engine {
     const opacMod = Math.max(0.01, 1 - (vFactor * this.brush.speedOpacity * sensitivityMult));
 
     let color = this.brush.color;
-    // Color shift: Value and Hue
     if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
-        // Value: speedValue (positive = faster:darker, negative = faster:lighter)
-        color = this._shiftColor(color, vFactor * this.brush.speedHue * 60, -vFactor * (this.brush.speedValue / 5)); // More sensitive value shift
+        color = this._shiftColor(color, vFactor * this.brush.speedHue * 60, -vFactor * (this.brush.speedValue / 5)); 
     }
 
+    const worldPos = {
+        ...worldTo,
+        size: dynamicSize,
+        opacity: opacMod,
+        color: color
+    };
+
     if (this.brush.type === TOOLS.WIREFRAME) {
-        this.strokePoints.push(worldTo);
-        // 1. Core Ink Line
-        this._paintOnChunks(worldFrom, worldTo, Math.max(1, dynamicSize * 0.1), opacMod, color);
-        // 2. Wire connections
+        this.strokePoints.push(worldPos);
+        const from = {
+            x: (this.lastPos.x - this.pan.x) / this.zoom,
+            y: (this.lastPos.y - this.pan.y) / this.zoom
+        };
+        this._paintOnChunks(from, worldTo, Math.max(1, dynamicSize * 0.1), opacMod, color);
+        
         const thresholdMax = dynamicSize * 4;
         const thresholdMin = dynamicSize * 0.5;
         const points = this.strokePoints;
         const count = points.length;
-        // Connect to a few previous points within range
         const maxSeek = 30;
         for (let i = Math.max(0, count - maxSeek); i < count - 1; i++) {
             const p = points[i];
@@ -1200,23 +1256,38 @@ export class Engine {
             }
         }
     } else {
-        this._paintOnChunks(worldFrom, worldTo, dynamicSize, opacMod, color);
+        this.strokePoints.push(worldPos);
+        
+        if (this.strokePoints.length === 2) {
+            // First segment: P0 -> Mid(P0, P1)
+            const p0 = this.strokePoints[0];
+            const mid = { x: (p0.x + worldPos.x) / 2, y: (p0.y + worldPos.y) / 2 };
+            this._paintOnChunks(p0, mid, p0.size, p0.opacity, p0.color);
+        } else if (this.strokePoints.length > 2) {
+            // Curve from Mid(P_n-2, P_n-1) to Mid(P_n-1, P_n) with P_n-1 as control
+            const p_n2 = this.strokePoints[this.strokePoints.length - 3];
+            const p_n1 = this.strokePoints[this.strokePoints.length - 2];
+            const p_n = this.strokePoints[this.strokePoints.length - 1];
+            
+            const mid1 = { x: (p_n2.x + p_n1.x) / 2, y: (p_n2.y + p_n1.y) / 2 };
+            const mid2 = { x: (p_n1.x + p_n.x) / 2, y: (p_n1.y + p_n.y) / 2 };
+            
+            this._paintCurveOnChunks(mid1, p_n1, mid2, p_n1.size, p_n.size, p_n1.opacity, p_n.opacity, p_n.color);
+        }
     }
     
-    // Maintain spacing continuity
-    const segDist = Math.sqrt((worldTo.x - worldFrom.x)**2 + (worldTo.y - worldFrom.y)**2);
-    const step = Math.max(0.5, dynamicSize * this.brush.spacing);
-    let nextStamp = this.spacingAccumulator;
-    while (nextStamp <= segDist) {
-        nextStamp += step;
-    }
-    this.spacingAccumulator = nextStamp - segDist;
-
     this.lastPos = currentPos;
     this.lastTime = currentTime;
   }
 
   _endStroke() {
+    // Finish last part of smoothed curve
+    if (this.isDrawing && this.brush.type !== TOOLS.LASSO && this.strokePoints.length > 1 && this.brush.type !== TOOLS.WIREFRAME) {
+        const p_last = this.strokePoints[this.strokePoints.length - 1];
+        const p_prev = this.strokePoints[this.strokePoints.length - 2];
+        const mid = { x: (p_last.x + p_prev.x) / 2, y: (p_last.y + p_prev.y) / 2 };
+        this._paintOnChunks(mid, p_last, p_last.size, p_last.opacity, p_last.color);
+    }
     if (this.brush.type === TOOLS.LASSO && this.lassoPath?.length > 10) {
         this._processLassoSelection();
     }
@@ -1267,6 +1338,8 @@ export class Engine {
     this.isZooming = false;
     this.lastPos = null;
     this.lassoPath = null;
+    this.shiftOrigin = null;
+    this.shiftLockAxis = null;
     this._status('READY');
   }
 
@@ -1312,11 +1385,11 @@ export class Engine {
     } else if (this.brush.type === TOOLS.ERASER || this.brush.type === TOOLS.SMUDGE) {
         h = s / 2;
         bgColor = 'transparent';
-        border = '1px solid black';
+        border = this.brush.type === TOOLS.ERASER ? '2px solid #ff4444' : '2px solid #3b82f6';
         if (this.brush.tip) {
             h = s;
             mask = `url(${this.brush.tip.toDataURL()})`;
-            bgColor = 'rgba(0,0,0,0.1)'; // Small fill for eraser tip visibility
+            bgColor = this.brush.type === TOOLS.ERASER ? 'rgba(255, 68, 68, 0.25)' : 'rgba(59, 130, 246, 0.25)';
         }
     } else if (this.brush.type === TOOLS.REF_MOVE) {
         w = 24;
@@ -1690,248 +1763,283 @@ export class Engine {
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
   }
 
+  _paintCurveOnChunks(p0, p1, p2, size1, size2, opac1, opac2, color) {
+      const dist = Math.sqrt((p1.x - p0.x)**2 + (p1.y - p0.y)**2) + Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
+      
+      if (dist < 6) {
+          this._paintOnChunks(p0, p2, size2, opac2, color);
+          return;
+      }
+
+      // Much more aggressive simplification for speed (sacrificing quality as requested)
+      const steps = Math.min(6, Math.max(1, Math.ceil(dist / 24)));
+      
+      let prev = p0;
+      for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          const tInv = 1 - t;
+          const next = {
+              x: tInv * tInv * p0.x + 2 * tInv * t * p1.x + t * t * p2.x,
+              y: tInv * tInv * p0.y + 2 * tInv * t * p1.y + t * t * p2.y
+          };
+          const curSize = size1 + (size2 - size1) * t;
+          const curOpac = opac1 + (opac2 - opac1) * t;
+          this._paintOnChunks(prev, next, curSize, curOpac, color);
+          prev = next;
+      }
+  }
+
   _paintOnChunks(from, to, size, opacity, color) {
-    if (this.activeLayer === 0) return; // Guard: No painting on reference image layer
-    const minX = Math.min(from.x, to.x) - size;
-    const minY = Math.min(from.y, to.y) - size;
-    const maxX = Math.max(from.x, to.x) + size;
-    const maxY = Math.max(from.y, to.y) + size;
+    if (this.activeLayer === 0) return;
+    
+    // 1. Prepare Brush Params
+    const bSize = Math.round(size);
+    const spacing = Math.max(2, bSize * this.brush.spacing); // Increased min spacing for speed
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const flow = this.brush.flow || 0.5;
+    
+    const isEraser = this.brush.type === TOOLS.ERASER;
+    const isSmudge = this.brush.type === TOOLS.SMUDGE;
+    const isWire = this.brush.type === TOOLS.WIREFRAME;
+    const tip = this.brush.tip;
+    const airbrush = this.brush.airbrush || 0;
+    const oil = this.brush.oiliness || 0;
+    const height = this.brush.paintHeight || 0;
 
-    const startCX = Math.floor(minX / this.chunkSize);
-    const startCY = Math.floor(minY / this.chunkSize);
-    const endCX = Math.floor(maxX / this.chunkSize);
-    const endCY = Math.floor(maxY / this.chunkSize);
+    // 2. Generate Stamp Positions
+    const stamps = [];
+    let p = this.spacingAccumulator;
+    while (p <= dist) {
+        const t = dist === 0 ? 0 : p / dist;
+        stamps.push({ x: from.x + dx * t, y: from.y + dy * t });
+        p += spacing;
+    }
+    this.spacingAccumulator = p - dist;
 
-    for (let cx = startCX; cx <= endCX; cx++) {
-      for (let cy = startCY; cy <= endCY; cy++) {
-        const id = `${cx},${cy}`;
-        const chunk = this._getChunk(cx, cy);
-        
-        // Lazy snapshot for undo (must happen before we start drawing on strokeCtx if we used it as source, 
-        // but here it's for the main layer which we bake into later)
+    if (stamps.length === 0) return;
+
+    // 3. Cache and Smudge Prep
+    if (tip && !isSmudge) {
+        const cacheKey = `${airbrush}_${bSize}`;
+        if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color) {
+            this._updateTipCache(bSize, airbrush, color);
+        }
+        if (oil > 0 && dist < 500) {
+            const reliefBlur = oil * 4 * (1 - airbrush * 0.4);
+            const reliefKey = `${bSize}_${reliefBlur}`;
+            if (!this._reliefCache || this._reliefCache.key !== reliefKey) {
+                this._updateReliefCache(bSize, reliefBlur);
+            }
+        }
+    }
+
+    if (isSmudge && !this.smudgeCanvas) {
+        this.smudgeCanvas = document.createElement('canvas');
+        this.smudgeCanvas.width = 128; // Standard smudge tip size
+        this.smudgeCanvas.height = 128;
+        this.smudgeCtx = this.smudgeCanvas.getContext('2d', { willReadFrequently: true });
+        this.smudgeDirty = false;
+    }
+
+    // 4. Find Affected Chunks and grouping stamps
+    const stampR = bSize / 2;
+    const affectedChunks = new Map();
+
+    for (const s of stamps) {
+        const sCX = Math.floor((s.x - stampR) / this.chunkSize);
+        const eCX = Math.floor((s.x + stampR) / this.chunkSize);
+        const sCY = Math.floor((s.y - stampR) / this.chunkSize);
+        const eCY = Math.floor((s.y + stampR) / this.chunkSize);
+
+        for (let cx = sCX; cx <= eCX; cx++) {
+            for (let cy = sCY; cy <= eCY; cy++) {
+                const id = `${cx},${cy}`;
+                let group = affectedChunks.get(id);
+                if (!group) {
+                    group = { cx, cy, stamps: [] };
+                    affectedChunks.set(id, group);
+                }
+                group.stamps.push(s);
+            }
+        }
+    }
+
+    // 5. Draw
+    const opacityBase = opacity * flow;
+    const hasRotation = this.rotation !== 0;
+
+    if (isSmudge) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const s of stamps) {
+            minX = Math.min(minX, s.x - stampR); minY = Math.min(minY, s.y - stampR);
+            maxX = Math.max(maxX, s.x + stampR); maxY = Math.max(maxY, s.y + stampR);
+        }
+        minX = Math.floor(minX - 4); minY = Math.floor(minY - 4);
+        maxX = Math.ceil(maxX + 4); maxY = Math.ceil(maxY + 4);
+        const w = maxX - minX, h = maxY - minY;
+
+        if (w > 0 && h > 0) {
+            if (!this.segmentCanvas) {
+                this.segmentCanvas = document.createElement('canvas');
+                this.segmentCtx = this.segmentCanvas.getContext('2d', { willReadFrequently: true });
+            }
+            if (this.segmentCanvas.width < w || this.segmentCanvas.height < h) {
+                this.segmentCanvas.width = Math.max(this.segmentCanvas.width, w + 128);
+                this.segmentCanvas.height = Math.max(this.segmentCanvas.height, h + 128);
+            }
+            this.segmentCtx.clearRect(0, 0, w, h);
+
+            affectedChunks.forEach((group, id) => {
+                const chunk = this._getChunk(group.cx, group.cy);
+                if (chunk) {
+                    this.segmentCtx.drawImage(chunk.canvases[this.activeLayer], group.cx * this.chunkSize - minX, group.cy * this.chunkSize - minY);
+                    if (this.isDrawing && !this.currentStrokeDirtyChunks.has(id)) {
+                        const backup = document.createElement('canvas');
+                        backup.width = this.chunkSize; backup.height = this.chunkSize;
+                        backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+                        this.currentStrokeDirtyChunks.set(id, { layer: this.activeLayer, canvas: backup });
+                        this._markDirty(id, this.activeLayer);
+                    }
+                }
+            });
+
+            const sCtx = this.segmentCtx;
+            for (const s of stamps) {
+                const px = s.x - minX, py = s.y - minY;
+                const sSz = Math.max(4, bSize), sR = sSz / 2;
+                
+                if (this.smudgeDirty) {
+                    sCtx.save();
+                    sCtx.translate(px, py); if (hasRotation) sCtx.rotate(this.rotation);
+                    sCtx.globalAlpha = opacityBase;
+                    sCtx.drawImage(this.smudgeCanvas, -sR, -sR, sSz, sSz);
+                    sCtx.restore();
+                }
+
+                this.smudgeCtx.save();
+                this.smudgeCtx.clearRect(0, 0, 128, 128);
+                if (this.smudgeDirty) {
+                    this.smudgeCtx.drawImage(this.smudgeCanvas, 0, 0);
+                    this.smudgeCtx.globalAlpha = 0.4 * flow;
+                } else {
+                    this.smudgeCtx.globalAlpha = 1.0;
+                }
+                this.smudgeCtx.drawImage(this.segmentCanvas, px - sR, py - sR, sSz, sSz, 0, 0, 128, 128);
+                this.smudgeCtx.restore();
+                this.smudgeDirty = true;
+            }
+
+            affectedChunks.forEach((group, id) => {
+                const chunk = this._getChunk(group.cx, group.cy);
+                if (chunk) {
+                    const lx = group.cx * this.chunkSize, ly = group.cy * this.chunkSize;
+                    const iMinX = Math.max(lx, minX), iMinY = Math.max(ly, minY);
+                    const iMaxX = Math.min(lx + this.chunkSize, maxX), iMaxY = Math.min(ly + this.chunkSize, maxY);
+                    if (iMaxX > iMinX && iMaxY > iMinY) {
+                        chunk.ctxs[this.activeLayer].clearRect(iMinX - lx, iMinY - ly, iMaxX - iMinX, iMaxY - iMinY);
+                        chunk.ctxs[this.activeLayer].drawImage(this.segmentCanvas, iMinX - minX, iMinY - minY, iMaxX - iMinX, iMaxY - iMinY, iMinX - lx, iMinY - ly, iMaxX - iMinX, iMaxY - iMinY);
+                    }
+                }
+            });
+        }
+        return;
+    }
+
+    affectedChunks.forEach((group, id) => {
+        const chunk = this._getChunk(group.cx, group.cy);
+        if (!chunk) return;
+
         if (this.isDrawing && !this.currentStrokeDirtyChunks.has(id)) {
             const backup = document.createElement('canvas');
-            backup.width = this.chunkSize;
-            backup.height = this.chunkSize;
+            backup.width = this.chunkSize; backup.height = this.chunkSize;
             backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
             this.currentStrokeDirtyChunks.set(id, { layer: this.activeLayer, canvas: backup });
-        }
-        
-        this._markDirty(id, this.activeLayer);
-
-        const isEraser = this.brush.type === TOOLS.ERASER;
-        const isSmudge = this.brush.type === TOOLS.SMUDGE;
-        const ctx = (isEraser || isSmudge) ? chunk.ctxs[this.activeLayer] : chunk.strokeCtx;
-        
-        // Ensure height canvas exists if needed
-        if (this.brush.paintHeight > 0 && !chunk.heightCanvas) {
-            chunk.heightCanvas = document.createElement('canvas');
-            chunk.heightCanvas.width = this.chunkSize;
-            chunk.heightCanvas.height = this.chunkSize;
-            chunk.heightCtx = chunk.heightCanvas.getContext('2d');
-            // Background is 128 (flat)
-            chunk.heightCtx.fillStyle = '#808080';
-            chunk.heightCtx.fillRect(0,0, this.chunkSize, this.chunkSize);
+            this._markDirty(id, this.activeLayer);
         }
 
-        if (!isEraser && !isSmudge) {
-            chunk.strokeCanvas.style.opacity = this.brush.opacity; // Per-stroke opacity
-        } else {
-            chunk.strokeCanvas.style.opacity = '0';
-        }
-        
+        const ctx = isEraser ? chunk.ctxs[this.activeLayer] : chunk.strokeCtx;
+        if (!isEraser) chunk.strokeCanvas.style.opacity = this.brush.opacity;
+
+        const lx = group.cx * this.chunkSize;
+        const ly = group.cy * this.chunkSize;
+
         ctx.save();
-        const lx = cx * this.chunkSize;
-        const ly = cy * this.chunkSize;
-
-        // Apply Selection Mask
-        if (this.activeSelectionPath) {
-            ctx.beginPath();
-            this.activeSelectionPath.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(p.x - lx, p.y - ly);
-                else ctx.lineTo(p.x - lx, p.y - ly);
-            });
-            ctx.closePath();
-            ctx.clip();
-        }
+        ctx.globalAlpha = opacityBase;
         
         if (isEraser) {
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.fillStyle = 'rgba(0,0,0,1)';
-            ctx.globalAlpha = opacity * this.brush.flow * this.brush.opacity;
-        } else if (isSmudge) {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = opacity * this.brush.flow * this.brush.opacity * 0.5; // Smudge is softer
         } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = color;
-            ctx.globalAlpha = opacity * this.brush.flow; // Flow * Modulation is per-stamp opacity
         }
-        
-        // Rectangular "Concept Art" Brush with texture/taper
-        const dist = Math.sqrt((to.x - from.x)**2 + (to.y - from.y)**2);
-        
-        // Spacing based on brush size
-        const step = size * this.brush.spacing;
-        let currentPos = this.spacingAccumulator;
 
-        while (currentPos <= dist) {
-            const lerpVal = dist === 0 ? 0 : currentPos / dist;
-            const px = Math.round(from.x + (to.x - from.x) * lerpVal - lx);
-            const py = Math.round(from.y + (to.y - from.y) * lerpVal - ly);
+        for (const s of group.stamps) {
+            const px = Math.round(s.x - lx);
+            const py = Math.round(s.y - ly);
             
-            // Clean Sharp Stamping
-            const s = Math.round(size);
-            
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(this.rotation);
-            
-            if (this.brush.type === TOOLS.WIREFRAME) {
-                // Outline brush for wireframe
-                ctx.beginPath();
-                ctx.arc(0, 0, s / 2, 0, Math.PI * 2);
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-            } else if (isSmudge) {
-                // Smudge Pick and Stamp
-                const sW = Math.max(1, Math.round(s));
-                const sH = Math.max(1, Math.round(s / 2));
-                
-                // Pick center in world coordinates
-                const pickX = from.x + (to.x - from.x) * lerpVal - (to.x - from.x) * 0.4;
-                const pickY = from.y + (to.y - from.y) * lerpVal - (to.y - from.y) * 0.4;
-
-                // Optimization: reuse scratch canvas without constant resizing unless size changes significantly
-                if (this.scratchCanvas.width !== sW || this.scratchCanvas.height !== sH) {
-                    this.scratchCanvas.width = sW;
-                    this.scratchCanvas.height = sH;
-                }
-                this.scratchCtx.clearRect(0, 0, sW, sH);
-
-                // Sample from nearby chunks
-                const pMinX = pickX - sW / 2;
-                const pMinY = pickY - sH / 2;
-                const pcxS = Math.floor(pMinX / this.chunkSize);
-                const pcyS = Math.floor(pMinY / this.chunkSize);
-                const pcxE = Math.floor((pickX + sW / 2) / this.chunkSize);
-                const pcyE = Math.floor((pickY + sH / 2) / this.chunkSize);
-
-                for (let pcx = pcxS; pcx <= pcxE; pcx++) {
-                    for (let pcy = pcyS; pcy <= pcyE; pcy++) {
-                        const sID = `${pcx},${pcy}`;
-                        const sChunk = this.chunks.get(sID);
-                        if (sChunk) {
-                            const clx = pcx * this.chunkSize;
-                            const cly = pcy * this.chunkSize;
-                            this.scratchCtx.drawImage(sChunk.canvases[this.activeLayer], clx - pMinX, cly - pMinY);
-                        }
-                    }
-                }
-                ctx.drawImage(this.scratchCanvas, -sW / 2, -sH / 4, sW, sH);
-            } else {
-                // TOOLS.BRUSH or TOOLS.ERASER (Eraser draws into stroke buffer as solid color first)
-                if (this.brush.tip) {
-                    // Update tip cache if needed
-                    const airbrushAmount = this.brush.airbrush || 0;
-                    const airbrushBlur = airbrushAmount * size * 0.45; // x3 factor (was 0.15)
-                    const drawScale = 1.0 / (1.0 + airbrushAmount * 1.5); // compensated scale
-                    const drawSize = Math.max(1, size * drawScale);
-                    const offset = (size - drawSize) / 2;
-
-                    const cacheKey = `${airbrushAmount}_${size}`;
-                    
-                    if (!this._tipColorCache || this._tipColorCache.srcTip !== this.brush.tip || this._tipColorCache.color !== color || this._tipColorCache.key !== cacheKey) {
-                        const tempSize = Math.max(1, size);
-                        const temp = document.createElement('canvas');
-                        temp.width = tempSize;
-                        temp.height = tempSize;
-                        const tctx = temp.getContext('2d');
-                        
-                        if (airbrushAmount > 0) {
-                            tctx.filter = `blur(${airbrushBlur}px)`;
-                        }
-                        
-                        tctx.fillStyle = color;
-                        tctx.fillRect(0, 0, tempSize, tempSize);
-                        tctx.globalCompositeOperation = 'destination-in';
-                        tctx.drawImage(this.brush.tip, offset, offset, drawSize, drawSize);
-                        tctx.filter = 'none';
-                        this._tipColorCache = { canvas: temp, srcTip: this.brush.tip, color: color, key: cacheKey };
-                    }
-                    
-                    const tipCanvas = this._tipColorCache.canvas;
-                    
-                    if (this.brush.paintHeight > 0 && !isEraser && !isSmudge) {
-                        const h = this.brush.paintHeight;
-                        const opacityBase = opacity * this.brush.flow * this.brush.opacity;
-                        const oil = this.brush.oiliness ?? 0.5;
-                        const airbrushAmount = this.brush.airbrush || 0;
-                        // Reduce extra blur from oiliness if tip is already blurred by airbrush
-                        const reliefBlur = oil * 4 * (1 - airbrushAmount * 0.4); 
-
-                        // Pre-prepare relief tips for the segment if possible
-                        const reliefKey = `${size}_${reliefBlur}_${airbrushAmount}`;
-                        if (!this._reliefCache || this._reliefCache.srcTip !== this.brush.tip || this._reliefCache.key !== reliefKey) {
-                            const tempSize = Math.max(1, size);
-                            
-                            const sTip = document.createElement('canvas');
-                            sTip.width = tempSize; sTip.height = tempSize;
-                            const sCtx = sTip.getContext('2d');
-                            
-                            const hTip = document.createElement('canvas');
-                            hTip.width = tempSize; hTip.height = tempSize;
-                            const hCtx = hTip.getContext('2d');
-
-                            // Use the already colored (and potentially blurred) tip as source for height map
-                            const sourceForRelief = this._tipColorCache.canvas;
-
-                            if (reliefBlur > 0) sCtx.filter = `blur(${reliefBlur}px)`;
-                            sCtx.fillStyle = 'black';
-                            sCtx.fillRect(0,0,tempSize,tempSize);
-                            sCtx.globalCompositeOperation = 'destination-in';
-                            sCtx.drawImage(sourceForRelief, 0, 0);
-                            
-                            if (reliefBlur > 0) hCtx.filter = `blur(${reliefBlur}px)`;
-                            hCtx.fillStyle = 'white';
-                            hCtx.fillRect(0,0,tempSize,tempSize);
-                            hCtx.globalCompositeOperation = 'destination-in';
-                            hCtx.drawImage(sourceForRelief, 0, 0);
-                            
-                            this._reliefCache = { key: reliefKey, shadow: sTip, highlight: hTip, srcTip: this.brush.tip };
-                        }
-
-                        // Shadow (offset south-east)
-                        ctx.save();
-                        ctx.globalCompositeOperation = 'multiply';
-                        ctx.translate(1, 1);
-                        ctx.globalAlpha = opacityBase * h * 0.4;
-                        ctx.drawImage(this._reliefCache.shadow, -size/2, -size/2);
-                        ctx.restore();
-
-                        // Highlight (offset north-west)
-                        ctx.save();
-                        ctx.globalCompositeOperation = 'screen';
-                        ctx.translate(-1, -1);
-                        ctx.globalAlpha = opacityBase * h * 0.25; // More subtle highlight
-                        ctx.drawImage(this._reliefCache.highlight, -size/2, -size/2);
-                        ctx.restore();
-                    }
-
-                    ctx.drawImage(tipCanvas, -size / 2, -size / 2);
+            // Regular stamps: optimized by avoiding save/restore if no rotation/tip
+            if (!hasRotation && !tip && !isWire) {
+                if (isEraser) {
+                    ctx.clearRect(px - stampR, py - stampR/2, bSize, bSize/2);
                 } else {
-                    ctx.fillRect(-s / 2, -s / 4, s, s / 2);
+                    ctx.fillRect(px - stampR, py - stampR/2, bSize, bSize/2);
                 }
+            } else {
+                ctx.save();
+                ctx.translate(px, py);
+                if (hasRotation) ctx.rotate(this.rotation);
+
+                if (isWire) {
+                    ctx.beginPath(); ctx.arc(0, 0, stampR, 0, Math.PI*2);
+                    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+                } else if (tip) {
+                    if (oil > 0 && dist < 500) {
+                        const oBase = 0.5 * height;
+                        ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.translate(1, 1);
+                        ctx.globalAlpha = oBase * 0.4; ctx.drawImage(this._reliefCache.shadow, -stampR, -stampR); ctx.restore();
+                        ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.translate(-1, -1);
+                        ctx.globalAlpha = oBase * 0.25; ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR); ctx.restore();
+                    }
+                    ctx.drawImage(this._tipColorCache.canvas, -stampR, -stampR);
+                } else {
+                    ctx.fillRect(-stampR, -stampR/2, bSize, bSize/2);
+                }
+                ctx.restore();
             }
-            
-            ctx.restore();
-            currentPos += Math.max(0.5, step);
         }
-        
         ctx.restore();
-      }
-    }
+    });
+  }
+
+  _updateTipCache(s, airbrush, color) {
+    const blur = airbrush * s * 0.45;
+    const scale = 1.0 / (1.0 + airbrush * 1.5);
+    const dSize = Math.max(1, s * scale);
+    const canv = document.createElement('canvas'); canv.width = s; canv.height = s;
+    const tctx = canv.getContext('2d');
+    if (airbrush > 0) tctx.filter = `blur(${blur}px)`;
+    tctx.drawImage(this.brush.tip, (s-dSize)/2, (s-dSize)/2, dSize, dSize);
+    tctx.globalCompositeOperation = 'source-in';
+    tctx.fillStyle = color; tctx.fillRect(0,0,s,s);
+    this._tipColorCache = { canvas: canv, key: `${airbrush}_${s}`, color, srcTip: this.brush.tip };
+  }
+
+  _updateReliefCache(s, blur) {
+    const shad = document.createElement('canvas'); shad.width = s; shad.height = s;
+    const sctx = shad.getContext('2d');
+    if (blur > 0) sctx.filter = `blur(${blur}px)`;
+    sctx.drawImage(this.brush.tip, 0, 0, s, s);
+    sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
+
+    const high = document.createElement('canvas'); high.width = s; high.height = s;
+    const hctx = high.getContext('2d');
+    if (blur > 0) hctx.filter = `blur(${blur}px)`;
+    hctx.drawImage(this.brush.tip, 0, 0, s, s);
+    hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
+    
+    this._reliefCache = { shadow: shad, highlight: high, key: `${s}_${blur}`, srcTip: this.brush.tip };
   }
 
   addReferenceImage(img, name, x = null, y = null, config = {}) {
@@ -2125,24 +2233,47 @@ export class Engine {
     const oldZoom = this.zoom;
     this.zoom = Math.max(0.05, Math.min(20, z)); // Wider range
 
-    if (cursorX !== null && cursorY !== null) {
+    if (cursorX === null || cursorY === null) {
         const rect = this.container.getBoundingClientRect();
-        const x = cursorX - rect.left;
-        const y = cursorY - rect.top;
-        
-        // Adjust pan to keep center under cursor
-        this.pan.x = x - (this.zoom / oldZoom) * (x - this.pan.x);
-        this.pan.y = y - (this.zoom / oldZoom) * (y - this.pan.y);
+        cursorX = rect.left + rect.width / 2;
+        cursorY = rect.top + rect.height / 2;
     }
 
+    const rect = this.container.getBoundingClientRect();
+    const x = cursorX - rect.left;
+    const y = cursorY - rect.top;
+    
+    // Adjust pan to keep center under cursor
+    this.pan.x = x - (this.zoom / oldZoom) * (x - this.pan.x);
+    this.pan.y = y - (this.zoom / oldZoom) * (y - this.pan.y);
+
     this.refresh();
+    this.saveViewport();
     if (this.onZoomChange) this.onZoomChange(this.zoom);
   }
 
   fitZoom() {
-    this.zoom = 1;
-    this.pan = { x: 0, y: 0 };
-    this.refresh();
-    if (this.onZoomChange) this.onZoomChange(this.zoom);
+    this.setZoom(1);
+  }
+
+  saveViewport() {
+    const prefix = this.currentProjectId ? `v_${this.currentProjectId}_` : 'v_';
+    localStorage.setItem(prefix + 'zoom', this.zoom);
+    localStorage.setItem(prefix + 'pan', JSON.stringify(this.pan));
+  }
+
+  loadViewport(projectId = null) {
+    if (projectId) this.currentProjectId = projectId;
+    try {
+        const prefix = this.currentProjectId ? `v_${this.currentProjectId}_` : 'v_';
+        const savedZoom = localStorage.getItem(prefix + 'zoom');
+        const savedPan = localStorage.getItem(prefix + 'pan');
+        if (savedZoom) this.zoom = parseFloat(savedZoom);
+        if (savedPan) this.pan = JSON.parse(savedPan);
+        this.refresh();
+        if (this.onZoomChange) this.onZoomChange(this.zoom);
+    } catch(e) {
+        console.warn('Failed to load viewport', e);
+    }
   }
 }

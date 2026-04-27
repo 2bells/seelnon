@@ -340,6 +340,24 @@
                     </div>
                  </div>
                  <div class="settings-divider"></div>
+
+                 <div class="settings-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="settings-label">AUTOSAVE DELAY</label>
+                        <span id="autosave-val" style="font-size: 9px; font-weight: 900;">4s</span>
+                    </div>
+                    <input type="range" id="settings-autosave" min="0" max="100" value="0" class="brutal-range" style="width: 100%;">
+                    <div class="settings-row" style="margin-top: 8px; margin-bottom: 0;">
+                       <label class="settings-label">AUTOSAVE ENABLED</label>
+                       <div class="checkbox-wrapper">
+                          <input type="checkbox" id="settings-autosave-enable" checked class="settings-input-check">
+                          <span class="checkbox-custom"></span>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div class="settings-divider"></div>
+                 <button id="btn-force-save" class="brutal-btn full-width" style="margin-bottom: 8px;">FORCE SAVE NOW</button>
                  <button id="btn-clear-storage" class="brutal-btn full-width" style="background: #ff4444; color: white;">RESET SYSTEM</button>
                  <p style="font-size: 8px; margin-top: 8px; opacity: 0.6; line-height: 1.2;">WARNING: Reset deletes all projects and data forever.</p>
              </div>
