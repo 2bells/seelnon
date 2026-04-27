@@ -2,8 +2,8 @@ import { SECTOR_SIZE } from './constants.js';
 
 export class SketchStorage {
   constructor() {
-    this.dbName = 'BrutSketchDB';
-    this.version = 3; // Upgraded for Sectors
+    this.dbName = 'ConceptBruteDB';
+    this.version = 1; // Resetting version for the new DB name
     this.db = null;
     this.projectId = 'default';
   }
@@ -15,15 +15,14 @@ export class SketchStorage {
   async init() {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-          reject(new Error("IndexedDB initialization timed out (check for other open tabs)"));
-      }, 5000);
+          reject(new Error("IndexedDB initialization timed out. Close other tabs of this app and refresh."));
+      }, 8000); // 8 seconds timeout
 
       const request = indexedDB.open(this.dbName, this.version);
       
-      request.onblocked = () => {
-          console.warn("IndexedDB open blocked. Please close other tabs of this application.");
-          // We don't reject immediately here, as closing the other tab might unblock it. 
-          // But the timeout will catch it eventually.
+      request.onblocked = (e) => {
+          console.warn("IndexedDB open BLOCKED. Older version:", e.oldVersion, "New version:", e.newVersion);
+          alert("A newer version of the app is trying to load. Please close all other tabs of this application to proceed.");
       };
 
       request.onupgradeneeded = (e) => {

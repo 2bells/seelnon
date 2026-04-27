@@ -98,9 +98,22 @@ class App {
   }
 
   async initProjectSystem() {
-    const list = await this.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
+    let list = await this.storage.loadGlobalSetting('projects_list');
+    if (!list) {
+        const raw = localStorage.getItem('projects_list');
+        if (raw) {
+            try { list = JSON.parse(raw); } catch(e) {}
+        }
+    }
+    if (!list || !Array.isArray(list)) {
+        list = [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
+    }
     this.projects = list;
-    const currentId = await this.storage.loadGlobalSetting('current_project_id') || 'default';
+
+    let currentId = await this.storage.loadGlobalSetting('current_project_id');
+    if (!currentId) {
+        currentId = localStorage.getItem('current_project_id') || 'default';
+    }
     this.currentProjectId = currentId;
     this.storage.setProjectId(currentId);
     this.engine.currentProjectId = currentId;
