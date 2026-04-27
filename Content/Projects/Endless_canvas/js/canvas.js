@@ -52,6 +52,15 @@ export function updateAnimatedStrokesList() {
     });
 }
 
+/**
+ * Optimized helper to add a single stroke to the animation list without re-filtering all.
+ */
+function registerAnimatedStroke(stroke) {
+    if (isStrokeAnimated(stroke)) {
+        state.animatedStrokes.add(stroke);
+    }
+}
+
 export function clearChunkCache() {
     chunkCache.forEach(chunk => {
         if (chunk.canvas) {
@@ -939,92 +948,118 @@ export async function endStroke() {
     const wasDrawing = state.currentStroke && state.currentStroke.points.length > 1; // if just a click, don't consider it a full stroke
     
     if (wasDrawing) {
-        // Round points to 1 decimal place to save memory and storage space
-        state.currentStroke.points = state.currentStroke.points.map(p => ({
-            x: Math.round(p.x * 10) / 10,
-            y: Math.round(p.y * 10) / 10,
-            pressure: Math.round((p.pressure || 1.0) * 100) / 100,
-            size: Math.round(p.size * 10) / 10
-        }));
-        if (state.currentMirrorStroke) {
-            state.currentMirrorStroke.points = state.currentMirrorStroke.points.map(p => ({
+        // Capture a local reference to the strokes we're about to process
+        const strokeToFinalize = state.currentStroke;
+        const mirrorToFinalize = state.currentMirrorStroke;
+
+        // Immediately clear current stroke state so the UI/Renderer knows we are done drawing
+        state.currentStroke = null;
+        state.currentMirrorStroke = null;
+        state.isDrawing = false;
+
+        // NEW: Calculate basic bounds immediately so they can be used for culling 
+        // until the high-precision background task finishes.
+        strokeToFinalize.bounds = calculateStrokeBounds(strokeToFinalize);
+        if (mirrorToFinalize) mirrorToFinalize.bounds = calculateStrokeBounds(mirrorToFinalize);
+
+        // Push to main array immediately so it doesn't flicker out of existence
+        state.strokes.push(strokeToFinalize);
+        if (mirrorToFinalize) state.strokes.push(mirrorToFinalize);
+
+        // Synchronously register for immediate drawing
+        invalidateChunksForStroke(strokeToFinalize);
+        if (mirrorToFinalize) invalidateChunksForStroke(mirrorToFinalize);
+        registerAnimatedStroke(strokeToFinalize);
+        if (mirrorToFinalize) registerAnimatedStroke(mirrorToFinalize);
+
+        // Perform "heavy" calculation in next tick to avoid blocking the main thread 
+        // between mouseup and next mousedown.
+        setTimeout(async () => {
+             // 1. Data Sanitization (updates objects already in array/chunks/sets)
+            strokeToFinalize.points = strokeToFinalize.points.map(p => ({
                 x: Math.round(p.x * 10) / 10,
                 y: Math.round(p.y * 10) / 10,
                 pressure: Math.round((p.pressure || 1.0) * 100) / 100,
                 size: Math.round(p.size * 10) / 10
             }));
-        }
-
-        // Apply smoothing if enabled before rendering to bitmap or adding to strokes
-        if (state.currentStroke.enableSmoothing && state.currentStroke.smoothingFactor > 0) {
-            state.currentStroke.points = applySmoothing(state.currentStroke.points, state.currentStroke.smoothingFactor);
-            if (state.currentMirrorStroke) {
-                state.currentMirrorStroke.points = applySmoothing(state.currentMirrorStroke.points, state.currentMirrorStroke.smoothingFactor);
+            if (mirrorToFinalize) {
+                mirrorToFinalize.points = mirrorToFinalize.points.map(p => ({
+                    x: Math.round(p.x * 10) / 10,
+                    y: Math.round(p.y * 10) / 10,
+                    pressure: Math.round((p.pressure || 1.0) * 100) / 100,
+                    size: Math.round(p.size * 10) / 10
+                }));
             }
-        }
 
-        // --- Performance Optimization: ALWAYS calculate bounds for spatial culling ---
-        state.currentStroke.bounds = calculateStrokeBounds(state.currentStroke);
-        if (state.currentMirrorStroke) {
-            state.currentMirrorStroke.bounds = calculateStrokeBounds(state.currentMirrorStroke);
-        }
-
-        // --- Performance Optimization: Cache Path2D for Vector Drawing ---
-        if (state.currentStroke.type === 'pen' && state.currentStroke.points.length >= 2) {
-            state.currentStroke.pathObject = getVariableWidthPath(state.currentStroke.points, state.currentStroke.minSizeFactor, state.currentStroke.tipShape);
-            if (state.currentMirrorStroke) {
-                state.currentMirrorStroke.pathObject = getVariableWidthPath(state.currentMirrorStroke.points, state.currentMirrorStroke.minSizeFactor, state.currentMirrorStroke.tipShape);
+            // 2. Smoothing
+            if (strokeToFinalize.enableSmoothing && strokeToFinalize.smoothingFactor > 0) {
+                strokeToFinalize.points = applySmoothing(strokeToFinalize.points, strokeToFinalize.smoothingFactor);
+                if (mirrorToFinalize) {
+                    mirrorToFinalize.points = applySmoothing(mirrorToFinalize.points, mirrorToFinalize.smoothingFactor);
+                }
             }
-        }
 
-        // If non-compounding opacity is on, render the stroke to an ImageBitmap for performance
-        if (state.currentStroke.type === 'pen' && state.currentStroke.nonCompoundingOpacity && state.currentStroke.points.length >= 2) {
-            // FIRE AND FORGET: Don't await, let it render in background.
-            // drawPenStroke will fall back to vector/Path2D until bitmap is ready.
-            renderStrokeToBitmap(state.currentStroke);
-            if (state.currentMirrorStroke) {
-                renderStrokeToBitmap(state.currentMirrorStroke);
+            // 3. Bounds & Spatial Data
+            strokeToFinalize.bounds = calculateStrokeBounds(strokeToFinalize);
+            if (mirrorToFinalize) {
+                mirrorToFinalize.bounds = calculateStrokeBounds(mirrorToFinalize);
             }
-        }
-        
-        // After finalization, set needsJitterUpdate for animation to kick in on first non-preview draw
-        if (state.currentStroke.type === 'wireframe' && (state.currentStroke.wireframeAnimationSpeed || 0) > 0) {
-            state.currentStroke.needsJitterUpdate = true;
-        }
-        if (state.mirrorMode && state.currentMirrorStroke && state.currentMirrorStroke.type === 'wireframe' && (state.currentMirrorStroke.wireframeAnimationSpeed || 0) > 0) {
-            state.currentMirrorStroke.needsJitterUpdate = true;
-        }
 
-        // Trigger animation start for sketchy-animated after drawing is complete
-        if (state.currentStroke.type === 'sketchy-animated' && (state.currentStroke.animationInterval || 0) > 0) {
-            state.currentStroke.lastAnimationTime = performance.now(); // Start animation timer
-            state.currentStroke.needsJitterUpdate = true; // Trigger first animation pass
-            delete state.currentStroke.previewJitterPasses; // Clear preview passes
-        }
-        if (state.mirrorMode && state.currentMirrorStroke && state.currentMirrorStroke.type === 'sketchy-animated' && (state.currentMirrorStroke.animationInterval || 0) > 0) {
-            state.currentMirrorStroke.lastAnimationTime = performance.now();
-            state.currentMirrorStroke.needsJitterUpdate = true;
-            delete state.currentMirrorStroke.previewJitterPasses; // Clear preview passes
-        }
+            // 4. Path & Bitmap Caching
+            if (strokeToFinalize.type === 'pen' && strokeToFinalize.points.length >= 2) {
+                strokeToFinalize.pathObject = getVariableWidthPath(strokeToFinalize.points, strokeToFinalize.minSizeFactor, strokeToFinalize.tipShape);
+                if (strokeToFinalize.nonCompoundingOpacity) {
+                    renderStrokeToBitmap(strokeToFinalize);
+                }
 
-        // Now that the stroke is finalized (and bitmap potentially rendered), add it to the main strokes array
-        state.strokes.push(state.currentStroke);
-        invalidateChunksForStroke(state.currentStroke);
-        if (isStrokeAnimated(state.currentStroke)) state.animatedStrokes.add(state.currentStroke);
-        
-        if (state.mirrorMode && state.currentMirrorStroke) {
-            state.strokes.push(state.currentMirrorStroke);
-            invalidateChunksForStroke(state.currentMirrorStroke);
-            if (isStrokeAnimated(state.currentMirrorStroke)) state.animatedStrokes.add(state.currentMirrorStroke);
-        }
+                if (mirrorToFinalize) {
+                    mirrorToFinalize.pathObject = getVariableWidthPath(mirrorToFinalize.points, mirrorToFinalize.minSizeFactor, mirrorToFinalize.tipShape);
+                    if (mirrorToFinalize.nonCompoundingOpacity) {
+                        renderStrokeToBitmap(mirrorToFinalize);
+                    }
+                }
+            }
 
-        saveHistory();
-    } 
-    // If it was just a click (wasDrawing is false), we don't add currentStroke to state.strokes,
-    // it will simply be discarded when currentStroke is nulled below.
-    
-    state.currentStroke = null;
-    state.currentMirrorStroke = null;
+            // 5. Animation Finalization
+            if (strokeToFinalize.type === 'wireframe' && (strokeToFinalize.wireframeAnimationSpeed || 0) > 0) {
+                strokeToFinalize.needsJitterUpdate = true;
+            }
+            if (strokeToFinalize.type === 'sketchy-animated' && (strokeToFinalize.animationInterval || 0) > 0) {
+                strokeToFinalize.lastAnimationTime = performance.now();
+                strokeToFinalize.needsJitterUpdate = true;
+                delete strokeToFinalize.previewJitterPasses;
+            }
+            
+            if (mirrorToFinalize) {
+                if (mirrorToFinalize.type === 'wireframe' && (mirrorToFinalize.wireframeAnimationSpeed || 0) > 0) {
+                    mirrorToFinalize.needsJitterUpdate = true;
+                }
+                if (mirrorToFinalize.type === 'sketchy-animated' && (mirrorToFinalize.animationInterval || 0) > 0) {
+                    mirrorToFinalize.lastAnimationTime = performance.now();
+                    mirrorToFinalize.needsJitterUpdate = true;
+                    delete mirrorToFinalize.previewJitterPasses;
+                }
+            }
+
+            // 6. Final Integration (Re-invalidate if points changed significantly)
+            // If smoothing happened, bounds might have changed slightly
+            strokeToFinalize.bounds = calculateStrokeBounds(strokeToFinalize);
+            invalidateChunksForStroke(strokeToFinalize);
+            
+            if (mirrorToFinalize) {
+                mirrorToFinalize.bounds = calculateStrokeBounds(mirrorToFinalize);
+                invalidateChunksForStroke(mirrorToFinalize);
+            }
+
+            // 7. Persist History
+            saveHistory();
+        }, 0);
+    } else {
+        // Just a click, clean up
+        state.currentStroke = null;
+        state.currentMirrorStroke = null;
+        state.isDrawing = false;
+    }
 }
 
 // Function to invalidate all caches for a stroke (call after transformations)
@@ -1155,6 +1190,10 @@ export function deleteStrokeAt(worldX, worldY) {
 
     if (deleted) {
         saveHistory();
+        // Remove from animatedStrokes if it was there
+        // Actually, for simplicity and since delete happens infrequently, 
+        // we can just re-sync or manually remove.
+        // re-syncing is safer but let's just re-calculate since it's after a UI action.
         updateAnimatedStrokesList();
     }
 }
@@ -1221,10 +1260,15 @@ export function moveStrokes(strokes, dx, dy) {
         
         // Invalidate new position
         invalidateChunksForStroke(newStroke);
+        
+        // If it was animated, we need to update its reference in the set
+        if (state.animatedStrokes.has(stroke)) {
+            state.animatedStrokes.delete(stroke);
+            registerAnimatedStroke(newStroke);
+        }
     }
     
     state.selectedStrokes = updatedStrokes;
-    updateAnimatedStrokesList();
 }
 
 // Function to calculate selection bounding box from selected strokes
