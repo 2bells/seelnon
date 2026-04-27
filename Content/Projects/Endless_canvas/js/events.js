@@ -390,28 +390,46 @@ export function init(canvas) {
             scheduleSave();
         } else if (state.isDrawing) {
             if (state.activeTool === 'brush') {
-                const now = performance.now();
-                let pressure = currentPointerPos.pressure;
-
-                // Speed sensitivity logic
-                if (state.brush.speedSensitivity && pressure === 1.0) { // Fallback to speed if no hardware pressure
-                    const timeDelta = now - state.lastDrawPosition.timestamp;
-                    if (timeDelta > 5) { // Only calculate if there's a meaningful time gap
-                        const distance = Math.hypot(worldPos.x - state.lastDrawPosition.x, worldPos.y - state.lastDrawPosition.y);
-                        const speed = distance / timeDelta; // speed in pixels per millisecond
-
-                        const maxSpeed = state.brush.speedSensitivityFactor; // Use configurable max speed
-                        const minPressure = 0.1;
-                        const calculatedPressure = 1 - (speed / maxSpeed);
-                        pressure = Math.max(minPressure, Math.min(1, calculatedPressure));
-                    } else {
-                        // if moving very slowly or first point, use full pressure
-                        pressure = 1.0;
+                // Get high-frequency pointer data if available to avoid straight segments during lag
+                const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+                
+                for (const event of events) {
+                    const eventWorldPos = screenToWorld(event.clientX, event.clientY);
+                    const eventTimestamp = event.timeStamp || performance.now();
+                    let pressure = 1.0;
+                    
+                    if (state.brush.pressureSensitivity) {
+                        if (event.pointerType === 'pen') {
+                            pressure = event.pressure;
+                        } else if (event.pressure !== undefined && event.pressure !== 0 && event.pressure !== 0.5) {
+                            pressure = event.pressure;
+                        }
                     }
-                }
 
-                addPointToStroke(worldPos.x, worldPos.y, pressure);
-                state.lastDrawPosition = { ...worldPos, timestamp: now };
+                    // Speed sensitivity logic
+                    if (state.brush.speedSensitivity && pressure === 1.0) {
+                        const timeDelta = eventTimestamp - state.lastDrawPosition.timestamp;
+                        if (timeDelta > 2) { // Lower threshold for high-frequency events
+                            const distance = Math.hypot(eventWorldPos.x - state.lastDrawPosition.x, eventWorldPos.y - state.lastDrawPosition.y);
+                            const speed = distance / timeDelta;
+                            const maxSpeed = state.brush.speedSensitivityFactor;
+                            const minPressure = 0.1;
+                            const calculatedPressure = 1 - (speed / maxSpeed);
+                            pressure = Math.max(minPressure, Math.min(1, calculatedPressure));
+                            
+                            // Smooth pressure changes to prevent jitter
+                            if (state.lastDrawPosition.pressure !== undefined) {
+                                pressure = state.lastDrawPosition.pressure * 0.7 + pressure * 0.3;
+                            }
+                        } else {
+                            // Maintain previous pressure if time delta is too small to calculate speed reliably
+                            pressure = state.lastDrawPosition.pressure || 1.0;
+                        }
+                    }
+
+                    addPointToStroke(eventWorldPos.x, eventWorldPos.y, pressure);
+                    state.lastDrawPosition = { ...eventWorldPos, timestamp: eventTimestamp, pressure };
+                }
             }
         } else if (state.isErasing) { // Handle continuous erasing here
             deleteStrokeAt(worldPos.x, worldPos.y);

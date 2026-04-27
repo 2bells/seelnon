@@ -9,6 +9,7 @@ const SECTOR_SIZE = 4096; // 4K world units for storage sectors
 let saveTimeout = null;
 let statusTimeout = null;
 let lastPreviewTime = 0;
+let isSaving = false;
 const PREVIEW_THROTTLE = 60000; // Only generate high-res preview every 60 seconds during auto-save
 
 function showStatus(message, isError = false) {
@@ -32,6 +33,8 @@ function showStatus(message, isError = false) {
 }
 
 export async function saveState(forcePreview = false) {
+    if (isSaving && !forcePreview) return;
+    isSaving = true;
     try {
         const projectId = state.currentProjectId || 'default-project';
 
@@ -129,6 +132,8 @@ export async function saveState(forcePreview = false) {
     } catch (error) {
         console.error("Could not save canvas state:", error);
         showStatus('Save Error', true);
+    } finally {
+        isSaving = false;
     }
 }
 
