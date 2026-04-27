@@ -6,8 +6,9 @@
 const DB_NAME = 'EndlessCanvasAssetDrive';
 const STORE_NAME = 'imageAssets';
 const STATE_STORE = 'canvasState';
+const SECTORS_STORE = 'sectors'; // New: Storage for spatial chunks of data
 const PROJECTS_STORE = 'projects';
-const DB_VERSION = 3; // Bump version for projects store
+const DB_VERSION = 4; // Bump version for sectors store
 
 function openDB() {
     return new Promise((resolve, reject) => {
@@ -19,6 +20,9 @@ function openDB() {
             }
             if (!db.objectStoreNames.contains(STATE_STORE)) {
                 db.createObjectStore(STATE_STORE);
+            }
+            if (!db.objectStoreNames.contains(SECTORS_STORE)) {
+                db.createObjectStore(SECTORS_STORE);
             }
             if (!db.objectStoreNames.contains(PROJECTS_STORE)) {
                 db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
@@ -36,6 +40,30 @@ export async function saveCanvasState(key, data) {
         const store = transaction.objectStore(STATE_STORE);
         const request = store.put(data, key);
         request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function saveSector(projectId, sx, sy, strokes) {
+    const db = await openDB();
+    const key = `${projectId}:${sx}:${sy}`;
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(SECTORS_STORE, 'readwrite');
+        const store = transaction.objectStore(SECTORS_STORE);
+        const request = store.put(strokes, key);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function getSector(projectId, sx, sy) {
+    const db = await openDB();
+    const key = `${projectId}:${sx}:${sy}`;
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(SECTORS_STORE, 'readonly');
+        const store = transaction.objectStore(SECTORS_STORE);
+        const request = store.get(key);
+        request.onsuccess = (e) => resolve(e.target.result);
         request.onerror = (e) => reject(e.target.error);
     });
 }
@@ -122,11 +150,24 @@ export async function getAllProjects() {
 export async function deleteProject(id) {
     const db = await openDB();
     // Also delete state and images associated with this project (though image deletion is complex if shared)
-    // For this simple implementation, we delete the state and the meta.
+    // For this simple implementation, we delete the state, meta and sectors.
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([PROJECTS_STORE, STATE_STORE], 'readwrite');
+        const transaction = db.transaction([PROJECTS_STORE, STATE_STORE, SECTORS_STORE], 'readwrite');
         transaction.objectStore(PROJECTS_STORE).delete(id);
         transaction.objectStore(STATE_STORE).delete(id);
+        
+        // Also clear sectors via prefix range
+        const sectorStore = transaction.objectStore(SECTORS_STORE);
+        const range = IDBKeyRange.bound(`${id}:`, `${id}:\uffff`);
+        const cursorRequest = sectorStore.openKeyCursor(range);
+        cursorRequest.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                sectorStore.delete(cursor.key);
+                cursor.continue();
+            }
+        };
+
         transaction.oncomplete = () => resolve();
         transaction.onerror = (e) => reject(e.target.error);
     });

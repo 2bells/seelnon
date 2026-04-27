@@ -840,8 +840,11 @@ function applySmoothing(points, factor) {
 }
 
 export function startStroke(x, y, pressure) {
+    const strokeId = `s-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     // Only assign to currentStroke; do NOT push to state.strokes yet.
     state.currentStroke = {
+        id: strokeId,
+        createdAt: Date.now(),
         type: state.brush.type,
         points: [{ x, y, pressure, size: state.brush.size }],
         color: state.brush.color,
@@ -889,6 +892,8 @@ export function startStroke(x, y, pressure) {
 
     if (state.mirrorMode) {
         state.currentMirrorStroke = {
+            id: `${strokeId}-m`,
+            createdAt: Date.now(),
             type: state.brush.type,
             points: [{ x: -x, y, pressure, size: state.brush.size }],
             color: state.brush.color,
