@@ -1,11 +1,10 @@
 # GRADES
 
+![Image](https://i.pinimg.com/736x/0e/fc/fa/0efcfadfd465fc771b8be6a37c3ba063.jpg)
+
 No down, all up!
 
 //meaning all are up-grades, no down-grades, get it?... sorry...
-
-![Image](https://i.pinimg.com/736x/0e/fc/fa/0efcfadfd465fc771b8be6a37c3ba063.jpg)
-
 
 ## Endless Canvas!
 
@@ -20,6 +19,11 @@ New brush engine + now smooth + better chunk/sector management + project files +
 New brush engine + chunk optimizations + smudge + fixes + autosave settings + some stuff still doesn't work (I will figure it out later)
 
 ![Image](Content/Projects/Concept_Brute/img/Concept_Brute_v_new.jpg)
+
+```
+doesn't work...
+chill
+```
 
 [Brute it](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/index.html)
 
