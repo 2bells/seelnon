@@ -228,6 +228,23 @@ export function init(canvasElement) {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    window.addEventListener('requestSyncUI', () => {
+        const loading = document.getElementById('loading-overlay');
+        if (loading) loading.classList.remove('hidden');
+        
+        clearChunkCache();
+        rebuildChunkMemberships();
+        updateAnimatedStrokesList();
+        
+        if (loading) loading.classList.add('hidden');
+    });
+
+    window.addEventListener('projectLoaded', () => {
+        clearChunkCache();
+        rebuildChunkMemberships();
+        updateAnimatedStrokesList();
+    });
+
     // Initial build of chunks if strokes exist (e.g. from state loading)
     rebuildChunkMemberships();
     updateAnimatedStrokesList();
@@ -440,10 +457,17 @@ export async function renderStrokeToBitmap(stroke) {
     const worldHeight = maxY - minY + padding * 2;
 
     // Scale world units to pixel units for offscreen canvas
-    const bitmapResolution = 20; // pixels per world unit
+    const bitmapResolution = 2; // Reduced from 20 to 2 for much better performance/memory
+    const MAX_BITMAP_DIM = 4096; // Cap to 4K to prevent browser crashes/huge lags
 
-    const pixelWidth = Math.max(1, Math.ceil(worldWidth * bitmapResolution));
-    const pixelHeight = Math.max(1, Math.ceil(worldHeight * bitmapResolution));
+    let pixelWidth = Math.max(1, Math.ceil(worldWidth * bitmapResolution));
+    let pixelHeight = Math.max(1, Math.ceil(worldHeight * bitmapResolution));
+
+    if (pixelWidth > MAX_BITMAP_DIM || pixelHeight > MAX_BITMAP_DIM) {
+        const scale = MAX_BITMAP_DIM / Math.max(pixelWidth, pixelHeight);
+        pixelWidth = Math.round(pixelWidth * scale);
+        pixelHeight = Math.round(pixelHeight * scale);
+    }
 
     if (pixelWidth <= 0 || pixelHeight <= 0 || !isFinite(pixelWidth) || !isFinite(pixelHeight)) {
         return null; // Invalid dimensions, cannot create bitmap
@@ -452,15 +476,18 @@ export async function renderStrokeToBitmap(stroke) {
     const offscreenCanvas = new OffscreenCanvas(pixelWidth, pixelHeight);
     const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 
+    const finalResX = pixelWidth / worldWidth;
+    const finalResY = pixelHeight / worldHeight;
+
     offscreenCtx.lineCap = stroke.tipShape;
     offscreenCtx.lineJoin = stroke.tipShape;
-    offscreenCtx.strokeStyle = stroke.color; // Use opaque color for offscreen
+    offscreenCtx.strokeStyle = stroke.color; 
     offscreenCtx.fillStyle = stroke.color;
 
-    // Translate offscreen context to draw stroke at 0,0 relative to its bounding box
     // Scale for rendering onto the bitmap canvas
-    offscreenCtx.translate(-minX * bitmapResolution + padding * bitmapResolution, -minY * bitmapResolution + padding * bitmapResolution);
-    offscreenCtx.scale(bitmapResolution, bitmapResolution);
+    offscreenCtx.scale(finalResX, finalResY);
+    // Translate offscreen context to draw stroke at 0,0 relative to its bounding box (including padding)
+    offscreenCtx.translate(-minX + padding, -minY + padding);
 
     drawVariableWidthStrokePolygon(offscreenCtx, stroke.points, stroke.color, stroke.minSizeFactor, stroke.tipShape);
     
@@ -762,24 +789,6 @@ function drawStroke(context, stroke, isPreview = false, targetScale = 1) {
             drawPenStroke(context, stroke, isPreview, targetScale);
             break;
     }
-    window.addEventListener('requestSyncUI', () => {
-        const loading = document.getElementById('loading-overlay');
-        loading?.classList.remove('hidden');
-        
-        clearChunkCache();
-        rebuildChunkMemberships();
-        updateAnimatedStrokesList();
-        
-        loading?.classList.add('hidden');
-    });
-    
-    // Check initial project load
-    window.addEventListener('projectLoaded', () => {
-        clearChunkCache();
-        rebuildChunkMemberships();
-        updateAnimatedStrokesList();
-    });
-
 }
 
 export function startDrawingLoop() {
@@ -970,9 +979,11 @@ export async function endStroke() {
 
         // If non-compounding opacity is on, render the stroke to an ImageBitmap for performance
         if (state.currentStroke.type === 'pen' && state.currentStroke.nonCompoundingOpacity && state.currentStroke.points.length >= 2) {
-            await renderStrokeToBitmap(state.currentStroke);
+            // FIRE AND FORGET: Don't await, let it render in background.
+            // drawPenStroke will fall back to vector/Path2D until bitmap is ready.
+            renderStrokeToBitmap(state.currentStroke);
             if (state.currentMirrorStroke) {
-                await renderStrokeToBitmap(state.currentMirrorStroke);
+                renderStrokeToBitmap(state.currentMirrorStroke);
             }
         }
         
