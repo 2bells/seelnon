@@ -14,17 +14,7 @@ export class SketchStorage {
 
   async init() {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-          reject(new Error("IndexedDB initialization timed out. Close other tabs of this app and refresh."));
-      }, 8000); // 8 seconds timeout
-
       const request = indexedDB.open(this.dbName, this.version);
-      
-      request.onblocked = (e) => {
-          console.warn("IndexedDB open BLOCKED. Older version:", e.oldVersion, "New version:", e.newVersion);
-          alert("A newer version of the app is trying to load. Please close all other tabs of this application to proceed.");
-      };
-
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         // Legacy chunks store (keep for migration or reference, but we'll use sectors)
@@ -39,17 +29,11 @@ export class SketchStorage {
           db.createObjectStore('sectors', { keyPath: 'id' });
         }
       };
-      
       request.onsuccess = (e) => {
-        clearTimeout(timeout);
         this.db = e.target.result;
         resolve();
       };
-
-      request.onerror = (e) => {
-        clearTimeout(timeout);
-        reject(e);
-      };
+      request.onerror = (e) => reject(e);
     });
   }
 

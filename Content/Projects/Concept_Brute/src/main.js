@@ -98,22 +98,9 @@ class App {
   }
 
   async initProjectSystem() {
-    let list = await this.storage.loadGlobalSetting('projects_list');
-    if (!list) {
-        const raw = localStorage.getItem('projects_list');
-        if (raw) {
-            try { list = JSON.parse(raw); } catch(e) {}
-        }
-    }
-    if (!list || !Array.isArray(list)) {
-        list = [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
-    }
+    const list = await this.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
     this.projects = list;
-
-    let currentId = await this.storage.loadGlobalSetting('current_project_id');
-    if (!currentId) {
-        currentId = localStorage.getItem('current_project_id') || 'default';
-    }
+    const currentId = await this.storage.loadGlobalSetting('current_project_id') || 'default';
     this.currentProjectId = currentId;
     this.storage.setProjectId(currentId);
     this.engine.currentProjectId = currentId;
@@ -1385,10 +1372,6 @@ class App {
                 const img = new Image();
                 await new Promise(res => {
                     img.onload = res;
-                    img.onerror = () => {
-                        console.error("Failed to load reference image", r.src);
-                        res();
-                    };
                     img.src = r.src;
                 });
                 this.engine.addReferenceImage(img, r.name, r.x, r.y, {
@@ -1424,14 +1407,7 @@ class App {
                 const dataUrl = await this.storage.loadLegacyChunk(key);
                 if (dataUrl) {
                     const img = new Image();
-                    await new Promise(r => { 
-                        img.onload = r; 
-                        img.onerror = () => {
-                            console.error("Failed to load legacy chunk", dataUrl.substring(0, 50));
-                            r();
-                        };
-                        img.src = dataUrl; 
-                    });
+                    await new Promise(r => { img.onload = r; img.src = dataUrl; });
                     const chunk = this.engine._getChunk(cx, cy);
                     if (chunk && chunk.ctxs[layerId]) {
                         chunk.ctxs[layerId].drawImage(img, 0, 0);
@@ -1464,14 +1440,7 @@ class App {
                     
                     if (dataUrl && !isNaN(layerId) && layerId >= 0 && layerId < LAYERS_COUNT) {
                         const img = new Image();
-                        await new Promise(r => { 
-                            img.onload = r; 
-                            img.onerror = () => {
-                                console.error("Failed to load sector chunk", dataUrl.substring(0, 50));
-                                r();
-                            };
-                            img.src = dataUrl; 
-                        });
+                        await new Promise(r => { img.onload = r; img.src = dataUrl; });
                         const chunk = this.engine._getChunk(cx, cy);
                         if (chunk && chunk.ctxs[layerId]) {
                             chunk.ctxs[layerId].drawImage(img, 0, 0);
