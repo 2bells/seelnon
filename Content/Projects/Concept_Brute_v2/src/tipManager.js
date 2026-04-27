@@ -20,25 +20,34 @@ export class TipManager {
     if (this.storage) {
         let saved = null;
         try {
-            const raw = localStorage.getItem('brushTips');
-            if (raw) saved = JSON.parse(raw);
+            saved = await this.storage.loadGlobalSetting('brushTips');
+            if (!saved) {
+                const raw = localStorage.getItem('brushTips');
+                if (raw) saved = JSON.parse(raw);
+            }
         } catch(e) {
-            console.error("Failed to load brush tips from localStorage", e);
+            console.error("Failed to load brush tips", e);
         }
 
         if (saved && Array.isArray(saved)) {
             for (let i = 0; i < saved.length && i < this.tips.length; i++) {
                 if (saved[i]) {
                     const tipData = (typeof saved[i] === 'string') ? { src: saved[i], paintHeight: 0, oiliness: 0.5, airbrush: 0 } : saved[i];
-                    const img = new Image();
-                    await new Promise(r => {
-                        img.onload = r;
-                        img.src = tipData.src;
-                    });
-                    const c = document.createElement('canvas');
-                    c.width = 128; c.height = 128;
-                    c.getContext('2d').drawImage(img, 0, 0);
-                    this.tips[i].canvas = c;
+                    if (tipData.src) {
+                        const img = new Image();
+                        await new Promise(r => {
+                            img.onload = r;
+                            img.onerror = () => {
+                                console.error("Failed to load brush tip image", tipData.src.substring(0, 50));
+                                r(); 
+                            };
+                            img.src = tipData.src;
+                        });
+                        const c = document.createElement('canvas');
+                        c.width = 128; c.height = 128;
+                        c.getContext('2d').drawImage(img, 0, 0);
+                        this.tips[i].canvas = c;
+                    }
                     this.tips[i].paintHeight = tipData.paintHeight || 0;
                     this.tips[i].oiliness = tipData.oiliness ?? 0.5;
                     this.tips[i].airbrush = tipData.airbrush || 0;
@@ -313,7 +322,7 @@ export class TipManager {
               oiliness: t.oiliness ?? 0.5,
               airbrush: t.airbrush || 0
           }));
-          localStorage.setItem('brushTips', JSON.stringify(data));
+          this.storage.saveGlobalSetting('brushTips', data);
       }
   }
 }

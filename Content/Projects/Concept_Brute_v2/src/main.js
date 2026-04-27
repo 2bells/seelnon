@@ -1372,6 +1372,10 @@ class App {
                 const img = new Image();
                 await new Promise(res => {
                     img.onload = res;
+                    img.onerror = () => {
+                        console.error("Failed to load reference image", r.src);
+                        res();
+                    };
                     img.src = r.src;
                 });
                 this.engine.addReferenceImage(img, r.name, r.x, r.y, {
@@ -1407,7 +1411,14 @@ class App {
                 const dataUrl = await this.storage.loadLegacyChunk(key);
                 if (dataUrl) {
                     const img = new Image();
-                    await new Promise(r => { img.onload = r; img.src = dataUrl; });
+                    await new Promise(r => { 
+                        img.onload = r; 
+                        img.onerror = () => {
+                            console.error("Failed to load legacy chunk", dataUrl.substring(0, 50));
+                            r();
+                        };
+                        img.src = dataUrl; 
+                    });
                     const chunk = this.engine._getChunk(cx, cy);
                     if (chunk && chunk.ctxs[layerId]) {
                         chunk.ctxs[layerId].drawImage(img, 0, 0);
@@ -1440,7 +1451,14 @@ class App {
                     
                     if (dataUrl && !isNaN(layerId) && layerId >= 0 && layerId < LAYERS_COUNT) {
                         const img = new Image();
-                        await new Promise(r => { img.onload = r; img.src = dataUrl; });
+                        await new Promise(r => { 
+                            img.onload = r; 
+                            img.onerror = () => {
+                                console.error("Failed to load sector chunk", dataUrl.substring(0, 50));
+                                r();
+                            };
+                            img.src = dataUrl; 
+                        });
                         const chunk = this.engine._getChunk(cx, cy);
                         if (chunk && chunk.ctxs[layerId]) {
                             chunk.ctxs[layerId].drawImage(img, 0, 0);
