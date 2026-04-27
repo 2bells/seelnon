@@ -23,6 +23,11 @@ New brush engine + chunk optimizations + smudge + fixes + autosave settings + so
 ```
 doesn't work...
 chill
+DB conflicts
+should be fixed
+UPD: fixed
+> tip manager bugged...
+UPD: fixed
 ```
 
 [Brute it](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/index.html)
