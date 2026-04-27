@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, deleteSelectedStrokes, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw, updateAnimatedStrokesList } from './canvas.js';
+import { startStroke, addPointToStroke, endStroke, undo, redo, pickColor, deleteStrokeAt, selectStrokesInRect, moveStrokes, getSelectionBounds, saveHistory, renderStrokeToBitmap, rotateStrokes, scaleStrokes, isPointOnStroke, setSelectedStrokes, getWorldViewport, draw } from './canvas.js';
 import { scheduleSave } from './storage.js';
 import { saveImageAsset } from './db.js';
 
@@ -708,15 +708,6 @@ export function init(canvas) {
 
     // Panning with Spacebar
     window.addEventListener('keydown', (e) => {
-        // Shield hotkeys if focused on an input or textarea
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            // Still allow Escape to blur or close modals if needed, handled elsewhere or here
-            if (e.key === 'Escape') {
-                e.target.blur();
-            }
-            return;
-        }
-
         if (e.code === 'Space' && !state.spacebarPressed) {
             e.preventDefault();
             state.spacebarPressed = true;
@@ -764,20 +755,13 @@ export function init(canvas) {
             const currentBaseType = state.brushPresets[currentPresetId]?.baseType;
             
             let nextPresetId;
-            // Only cycle to the next preset if we are already using the brush tool AND that specific baseType
-            if (state.activeTool === 'brush' && currentBaseType === baseType) {
+            if (currentBaseType === baseType) {
                 const currentIndex = presetsForType.indexOf(currentPresetId);
                 const nextIndex = (currentIndex + 1) % presetsForType.length;
                 nextPresetId = presetsForType[nextIndex];
             } else {
-                // If switching from selection/eraser OR switching to a new baseType group, 
-                // just pick the last used (or first) preset of that group.
-                nextPresetId = state.brushWorkInProgress[baseType] || presetsForType[0];
-                
-                // Fallback: if brushWorkInProgress doesn't match this baseType (rare), use first
-                if (state.brushPresets[nextPresetId]?.baseType !== baseType) {
-                    nextPresetId = presetsForType[0];
-                }
+                // If not currently on this baseType, start with the first one
+                nextPresetId = presetsForType[0];
             }
             
             document.querySelector(`[data-preset-id="${nextPresetId}"]`)?.click();
@@ -861,7 +845,15 @@ export function init(canvas) {
         if ((e.key === 'Delete' || e.key === 'Backspace') && state.activeTool === 'selection') {
             if (state.selectedStrokes.length > 0) {
                 e.preventDefault();
-                deleteSelectedStrokes();
+                for (const stroke of state.selectedStrokes) {
+                    const idx = state.strokes.indexOf(stroke);
+                    if (idx !== -1) {
+                        state.strokes.splice(idx, 1);
+                    }
+                }
+                state.selectedStrokes = [];
+                state.selection = null;
+                saveHistory();
                 updateCanvasCursor();
             } else if (state.selectedImageId) {
                 e.preventDefault();

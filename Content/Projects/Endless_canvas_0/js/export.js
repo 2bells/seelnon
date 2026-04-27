@@ -1,7 +1,6 @@
 import { state } from './state.js';
 import {
     drawBackgroundPattern,
-    drawPatternToContext,
 } from './canvas.js'; // Keep drawBackgroundPattern from canvas.js
 
 // Import drawing utilities
@@ -37,36 +36,8 @@ function renderStrokesToContext(context, strokes, worldBounds, targetWidth, targ
     context.translate(-worldBounds.x, -worldBounds.y);
 
     // Draw background pattern for the exported area
-    drawPatternToContext(context, worldBounds.width * exportScale, worldBounds.height * exportScale, exportScale, worldBounds.x, worldBounds.y);
-
-    // Draw Image Layers (Drawn after background but before strokes)
-    state.images.forEach(img => {
-        if (!img.visible) return;
-
-        // Check if image is within worldBounds
-        const hw = (img.width * (img.scaleX || 1)) / 2;
-        const hh = (img.height * (img.scaleY || 1)) / 2;
-        const imgMinX = img.x - hw;
-        const imgMaxX = img.x + hw;
-        const imgMinY = img.y - hh;
-        const imgMaxY = img.y + hh;
-
-        if (imgMaxX < worldBounds.x || imgMinX > worldBounds.x + worldBounds.width ||
-            imgMaxY < worldBounds.y || imgMinY > worldBounds.y + worldBounds.height) {
-            return;
-        }
-        
-        context.save();
-        context.translate(img.x, img.y);
-        context.rotate(img.rotation || 0);
-        context.scale(img.scaleX || 1, img.scaleY || 1);
-        context.globalAlpha = img.opacity !== undefined ? img.opacity : 1;
-        
-        if (img.element && img.element.complete) {
-            context.drawImage(img.element, -img.width / 2, -img.height / 2, img.width, img.height);
-        }
-        context.restore();
-    });
+    drawBackgroundPattern(context, state.canvasSettings.backgroundType, state.canvasSettings.backgroundSpacing, 
+                          worldBounds.x, worldBounds.y, worldBounds.width, worldBounds.height, exportScale);
 
     // Draw all strokes
     strokes.forEach(stroke => {

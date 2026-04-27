@@ -52,7 +52,6 @@ export const state = {
     
     // Drawing data
     strokes: [],
-    animatedStrokes: new Set(), // Optimization: fast track for live elements
     selectedStrokes: [], // References to selected stroke objects
     currentStroke: null,
     currentMirrorStroke: null, // For mirror mode
@@ -80,7 +79,7 @@ export const state = {
     // History for undo/redo
     history: [],
     historyIndex: -1,
-    HISTORY_MAX_SIZE: 20, // Limit history states to 20 as requested
+    HISTORY_MAX_SIZE: 100, // Limit history states to prevent excessive storage use
 
     // All defined brush presets
     brushPresets: {
@@ -266,8 +265,7 @@ export const state = {
         },
     },
     activeBrushPresetId: 'pen-default', // Default active preset on load
-    currentProjectId: 'default-project', // Added: active project identifier
-    version: 7, // Bump version for project management
+    version: 6, // State version for handling upgrades/resets
     clickHitStroke: null, // Track stroke hit on pointerdown for selection tool
     
     // Color Palette state

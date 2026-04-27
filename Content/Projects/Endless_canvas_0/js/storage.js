@@ -1,14 +1,11 @@
 import { state } from './state.js';
-import { getImageAsset, getDBSize, saveCanvasState, getCanvasState, clearAllAssets, saveProjectMeta, getProjectMeta } from './db.js';
+import { getImageAsset, getDBSize, saveCanvasState, getCanvasState, clearAllAssets } from './db.js';
 
-const SAVE_KEY = 'endlessCanvasSettings'; // General settings like palette, presets
-const PROJECT_ID_KEY = 'endlessCanvasActiveProjectId';
-const SAVE_DELAY = 5000;
+const SAVE_KEY = 'endlessCanvasState';
+const SAVE_DELAY = 5000; // 5 seconds (changed from 2000)
 
 let saveTimeout = null;
 let statusTimeout = null;
-let lastPreviewTime = 0;
-const PREVIEW_THROTTLE = 60000; // Only generate high-res preview every 60 seconds during auto-save
 
 function showStatus(message, isError = false) {
     const indicator = document.getElementById('status-indicator');
@@ -30,19 +27,49 @@ function showStatus(message, isError = false) {
     }, 2000); // Hide after 2 seconds
 }
 
-export async function saveState(forcePreview = false) {
+async function saveState() {
     try {
-        const projectId = state.currentProjectId || 'default-project';
-
         // --- 1. PROJECT DATA (Heavy, goes to IndexedDB) ---
         const projectData = {
-            strokes: state.strokes.map(s => {
-                const { bitmap, pathObject, bounds, animatedPoints, lastAnimationTime, needsDelaunayUpdate, cachedDelaunay, cachedDelaunayPoints, previewJitterPasses, jitterPasses, needsJitterUpdate, ...stripped } = s;
-                return stripped;
-            }),
+            strokes: state.strokes.map(stroke => ({
+                // Optimization: Round coordinates to 1 decimal place
+                points: stroke.points.map(p => ({
+                    x: Math.round(p.x * 10) / 10,
+                    y: Math.round(p.y * 10) / 10,
+                    pressure: Math.round((p.pressure || 1.0) * 100) / 100,
+                    size: Math.round(p.size * 10) / 10
+                })),
+                bounds: stroke.bounds,
+                color: stroke.color,
+                opacity: stroke.opacity,
+                tipShape: stroke.tipShape,
+                minSizeFactor: stroke.minSizeFactor,
+                nonCompoundingOpacity: stroke.nonCompoundingOpacity,
+                type: stroke.type,
+                pixelSize: stroke.pixelSize,
+                enableSmoothing: stroke.enableSmoothing,
+                smoothingFactor: stroke.smoothingFactor,
+                wireframeMeshOpacity: stroke.wireframeMeshOpacity,
+                wireframeLineOpacity: stroke.wireframeLineOpacity,
+                wireframeHullLineThickness: stroke.wireframeHullLineThickness,
+                wireframeMeshLineThickness: stroke.wireframeMeshLineThickness,
+                wireframePointRadius: stroke.wireframePointRadius,
+                wireframePointOpacity: stroke.wireframePointOpacity,
+                wireframePointColor: stroke.wireframePointColor,
+                wireframeAnimationSpeed: stroke.wireframeAnimationSpeed,
+                wireframeAnimationAmount: stroke.wireframeAnimationAmount,
+                wireframeIsClosed: stroke.wireframeIsClosed,
+                wireframeMaxMeshLength: stroke.wireframeMaxMeshLength,
+                wireframeGradientMesh: stroke.wireframeGradientMesh,
+                wireframeGradientMeshBoostFactor: stroke.wireframeGradientMeshBoostFactor,
+                jitterAmount: stroke.jitterAmount,
+                jitterDensity: stroke.jitterDensity,
+                animationInterval: stroke.animationInterval,
+            })),
             historyIndex: state.historyIndex,
             panOffset: state.panOffset,
             zoom: state.zoom,
+            // Images metadata (Heavy bytes stay in 'imageAssets' store)
             images: state.images.map(img => ({
                 id: img.id,
                 x: img.x,
@@ -55,28 +82,13 @@ export async function saveState(forcePreview = false) {
                 locked: img.locked,
                 width: img.width,
                 height: img.height
-            })),
-            canvasSettings: state.canvasSettings // Save background settings per project
+            }))
         };
 
-        // Save heavy project data to IndexedDB under the project ID
-        await saveCanvasState(projectId, projectData);
+        // Save heavy project data to the "Drive" (IndexedDB)
+        await saveCanvasState('currentProject', projectData);
 
-        // Update Project Meta (timestamp and preview) - Throttled unless forced
-        const now = Date.now();
-        if (forcePreview || (now - lastPreviewTime > PREVIEW_THROTTLE)) {
-            await updateProjectPreview(projectId);
-            lastPreviewTime = now;
-        } else {
-            // Still update the timestamp at least
-            const existingMeta = await getProjectMeta(projectId);
-            if (existingMeta) {
-                existingMeta.updatedAt = now;
-                await saveProjectMeta(existingMeta);
-            }
-        }
-
-        // --- 2. GLOBAL SETTINGS & UI (Light, stays in LocalStorage) ---
+        // --- 2. PRESETS & UI (Light, stays in LocalStorage for instant load) ---
         const uiState = {
             activeTool: state.activeTool,
             brushPresets: state.brushPresets,
@@ -85,51 +97,19 @@ export async function saveState(forcePreview = false) {
             paletteColors: state.paletteColors,
             selectedSwatchIndex: state.selectedSwatchIndex,
             activeColor: state.brush.color,
-            renderMode: state.renderMode
+            renderMode: state.renderMode,
+            canvasSettings: state.canvasSettings
         };
 
         localStorage.setItem(SAVE_KEY, JSON.stringify(uiState));
-        localStorage.setItem(PROJECT_ID_KEY, projectId); // Keep track of last opened project
         
-        console.log(`Project ${projectId} saved.`);
+        console.log('Project saved (DB + LocalStorage).');
         showStatus('Saved');
         window.dispatchEvent(new CustomEvent('storageUsageChanged'));
     } catch (error) {
         console.error("Could not save canvas state:", error);
         showStatus('Save Error', true);
     }
-}
-
-async function updateProjectPreview(projectId) {
-    // Generate a high-res preview for the project card
-    const canvas = document.getElementById('drawing-canvas');
-    if (!canvas) return;
-
-    const previewCanvas = document.createElement('canvas');
-    const pWidth = 800;
-    const pHeight = 500; // 16:10 aspect
-    previewCanvas.width = pWidth;
-    previewCanvas.height = pHeight;
-    const pCtx = previewCanvas.getContext('2d');
-
-    // Fill white background
-    pCtx.fillStyle = state.canvasSettings.backgroundColor || '#F7F7F7';
-    pCtx.fillRect(0, 0, pWidth, pHeight);
-
-    // Draw the current viewport scaled down
-    pCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, pWidth, pHeight);
-
-    const previewUrl = previewCanvas.toDataURL('image/jpeg', 0.8);
-    
-    // Get existing meta if any
-    const existingMeta = await getProjectMeta(projectId);
-    const meta = {
-        id: projectId,
-        name: existingMeta?.name || (projectId === 'default-project' ? 'Untitled Masterpiece' : 'New Project'),
-        updatedAt: Date.now(),
-        preview: previewUrl
-    };
-    await saveProjectMeta(meta);
 }
 
 export function scheduleSave() {
@@ -143,16 +123,18 @@ export async function clearAllProjectData() {
     console.log('Project Drive and Asset Drive cleared.');
 }
 
-export async function loadState(projectId = null) {
+export async function loadState() {
     try {
-        // --- 1. LOAD GLOBAL SETTINGS (LocalStorage) ---
+        // --- 1. LOAD UI SHELL (LocalStorage) ---
         const savedUIStateJSON = localStorage.getItem(SAVE_KEY);
         if (savedUIStateJSON) {
             const savedUIState = JSON.parse(savedUIStateJSON);
-            const savedVersion = savedUIState.version || 0;
 
             if (savedUIState.activeTool) state.activeTool = savedUIState.activeTool;
             
+            const savedVersion = savedUIState.version || 0;
+
+            // Load brush presets
             if (savedUIState.brushPresets) {
                 for (const presetId in savedUIState.brushPresets) {
                     const savedPreset = savedUIState.brushPresets[presetId];
@@ -162,6 +144,7 @@ export async function loadState(projectId = null) {
                         const sanitizedSavedPreset = { ...savedPreset };
                         delete sanitizedSavedPreset.name;
                         delete sanitizedSavedPreset.color;
+                        if (presetId === 'wireframe-hull' && savedVersion < 6) continue; 
                         state.brushPresets[presetId] = { ...state.brushPresets[presetId], ...sanitizedSavedPreset };
                     } else {
                         const sanitizedSavedPreset = { ...savedPreset };
@@ -173,6 +156,8 @@ export async function loadState(projectId = null) {
             
             if (savedUIState.activeBrushPresetId && state.brushPresets[savedUIState.activeBrushPresetId]) {
                 state.activeBrushPresetId = savedUIState.activeBrushPresetId;
+            } else {
+                state.activeBrushPresetId = 'pen-default';
             }
 
             if (savedUIState.paletteColors) state.paletteColors = savedUIState.paletteColors;
@@ -183,48 +168,21 @@ export async function loadState(projectId = null) {
 
             if (savedUIState.activeColor) {
                 state.brush.color = savedUIState.activeColor;
+            } else if (state.selectedSwatchIndex !== null && state.paletteColors[state.selectedSwatchIndex]) {
+                state.brush.color = state.paletteColors[state.selectedSwatchIndex];
             } else {
                 state.brush.color = '#000000';
             }
+
+            if (savedUIState.canvasSettings) {
+                state.canvasSettings = { ...state.canvasSettings, ...savedUIState.canvasSettings };
+            }
         } else {
-            // Initial run fallback
             state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
         }
 
-        // Determine which project to load
-        const lastProjectId = localStorage.getItem(PROJECT_ID_KEY);
-        const targetProjectId = projectId || lastProjectId || 'default-project';
-        state.currentProjectId = targetProjectId;
-
-        // Reset volatile project state BEFORE loading
-        state.strokes = [];
-        state.images = [];
-        state.panOffset = { x: 0, y: 0 };
-        state.zoom = 1;
-        state.history = [[]];
-        state.historyIndex = 0;
-
         // --- 2. LOAD PROJECT DATA (IndexedDB) ---
-        let projectData = await getCanvasState(targetProjectId);
-        
-        // MIGRATION: If default-project is empty, try loading the legacy 'currentProject' key
-        if (!projectData && targetProjectId === 'default-project') {
-            console.log("Migrating legacy 'currentProject' data to 'default-project'...");
-            projectData = await getCanvasState('currentProject');
-            if (projectData) {
-                // Save it immediately to the new key
-                await saveCanvasState('default-project', projectData);
-                // Also create initial meta for it if it's the first time
-                const meta = {
-                    id: 'default-project',
-                    name: 'Untitled Masterpiece',
-                    updatedAt: Date.now(),
-                    preview: null
-                };
-                await saveProjectMeta(meta);
-            }
-        }
-
+        const projectData = await getCanvasState('currentProject');
         if (projectData) {
             if (projectData.strokes) {
                 state.strokes = projectData.strokes.map(stroke => ({ ...stroke, bitmap: null }));
@@ -232,10 +190,6 @@ export async function loadState(projectId = null) {
             if (projectData.panOffset) state.panOffset = projectData.panOffset;
             if (projectData.zoom) state.zoom = projectData.zoom;
             if (projectData.historyIndex !== undefined) state.historyIndex = projectData.historyIndex;
-
-            if (projectData.canvasSettings) {
-                state.canvasSettings = { ...state.canvasSettings, ...projectData.canvasSettings };
-            }
 
             if (projectData.images) {
                 state.images = await Promise.all(projectData.images.map(async imgData => {
@@ -257,20 +211,43 @@ export async function loadState(projectId = null) {
         }
 
         window.dispatchEvent(new CustomEvent('storageUsageChanged'));
-        window.dispatchEvent(new CustomEvent('projectLoaded')); // Useful for UI updates
 
-        // Re-initialize history
+        // Re-initialize history based on loaded strokes or empty canvas
         state.history = [];
-        state.history.push(structuredClone(state.strokes.map(s => {
-            const { bitmap, pathObject, ...rest } = s; return rest;
-        })));
+        state.history.push(structuredClone(state.strokes.map(s => ({
+            points: s.points, color: s.color, opacity: s.opacity,
+            tipShape: s.tipShape, minSizeFactor: s.minSizeFactor, nonCompoundingOpacity: s.nonCompoundingOpacity,
+            type: s.type, 
+            pixelSize: s.pixelSize, 
+            enableSmoothing: s.enableSmoothing,
+            smoothingFactor: s.smoothingFactor,
+            wireframeMeshOpacity: s.wireframeMeshOpacity,
+            wireframeLineOpacity: s.wireframeLineOpacity,
+            wireframeHullLineThickness: s.wireframeHullLineThickness,
+            wireframeMeshLineThickness: s.wireframeMeshLineThickness,
+            wireframePointRadius: s.wireframePointRadius,
+            wireframePointOpacity: s.wireframePointOpacity,
+            wireframePointColor: s.wireframePointColor,
+            wireframeAnimationSpeed: s.wireframeAnimationSpeed,
+            wireframeAnimationAmount: s.wireframeAnimationAmount,
+            wireframeIsClosed: s.wireframeIsClosed,
+            wireframeMaxMeshLength: s.wireframeMaxMeshLength,
+            wireframeGradientMesh: s.wireframeGradientMesh,
+            wireframeGradientMeshBoostFactor: s.wireframeGradientMeshBoostFactor,
+            jitterAmount: s.jitterAmount,
+            jitterDensity: s.jitterDensity,
+            animationInterval: s.animationInterval,
+        }))));
         state.historyIndex = 0;
         
     } catch (error) {
         console.error("Could not load canvas state:", error);
+        state.history = [[]];
+        state.historyIndex = 0;
+        state.activeBrushPresetId = 'pen-default';
+        state.brush = structuredClone(state.brushPresets[state.activeBrushPresetId]);
     }
 }
-
 
 export async function getStorageUsageInfo() {
     try {

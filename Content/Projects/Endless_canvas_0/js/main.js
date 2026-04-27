@@ -5,7 +5,6 @@ import { loadState } from './storage.js';
 import { init as initBrushEditor } from './brush/editor.js';
 import { init as initColorPalette } from './ui/palette.js';
 import { init as initExport } from './export.js';
-import { init as initProjects } from './ui/projects.js';
 
 async function main() {
     const canvas = document.getElementById('drawing-canvas');
@@ -28,7 +27,6 @@ async function main() {
     initBrushEditor();
     initColorPalette(document.getElementById('color-palette-container'));
     initExport();
-    initProjects();
     initUI();
 
     console.log("Endless Canvas Initialized.");

@@ -6,8 +6,7 @@
 const DB_NAME = 'EndlessCanvasAssetDrive';
 const STORE_NAME = 'imageAssets';
 const STATE_STORE = 'canvasState';
-const PROJECTS_STORE = 'projects';
-const DB_VERSION = 3; // Bump version for projects store
+const DB_VERSION = 2; // Bump version for new store
 
 function openDB() {
     return new Promise((resolve, reject) => {
@@ -19,9 +18,6 @@ function openDB() {
             }
             if (!db.objectStoreNames.contains(STATE_STORE)) {
                 db.createObjectStore(STATE_STORE);
-            }
-            if (!db.objectStoreNames.contains(PROJECTS_STORE)) {
-                db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
             }
         };
         request.onsuccess = (e) => resolve(e.target.result);
@@ -84,54 +80,6 @@ export async function deleteImageAsset(id) {
     });
 }
 
-// --- PROJECT MANAGEMENT ---
-
-export async function saveProjectMeta(meta) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(PROJECTS_STORE, 'readwrite');
-        const store = transaction.objectStore(PROJECTS_STORE);
-        const request = store.put(meta);
-        request.onsuccess = () => resolve();
-        request.onerror = (e) => reject(e.target.error);
-    });
-}
-
-export async function getProjectMeta(id) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(PROJECTS_STORE, 'readonly');
-        const store = transaction.objectStore(PROJECTS_STORE);
-        const request = store.get(id);
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
-    });
-}
-
-export async function getAllProjects() {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(PROJECTS_STORE, 'readonly');
-        const store = transaction.objectStore(PROJECTS_STORE);
-        const request = store.getAll();
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
-    });
-}
-
-export async function deleteProject(id) {
-    const db = await openDB();
-    // Also delete state and images associated with this project (though image deletion is complex if shared)
-    // For this simple implementation, we delete the state and the meta.
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([PROJECTS_STORE, STATE_STORE], 'readwrite');
-        transaction.objectStore(PROJECTS_STORE).delete(id);
-        transaction.objectStore(STATE_STORE).delete(id);
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = (e) => reject(e.target.error);
-    });
-}
-
 export async function getDBSize() {
     const db = await openDB();
     const stores = [STORE_NAME, STATE_STORE];
@@ -159,7 +107,7 @@ export async function getDBSize() {
 
 export async function clearAllAssets() {
     const db = await openDB();
-    const stores = [STORE_NAME, STATE_STORE, PROJECTS_STORE];
+    const stores = [STORE_NAME, STATE_STORE];
     
     for (const storeName of stores) {
         await new Promise((resolve, reject) => {
