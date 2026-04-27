@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { scheduleSave, clearAllProjectData } from './storage.js';
+import { scheduleSave, clearAllProjectData, markSectorDirty } from './storage.js';
 import { hexToRgba, drawVariableWidthStrokePolygon, calculateStrokeBounds, getVariableWidthPath } from './utils/drawing.js';
 import { screenToWorld } from './events.js';
 
@@ -1050,10 +1050,12 @@ export async function endStroke() {
             // If smoothing happened, bounds might have changed slightly
             strokeToFinalize.bounds = calculateStrokeBounds(strokeToFinalize);
             invalidateChunksForStroke(strokeToFinalize);
+            markSectorDirty(strokeToFinalize);
             
             if (mirrorToFinalize) {
                 mirrorToFinalize.bounds = calculateStrokeBounds(mirrorToFinalize);
                 invalidateChunksForStroke(mirrorToFinalize);
+                markSectorDirty(mirrorToFinalize);
             }
 
             // 7. Persist History

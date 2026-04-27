@@ -173,34 +173,74 @@ export async function deleteProject(id) {
     });
 }
 
-export async function getDBSize() {
+let lastSizeUpdate = 0;
+let cachedSize = 0;
+
+export async function getDBSize(projectId = null) {
+    const now = Date.now();
+    if (!projectId && now - lastSizeUpdate < 30000) return cachedSize; // Cache total size for 30s
+
     const db = await openDB();
-    const stores = [STORE_NAME, STATE_STORE];
+    const stores = [STORE_NAME, STATE_STORE, SECTORS_STORE];
     let totalChars = 0;
 
     for (const storeName of stores) {
         await new Promise((resolve) => {
             const transaction = db.transaction(storeName, 'readonly');
             const store = transaction.objectStore(storeName);
-            const request = store.getAll();
+            
+            let request;
+            if (projectId && storeName === SECTORS_STORE) {
+                // Key range for this project's sectors
+                const range = IDBKeyRange.bound(`${projectId}:`, `${projectId}:\uffff`);
+                request = store.openCursor(range);
+            } else if (projectId && storeName === STATE_STORE) {
+                // Just the state for this project
+                request = store.get(projectId);
+                request.onsuccess = (e) => {
+                    const item = e.target.result;
+                    if (item) {
+                        const str = typeof item === 'string' ? item : JSON.stringify(item);
+                        totalChars += str.length;
+                    }
+                    resolve();
+                };
+                request.onerror = () => resolve();
+                return;
+            } else {
+                request = store.openCursor();
+            }
+            
             request.onsuccess = (e) => {
-                const all = e.target.result;
-                all.forEach(item => {
-                    const str = typeof item === 'string' ? item : JSON.stringify(item);
-                    totalChars += str.length;
-                });
-                resolve();
+                const cursor = e.target.result;
+                if (cursor) {
+                    // For imageAssets, we can't easily filter by project yet without a schema change
+                    // So we only count them in total size, not project-specific size
+                    if (!projectId || storeName !== STORE_NAME) {
+                        const item = cursor.value;
+                        const str = typeof item === 'string' ? item : JSON.stringify(item);
+                        totalChars += str.length;
+                    }
+                    cursor.continue();
+                } else {
+                    resolve();
+                }
             };
             request.onerror = () => resolve();
         });
     }
 
-    return totalChars * 2;
+    const finalSize = totalChars * 2;
+    if (!projectId) {
+        cachedSize = finalSize;
+        lastSizeUpdate = now;
+    }
+    return finalSize;
 }
 
 export async function clearAllAssets() {
     const db = await openDB();
-    const stores = [STORE_NAME, STATE_STORE, PROJECTS_STORE];
+    const stores = [STORE_NAME, STATE_STORE, PROJECTS_STORE, SECTORS_STORE];
     
     for (const storeName of stores) {
         await new Promise((resolve, reject) => {

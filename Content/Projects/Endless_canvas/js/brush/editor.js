@@ -521,7 +521,8 @@ export function init() {
             storageUsageValue.textContent = `${info.used} MB / ${info.limit}MB`;
         }
         if (dbUsageValue) {
-            dbUsageValue.textContent = `${info.dbUsed} MB`;
+            // Label change: Show current project size and total drive in small text
+            dbUsageValue.innerHTML = `${info.projectUsed} MB <span style="font-size: 0.8em; opacity: 0.6;">(Total: ${info.dbUsed} MB)</span>`;
         }
         if (storageUsageBar) {
             storageUsageBar.style.width = `${info.percentage}%`;

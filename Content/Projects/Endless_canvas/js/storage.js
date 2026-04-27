@@ -32,49 +32,76 @@ function showStatus(message, isError = false) {
     }, 2000); // Hide after 2 seconds
 }
 
+let sectorMap = new Map(); // Global map of sectors for current project: "sx,sy" -> [strokes]
+let dirtySectors = new Set(); // Tracks which sectors need saving
+
+export function markSectorDirty(stroke) {
+    const startSx = Math.floor(stroke.bounds.minX / SECTOR_SIZE);
+    const endSx = Math.floor(stroke.bounds.maxX / SECTOR_SIZE);
+    const startSy = Math.floor(stroke.bounds.minY / SECTOR_SIZE);
+    const endSy = Math.floor(stroke.bounds.maxY / SECTOR_SIZE);
+
+    for (let sx = startSx; sx <= endSx; sx++) {
+        for (let sy = startSy; sy <= endSy; sy++) {
+            dirtySectors.add(`${sx},${sy}`);
+        }
+    }
+}
+
 export async function saveState(forcePreview = false) {
     if (isSaving && !forcePreview) return;
     isSaving = true;
     try {
         const projectId = state.currentProjectId || 'default-project';
 
-        // --- 1. SPATIAL STORAGE (Sectors) ---
-        // Partition strokes into fixed grid sectors
-        const sectorMap = new Map(); // "sx,sy" -> [strokes]
-
-        state.strokes.forEach(s => {
-            // Strip runtime objects before saving
-            const { bitmap, pathObject, bounds, animatedPoints, lastAnimationTime, needsDelaunayUpdate, cachedDelaunay, cachedDelaunayPoints, previewJitterPasses, jitterPasses, needsJitterUpdate, ...stripped } = s;
+        // --- 1. INCREMENTAL SPATIAL STORAGE ---
+        // Only process sectors that were marked dirty
+        if (dirtySectors.size > 0) {
+            const savePromises = [];
             
-            // Determine which sectors this stroke touches
+            // Re-map ONLY affected sectors
+            const affectedSectors = Array.from(dirtySectors);
+            affectedSectors.forEach(key => {
+                const [sx, sy] = key.split(',').map(Number);
+                
+                // Find all strokes that intersect this sector
+                const sectorStrokes = state.strokes.filter(s => {
+                    const sStartSx = Math.floor(s.bounds.minX / SECTOR_SIZE);
+                    const sEndSx = Math.floor(s.bounds.maxX / SECTOR_SIZE);
+                    const sStartSy = Math.floor(s.bounds.minY / SECTOR_SIZE);
+                    const sEndSy = Math.floor(s.bounds.maxY / SECTOR_SIZE);
+                    return sx >= sStartSx && sx <= sEndSx && sy >= sStartSy && sy <= sEndSy;
+                }).map(s => {
+                    const { bitmap, pathObject, bounds, animatedPoints, lastAnimationTime, needsDelaunayUpdate, cachedDelaunay, cachedDelaunayPoints, previewJitterPasses, jitterPasses, needsJitterUpdate, ...stripped } = s;
+                    return stripped;
+                });
+
+                if (sectorStrokes.length > 0) {
+                    savePromises.push(saveSector(projectId, sx, sy, sectorStrokes));
+                }
+            });
+
+            await Promise.all(savePromises);
+            dirtySectors.clear();
+        }
+
+        // --- 2. PROJECT MANIFEST ---
+        // We still need to know which sectors have data to load them later
+        const activeSectorsSet = new Set();
+        state.strokes.forEach(s => {
             const startSx = Math.floor(s.bounds.minX / SECTOR_SIZE);
             const endSx = Math.floor(s.bounds.maxX / SECTOR_SIZE);
             const startSy = Math.floor(s.bounds.minY / SECTOR_SIZE);
             const endSy = Math.floor(s.bounds.maxY / SECTOR_SIZE);
-
             for (let sx = startSx; sx <= endSx; sx++) {
                 for (let sy = startSy; sy <= endSy; sy++) {
-                    const key = `${sx},${sy}`;
-                    if (!sectorMap.has(key)) sectorMap.set(key, []);
-                    sectorMap.get(key).push(stripped);
+                    activeSectorsSet.add(`${sx},${sy}`);
                 }
             }
         });
 
-        // Track sector index for the project meta (so we know where to look on load)
-        const activeSectors = Array.from(sectorMap.keys());
-
-        // Save each modified sector to DB
-        const savePromises = [];
-        sectorMap.forEach((strokes, key) => {
-            const [sx, sy] = key.split(',').map(Number);
-            savePromises.push(saveSector(projectId, sx, sy, strokes));
-        });
-        await Promise.all(savePromises);
-
-        // --- 2. PROJECT MANIFEST (Metadata) ---
         const projectData = {
-            activeSectors, // Index of where strokes are stored
+            activeSectors: Array.from(activeSectorsSet),
             historyIndex: state.historyIndex,
             panOffset: state.panOffset,
             zoom: state.zoom,
@@ -341,25 +368,28 @@ export async function getStorageUsageInfo() {
             const key = localStorage.key(i);
             const value = localStorage.getItem(key);
             if (key && value) {
-                // Characters in localStorage are internally stored as UTF-16, so 2 bytes per char
                 total += (key.length + value.length) * 2;
             }
         }
         
+        const projectId = state.currentProjectId || 'default-project';
         const dbSize = await getDBSize();
+        const projectSize = await getDBSize(projectId);
         
         const usedMB = total / (1024 * 1024);
         const dbMB = dbSize / (1024 * 1024);
-        const limitMB = 5; // Standard localStorage limit
+        const projMB = projectSize / (1024 * 1024);
+        const limitMB = 5;
         const percentage = (usedMB / limitMB) * 100;
         
         return {
             used: usedMB.toFixed(2),
             limit: limitMB,
             percentage: Math.min(100, percentage).toFixed(1),
-            dbUsed: dbMB.toFixed(2)
+            dbUsed: dbMB.toFixed(2),
+            projectUsed: projMB.toFixed(2)
         };
     } catch (e) {
-        return { used: "0.00", limit: 5, percentage: "0.0", dbUsed: "0.00" };
+        return { used: "0.00", limit: 5, percentage: "0.0", dbUsed: "0.00", projectUsed: "0.00" };
     }
 }
