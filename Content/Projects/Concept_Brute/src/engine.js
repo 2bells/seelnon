@@ -4,7 +4,7 @@ export class Engine {
   constructor(container, settings = {}) {
     this.container = container;
     this.chunkSize = settings.chunkSize || DEFAULT_CHUNK_SIZE;
-    this.saveQuality = settings.quality || 0.5;
+    this.saveQuality = settings.quality || 0.92; // Higher default quality to avoid edge artifacts
     this.chunks = new Map(); // id -> { canvases: [canvas, canvas, canvas], ctxs: [ctx, ctx, ctx] }
     this.activeLayer = 1; // Default to first paint layer
     this.currentProjectId = null;
@@ -72,8 +72,10 @@ export class Engine {
     // Make wrapper larger to handle rotation without edges showing
     this.canvasWrapper.style.width = '10000px';
     this.canvasWrapper.style.height = '10000px';
-    this.canvasWrapper.style.left = '-5000px';
-    this.canvasWrapper.style.top = '-5000px';
+    this.canvasWrapper.style.left = 'calc(50% - 5000px)';
+    this.canvasWrapper.style.top = 'calc(50% - 5000px)';
+    this.canvasWrapper.style.transformOrigin = '5000px 5000px';
+    this.canvasWrapper.style.backgroundColor = this.canvasBg;
     this.container.appendChild(this.canvasWrapper);
 
     if (!this.scratchCanvas) {
@@ -102,6 +104,7 @@ export class Engine {
     this.uiLayer.appendChild(this.selectionViz);
 
     this._initEvents();
+    window.addEventListener('resize', () => this.refresh());
     this._startAnimationLoop();
   }
 
@@ -119,14 +122,11 @@ export class Engine {
     temp.height = size;
     const tctx = temp.getContext('2d');
     
-    // Account for container's offset on screen
-    const containerRect = this.container.getBoundingClientRect();
-    const localX = screenX - containerRect.left;
-    const localY = screenY - containerRect.top;
+    const m = this._getMousePos({ clientX: screenX, clientY: screenY });
 
     const rect = {
-      x: (localX - this.pan.x) / this.zoom - (size / (2 * this.zoom)),
-      y: (localY - this.pan.y) / this.zoom - (size / (2 * this.zoom)),
+      x: m.wx - (size / (2 * this.zoom)),
+      y: m.wy - (size / (2 * this.zoom)),
       w: size / this.zoom,
       h: size / this.zoom
     };
@@ -270,8 +270,7 @@ export class Engine {
             if (e.repeat) return;
             const now = performance.now();
             if (now - this.lastRKeyTime < 300) {
-                this.rotation = 0;
-                this.refresh();
+                this.setRotation(0);
                 this._status('ROTATION RESET');
             }
             this.lastRKeyTime = now;
@@ -302,37 +301,58 @@ export class Engine {
   }
 
   toggleMirror() {
+    const rect = this.container.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    
+    // Get current world point at screen center
+    const worldCenter = this._getMousePos({ clientX: cx, clientY: cy });
+    
     this.isMirrored = !this.isMirrored;
+    
+    // Refresh to update matrix internal state
     this.refresh();
+    
+    // Find where that world point is now
+    const screenCenterAfter = this._worldToScreen(worldCenter.wx, worldCenter.wy);
+    
+    // Adjust pan to keep it exactly at center
+    this.pan.x += cx - screenCenterAfter.x;
+    this.pan.y += cy - screenCenterAfter.y;
+
+    this.refresh();
+    this.saveViewport();
     this._status(this.isMirrored ? 'MIRRORED' : 'NORMAL');
   }
 
   _getMousePos(e) {
     const rect = this.container.getBoundingClientRect();
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     
-    // Account for rotation around container center
-    if (this.rotation !== 0) {
-        const cx = rect.width / 2;
-        const cy = rect.height / 2;
-        const dx = x - cx;
-        const dy = y - cy;
-        const cos = Math.cos(-this.rotation);
-        const sin = Math.sin(-this.rotation);
-        x = dx * cos - dy * sin + cx;
-        y = dx * sin + dy * cos + cy;
-    }
+    const cx = Math.floor(rect.width / 2);
+    const cy = Math.floor(rect.height / 2);
 
+    const dx = x - cx - this.pan.x;
+    const dy = y - cy - this.pan.y;
+
+    const cos = Math.cos(-this.rotation);
+    const sin = Math.sin(-this.rotation);
+    
+    let wx = (dx * cos - dy * sin) / this.zoom;
+    let wy = (dx * sin + dy * cos) / this.zoom;
+
+    // Mirroring is applied FIRST in the transform chain (rightmost in CSS)
+    // so we must un-flip it LAST in the inverse
     if (this.isMirrored) {
-        x = rect.width - x;
+        wx = -wx;
     }
     
     return {
         x: x, 
         y: y,
-        wx: (x - this.pan.x) / this.zoom,
-        wy: (y - this.pan.y) / this.zoom
+        wx: wx,
+        wy: wy
     };
   }
 
@@ -355,8 +375,9 @@ export class Engine {
   }
 
   _getChunkCoords(x, y) {
-    const cx = Math.floor((x - this.pan.x) / (this.chunkSize * this.zoom));
-    const cy = Math.floor((y - this.pan.y) / (this.chunkSize * this.zoom));
+    const pos = this._getMousePos({ clientX: x, clientY: y });
+    const cx = Math.floor(pos.wx / this.chunkSize);
+    const cy = Math.floor(pos.wy / this.chunkSize);
     return { cx, cy };
   }
 
@@ -372,17 +393,19 @@ export class Engine {
       element: document.createElement('div')
     };
 
-    chunk.element.className = 'absolute border-white-5 pointer-events-none';
-    chunk.element.style.width = `${this.chunkSize}px`;
-    chunk.element.style.height = `${this.chunkSize}px`;
+    chunk.element.className = 'absolute pointer-events-none'; // Removed border-white-5 which caused seams
+    
+    // Quality bump: use device pixel ratio for sharper drawing if requested, 
+    // but for now let's just ensure clean tiling.
+    const dpr = 1; // Keeping it 1 for now to avoid breaking coordinate logic, but using auto rendering
     
     for (let i = 0; i < LAYERS_COUNT; i++) {
       const canv = document.createElement('canvas');
-      canv.width = this.chunkSize;
-      canv.height = this.chunkSize;
+      canv.width = this.chunkSize * dpr;
+      canv.height = this.chunkSize * dpr;
       canv.className = 'absolute inset-0';
-      // Use default rendering when potentially rotating to reduce seams
-      canv.style.imageRendering = 'auto';
+      // Crisp rendering for the brutalist look
+      canv.style.imageRendering = 'pixelated'; 
       canv.style.backfaceVisibility = 'hidden';
       canv.style.webkitBackfaceVisibility = 'hidden';
       chunk.element.appendChild(canv);
@@ -410,19 +433,23 @@ export class Engine {
   }
 
   _updateChunkTransform(chunk) {
-    const x = chunk.cx * this.chunkSize * this.zoom + this.pan.x + 5000;
-    const y = chunk.cy * this.chunkSize * this.zoom + this.pan.y + 5000;
-    chunk.element.style.transform = `translate(${x}px, ${y}px) scale(${this.zoom})`;
+    // Chunks are positioned at integer coordinates within the wrapper
+    const x = chunk.cx * this.chunkSize + 5000;
+    const y = chunk.cy * this.chunkSize + 5000;
+    chunk.element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    // Slightly larger than 100% to overlap and hide fractional seams
+    chunk.element.style.width = `${this.chunkSize + 1}px`;
+    chunk.element.style.height = `${this.chunkSize + 1}px`;
     chunk.element.style.transformOrigin = 'top left';
   }
 
   _updateRefImagesTransform() {
     this.referenceImages.forEach((ref, index) => {
         if (!ref.element) return;
-        const x = ref.x * this.zoom + this.pan.x + 5000;
-        const y = ref.y * this.zoom + this.pan.y + 5000;
+        const x = ref.x + 5000;
+        const y = ref.y + 5000;
         
-        let transform = `translate(${x}px, ${y}px) rotate(${ref.rotation}rad) scale(${ref.scale * this.zoom})`;
+        let transform = `translate(${x}px, ${y}px) rotate(${ref.rotation}rad) scale(${ref.scale})`;
         if (ref.mirrorX) transform += ' scaleX(-1)';
         if (ref.mirrorY) transform += ' scaleY(-1)';
         
@@ -445,12 +472,19 @@ export class Engine {
     this.chunks.forEach(chunk => this._updateChunkTransform(chunk));
     this._updateRefImagesTransform();
     
-    const rect = this.container.getBoundingClientRect();
-    const cx = rect.width / 2 + 5000;
-    const cy = rect.height / 2 + 5000;
-    this.canvasWrapper.style.transformOrigin = `${cx}px ${cy}px`;
+    // Move pan and zoom to the wrapper to prevent sub-pixel gaps between chunks
+    const px = Math.round(this.pan.x);
+    const py = Math.round(this.pan.y);
     
-    let transform = `rotate(${this.rotation}rad)`;
+    // Use container dimensions to center exactly on pixels
+    const rect = this.container.getBoundingClientRect();
+    const ox = Math.floor(rect.width / 2) - 5000;
+    const oy = Math.floor(rect.height / 2) - 5000;
+    
+    this.canvasWrapper.style.left = `${ox}px`;
+    this.canvasWrapper.style.top = `${oy}px`;
+    
+    let transform = `translate3d(${px}px, ${py}px, 0) scale(${this.zoom}) rotate(${this.rotation}rad)`;
     if (this.isMirrored) {
         transform += ' scaleX(-1)';
     }
@@ -460,9 +494,10 @@ export class Engine {
   refreshGrid() {
     // Sync Background
     this.container.style.backgroundColor = this.canvasBg;
+    this.canvasWrapper.style.backgroundColor = this.canvasBg;
     
     if (this.showGrid) {
-        const scaledSize = this.gridSize * this.zoom;
+        const scaledSize = this.gridSize; // Grid is in wrapper space now
         const color = this.gridColor;
         const opacity = this.gridIntensity;
         
@@ -482,14 +517,13 @@ export class Engine {
         } else if (this.gridPattern === 'squares') {
             bgImage = `linear-gradient(90deg, ${gridColorWithOpacity} 1px, transparent 1px), linear-gradient(0deg, ${gridColorWithOpacity} 1px, transparent 1px)`;
         } else if (this.gridPattern === 'crosses') {
-            // Crosses: small vertical and horizontal lines intersecting at grid points
             bgImage = `linear-gradient(90deg, transparent 48%, ${gridColorWithOpacity} 48%, ${gridColorWithOpacity} 52%, transparent 52%), 
                        linear-gradient(0deg, transparent 48%, ${gridColorWithOpacity} 48%, ${gridColorWithOpacity} 52%, transparent 52%)`;
         }
 
         this.canvasWrapper.style.backgroundImage = bgImage;
         this.canvasWrapper.style.backgroundSize = `${scaledSize}px ${scaledSize}px`;
-        this.canvasWrapper.style.backgroundPosition = `${5000 + this.pan.x}px ${5000 + this.pan.y}px`;
+        this.canvasWrapper.style.backgroundPosition = `5000px 5000px`;
     } else {
         this.canvasWrapper.style.backgroundImage = 'none';
         this.canvasWrapper.style.backgroundPosition = '0 0';
@@ -501,6 +535,28 @@ export class Engine {
     this.refreshGrid();
     this._drawSelectionViz();
     this._updateSelectionPreview();
+  }
+
+  _worldToScreen(wx, wy) {
+    const rect = this.container.getBoundingClientRect();
+    const cx = Math.floor(rect.width / 2);
+    const cy = Math.floor(rect.height / 2);
+    
+    // Mirroring is applied FIRST
+    let rx = wx;
+    let ry = wy;
+    if (this.isMirrored) rx = -rx;
+
+    const cos = Math.cos(this.rotation);
+    const sin = Math.sin(this.rotation);
+    
+    const finalX = (rx * cos - ry * sin) * this.zoom;
+    const finalY = (rx * sin + ry * cos) * this.zoom;
+    
+    return {
+        x: cx + this.pan.x + finalX,
+        y: cy + this.pan.y + finalY
+    };
   }
 
   _drawSelectionViz() {
@@ -517,11 +573,6 @@ export class Engine {
       
       if (pathToShow || this.isExportMode) {
           ctx.save();
-          // Apply Camera Transform
-          ctx.translate(rect.width/2, rect.height/2);
-          if (this.isMirrored) ctx.scale(-1, 1);
-          ctx.rotate(this.rotation);
-          ctx.translate(-rect.width/2, -rect.height/2);
 
           if (this.isExportMode) {
               // Draw dimming overlay
@@ -529,19 +580,20 @@ export class Engine {
               
               if (this.exportRect) {
                   const r = this.exportRect;
-                  const sx = r.x * this.zoom + this.pan.x;
-                  const sy = r.y * this.zoom + this.pan.y;
-                  const sw = r.w * this.zoom;
-                  const sh = r.h * this.zoom;
+                  // Handle export rect bounds in screen space
+                  // Rect is defined by two world points
+                  const s1 = this._worldToScreen(r.x, r.y);
+                  const s2 = this._worldToScreen(r.x + r.w, r.y + r.h);
+                  
+                  const sx = Math.min(s1.x, s2.x);
+                  const sy = Math.min(s1.y, s2.y);
+                  const sw = Math.abs(s2.x - s1.x);
+                  const sh = Math.abs(s2.y - s1.y);
 
                   // Dim around selection
-                  // Top
                   ctx.fillRect(0, 0, rect.width, sy);
-                  // Bottom
                   ctx.fillRect(0, sy + sh, rect.width, rect.height - (sy + sh));
-                  // Left
                   ctx.fillRect(0, sy, sx, sh);
-                  // Right
                   ctx.fillRect(sx + sw, sy, rect.width - (sx + sw), sh);
 
                   // Border
@@ -555,7 +607,6 @@ export class Engine {
                   ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
                   ctx.strokeRect(sx, sy, sw, sh);
               } else {
-                  // Full screen dim if no selection yet
                   ctx.fillRect(0, 0, rect.width, rect.height);
               }
           } else if (pathToShow) {
@@ -568,10 +619,9 @@ export class Engine {
               const skip = Math.max(1, Math.floor(pathToShow.length / 500));
               pathToShow.forEach((p, i) => {
                   if (i % skip !== 0 && i !== pathToShow.length - 1) return;
-                  const sx = p.x * this.zoom + this.pan.x;
-                  const sy = p.y * this.zoom + this.pan.y;
-                  if (i === 0) ctx.moveTo(sx, sy);
-                  else ctx.lineTo(sx, sy);
+                  const s = this._worldToScreen(p.x, p.y);
+                  if (i === 0) ctx.moveTo(s.x, s.y);
+                  else ctx.lineTo(s.x, s.y);
               });
               
               if (this.activeSelectionPath) ctx.closePath();
@@ -929,9 +979,10 @@ export class Engine {
         return;
     }
     
-    if (this.keys['z'] || this.isZoomingMode) {
-        this.isZooming = true;
-        this.zoomAnchor = { x: e.clientX, y: e.clientY };
+    if (this.keys['z'] || this.isZoomingMode || this.keys['r']) {
+        this.isZooming = this.keys['z'] || this.isZoomingMode;
+        this.transformAnchor = { x: e.clientX, y: e.clientY };
+        this.lastMousePos = { x: e.clientX, y: e.clientY };
         return;
     }
 
@@ -995,12 +1046,13 @@ export class Engine {
     this.isDrawing = true;
     const m = this._getMousePos(e);
     this.lastPos = { x: m.x, y: m.y };
+    this.lastWorldPos = { x: m.wx, y: m.wy };
     this.lastTime = e.timeStamp || performance.now();
     this.smoothedVelocity = 0;
     
     const worldPos = {
-        x: (m.x - this.pan.x) / this.zoom,
-        y: (m.y - this.pan.y) / this.zoom,
+        x: m.wx,
+        y: m.wy,
         size: this.brush.size,
         opacity: 1.0,
         color: this.brush.color
@@ -1032,26 +1084,21 @@ export class Engine {
         if (this.keys['r']) {
             // Rotate
             const rect = this.container.getBoundingClientRect();
-            const cx = rect.width / 2;
-            const cy = rect.height / 2;
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
             
+            // Calculate rotation angle relative to center
             const a1 = Math.atan2(this.lastMousePos.y - cy, this.lastMousePos.x - cx);
             const a2 = Math.atan2(e.clientY - cy, e.clientX - cx);
-            this.rotation += (a2 - a1);
+            
+            // Pivot around the point where they first pressed
+            const anchor = this.transformAnchor || { x: cx, y: cy };
+            this.setRotation(this.rotation + (a2 - a1), anchor.x, anchor.y);
         } else {
             // Pan
-            let dx = e.clientX - this.lastMousePos.x;
-            let dy = e.clientY - this.lastMousePos.y;
+            const dx = e.clientX - this.lastMousePos.x;
+            const dy = e.clientY - this.lastMousePos.y;
             
-            // Account for rotation in panning
-            if (this.rotation !== 0) {
-                const rx = dx * Math.cos(-this.rotation) - dy * Math.sin(-this.rotation);
-                const ry = dx * Math.sin(-this.rotation) + dy * Math.cos(-this.rotation);
-                dx = rx;
-                dy = ry;
-            }
-
-            if (this.isMirrored) dx = -dx;
             this.pan.x += dx;
             this.pan.y += dy;
             this.saveViewport();
@@ -1070,7 +1117,7 @@ export class Engine {
         const zoomDelta = -dy * 0.01;
         const newZoom = this.zoom * (1 + zoomDelta);
         
-        this.setZoom(newZoom, this.zoomAnchor.x, this.zoomAnchor.y);
+        this.setZoom(newZoom, this.transformAnchor.x, this.transformAnchor.y);
         this.lastMousePos = { x: e.clientX, y: e.clientY };
         return;
     }
@@ -1206,8 +1253,8 @@ export class Engine {
     const velocity = Math.min(this.smoothedVelocity, 2000); 
 
     const worldTo = {
-      x: (currentPos.x - this.pan.x) / this.zoom,
-      y: (currentPos.y - this.pan.y) / this.zoom
+      x: m.wx,
+      y: m.wy
     };
 
     // --- Brush Sensitivity ---
@@ -1237,10 +1284,7 @@ export class Engine {
 
     if (this.brush.type === TOOLS.WIREFRAME) {
         this.strokePoints.push(worldPos);
-        const from = {
-            x: (this.lastPos.x - this.pan.x) / this.zoom,
-            y: (this.lastPos.y - this.pan.y) / this.zoom
-        };
+        const from = this.lastWorldPos || worldTo;
         this._paintOnChunks(from, worldTo, Math.max(1, dynamicSize * 0.1), opacMod, color);
         
         const thresholdMax = dynamicSize * 4;
@@ -1277,6 +1321,7 @@ export class Engine {
     }
     
     this.lastPos = currentPos;
+    this.lastWorldPos = worldTo;
     this.lastTime = currentTime;
   }
 
@@ -1435,9 +1480,8 @@ export class Engine {
       if (!this.lassoPath) {
           this.lassoPath = [];
       }
-      const wx = (to.x - this.pan.x) / this.zoom;
-      const wy = (to.y - this.pan.y) / this.zoom;
-      this.lassoPath.push({ x: wx, y: wy });
+      const m = this._getMousePos({ clientX: to.x + this.container.getBoundingClientRect().left, clientY: to.y + this.container.getBoundingClientRect().top });
+      this.lassoPath.push({ x: m.wx, y: m.wy });
       this._status('LASSOING...');
   }
 
@@ -1475,14 +1519,10 @@ export class Engine {
       this.selectionOverlay.style.width = `${sel.canvas.width}px`;
       this.selectionOverlay.style.height = `${sel.canvas.height}px`;
       
-      // pivot point calculation
-      const worldPivotX = sel.x + sel.canvas.width / 2;
-      const worldPivotY = sel.y + sel.canvas.height / 2;
+      // pivot point calculation in screen space
+      const s = this._worldToScreen(sel.x + sel.canvas.width / 2, sel.y + sel.canvas.height / 2);
       
-      const screenPivotX = worldPivotX * this.zoom + this.pan.x;
-      const screenPivotY = worldPivotY * this.zoom + this.pan.y;
-      
-      let rot = sel.rotation || 0;
+      let rot = (sel.rotation || 0);
       const sc = (sel.scale || 1);
       const displayScale = sc * this.zoom;
       const opacity = (sel.opacity !== undefined ? sel.opacity : 1);
@@ -1490,18 +1530,17 @@ export class Engine {
       let mirrorX = sel.mirrorX ? -1 : 1;
       let mirrorY = sel.mirrorY ? -1 : 1;
       
-      let finalX = screenPivotX;
+      let finalRot = rot + this.rotation;
       if (this.isMirrored) {
-          finalX = rect.width - screenPivotX;
           mirrorX *= -1;
-          rot = -rot;
+          finalRot = -finalRot;
       }
 
       this.selectionOverlay.style.left = '0px';
       this.selectionOverlay.style.top = '0px';
       this.selectionOverlay.style.transformOrigin = 'center center';
       // Center on pivot, then rotate and scale
-      this.selectionOverlay.style.transform = `translate(${finalX}px, ${screenPivotY}px) translate(-50%, -50%) rotate(${rot}rad) scale(${displayScale * mirrorX}, ${displayScale * mirrorY})`;
+      this.selectionOverlay.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -50%) rotate(${finalRot}rad) scale(${displayScale * mirrorX}, ${displayScale * mirrorY})`;
       this.selectionOverlay.style.opacity = opacity;
       
       // Update info status
@@ -1793,15 +1832,15 @@ export class Engine {
     if (this.activeLayer === 0) return;
     
     // 1. Prepare Brush Params
+    const isSmudge = this.brush.type === TOOLS.SMUDGE;
     const bSize = Math.round(size);
-    const spacing = Math.max(2, bSize * this.brush.spacing); // Increased min spacing for speed
+    const spacing = isSmudge ? Math.max(1, bSize * 0.05) : Math.max(2, bSize * this.brush.spacing); 
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
     const flow = this.brush.flow || 0.5;
     
     const isEraser = this.brush.type === TOOLS.ERASER;
-    const isSmudge = this.brush.type === TOOLS.SMUDGE;
     const isWire = this.brush.type === TOOLS.WIREFRAME;
     const tip = this.brush.tip;
     const airbrush = this.brush.airbrush || 0;
@@ -1913,20 +1952,44 @@ export class Engine {
                 if (this.smudgeDirty) {
                     sCtx.save();
                     sCtx.translate(px, py); if (hasRotation) sCtx.rotate(this.rotation);
-                    sCtx.globalAlpha = opacityBase;
+                    // Boost visibility of smudge. 
+                    // Higher flow = more opaque smudge stamp.
+                    sCtx.globalAlpha = Math.min(1.0, flow * 1.5); 
                     sCtx.drawImage(this.smudgeCanvas, -sR, -sR, sSz, sSz);
                     sCtx.restore();
                 }
 
                 this.smudgeCtx.save();
                 this.smudgeCtx.clearRect(0, 0, 128, 128);
+                
                 if (this.smudgeDirty) {
+                    // Previous smudge content
+                    this.smudgeCtx.globalAlpha = 1.0;
                     this.smudgeCtx.drawImage(this.smudgeCanvas, 0, 0);
-                    this.smudgeCtx.globalAlpha = 0.4 * flow;
+                    
+                    // Pickup from segment.
+                    // Higher flow = more pickup (wetness).
+                    // Higher opacity = less update (drag length).
+                    const pickUpAlpha = (0.3 + flow * 0.4) * (1.1 - opacity * 0.8);
+                    this.smudgeCtx.globalAlpha = Math.min(1.0, pickUpAlpha);
                 } else {
                     this.smudgeCtx.globalAlpha = 1.0;
                 }
+                
+                // 1. Pick up color from the segment
                 this.smudgeCtx.drawImage(this.segmentCanvas, px - sR, py - sR, sSz, sSz, 0, 0, 128, 128);
+
+                // 2. MASK the smudge content with the brush tip
+                this.smudgeCtx.globalCompositeOperation = 'destination-in';
+                this.smudgeCtx.globalAlpha = 1.0;
+                if (tip) {
+                    this.smudgeCtx.drawImage(tip, 0, 0, 128, 128);
+                } else {
+                    this.smudgeCtx.beginPath();
+                    this.smudgeCtx.arc(64, 64, 64, 0, Math.PI * 2);
+                    this.smudgeCtx.fill();
+                }
+
                 this.smudgeCtx.restore();
                 this.smudgeDirty = true;
             }
@@ -2231,25 +2294,69 @@ export class Engine {
 
   setZoom(z, cursorX = null, cursorY = null) {
     const oldZoom = this.zoom;
-    this.zoom = Math.max(0.05, Math.min(20, z)); // Wider range
-
-    if (cursorX === null || cursorY === null) {
-        const rect = this.container.getBoundingClientRect();
-        cursorX = rect.left + rect.width / 2;
-        cursorY = rect.top + rect.height / 2;
-    }
+    this.zoom = Math.max(0.01, Math.min(50, z));
 
     const rect = this.container.getBoundingClientRect();
+    const cx = Math.floor(rect.width / 2);
+    const cy = Math.floor(rect.height / 2);
+
+    if (cursorX === null || cursorY === null) {
+        cursorX = rect.left + cx;
+        cursorY = rect.top + cy;
+    }
+
     const x = cursorX - rect.left;
     const y = cursorY - rect.top;
+    const dx = x - cx;
+    const dy = y - cy;
+
+    const factor = this.zoom / oldZoom;
     
-    // Adjust pan to keep center under cursor
-    this.pan.x = x - (this.zoom / oldZoom) * (x - this.pan.x);
-    this.pan.y = y - (this.zoom / oldZoom) * (y - this.pan.y);
+    // Fixed point zoom: keep world point under cursor
+    const vx = dx - this.pan.x;
+    const vy = dy - this.pan.y;
+    this.pan.x = dx - vx * factor;
+    this.pan.y = dy - vy * factor;
 
     this.refresh();
     this.saveViewport();
     if (this.onZoomChange) this.onZoomChange(this.zoom);
+  }
+
+  setRotation(r, cursorX = null, cursorY = null) {
+    const oldRot = this.rotation;
+    this.rotation = r;
+
+    const rect = this.container.getBoundingClientRect();
+    const cx = Math.floor(rect.width / 2);
+    const cy = Math.floor(rect.height / 2);
+
+    if (cursorX === null || cursorY === null) {
+        cursorX = rect.left + cx;
+        cursorY = rect.top + cy;
+    }
+
+    const x = cursorX - rect.left;
+    const y = cursorY - rect.top;
+    const dx = x - cx;
+    const dy = y - cy;
+
+    // Fixed point rotation: keep world point under cursor
+    const vx = dx - this.pan.x;
+    const vy = dy - this.pan.y;
+    
+    const dRot = this.rotation - oldRot;
+    const cos = Math.cos(dRot);
+    const sin = Math.sin(dRot);
+    
+    const nvx = vx * cos - vy * sin;
+    const nvy = vx * sin + vy * cos;
+    
+    this.pan.x = dx - nvx;
+    this.pan.y = dy - nvy;
+
+    this.refresh();
+    this.saveViewport();
   }
 
   fitZoom() {

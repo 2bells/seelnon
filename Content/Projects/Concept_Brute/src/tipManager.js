@@ -299,6 +299,10 @@ export class TipManager {
   }
 
   _updateActiveTip() {
+    this.refreshTip();
+  }
+
+  refreshTip() {
     if (this.onTipChange) {
       const tip = this.activeBankIndex >= 0 ? this.tips[this.activeBankIndex] : { canvas: this.selectedTipCanvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 };
       this.onTipChange(tip.canvas, tip.paintHeight, tip.oiliness, tip.airbrush);

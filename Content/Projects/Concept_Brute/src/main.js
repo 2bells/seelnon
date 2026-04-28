@@ -98,7 +98,7 @@ class App {
   }
 
   async initProjectSystem() {
-    const list = await this.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.5 }}];
+    const list = await this.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.92 }}];
     this.projects = list;
     const currentId = await this.storage.loadGlobalSetting('current_project_id') || 'default';
     this.currentProjectId = currentId;
@@ -110,7 +110,7 @@ class App {
     const project = this.projects.find(p => p.id === currentId);
     if (project && project.settings) {
         this.engine.chunkSize = project.settings.chunkSize || 1024;
-        this.engine.saveQuality = project.settings.quality || 0.5;
+        this.engine.saveQuality = project.settings.quality || 0.92;
     }
     
     this._renderProjectList();
@@ -198,7 +198,7 @@ class App {
     
     // Update Engine with new settings
     this.engine.chunkSize = settings.chunkSize || 1024;
-    this.engine.saveQuality = settings.quality || 0.5;
+    this.engine.saveQuality = settings.quality || 0.92;
     
     // Wipe engine state
     this.engine.chunks.forEach(c => c.element.remove());
@@ -1282,6 +1282,10 @@ class App {
         this.engine.brush.tip = settings.tip;
     }
 
+    if (tool === TOOLS.BRUSH || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER || tool === TOOLS.SMUDGE) {
+        if (this.tipManager) this.tipManager.refreshTip();
+    }
+
     this._updateBrushSettingsUI(tool);
     
     // Update UI Buttons
@@ -1532,8 +1536,8 @@ class App {
                         // Chunk is empty, remove from sector
                         delete sector.chunks[chunkKey];
                     } else {
-                        // Serialize chunk to data URL
-                        const dataUrl = chunk.canvases[l].toDataURL('image/webp', this.engine.saveQuality); 
+                        // Serialize chunk to PNG which is lossless and won't leave artifacts at edges
+                        const dataUrl = chunk.canvases[l].toDataURL('image/png'); 
                         sector.chunks[chunkKey] = dataUrl;
                     }
                 }
@@ -1732,7 +1736,8 @@ class App {
               chunkY < rect.y + rect.h && chunkY + this.engine.chunkSize > rect.y) {
               
               for (let i = 1; i < LAYERS_COUNT; i++) {
-                  exCtx.drawImage(chunk.canvases[i], chunkX, chunkY);
+                  // Use a tiny 1px overlap to hide seams when drawing scaled chunks
+                  exCtx.drawImage(chunk.canvases[i], chunkX, chunkY, this.engine.chunkSize + 1, this.engine.chunkSize + 1);
               }
           }
       });

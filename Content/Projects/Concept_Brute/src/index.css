@@ -29,7 +29,6 @@ body {
 .inset-0 { top: 0; left: 0; right: 0; bottom: 0; }
 .pointer-events-none { pointer-events: none; }
 .z-100 { z-index: 100 !important; }
-.border-white-5 { border: 1px solid rgba(255,255,255,0.05); }
 
 #top-bar, #top-bar-ref {
     height: 48px;
