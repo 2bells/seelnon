@@ -1906,7 +1906,9 @@ export class Engine {
     }
 
     // 5. Draw
-    const opacityBase = opacity * flow;
+    // Eraser and Smudge are direct-to-layer, so they must apply the main brush opacity immediately.
+    // Regular brushes apply it at the end of the stroke (baking step).
+    const opacityBase = (isEraser || isSmudge) ? (opacity * flow * this.brush.opacity) : (opacity * flow);
     const hasRotation = this.rotation !== 0;
 
     if (isSmudge) {
@@ -2058,7 +2060,8 @@ export class Engine {
                     ctx.beginPath(); ctx.arc(0, 0, stampR, 0, Math.PI*2);
                     ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
                 } else if (tip) {
-                    if (oil > 0 && dist < 500) {
+                    // Relief / Impasto effect should NOT apply to Eraser as it would change comp-op and paint colors
+                    if (oil > 0 && dist < 500 && !isEraser) {
                         const oBase = 0.5 * height;
                         ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.translate(1, 1);
                         ctx.globalAlpha = oBase * 0.4; ctx.drawImage(this._reliefCache.shadow, -stampR, -stampR); ctx.restore();
