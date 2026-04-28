@@ -404,8 +404,8 @@ export class Engine {
       canv.width = this.chunkSize * dpr;
       canv.height = this.chunkSize * dpr;
       canv.className = 'absolute inset-0';
-      // Crisp rendering for the brutalist look
-      canv.style.imageRendering = 'pixelated'; 
+      // Smooth rendering for better brush quality (seams are handled by chunk alignment)
+      canv.style.imageRendering = 'auto'; 
       canv.style.backfaceVisibility = 'hidden';
       canv.style.webkitBackfaceVisibility = 'hidden';
       chunk.element.appendChild(canv);
@@ -1343,7 +1343,22 @@ export class Engine {
             const chunk = this.chunks.get(id);
             if (chunk) {
                 const ctx = chunk.ctxs[this.activeLayer];
+                const lx = chunk.cx * this.chunkSize;
+                const ly = chunk.cy * this.chunkSize;
+
                 ctx.save();
+                
+                // Clip bake to selection if active
+                if (this.activeSelectionPath) {
+                    ctx.beginPath();
+                    this.activeSelectionPath.forEach((p, i) => {
+                        if (i === 0) ctx.moveTo(p.x - lx, p.y - ly);
+                        else ctx.lineTo(p.x - lx, p.y - ly);
+                    });
+                    ctx.closePath();
+                    ctx.clip();
+                }
+
                 ctx.globalAlpha = this.brush.opacity; // Per-stroke opacity from UI
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.drawImage(chunk.strokeCanvas, 0, 0);
@@ -1935,7 +1950,23 @@ export class Engine {
             affectedChunks.forEach((group, id) => {
                 const chunk = this._getChunk(group.cx, group.cy);
                 if (chunk) {
-                    this.segmentCtx.drawImage(chunk.canvases[this.activeLayer], group.cx * this.chunkSize - minX, group.cy * this.chunkSize - minY);
+                    const lx = group.cx * this.chunkSize;
+                    const ly = group.cy * this.chunkSize;
+                    
+                    this.segmentCtx.save();
+                    // We must clip the pickup and the smudge draw too
+                    if (this.activeSelectionPath) {
+                        this.segmentCtx.beginPath();
+                        this.activeSelectionPath.forEach((p, i) => {
+                            this.segmentCtx[i === 0 ? 'moveTo' : 'lineTo'](p.x - minX, p.y - minY);
+                        });
+                        this.segmentCtx.closePath();
+                        this.segmentCtx.clip();
+                    }
+
+                    this.segmentCtx.drawImage(chunk.canvases[this.activeLayer], lx - minX, ly - minY);
+                    this.segmentCtx.restore();
+
                     if (this.isDrawing && !this.currentStrokeDirtyChunks.has(id)) {
                         const backup = document.createElement('canvas');
                         backup.width = this.chunkSize; backup.height = this.chunkSize;
@@ -2031,6 +2062,20 @@ export class Engine {
         const ly = group.cy * this.chunkSize;
 
         ctx.save();
+        
+        // Clip to selection if active
+        if (this.activeSelectionPath) {
+            ctx.beginPath();
+            this.activeSelectionPath.forEach((p, i) => {
+                const px = p.x - lx;
+                const py = p.y - ly;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.closePath();
+            ctx.clip();
+        }
+
         ctx.globalAlpha = opacityBase;
         
         if (isEraser) {
