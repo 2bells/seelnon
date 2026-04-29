@@ -16,6 +16,6 @@ There are a lot of options, but I've been waiting for something where I can iter
 So something like Miliastra Wonderland in Genshin seems like a good place to practice some of my ideas.
 I will be sharing much more stuff with that as well, right now you can check a simple trailer for a game I did in MW.
 
-If you are interested in more professional work, I guess I can craft like a showreel. Never was my thing tbh. But you have my 'youtube showreel' from 12 years ago + - in the Video folder here.
+Overall I'm not a stranger to making simple/traditional VFX for TV things and so on. Here is a small compilation from one of the latests packs I did.
 
-[video: 4CPDM8DnnXc]
+[video: 52-2AGoJeOs]
