@@ -3,19 +3,10 @@
  * Inspired by Dark Souls, Built with pure JS
  */
 
-// --- CONFIGURATION ---
-// Sound URLs (Replace these with your own .mp3 or .wav files)
-const KINDLED_SOUND_URL = ''; // e.g., 'sounds/kindled.mp3'
-const EXTINGUISHED_SOUND_URL = ''; // e.g., 'sounds/extinguished.mp3'
-const ALARM_SOUND_URL = ''; // e.g., 'sounds/alarm.mp3'
-
-// Background Images (Add your local or external URLs here)
-const BACKGROUND_IMAGES = [
-    'https://images.unsplash.com/', // Cathedral
-    'https://images.unsplash.com/', // Castle
-    'https://images.unsplash.com/', // Mountain
-    'https://images.unsplash.com/'  // Woods
-];
+// Configuration
+const KINDLED_SOUND_URL = '';
+const EXTINGUISHED_SOUND_URL = '';
+const ALARM_SOUND_URL = '';
 
 class BonfireEngine {
     constructor() {
@@ -182,6 +173,10 @@ const volumeSlider = document.getElementById('volume-slider');
 const statusText = document.getElementById('status-text');
 const embersContainer = document.getElementById('embers');
 const cycleBgBtn = document.getElementById('cycle-bg-btn');
+const playlistSelect = document.getElementById('playlist-select');
+const selectTrigger = playlistSelect.querySelector('.select-trigger');
+const optionsList = playlistSelect.querySelector('.select-options-list');
+const customUrlContainer = document.getElementById('custom-url-container');
 const youtubeUrlInput = document.getElementById('youtube-url');
 const loadYtBtn = document.getElementById('load-yt-btn');
 const ytPlayer = document.getElementById('yt-player');
@@ -189,20 +184,81 @@ const asciiFireOuter = document.getElementById('ascii-fire-outer');
 const asciiFireMid = document.getElementById('ascii-fire-mid');
 const asciiFireCore = document.getElementById('ascii-fire-core');
 
-const backgrounds = BACKGROUND_IMAGES;
 const fireConfigs = [
     { name: 'Balanced', outerRadius: 7, coreRadius: 4, decayOuter: 0.08, decayCore: 0.3, driftStrength: 0.7 },
     { name: 'Wide', outerRadius: 10, coreRadius: 5, decayOuter: 0.2, decayCore: 0.4, driftStrength: 0.3 },
     { name: 'Tall', outerRadius: 8, coreRadius: 4, decayOuter: 0.05, decayCore: 0.35, driftStrength: 1.1 },
     { name: 'Pointy', outerRadius: 7, coreRadius: 3, decayOuter: 0.05, decayCore: 0.45, driftStrength: 1.3 }
 ];
-let currentBgIndex = 0;
+let currentFireIndex = 0;
 
 cycleBgBtn.addEventListener('click', () => {
-    currentBgIndex = (currentBgIndex + 1) % backgrounds.length;
-    document.body.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('${backgrounds[currentBgIndex]}')`;
-    statusText.textContent = `Fire Type: ${fireConfigs[currentBgIndex].name}`;
+    currentFireIndex = (currentFireIndex + 1) % fireConfigs.length;
+    statusText.textContent = `Fire Type: ${fireConfigs[currentFireIndex].name}`;
 });
+
+// Playlist Loading
+async function loadPlaylist() {
+    try {
+        const response = await fetch('playlist.json');
+        const data = await response.json();
+        if (data.playlist) {
+            data.playlist.forEach(item => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'custom-option';
+                optDiv.dataset.value = item.url;
+                optDiv.textContent = item.name;
+                optionsList.appendChild(optDiv);
+            });
+            setupCustomSelect();
+        }
+    } catch (e) {
+        console.error("Failed to load playlist:", e);
+        setupCustomSelect(); // Setup even if fetch fails to handle default options
+    }
+}
+
+function setupCustomSelect() {
+    selectTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        optionsList.classList.toggle('hidden');
+    });
+
+    optionsList.addEventListener('click', (e) => {
+        const option = e.target.closest('.custom-option');
+        if (!option) return;
+
+        const val = option.dataset.value;
+        const text = option.textContent;
+
+        // Update trigger UI
+        selectTrigger.textContent = text;
+        
+        // Highlight selected
+        optionsList.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+
+        // Logic
+        if (val === 'custom') {
+            customUrlContainer.classList.remove('hidden');
+        } else {
+            customUrlContainer.classList.add('hidden');
+            if (val) {
+                youtubeUrlInput.value = val;
+                loadYoutubeFromUrl(val);
+            }
+        }
+
+        optionsList.classList.add('hidden');
+    });
+
+    // Close on click outside
+    document.addEventListener('click', () => {
+        optionsList.classList.add('hidden');
+    });
+}
+
+loadPlaylist();
 
 function extractYoutubeId(url) {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -234,10 +290,7 @@ function duckYoutubeMusic(originalVolume) {
     }, 4000);
 }
 
-loadYtBtn.addEventListener('click', () => {
-    const url = youtubeUrlInput.value.trim();
-    if (!url) return;
-
+function loadYoutubeFromUrl(url) {
     const videoId = extractYoutubeId(url);
     if (videoId) {
         // Use autoplay=1 and enablejsapi=1 for better control
@@ -258,6 +311,12 @@ loadYtBtn.addEventListener('click', () => {
             statusText.textContent = isEnabled ? "The fire burns bright..." : "The fire fades...";
         }, 2000);
     }
+}
+
+loadYtBtn.addEventListener('click', () => {
+    const url = youtubeUrlInput.value.trim();
+    if (!url) return;
+    loadYoutubeFromUrl(url);
 });
 
 // ASCII Fire Simulation
@@ -267,7 +326,7 @@ const firePixels = new Array(fireWidth * fireHeight).fill(0);
 const fireChars = " .:-=+*#%@";
 
 function updateFire() {
-    const config = fireConfigs[currentBgIndex];
+    const config = fireConfigs[currentFireIndex];
     // Set bottom row to max intensity, but only in the center
     const baseIntensity = Math.floor(30 * fireIntensity);
     const center = Math.floor(fireWidth / 2);
@@ -509,6 +568,37 @@ function update() {
 
     requestAnimationFrame(update);
 }
+
+// Drag to Scroll (Panning)
+let isDragging = false;
+let startY, startScrollTop;
+
+window.addEventListener('mousedown', (e) => {
+    // Only initiate drag if clicking on the background elements
+    const isBackground = e.target === document.body || 
+                         e.target.tagName === 'MAIN' || 
+                         e.target.classList.contains('atmosphere') || 
+                         e.target.classList.contains('vignette');
+                         
+    if (isBackground) {
+        isDragging = true;
+        startY = e.pageY;
+        startScrollTop = window.scrollY;
+        document.body.style.cursor = 'grabbing';
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+    document.body.style.cursor = 'default';
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const y = e.pageY;
+    const walk = (y - startY);
+    window.scrollTo(0, startScrollTop - walk);
+});
 
 // Controls
 toggleBtn.addEventListener('click', () => {

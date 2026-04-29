@@ -17,17 +17,42 @@
 
 body {
     background-color: var(--bg-color);
-    background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1514539079130-25950c84af65?q=80&w=1920&auto=format&fit=crop');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
     color: var(--text-color);
     font-family: var(--font-display);
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    user-select: none;
+}
+
+/* Stylized Scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+}
+::-webkit-scrollbar-track {
+    background: #050505;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.2);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-color);
+}
+
+/* Responsive adjustments for narrow/short screens */
+@media (max-height: 850px) {
+    .bonfire-container {
+        transform: scale(0.85);
+        margin-top: -2rem;
+        margin-bottom: 0;
+    }
+    .title {
+        font-size: 2.2rem;
+    }
 }
 
 /* ASCII Fire Styling */
@@ -298,12 +323,6 @@ body.is-kindled .sword {
     z-index: 16;
 }
 
-/* Remove separate Kindled filters as they are now handled by the .sword animation */
-body.is-kindled .sword::after,
-body.is-kindled .sword::before,
-body.is-kindled .hilt-grip {
-    /* Filter inherited from .sword */
-}
 
 .stones {
     position: absolute;
@@ -394,7 +413,7 @@ body.is-kindled .hilt-grip {
 }
 
 input[type=range] {
-    -webkit-appearance: none;
+    appearance: none;
     background: transparent;
 }
 
@@ -405,7 +424,7 @@ input[type=range]::-webkit-slider-runnable-track {
 }
 
 input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
+    appearance: none;
     height: 12px;
     width: 12px;
     border-radius: 50%;
@@ -444,9 +463,115 @@ button:hover {
 
 .youtube-control {
     display: flex;
-    gap: 0.5rem;
-    width: 250px;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
     margin-top: 1rem;
+    min-height: 120px;
+    justify-content: flex-start;
+}
+
+/* Custom Select Styling */
+.custom-select {
+    position: relative;
+    width: 250px;
+    font-family: var(--font-display);
+    user-select: none;
+    z-index: 100;
+}
+
+.select-trigger {
+    background-color: #0c0c0c;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--text-color);
+    padding: 8px 12px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border-radius: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.select-trigger::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--text-color);
+    margin-left: 10px;
+}
+
+.select-trigger:hover {
+    border-color: var(--text-color);
+    background-color: #111;
+}
+
+.select-options-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: #0c0c0c;
+    border: 1px solid var(--text-color);
+    margin-top: 2px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.custom-option {
+    padding: 10px 12px;
+    color: var(--text-color);
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.custom-option:last-child {
+    border-bottom: none;
+}
+
+.custom-option:hover {
+    background-color: rgba(212, 175, 55, 0.1);
+    color: var(--text-color);
+}
+
+.custom-option.selected {
+    background-color: var(--text-color); /* Main Yellow for selected */
+    color: #0c0c0c;
+}
+
+/* Scrollbar for the list */
+.select-options-list::-webkit-scrollbar {
+    width: 4px;
+}
+.select-options-list::-webkit-scrollbar-track {
+    background: #0c0c0c;
+}
+.select-options-list::-webkit-scrollbar-thumb {
+    background: var(--text-color);
+}
+
+#custom-url-container {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 350px;
+    animation: fadeIn 0.3s ease;
+}
+
+#custom-url-container.hidden {
+    display: none;
 }
 
 #youtube-url {
@@ -476,6 +601,12 @@ button:hover {
     letter-spacing: 0.1em;
     cursor: pointer;
     transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .btn-mini:hover {

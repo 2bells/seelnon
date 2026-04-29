@@ -18,7 +18,6 @@
     <main>
         <header>
             <h1 class="title">Bonfire Lit</h1>
-            <p class="subtitle">Hourly Rest</p>
         </header>
 
         <div class="bonfire-container">
@@ -68,8 +67,16 @@
                 </div>
 
                 <div class="youtube-control">
-                    <input type="text" id="youtube-url" placeholder="Paste YouTube Link for Music...">
-                    <button id="load-yt-btn" class="btn-mini">Load</button>
+                    <div class="custom-select" id="playlist-select">
+                        <div class="select-trigger">Select Melody...</div>
+                        <div class="select-options-list hidden">
+                            <div class="custom-option" data-value="custom">-- Custom URL --</div>
+                        </div>
+                    </div>
+                    <div id="custom-url-container" class="hidden">
+                        <input type="text" id="youtube-url" placeholder="Paste URL...">
+                        <button id="load-yt-btn" class="btn-mini">Load</button>
+                    </div>
                 </div>
                 <div id="yt-player-container" class="hidden">
                     <iframe id="yt-player" width="0" height="0" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
