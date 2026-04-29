@@ -425,30 +425,77 @@ body {
     gap: 0.5rem;
 }
 
+/* Custom Scrollbar Styles */
+.settings-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 3px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+}
+
+/* Range Slider Styles */
+.scene-select {
+    background: #111113;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+    border-radius: 0;
+}
+
+.scene-select:focus {
+    border-color: #52525b;
+}
+
+.setting-group input[type="range"] {
+    width: 100%;
+    accent-color: var(--text-primary);
+    background: #18181b;
+    height: 2px;
+    border-radius: 0;
+    appearance: none;
+    margin: 10px 0;
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--text-primary);
+    border: 1px solid var(--bg-color);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb:active {
+    background: #ffffff;
+}
+
 .setting-group label {
     font-size: 10px;
     text-transform: uppercase;
     color: var(--text-muted);
     display: flex;
     justify-content: space-between;
-}
-
-.setting-group input[type="range"] {
-    width: 100%;
-    accent-color: #52525b;
-    background: #18181b;
-    height: 4px;
-    border-radius: 2px;
-    appearance: none;
-}
-
-.setting-group input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    background: #a1a1aa;
-    border-radius: 50%;
-    cursor: pointer;
+    letter-spacing: 0.1em;
 }
 
 /* --- Scene Styles --- */

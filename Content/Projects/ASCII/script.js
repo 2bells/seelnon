@@ -37,25 +37,25 @@ const volumeVal = document.getElementById('val-volume');
 const zoomInBtn = document.getElementById('zoom-in');
 const zoomOutBtn = document.getElementById('zoom-out');
 
-const ambienceMap = {
-    stars: 'https://youtu.be/jfKfPfyJRdk',
-    rain: 'https://youtu.be/mPZkdNFkNps?si=hMfgo3ih2HLuWK3c',
-    waterfall: 'https://youtu.be/mI9m_Z-tZ-I',
-    fire: 'https://youtu.be/L_LUpnjuyP0',
-    fire2: 'https://youtu.be/L_LUpnjuyP0',
-    smoke: 'https://youtu.be/H-0cEclMils',
-    typewriter: 'https://youtu.be/5wRWniH7rt8',
-    donut: 'https://youtu.be/4xDzrJKXOOY',
-    ripples: 'https://youtu.be/77ZozI0rw7w',
-    leaves: 'https://youtu.be/mX7Xv_6Yv_Y',
-    sand: 'https://youtu.be/2OEL4P1Rz04',
-    shapes: 'https://youtu.be/8_X2_X_X_X8',
-    shapes2: 'https://youtu.be/8_X2_X_X_X8'
-};
+let ambienceMap = {};
+
+// Fetch playlist data
+fetch('./playlist.json')
+    .then(res => res.json())
+    .then(data => {
+        ambienceMap = data;
+        // Load initial ambience if available
+        if (ambienceMap[currentSceneId]) {
+            ytLinkInput.value = ambienceMap[currentSceneId];
+            loadYouTube();
+        }
+    })
+    .catch(err => console.error('Failed to load playlist:', err));
 
 const scenes = { stars, rain, waterfall, fire, fire2, smoke, typewriter, donut, ripples, leaves, sand, shapes, shapes2 };
 
 let currentSceneId = 'stars';
+let currentVideoId = null; // Track currently playing video
 let intervalId = null;
 let zoomLevel = 1.0;
 let ytPlaying = true;
@@ -121,7 +121,16 @@ function buildSettingsUI(sceneId) {
 
                     if (key === 'fps') {
                         scene.fps = val;
-                        switchScene(currentSceneId);
+                        // Just reset interval, don't switch scene (prevents YT reload trigger)
+                        if (intervalId) clearInterval(intervalId);
+                        intervalId = setInterval(() => {
+                            const output = scene.update(mouse, { playSound });
+                            if (scene.useHTML) {
+                                canvas.innerHTML = output;
+                            } else {
+                                canvas.textContent = output;
+                            }
+                        }, 1000 / scene.fps);
                     }
                 }
             });
@@ -256,9 +265,6 @@ function playSound(name, playbackRate = 1.0) {
     }
 }
 
-// Preload sounds
-loadSound('keyboard_key', 'keyboard_key.mp3');
-loadSound('type_swipe', 'type_swipe.mp3');
 
 // --- EVENT LISTENERS ---
 
@@ -322,6 +328,10 @@ function loadYouTube() {
     }
 
     if (videoId) {
+        // Prevent reloading the same video
+        if (videoId === currentVideoId) return;
+
+        currentVideoId = videoId;
         ytPlayerContainer.innerHTML = '';
         ytPlaying = true;
         const iframe = document.createElement('iframe');
