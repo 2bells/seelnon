@@ -84,8 +84,8 @@ export const FS = (() => {
 
 
   // Videos
-  video('GBR Elements', 'Content/Videos/GBR_Elements_trailer.mp4', '/Videos', { icon: 'Content/Videos/GBR_Cover.jpg', description: 'A game made inside of Miliastra Wonderland.' });
-  video('GBR Release', 'Content/Videos/GBR_trailer.mp4', '/Videos', { icon: 'Content/Videos/GBR_1_cover.png', description: 'A game made inside of Miliastra Wonderland.' });
+  video('Yandex Go Case', 'Content/Videos/Yandex_Go_case.mp4', '/Videos', { icon: 'Content/Videos/Yandex_Go_case.jpg', description: 'A case we made for Yandex Go.' });
+  video('Yandex App Case', 'Content/Videos/Yandex_Go_app_case_slide.mp4', '/Videos', { icon: 'Content/Videos/Yandex_Go_app_case_snapshot.jpg', description: 'They threw 40gb of raw files and said: "you have 2 days"' });
   video('HR Deep Learning 2017', 'Content/Videos/shapes_cycle.mp4', '/Videos', { icon: 'Content/Videos/HR_yandex.jpg', description: 'Some of the stuff from back in the day, looked clean.' });
   video('Unsubscribed Trailer', 'Content/Videos/Unsubscribed Trailer.mp4', '/Videos', { icon: 'Content/Videos/Unsubscribe_Trailer_thumbnail.jpg', description: 'Trailer for a sci-fi game project.' }); // Added thumbnail
 
