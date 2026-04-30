@@ -146,13 +146,13 @@ class CavemanApp {
 
   async loadPublicNotes() {
     try {
-      const response = await fetch('./server/server.json');
+      const response = await fetch('../public/server/server.json');
       if (!response.ok) return;
       const data = await response.json();
       this.publicNotes = [];
       
       for (const p of data.public_notes) {
-        const md = await fetch(`./server/${p.file}`);
+        const md = await fetch(`../public/server/${p.file}`);
         const content = await md.text();
         this.publicNotes.push({
           ...p,
