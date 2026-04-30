@@ -36,7 +36,29 @@ class CavemanApp {
     this.closeOverlayBtns = document.querySelectorAll('.close-overlay');
     this.collapsedFolders = JSON.parse(localStorage.getItem('caveman-collapsed-folders') || '[]');
 
+    this.initLazyLoader();
     this.init();
+  }
+
+  initLazyLoader() {
+    this.imageObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          this.loadLazyImage(entry.target);
+          this.imageObserver.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '200px' });
+  }
+
+  async loadLazyImage(imgEl) {
+    const imgId = imgEl.dataset.imgId;
+    if (!imgId) return;
+    const dataUrl = await this.vault.getImage(imgId);
+    if (dataUrl) {
+      imgEl.src = dataUrl;
+      imgEl.classList.remove('lazy-vault-img');
+    }
   }
 
   async init() {
@@ -87,6 +109,7 @@ class CavemanApp {
 
     document.getElementById('toggle-sidebar-btn').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('purge-vault-btn').addEventListener('click', () => this.purgeVault());
+    document.getElementById('purge-images-btn').addEventListener('click', () => this.purgeUnusedImages());
 
     // Shortcuts
     document.addEventListener('keydown', (e) => {
@@ -475,6 +498,11 @@ class CavemanApp {
     }
 
     this.previewEl.innerHTML = html;
+    
+    // Attach lazy loader to images
+    this.previewEl.querySelectorAll('.lazy-vault-img').forEach(img => {
+      this.imageObserver.observe(img);
+    });
   }
 
   togglePreview() {
@@ -605,6 +633,36 @@ class CavemanApp {
       await this.vault.clear();
       localStorage.removeItem('caveman-current-note-id');
       location.reload();
+    }
+  }
+
+  async purgeUnusedImages() {
+    const notes = await this.vault.getNotes();
+    const images = await this.vault.getAllImages();
+    
+    const usedImageIds = new Set();
+    const imgPattern = /!\[\[(img-.*?)\]\]/g;
+    
+    notes.forEach(note => {
+      let match;
+      while ((match = imgPattern.exec(note.content)) !== null) {
+        usedImageIds.add(match[1]);
+      }
+    });
+    
+    const unusedImages = images.filter(img => !usedImageIds.has(img.id));
+    
+    if (unusedImages.length === 0) {
+      alert('No unused images found.');
+      return;
+    }
+    
+    if (confirm(`Found ${unusedImages.length} unused images. Purge them to free up space?`)) {
+      for (const img of unusedImages) {
+        await this.vault.deleteImage(img.id);
+      }
+      alert(`Purged ${unusedImages.length} images.`);
+      this.openDatabaseMenu(); // Refresh stats
     }
   }
 

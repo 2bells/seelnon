@@ -76,6 +76,4 @@ function survive() {
 
 ---
 
-
----
 *End of Scroll.*

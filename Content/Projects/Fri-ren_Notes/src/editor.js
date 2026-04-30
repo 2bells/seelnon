@@ -14,17 +14,10 @@ export class Editor {
     // so marked can parse them as proper list items for the task list logic.
     md = md.replace(/^[ \t]*•/gm, (match) => match.replace('•', '*'));
 
-    // Replace Obsidian-style [[img-id]] with absolute data URLs from IndexedDB
-    const imgMatches = md.match(/!\[\[(.*?)\]\]/g);
-    if (imgMatches) {
-      for (const match of imgMatches) {
-        const id = match.replace('![[', '').replace(']]', '');
-        const dataUrl = await this.vault.getImage(id);
-        if (dataUrl) {
-          md = md.replace(match, `![image](${dataUrl})`);
-        }
-      }
-    }
+    // Replace Obsidian-style [[img-id]] with placeholders for lazy loading
+    md = md.replace(/!\[\[(.*?)\]\]/g, (match, id) => {
+      return `<img data-img-id="${id.trim()}" class="lazy-vault-img" loading="lazy" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">`;
+    });
     
     // Ensure marked is configured for GFM
     if (typeof marked !== 'undefined') {

@@ -73,6 +73,15 @@ export class Vault {
     });
   }
 
+  async deleteImage(id) {
+    return new Promise((resolve) => {
+      const tx = this.db.transaction('images', 'readwrite');
+      const store = tx.objectStore('images');
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+    });
+  }
+
   async getAllImages() {
     return new Promise((resolve) => {
       const tx = this.db.transaction('images', 'readonly');

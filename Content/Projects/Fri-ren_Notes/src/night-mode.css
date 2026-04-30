@@ -258,6 +258,10 @@ body.night-mode .db-stats {
   border-bottom-color: rgba(161, 138, 94, 0.4);
 }
 
+body.night-mode .lazy-vault-img {
+  background: rgba(255,255,255,0.05) !important;
+}
+
 body.night-mode .danger-zone {
   border-color: #cc0000;
 }

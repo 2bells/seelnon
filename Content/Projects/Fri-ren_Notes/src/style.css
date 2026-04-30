@@ -374,10 +374,6 @@ button.btn-danger:hover {
   background: #cc0000;
 }
 
-#export-note-btn {
-  /* No specific overrides needed now */
-}
-
 .header-actions button:first-child {
   background: var(--text-primary);
   color: var(--bg-main);
@@ -457,6 +453,15 @@ button.btn-danger:hover {
   /* Prevent layout jump by giving hints to the browser */
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;
+}
+
+.lazy-vault-img {
+  background: rgba(0,0,0,0.05) !important;
+  min-height: 100px;
+}
+
+#purge-images-btn {
+  width: 100%;
 }
 
 #preview strong {
