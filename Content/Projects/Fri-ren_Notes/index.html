@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fri-ren Notes</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/night-mode.css" />
+    <!-- Marked library for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+  <body>
+    <div id="app" class="high-density-frame">
+      <!-- Top Navigation Bar -->
+      <header id="top-bar">
+        <div class="brand">
+          <div class="dot"></div>
+          <span class="brand-text">FRI-REN NOTES</span>
+        </div>
+        <nav class="top-nav">
+          <span id="view-btn">View</span>
+          <span id="graph-btn">Graph</span>
+          <span id="db-btn">Database</span>
+        </nav>
+        <div class="header-actions">
+          <div id="theme-control" class="theme-switch" title="Toggle Bonfire">
+            <span class="icon">☼</span>
+            <div class="switch-track">
+              <div class="switch-knob"></div>
+            </div>
+            <span class="icon">☾</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="main-layout">
+        <aside id="sidebar">
+          <div class="sidebar-search">
+            <input type="text" id="search-notes" placeholder="SEARCH NOTES..." />
+          </div>
+          <div id="note-list"></div>
+          <div class="sidebar-footer">
+            <button id="new-note" title="New Note">+ New Document</button>
+          </div>
+        </aside>
+        
+        <main id="editor-container">
+          <div id="toolbar">
+            <div class="note-status">
+              <input type="text" id="note-folder" placeholder="folder/" style="width: 80px; opacity: 0.5;" />
+              <input type="text" id="note-title" placeholder="Untitled Note" />
+            </div>
+            <div class="toolbar-actions">
+              <button id="toggle-preview" title="Toggle Preview">Preview Mode</button>
+              <button id="delete-note" title="Delete Note">Delete</button>
+              <button id="export-note-btn" title="Export current note as .md">[ ↓ ]</button>
+            </div>
+          </div>
+          <div class="split-view">
+            <textarea id="editor" placeholder="Write your markdown here... (Paste images with Ctrl+V)"></textarea>
+            <div id="preview" class="hidden"></div>
+          </div>
+        </main>
+      </div>
+
+      <!-- Modals / Overlays -->
+      <div id="graph-menu" class="overlay hidden">
+        <div class="overlay-full">
+          <div class="graph-header">
+            <h3>LOCAL GRAPH OVERVIEW</h3>
+            <span class="hint">Click nodes to navigate • Mouse moves create ripples</span>
+            <button class="close-overlay">CLOSE [ESC]</button>
+          </div>
+          <div id="graph-container">
+            <pre id="graph-water" aria-hidden="true"></pre>
+            <canvas id="graph-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-menu" class="overlay hidden">
+        <div class="overlay-content">
+          <h3>VIEW SETTINGS</h3>
+          <div class="control-group">
+            <label>FONT SIZE</label>
+            <div class="btn-row">
+              <button class="zoom-btn" data-size="12">Small</button>
+              <button class="zoom-btn active" data-size="14">Default</button>
+              <button class="zoom-btn" data-size="18">Large</button>
+            </div>
+          </div>
+          <div class="control-group">
+            <label>INTERFACE</label>
+            <button id="toggle-sidebar-btn">Toggle Sidebar (Ctrl+[)</button>
+          </div>
+          <button class="close-overlay">CLOSE</button>
+        </div>
+      </div>
+
+      <div id="db-menu" class="overlay hidden">
+        <div class="overlay-content">
+          <h3>VAULT REGISTRY</h3>
+          <div class="db-stats">
+            <div class="stat-row"><span>Total Notes:</span> <span id="stat-count">0</span></div>
+            <div class="stat-row"><span>Storage Used:</span> <span id="stat-size">0 KB</span></div>
+            <div class="stat-row"><span>Images Cached:</span> <span id="stat-imgs">0</span></div>
+          </div>
+          <div class="control-group">
+            <label>MAINTENANCE</label>
+            <div class="btn-row">
+              <button id="export-btn">⬇︎ Export Vault</button>
+              <label for="import-vault" class="button">↑ Import Vault</label>
+            </div>
+          </div>
+          <div class="danger-zone">
+            <label>DANGER ZONE</label>
+            <button id="purge-vault-btn">PURGE ENTIRE VAULT</button>
+          </div>
+          <button class="close-overlay">CLOSE</button>
+        </div>
+      </div>
+
+      <!-- Footer Status Bar -->
+      <footer id="status-bar">
+        <div class="status-left">
+          <span id="char-count">Chars: 0</span>
+          <span>Format: UTF-8</span>
+        </div>
+        <div class="status-right">
+          <span class="sync-status">
+            <span class="indicator"></span>
+            Local Vault Linked
+          </span>
+          <span id="last-saved" class="opacity-60">Ready</span>
+        </div>
+      </footer>
+      
+      <input type="file" id="import-vault" accept=".json" style="display:none" />
+    </div>
+
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>

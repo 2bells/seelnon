@@ -102,6 +102,7 @@ export const FS = (() => {
   html('ASCII animations', 'Content/Projects/ASCII/index.html', '/Projects', { icon: 'Content/Projects/ASCII/ASCII_Thumbnail.jpg', description: 'A way to vibe out an hour.' });  
   html('Panellum Viewer', 'Content/Projects/Panellum/index.html', '/Projects', { icon: 'Content/Projects/Panellum/panellum_thumbnail.jpg', description: 'A way to view images.' });  
   html('CONCEPT_BRUTE', 'Content/Projects/Concept_Brute/index.html', '/Projects', { icon: 'Content/Projects/Concept_Brute/img/concept_brute_thmb.jpg', description: 'A way to paint images.' });  
+  html('Fri-ren Notes', 'Content/Projects/Fri-ren_Notes/index.html', '/Projects', { icon: 'Content/Projects/Fri-ren_Notes/fri-ren_notes_thmb.jpg', description: 'A way to take notes.' });   
   
 
 
