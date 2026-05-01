@@ -13,7 +13,19 @@ Updates on Fri-ren Notes coming soon (?)
 ![alt text](blog/2026-05/img/new_canvas_notes.jpg)
 
 ```
-day still young,
-hopefully
-will power through
+UPD: updates do
+cometh soon
 ```
+
+## Updates:
+
+- Canvas with boxes and arrows
+- PDF export
+- Database separation to .json and .png
+- Lazy loading for images
+- Optimization on checkmarks
+
+
+[Noted](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
+
+//some stuff still testing, but should be fine.
