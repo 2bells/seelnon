@@ -520,13 +520,6 @@ button.btn-danger:hover {
     margin: 1cm;
     size: auto;
   }
-  
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    text-shadow: none !important;
-    box-shadow: none !important;
-  }
 
   html, body {
     height: auto !important;
