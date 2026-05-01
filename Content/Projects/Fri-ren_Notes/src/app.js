@@ -192,13 +192,13 @@ class CavemanApp {
 
   async loadPublicNotes() {
     try {
-      const response = await fetch('../Fri-ren_Notes/server/server.json');
+      const response = await fetch('./server/server.json');
       if (!response.ok) return;
       const data = await response.json();
       this.publicNotes = [];
       
       for (const p of data.public_notes) {
-        const md = await fetch(`../Fri-ren_Notes/server/${p.file}`);
+        const md = await fetch(`./server/${p.file}`);
         const content = await md.text();
         this.publicNotes.push({
           ...p,
@@ -734,18 +734,18 @@ class CavemanApp {
       } catch (e) {
         console.error("Print failed:", e);
         this.statusMessenger("Export failed. Opening new tab...", "error");
-      setTimeout(() => {
-        const win = window.open(window.location.href, '_blank');
-        if (!win) {
-           this.statusMessenger("Popup blocked!", "error");
-        }
-      }, 2000);
+        setTimeout(() => {
+          const win = window.open(window.location.href, '_blank');
+          if (!win) {
+            this.statusMessenger("Popup blocked!", "error");
+          }
+        }, 2000);
       }
       
       if (wasEditing) {
-        setTimeout(() => this.switchView('editor'), 500);
+        setTimeout(() => this.switchView('editor'), 800);
       }
-    }, 300);
+    }, 600);
   }
 
   toggleCanvas() {
