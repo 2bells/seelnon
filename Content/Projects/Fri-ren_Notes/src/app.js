@@ -110,6 +110,7 @@ class CavemanApp {
       const checked = this.printBackgroundCheck.checked;
       localStorage.setItem('caveman-print-bg', checked);
       document.body.classList.toggle('print-with-background', checked);
+      document.documentElement.classList.toggle('print-with-background', checked);
     });
     this.dbBtn.addEventListener('click', () => this.openDatabaseMenu());
     this.graphBtn.addEventListener('click', () => {
@@ -133,6 +134,7 @@ class CavemanApp {
     const savedPrintBg = localStorage.getItem('caveman-print-bg') === 'true';
     this.printBackgroundCheck.checked = savedPrintBg;
     document.body.classList.toggle('print-with-background', savedPrintBg);
+    document.documentElement.classList.toggle('print-with-background', savedPrintBg);
 
     document.getElementById('toggle-sidebar-btn').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('purge-vault-btn').addEventListener('click', () => this.purgeVault());
