@@ -4,7 +4,7 @@
 
 Today’s clouds of mine heart are grey. Thou art I, whilst I am thee. Like the vibrant sun above the skies, silent clouds gather to rebel; yet gentle rain shall fall, washing color grey away. Fear not, the lands of vast and beauty shall blossom with desire for vibrant joy once again.
 
-//And tbh it feels like my heart decided to try beta blocker for some reason... it is like... it suddenly decided to ask questions like: "does meaning have meaning?"... "if meaning is meaningless, then why it searches for it?"... "if there is meaning, why does it long to be defined?"... stuff like that.
+//And tbh it feels like my heart decided to try beta blockers for some reason... it is like... it suddenly decided to ask questions like: "does meaning have meaning?"... "if meaning is meaningless, then why it searches for it?"... "if there is meaning, why does it long to be defined?"... stuff like that.
 
 ## ANYWAY
 
