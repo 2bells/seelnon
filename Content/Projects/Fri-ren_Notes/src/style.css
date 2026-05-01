@@ -545,7 +545,7 @@ button.btn-danger:hover {
     -webkit-box-decoration-break: clone;
   }
 
-  /* Continuous Flow: Removes gaps between pages */
+  /* Continuous Flow: Removes gaps between pages and prevents content breaking */
   body.print-continuous {
     padding: 0 !important;
   }
@@ -554,17 +554,15 @@ button.btn-danger:hover {
   body.print-continuous .markdown-body pre,
   body.print-continuous .markdown-body blockquote,
   body.print-continuous .markdown-body section {
-    break-inside: auto !important;
-    page-break-inside: auto !important;
-    break-after: auto !important;
-    page-break-after: auto !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   body.print-continuous .markdown-body > * {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
-    padding-top: 0.2cm !important;
-    padding-bottom: 0.2cm !important;
+    padding-top: 0.1cm !important;
+    padding-bottom: 0.1cm !important;
   }
 
   body, #app {

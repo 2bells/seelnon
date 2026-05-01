@@ -147,6 +147,28 @@ class CavemanApp {
     this.printContinuousCheck.checked = savedPrintContinuous;
     document.body.classList.toggle('print-continuous', savedPrintContinuous);
 
+    window.addEventListener('beforeprint', () => {
+      if (document.body.classList.contains('print-continuous')) {
+        const previewHeight = this.previewEl.scrollHeight;
+        const heightCm = Math.ceil(previewHeight / 37.8) + 5; 
+        
+        const style = document.createElement('style');
+        style.id = 'continuous-print-style';
+        style.innerHTML = `
+          @page {
+            size: 21cm ${heightCm}cm !important;
+            margin: 0 !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    });
+
+    window.addEventListener('afterprint', () => {
+      const style = document.getElementById('continuous-print-style');
+      if (style) style.remove();
+    });
+
     document.getElementById('toggle-sidebar-btn').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('purge-vault-btn').addEventListener('click', () => this.purgeVault());
     document.getElementById('purge-images-btn').addEventListener('click', () => this.purgeUnusedImages());
