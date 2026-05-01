@@ -4,10 +4,7 @@ It is the 3rd Millennium. It is the month of May... May the God-Emperor of Human
 
 ![image](https://i.pinimg.com/736x/fb/07/97/fb07971740deb699ebfe31df919fdffe.jpg)
 
-//I asked AI to check my grammer... He started to roleplay frame 1, I had to double down on him, bro went full on.
-
-![alt text](blog/2026-05/img/ai_RP.jpg)
-
+//mentioning other gods, could be already considered heresy... well, it was nice knowing y'all!
 
 ## Anyway
 
