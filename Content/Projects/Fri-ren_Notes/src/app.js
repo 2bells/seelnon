@@ -1,4 +1,3 @@
-import JSZip from './jszip';
 import { Vault } from './db.js';
 import { Editor } from './editor.js';
 import { GraphModule } from './graph.js';
@@ -39,6 +38,7 @@ class CavemanApp {
     this.graphMenu = document.getElementById('graph-menu');
     this.closeOverlayBtns = document.querySelectorAll('.close-overlay');
     this.collapsedFolders = JSON.parse(localStorage.getItem('caveman-collapsed-folders') || '[]');
+    this.imageCache = new Map(); // Memory cache to prevent flash
 
     this.initLazyLoader();
     this.init();
@@ -58,8 +58,16 @@ class CavemanApp {
   async loadLazyImage(imgEl) {
     const imgId = imgEl.dataset.imgId;
     if (!imgId) return;
+
+    if (this.imageCache.has(imgId)) {
+      imgEl.src = this.imageCache.get(imgId);
+      imgEl.classList.remove('lazy-vault-img');
+      return;
+    }
+
     const dataUrl = await this.vault.getImage(imgId);
     if (dataUrl) {
+      this.imageCache.set(imgId, dataUrl);
       imgEl.src = dataUrl;
       imgEl.classList.remove('lazy-vault-img');
     }
@@ -669,6 +677,7 @@ class CavemanApp {
             // Using PNG preserves alpha (transparency)
             const dataUrl = canvas.toDataURL('image/png');
             const imgId = this.editorModule.generateImageId();
+            this.imageCache.set(imgId, dataUrl); // Update cache
             await this.vault.saveImage(imgId, dataUrl);
             
             const start = this.editorEl.selectionStart;
