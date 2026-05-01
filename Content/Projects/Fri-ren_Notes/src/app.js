@@ -32,6 +32,7 @@ class CavemanApp {
     this.themeToggle = document.getElementById('theme-control');
     this.viewBtn = document.getElementById('view-btn');
     this.viewMenu = document.getElementById('view-menu');
+    this.printBackgroundCheck = document.getElementById('print-background-check');
     this.dbBtn = document.getElementById('db-btn');
     this.graphBtn = document.getElementById('graph-btn');
     this.dbMenu = document.getElementById('db-menu');
@@ -105,6 +106,11 @@ class CavemanApp {
     this.previewEl.addEventListener('click', (e) => this.handlePreviewClick(e));
 
     this.viewBtn.addEventListener('click', () => this.openViewMenu());
+    this.printBackgroundCheck.addEventListener('change', () => {
+      const checked = this.printBackgroundCheck.checked;
+      localStorage.setItem('caveman-print-bg', checked);
+      document.body.classList.toggle('print-with-background', checked);
+    });
     this.dbBtn.addEventListener('click', () => this.openDatabaseMenu());
     this.graphBtn.addEventListener('click', () => {
       this.closeOverlays();
@@ -123,6 +129,10 @@ class CavemanApp {
 
     const savedZoom = localStorage.getItem('caveman-zoom') || '14';
     this.setZoom(savedZoom);
+
+    const savedPrintBg = localStorage.getItem('caveman-print-bg') === 'true';
+    this.printBackgroundCheck.checked = savedPrintBg;
+    document.body.classList.toggle('print-with-background', savedPrintBg);
 
     document.getElementById('toggle-sidebar-btn').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('purge-vault-btn').addEventListener('click', () => this.purgeVault());
