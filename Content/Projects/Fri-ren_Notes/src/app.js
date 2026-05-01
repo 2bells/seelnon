@@ -10,7 +10,7 @@ class CavemanApp {
     this.graphModule = new GraphModule(this);
     this.notes = [];
     this.currentNote = null;
-    this.viewMode = 'preview'; // 'preview', 'editor', 'canvas'
+    this.viewMode = null; // 'preview', 'editor', 'canvas'
 
     // Elements
     this.noteListEl = document.getElementById('note-list');
@@ -121,6 +121,9 @@ class CavemanApp {
       btn.addEventListener('click', (e) => this.setZoom(e.target.dataset.size));
     });
 
+    const savedZoom = localStorage.getItem('caveman-zoom') || '14';
+    this.setZoom(savedZoom);
+
     document.getElementById('toggle-sidebar-btn').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('purge-vault-btn').addEventListener('click', () => this.purgeVault());
     document.getElementById('purge-images-btn').addEventListener('click', () => this.purgeUnusedImages());
@@ -156,10 +159,6 @@ class CavemanApp {
       }
     } else {
       this.createNewNote();
-    }
-
-    if (this.viewMode === 'preview') {
-      this.switchView('preview');
     }
 
     // 3. Background Load Ancient Scrolls (Public Tutorial)
@@ -792,6 +791,7 @@ class CavemanApp {
   }
 
   setZoom(size) {
+    localStorage.setItem('caveman-zoom', size);
     document.documentElement.style.setProperty('--zoom-scale', size + 'px');
     document.querySelectorAll('.zoom-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.size === size);
