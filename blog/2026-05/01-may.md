@@ -6,14 +6,14 @@ It is the 3rd Millennium. It is the month of May... May the God-Emperor of Human
 
 //I asked AI to check my grammer... He started to roleplay frame 1, I had to double down on him, bro went full on.
 
-![alt text](./img/ai_RP.jpg)
+![alt text](blog/2026-05/img/ai_RP.jpg)
 
 
 ## Anyway
 
 Updates on Fri-ren Notes coming soon (?)
 
-![alt text](./img/new_canvas_notes.jpg)
+![alt text](blog/2026-05/img/new_canvas_notes.jpg)
 
 ```
 day still young,
