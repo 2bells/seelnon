@@ -33,6 +33,7 @@ class CavemanApp {
     this.viewBtn = document.getElementById('view-btn');
     this.viewMenu = document.getElementById('view-menu');
     this.printBackgroundCheck = document.getElementById('print-background-check');
+    this.printContinuousCheck = document.getElementById('print-continuous-check');
     this.dbBtn = document.getElementById('db-btn');
     this.graphBtn = document.getElementById('graph-btn');
     this.dbMenu = document.getElementById('db-menu');
@@ -113,6 +114,11 @@ class CavemanApp {
       document.body.classList.toggle('print-with-background', checked);
       document.documentElement.classList.toggle('print-with-background', checked);
     });
+    this.printContinuousCheck.addEventListener('change', () => {
+      const checked = this.printContinuousCheck.checked;
+      localStorage.setItem('caveman-print-continuous', checked);
+      document.body.classList.toggle('print-continuous', checked);
+    });
     this.dbBtn.addEventListener('click', () => this.openDatabaseMenu());
     this.graphBtn.addEventListener('click', () => {
       this.closeOverlays();
@@ -136,6 +142,10 @@ class CavemanApp {
     this.printBackgroundCheck.checked = savedPrintBg;
     document.body.classList.toggle('print-with-background', savedPrintBg);
     document.documentElement.classList.toggle('print-with-background', savedPrintBg);
+
+    const savedPrintContinuous = localStorage.getItem('caveman-print-continuous') === 'true';
+    this.printContinuousCheck.checked = savedPrintContinuous;
+    document.body.classList.toggle('print-continuous', savedPrintContinuous);
 
     document.getElementById('toggle-sidebar-btn').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('purge-vault-btn').addEventListener('click', () => this.purgeVault());

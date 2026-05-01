@@ -545,6 +545,28 @@ button.btn-danger:hover {
     -webkit-box-decoration-break: clone;
   }
 
+  /* Continuous Flow: Removes gaps between pages */
+  body.print-continuous {
+    padding: 0 !important;
+  }
+  
+  body.print-continuous .markdown-body img,
+  body.print-continuous .markdown-body pre,
+  body.print-continuous .markdown-body blockquote,
+  body.print-continuous .markdown-body section {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  body.print-continuous .markdown-body > * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0.2cm !important;
+    padding-bottom: 0.2cm !important;
+  }
+
   body, #app {
     background: inherit !important;
     color: inherit !important;
