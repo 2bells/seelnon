@@ -298,8 +298,65 @@ body {
   font-family: var(--font-mono); /* Use mono font in preview as requested */
 }
 
-#preview.hidden {
+#preview.hidden, #editor.hidden, #canvas-panel.hidden {
   display: none;
+}
+
+#canvas-panel {
+  flex: 1;
+  background: var(--bg-main);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-panel-header {
+  height: 32px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 0.7em;
+}
+
+.night-mode .canvas-panel-header {
+  background: #1c1814;
+  border-bottom-color: #a18a5e;
+}
+
+.canvas-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.canvas-controls button {
+  height: 20px;
+  padding: 0 8px;
+  font-size: 9px;
+}
+
+/* Canvas Lite UI Adjustments */
+#canvas-lite-root {
+  flex: 1;
+  background: #fdfdfd;
+  position: relative;
+  overflow: hidden;
+  border-left: 1px dashed var(--text-primary);
+}
+
+.night-mode #canvas-lite-root {
+  background: #14110e;
+  border-left-color: #a18a5e;
+}
+
+#canvas-lite {
+  background-color: transparent;
+}
+
+.night-mode #canvas-lite {
+  background-color: transparent;
 }
 
 /* Footer Status Bar */
@@ -373,6 +430,8 @@ button.btn-danger {
 button.btn-danger:hover {
   background: #cc0000;
 }
+
+
 
 .header-actions button:first-child {
   background: var(--text-primary);
@@ -455,6 +514,306 @@ button.btn-danger:hover {
   contain-intrinsic-size: auto 300px;
 }
 
+/* Print Styles for PDF Export */
+@media print {
+  body, #app {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+  #top-bar, #sidebar, #toolbar, #graph-menu, #db-menu, #canvas-menu, #status-bar, .toolbar-actions {
+    display: none !important;
+  }
+  .main-layout {
+    display: block !important;
+  }
+  #editor-container, #preview {
+    display: block !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    background: white !important;
+  }
+  textarea#editor {
+    display: none !important;
+  }
+  #preview {
+    width: 100% !important;
+    display: block !important;
+  }
+}
+
+.overlay-full {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-primary); 
+  display: flex;
+  flex-direction: column;
+}
+
+/* Canvas Lite Styles */
+#canvas-menu .overlay-full {
+  background: #fdfdfd; /* White theme for canvas */
+}
+
+.night-mode #canvas-menu .overlay-full {
+  background: #1c1814;
+}
+
+#canvas-lite-root {
+  flex: 1;
+  background: #fdfdfd;
+  position: relative;
+  overflow: hidden;
+}
+
+#canvas-inline-editor {
+  position: absolute;
+  padding: 8px;
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow: 4px 4px 0 rgba(0,0,0,1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1000;
+}
+
+.night-mode #canvas-inline-editor {
+  background: #1c1814;
+  border-color: #a18a5e;
+  box-shadow: 4px 4px 0 #a18a5e;
+}
+
+#canvas-inline-editor input {
+  background: transparent;
+  border: 1px solid #000;
+  color: inherit;
+  padding: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 150px;
+}
+
+.night-mode #canvas-inline-editor input {
+  border-color: #433d36;
+  color: #a18a5e;
+}
+
+#canvas-toolbar {
+  position: absolute;
+  background: #000;
+  border-radius: 4px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.night-mode #canvas-toolbar {
+  background: #1c1814;
+  border: 1px solid #a18a5e;
+}
+
+#canvas-toolbar button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 14px;
+  border-radius: 2px;
+}
+
+.night-mode #canvas-toolbar button {
+  color: #a18a5e;
+}
+
+#canvas-toolbar button:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.night-mode #canvas-toolbar button:hover {
+  background: rgba(161, 138, 94, 0.2);
+}
+
+/* Peek Window */
+#canvas-peek-window {
+  position: absolute;
+  width: 350px;
+  max-height: 450px;
+  background: #fff;
+  border: 2px solid #000;
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+  overflow: hidden;
+}
+
+.night-mode #canvas-peek-window {
+  background: #1c1814;
+  border-color: #a18a5e;
+  border-width: 1px;
+  color: #a18a5e;
+}
+
+.peek-header {
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.night-mode .peek-header {
+  background: #a18a5e;
+  color: #1c1814;
+}
+
+#peek-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+#peek-content {
+  padding: 12px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: inherit;
+  background: inherit;
+}
+
+#peek-content h1, #peek-content h2, #peek-content h3 {
+  margin-top: 0;
+  font-size: 1.2em;
+  border-bottom: 2px solid #000;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+}
+
+.night-mode #peek-content h1, 
+.night-mode #peek-content h2, 
+.night-mode #peek-content h3 {
+  border-bottom-color: #a18a5e;
+}
+
+#peek-content ul, #peek-content ol {
+  padding-left: 20px;
+  margin-bottom: 12px;
+}
+
+#peek-content li {
+  margin-bottom: 4px;
+}
+
+#peek-content img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #000;
+  margin: 10px 0;
+}
+
+.night-mode #peek-content img {
+  border-color: #a18a5e;
+}
+
+.night-mode #canvas-lite-root {
+  background: #14110e;
+}
+
+#canvas-lite {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.canvas-lite-header {
+  height: 48px;
+  background: #E4E3E0;
+  border-bottom: 2px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  flex-shrink: 0;
+}
+
+.night-mode .canvas-lite-header {
+  background: #1c1814;
+  border-bottom: 2px solid #a18a5e;
+}
+
+.canvas-lite-header .brand-text small {
+  font-size: 10px;
+  opacity: 0.5;
+  margin-left: 5px;
+}
+
+.canvas-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.canvas-controls button {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: #212121;
+  color: #fff;
+  border: 1px solid #444;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.canvas-controls button:hover {
+  background: #fff;
+  color: #000;
+  border-color: #000;
+}
+
+.night-mode .canvas-controls button {
+  background: #2a241f;
+  color: #a18a5e;
+  border-color: #433d36;
+}
+
+.night-mode .canvas-controls button:hover {
+  background: #a18a5e;
+  color: #1c1814;
+}
+
+.canvas-lite-header .header-actions .close-overlay {
+  background: #000;
+  color: #fff;
+  border: none;
+  font-weight: 800;
+  padding: 6px 12px;
+}
+
+.night-mode .canvas-lite-header .header-actions .close-overlay {
+  background: #a18a5e;
+  color: #000;
+}
+
+#download-pdf-btn {
+  margin-right: 4px;
+}
+
 .lazy-vault-img {
   background: rgba(0,0,0,0.05) !important;
   min-height: 100px;
@@ -462,7 +821,19 @@ button.btn-danger:hover {
 
 #purge-images-btn {
   width: 100%;
+  margin-top: 12px;
+  transition: all 0.2s;
 }
+
+#export-btn {
+  flex: 1;
+}
+
+label[for="import-vault"] {
+  flex: 1;
+}
+
+
 
 #preview strong {
   text-decoration: underline;
@@ -471,13 +842,9 @@ button.btn-danger:hover {
 
 /* Graph Overlay Ported from ASCII Pool */
 #graph-menu .overlay-full {
-  width: 100vw;
-  height: 100vh;
   background: rgba(10, 8, 5, 0.75); /* Reduced intensity dimming */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  display: flex;
-  flex-direction: column;
 }
 
 .graph-header {

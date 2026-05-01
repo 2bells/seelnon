@@ -258,6 +258,10 @@ body.night-mode .db-stats {
   border-bottom-color: rgba(161, 138, 94, 0.4);
 }
 
+body.night-mode #canvas-lite-root {
+  background: #14110e;
+}
+
 body.night-mode .lazy-vault-img {
   background: rgba(255,255,255,0.05) !important;
 }

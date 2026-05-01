@@ -1,36 +1,40 @@
+import JSZip from 'jszip';
 import { Vault } from './db.js';
 import { Editor } from './editor.js';
 import { GraphModule } from './graph.js';
 
 class CavemanApp {
   constructor() {
+    window.app = this;
     this.vault = new Vault();
     this.editorModule = new Editor(this.vault);
     this.graphModule = new GraphModule(this);
     this.notes = [];
     this.currentNote = null;
-    this.isPreview = true;
+    this.viewMode = 'preview'; // 'preview', 'editor', 'canvas'
 
     // Elements
     this.noteListEl = document.getElementById('note-list');
     this.editorEl = document.getElementById('editor');
     this.previewEl = document.getElementById('preview');
+    this.canvasPanel = document.getElementById('canvas-panel');
     this.titleInput = document.getElementById('note-title');
     this.folderInput = document.getElementById('note-folder');
     this.newNoteBtn = document.getElementById('new-note');
     this.togglePreviewBtn = document.getElementById('toggle-preview');
+    this.canvasModeBtn = document.getElementById('canvas-mode-btn');
     this.deleteNoteBtn = document.getElementById('delete-note');
     this.exportBtn = document.getElementById('export-btn');
-    this.exportNoteBtn = document.getElementById('export-note-btn');
+    this.exportNoteBtn = document.getElementById('download-pdf-btn');
     this.importInput = document.getElementById('import-vault');
     this.charCountEl = document.getElementById('char-count');
     this.lastSavedEl = document.getElementById('last-saved');
     this.searchInput = document.getElementById('search-notes');
     this.themeToggle = document.getElementById('theme-control');
     this.viewBtn = document.getElementById('view-btn');
+    this.viewMenu = document.getElementById('view-menu');
     this.dbBtn = document.getElementById('db-btn');
     this.graphBtn = document.getElementById('graph-btn');
-    this.viewMenu = document.getElementById('view-menu');
     this.dbMenu = document.getElementById('db-menu');
     this.graphMenu = document.getElementById('graph-menu');
     this.closeOverlayBtns = document.querySelectorAll('.close-overlay');
@@ -80,11 +84,12 @@ class CavemanApp {
     this.editorEl.addEventListener('input', () => this.handleInput());
     this.titleInput.addEventListener('input', () => this.handleInput());
     this.folderInput.addEventListener('input', () => this.handleInput());
-    this.togglePreviewBtn.addEventListener('click', () => this.togglePreview());
+    this.togglePreviewBtn.addEventListener('click', () => this.toggleEditorMode());
+    this.canvasModeBtn.addEventListener('click', () => this.toggleCanvasMode());
     this.deleteNoteBtn.addEventListener('click', () => this.deleteCurrentNote());
     this.editorEl.addEventListener('paste', (e) => this.handlePaste(e));
     this.exportBtn.addEventListener('click', () => this.exportVault());
-    this.exportNoteBtn.addEventListener('click', () => this.exportCurrentNote());
+    this.exportNoteBtn.addEventListener('click', () => this.exportNoteAsPDF());
     this.importInput.addEventListener('change', (e) => this.importVault(e));
     this.searchInput.addEventListener('input', () => this.renderNoteList());
     this.themeToggle.addEventListener('click', () => this.toggleTheme());
@@ -98,6 +103,7 @@ class CavemanApp {
       this.graphBtn.classList.add('active');
       this.graphModule.open();
     });
+    
     this.closeOverlayBtns.forEach(btn => btn.addEventListener('click', () => {
       this.closeOverlays();
       this.graphModule.close();
@@ -113,13 +119,21 @@ class CavemanApp {
 
     // Shortcuts
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 'p') {
+      if (e.ctrlKey && (e.key === 'p' || e.key === ']')) {
         e.preventDefault();
-        this.togglePreview();
+        this.toggleEditorMode();
+      }
+      if (e.ctrlKey && e.key === 'k') { // New shortcut for Canvas?
+        e.preventDefault();
+        this.toggleCanvasMode();
       }
       if (e.ctrlKey && e.key === '[') {
         e.preventDefault();
         this.toggleSidebar();
+      }
+      if (e.key === 'Escape') {
+        this.closeOverlays();
+        this.graphModule.close();
       }
     });
 
@@ -136,10 +150,8 @@ class CavemanApp {
       this.createNewNote();
     }
 
-    if (this.isPreview) {
-      this.editorEl.classList.add('hidden');
-      this.previewEl.classList.remove('hidden');
-      this.togglePreviewBtn.textContent = 'Editor Mode';
+    if (this.viewMode === 'preview') {
+      this.switchView('preview');
     }
 
     // 3. Background Load Ancient Scrolls (Public Tutorial)
@@ -154,6 +166,9 @@ class CavemanApp {
     localStorage.setItem('caveman-night-mode', isNight ? 'true' : 'false');
     if (isNight) {
       console.log("%cBONFIRE LIT", "color: #c0a062; font-size: 40px; font-weight: bold; font-family: serif; font-style: italic;");
+    }
+    if (this.canvasModule) {
+      this.canvasModule.render();
     }
   }
 
@@ -335,12 +350,23 @@ class CavemanApp {
     this.deleteNoteBtn.textContent = 'Delete';
     this.deleteNoteBtn.classList.remove('btn-danger');
     if (this.deleteTimeout) clearTimeout(this.deleteTimeout);
-
+ 
     // Disable delete for public notes
     this.deleteNoteBtn.style.display = note.isPublic ? 'none' : 'block';
-
+ 
     this.renderNoteList();
-    this.updatePreview();
+    
+    // Sync Canvas
+    if (!this.canvasModule) {
+      this.canvasModule = new window.CanvasLite('canvas-lite-root', (data) => this.handleCanvasChange(data));
+    }
+    this.canvasModule.setData(note.canvasData);
+ 
+    // Per-note view mode persistence
+    const lastMode = note.lastViewMode || 'preview';
+    this.switchView(lastMode);
+    
+    if (lastMode === 'preview') this.updatePreview();
     this.updateStats();
   }
 
@@ -389,12 +415,12 @@ class CavemanApp {
 
       if (newContent !== content) {
         this.editorEl.value = newContent;
-        this.handleInput(); // Persists and triggers re-render
+        this.handleInput(true); // Persists but skips re-render to avoid flashing
       }
     }
   }
 
-  async handleInput() {
+  async handleInput(skipPreview = false) {
     if (!this.currentNote) return;
 
     // If editing a public note, fork it into a local one first
@@ -403,6 +429,7 @@ class CavemanApp {
         title: this.titleInput.value,
         folder: this.folderInput.value,
         content: this.editorEl.value,
+        canvasData: this.currentNote.canvasData,
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
@@ -424,8 +451,34 @@ class CavemanApp {
     
     await this.vault.saveNote(this.currentNote);
     this.renderNoteList();
-    if (this.isPreview) this.updatePreview();
+    if (this.viewMode === 'preview' && skipPreview !== true) this.updatePreview();
     this.updateStats();
+    this.lastSavedEl.textContent = `Saved: ${new Date().toLocaleTimeString()}`;
+  }
+
+  async handleCanvasChange(data) {
+    if (!this.currentNote) return;
+    
+    // If it's a public note, fork it
+    if (this.currentNote.isPublic) {
+      const newNote = {
+        title: this.titleInput.value,
+        folder: this.folderInput.value,
+        content: this.editorEl.value,
+        canvasData: data,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      const newId = await this.vault.saveNote(newNote);
+      newNote.id = newId;
+      await this.loadNotes();
+      this.selectNote(newNote);
+      return;
+    }
+
+    this.currentNote.canvasData = data;
+    this.currentNote.updatedAt = Date.now();
+    await this.vault.saveNote(this.currentNote);
     this.lastSavedEl.textContent = `Saved: ${new Date().toLocaleTimeString()}`;
   }
 
@@ -505,17 +558,56 @@ class CavemanApp {
     });
   }
 
-  togglePreview() {
-    this.isPreview = !this.isPreview;
-    if (this.isPreview) {
-      this.editorEl.classList.add('hidden');
-      this.previewEl.classList.remove('hidden');
-      this.updatePreview();
-      this.togglePreviewBtn.textContent = 'Editor Mode';
-    } else {
+  switchView(mode) {
+    if (this.viewMode === mode && this.currentNote?.lastViewMode === mode) return;
+    
+    this.viewMode = mode;
+    if (this.currentNote) {
+      this.currentNote.lastViewMode = mode;
+      this.vault.saveNote(this.currentNote);
+    }
+    
+    // Hide all
+    this.editorEl.classList.add('hidden');
+    this.previewEl.classList.add('hidden');
+    this.canvasPanel.classList.add('hidden');
+    
+    // Deactivate buttons
+    this.togglePreviewBtn.classList.remove('active');
+    this.canvasModeBtn.classList.remove('active');
+    
+    if (mode === 'editor') {
       this.editorEl.classList.remove('hidden');
-      this.previewEl.classList.add('hidden');
       this.togglePreviewBtn.textContent = 'Preview Mode';
+    } else if (mode === 'preview') {
+      this.previewEl.classList.remove('hidden');
+      this.togglePreviewBtn.textContent = 'Editor Mode';
+      this.togglePreviewBtn.classList.add('active'); // Highlight active mode
+      this.updatePreview();
+    } else if (mode === 'canvas') {
+      this.canvasPanel.classList.remove('hidden');
+      this.canvasModeBtn.classList.add('active');
+      
+      if (this.canvasModule) {
+        this.canvasModule.onResize();
+        this.canvasModule.render();
+      }
+    }
+  }
+
+  toggleEditorMode() {
+    if (this.viewMode === 'editor') {
+      this.switchView('preview');
+    } else {
+      this.switchView('editor');
+    }
+  }
+
+  toggleCanvasMode() {
+    if (this.viewMode === 'canvas') {
+      this.switchView('preview');
+    } else {
+      this.switchView('canvas');
     }
   }
 
@@ -557,17 +649,37 @@ class CavemanApp {
         const blob = item.getAsFile();
         const reader = new FileReader();
         reader.onload = async (event) => {
-          const dataUrl = event.target.result;
-          const imgId = this.editorModule.generateImageId();
-          await this.vault.saveImage(imgId, dataUrl);
-          
-          const start = this.editorEl.selectionStart;
-          const end = this.editorEl.selectionEnd;
-          const text = this.editorEl.value;
-          const reference = `![[${imgId}]]`;
-          this.editorEl.value = text.slice(0, start) + reference + text.slice(end);
-          
-          this.handleInput();
+          const img = new Image();
+          img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1920;
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Using PNG preserves alpha (transparency)
+            const dataUrl = canvas.toDataURL('image/png');
+            const imgId = this.editorModule.generateImageId();
+            await this.vault.saveImage(imgId, dataUrl);
+            
+            const start = this.editorEl.selectionStart;
+            const end = this.editorEl.selectionEnd;
+            const text = this.editorEl.value;
+            const reference = `![[${imgId}]]`;
+            this.editorEl.value = text.slice(0, start) + reference + text.slice(end);
+            
+            this.handleInput();
+          };
+          img.src = event.target.result;
         };
         reader.readAsDataURL(blob);
       }
@@ -583,6 +695,59 @@ class CavemanApp {
     a.href = url;
     a.download = filename;
     a.click();
+  }
+
+  exportNoteAsPDF() {
+    console.log("PDF Export Triggered");
+    if (!this.currentNote) {
+      console.warn("No current note selected for PDF export.");
+      return;
+    }
+    
+    const wasEditing = this.viewMode === 'editor';
+    if (wasEditing) this.switchView('preview');
+    
+    // Check if in iframe
+    const inIframe = window.self !== window.top;
+    if (inIframe) {
+      this.lastSavedEl.textContent = "Open in NEW TAB to print PDF";
+      this.lastSavedEl.style.color = "#ff4444";
+      setTimeout(() => {
+        this.lastSavedEl.textContent = "Ready";
+        this.lastSavedEl.style.color = "";
+      }, 3000);
+    }
+    
+    setTimeout(() => {
+      window.focus();
+      try {
+        window.print();
+      } catch (e) {
+        console.error("Print failed:", e);
+        this.statusMessenger("Export failed. Opening new tab...", "error");
+      setTimeout(() => {
+        const win = window.open(window.location.href, '_blank');
+        if (!win) {
+           this.statusMessenger("Popup blocked!", "error");
+        }
+      }, 2000);
+      }
+      
+      if (wasEditing) {
+        setTimeout(() => this.switchView('editor'), 500);
+      }
+    }, 300);
+  }
+
+  toggleCanvas() {
+    this.closeOverlays();
+    this.canvasBtn.classList.add('active');
+    this.canvasMenu.classList.remove('hidden');
+    if (!this.canvasModule && window.CanvasLite) {
+      this.canvasModule = new window.CanvasLite('canvas-lite-root');
+    } else if (this.canvasModule) {
+      this.canvasModule.onResize();
+    }
   }
 
   openViewMenu() {
@@ -611,6 +776,7 @@ class CavemanApp {
   closeOverlays() {
     this.viewMenu.classList.add('hidden');
     this.dbMenu.classList.add('hidden');
+    this.graphMenu.classList.add('hidden');
     this.viewBtn.classList.remove('active');
     this.dbBtn.classList.remove('active');
     this.graphBtn.classList.remove('active');
@@ -639,74 +805,189 @@ class CavemanApp {
   async purgeUnusedImages() {
     const notes = await this.vault.getNotes();
     const images = await this.vault.getAllImages();
-    
     const usedImageIds = new Set();
     const imgPattern = /!\[\[(img-.*?)\]\]/g;
     
-    notes.forEach(note => {
+    this.notes.forEach(note => {
       let match;
       while ((match = imgPattern.exec(note.content)) !== null) {
         usedImageIds.add(match[1]);
       }
     });
     
-    const unusedImages = images.filter(img => !usedImageIds.has(img.id));
+    const unused = images.filter(img => !usedImageIds.has(img.id));
     
-    if (unusedImages.length === 0) {
-      alert('No unused images found.');
+    const btn = document.getElementById('purge-images-btn');
+    if (unused.length === 0) {
+      this.statusMessenger("Vault is clean.", "success");
+      btn.textContent = "Purge Unused Images";
+      btn.classList.remove('btn-danger');
       return;
     }
-    
-    if (confirm(`Found ${unusedImages.length} unused images. Purge them to free up space?`)) {
-      for (const img of unusedImages) {
+
+    if (!this._purgeStep) this._purgeStep = 0;
+    this._purgeStep++;
+
+    if (this._purgeStep === 1) {
+      btn.textContent = `CONFIRM PURGE (${unused.length})?`;
+      btn.classList.add('btn-danger');
+      this._purgeTimeout = setTimeout(() => {
+        this._purgeStep = 0;
+        btn.textContent = "Purge Unused Images";
+        btn.classList.remove('btn-danger');
+      }, 3000);
+      return;
+    }
+
+    if (this._purgeStep === 2) {
+      clearTimeout(this._purgeTimeout);
+      for (const img of unused) {
         await this.vault.deleteImage(img.id);
       }
-      alert(`Purged ${unusedImages.length} images.`);
-      this.openDatabaseMenu(); // Refresh stats
+      this.statusMessenger(`Purged ${unused.length} images.`, "success");
+      this._purgeStep = 0;
+      btn.textContent = "Purge Unused Images";
+      btn.classList.remove('btn-danger');
+      this.openDatabaseMenu();
     }
   }
 
   async exportVault() {
-    const images = await this.vault.getAllImages();
-    // Segmented export idea: we pack them into one for now, but roadmap 1.2 will split them.
-    const data = {
-      notes: this.notes,
-      images: images,
-      exportDate: new Date().toISOString(),
-      vaultName: 'CavemanVault'
-    };
+    this.statusMessenger("Creating ZIP...", "info");
+    try {
+      const zip = new JSZip();
+      const images = await this.vault.getAllImages();
+      const notesToExport = this.notes.filter(n => !n.isPublic);
+
+      zip.file("notes.json", JSON.stringify(notesToExport, null, 2));
+      
+      const imgFolder = zip.folder("images");
+      for (const img of images) {
+        const base64Data = img.data.split(',')[1];
+        if (base64Data) {
+          imgFolder.file(`${img.id}.png`, base64Data, { base64: true });
+        }
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `caveman-vault-full-${Date.now()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.statusMessenger("Exported ZIP", "success");
+    } catch (e) {
+      console.error(e);
+      this.statusMessenger("Export Failed", "error");
+    }
+  }
+
+  downloadJson(data, filename) {
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `caveman-vault-${Date.now()}.json`;
+    a.download = filename;
     a.click();
+    URL.revokeObjectURL(url);
   }
 
   async importVault(e) {
     const file = e.target.files[0];
     if (!file) return;
+
+    console.log("Importing file:", file.name);
+    if (!window.JSZip && typeof JSZip === 'undefined') {
+      console.error("JSZip not loaded");
+      this.statusMessenger("JSZip library missing", "error");
+      return;
+    }
+    
+    if (file.name.toLowerCase().endsWith('.zip')) {
+      await this.importZip(file);
+    } else {
+      await this.importJson(file);
+    }
+    // Reset picker
+    e.target.value = '';
+  }
+
+  async importJson(file) {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const data = JSON.parse(event.target.result);
-        if (data.notes && data.images) {
+        if (data.notes) {
           for (const note of data.notes) {
             await this.vault.saveNote(note);
           }
-          for (const img of data.images) {
-            await this.vault.saveImage(img.id, img.data);
+          if (data.images) {
+            for (const img of data.images) {
+              await this.vault.saveImage(img.id, img.data);
+            }
           }
-          alert(`Imported ${data.notes.length} notes and ${data.images.length} images.`);
+          this.statusMessenger(`Imported ${data.notes.length} notes.`, "success");
           await this.loadNotes();
           if (this.notes.length > 0) this.selectNote(this.notes[0]);
         }
       } catch (err) {
-        alert('Invalid vault file format.');
+        this.statusMessenger("Invalid file format", "error");
         console.error(err);
       }
     };
     reader.readAsText(file);
+  }
+
+  async importZip(file) {
+    this.statusMessenger("Unzipping...", "info");
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const notesFile = zip.file("notes.json");
+      if (!notesFile) throw new Error("No notes.json found in ZIP");
+      
+      const notesData = JSON.parse(await notesFile.async("string"));
+      for (const note of notesData) {
+        await this.vault.saveNote(note);
+      }
+
+      const imgFolder = zip.folder("images");
+      let imgCount = 0;
+      if (imgFolder) {
+        const files = [];
+        imgFolder.forEach((path, file) => {
+          if (!file.dir) files.push(file);
+        });
+
+        for (const f of files) {
+          const id = f.name.split('/').pop().replace('.png', '').replace('.jpg', '').replace('.jpeg', '');
+          const binaryData = await f.async("base64");
+          // Reconstruct as PNG DataURL (safest assumption for alpha preservation)
+          const dataUrl = `data:image/png;base64,${binaryData}`;
+          await this.vault.saveImage(id, dataUrl);
+          imgCount++;
+        }
+      }
+
+      this.statusMessenger(`Imported ${notesData.length} items.`, "success");
+      await this.loadNotes();
+      if (this.notes.length > 0) this.selectNote(this.notes[0]);
+    } catch (e) {
+       console.error(e);
+       this.statusMessenger("ZIP import failed", "error");
+    }
+  }
+
+  statusMessenger(msg, type = "info") {
+    this.lastSavedEl.textContent = msg;
+    if (type === "success") this.lastSavedEl.style.color = "#44ff44";
+    else if (type === "error") this.lastSavedEl.style.color = "#ff4444";
+    else this.lastSavedEl.style.color = "";
+    
+    setTimeout(() => {
+      this.lastSavedEl.textContent = "Ready";
+      this.lastSavedEl.style.color = "";
+    }, 4000);
   }
 }
 

@@ -38,11 +38,19 @@ export class Vault {
   }
 
   async saveNote(note) {
-    return new Promise((resolve) => {
-      const tx = this.db.transaction('notes', 'readwrite');
-      const store = tx.objectStore('notes');
-      const request = store.put(note);
-      request.onsuccess = () => resolve(request.result);
+    return new Promise((resolve, reject) => {
+      try {
+        // Deep copy to ensure no non-serializable objects (like HTMLImageElement) leak into IndexedDB
+        const cleanNote = JSON.parse(JSON.stringify(note));
+        const tx = this.db.transaction('notes', 'readwrite');
+        const store = tx.objectStore('notes');
+        const request = store.put(cleanNote);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = (e) => reject(e);
+      } catch (e) {
+        console.error("Critical: Failed to serialize note for storage", e);
+        reject(e);
+      }
     });
   }
 
