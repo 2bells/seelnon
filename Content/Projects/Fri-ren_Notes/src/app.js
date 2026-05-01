@@ -150,7 +150,7 @@ class CavemanApp {
     window.addEventListener('beforeprint', () => {
       if (document.body.classList.contains('print-continuous')) {
         const previewHeight = this.previewEl.scrollHeight;
-        const heightCm = Math.ceil(previewHeight / 37.8) + 5; 
+        const heightCm = Math.ceil(previewHeight / 37.8) + 4; 
         
         const style = document.createElement('style');
         style.id = 'continuous-print-style';

@@ -547,7 +547,7 @@ button.btn-danger:hover {
 
   /* Continuous Flow: Removes gaps between pages and prevents content breaking */
   body.print-continuous {
-    padding: 0 !important;
+    padding: 1cm !important;
   }
   
   body.print-continuous .markdown-body img,
