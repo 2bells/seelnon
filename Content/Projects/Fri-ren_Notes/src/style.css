@@ -542,74 +542,27 @@ button.btn-danger:hover {
     color: black !important;
     padding: 0 !important;
     border: none !important;
-    height: auto !important;
-    display: block !important;
-    overflow: visible !important;
-    width: 100% !important;
-    max-width: none !important;
-    min-width: 0 !important;
   }
-
-  #top-bar, #sidebar, #toolbar, #graph-menu, #db-menu, #canvas-menu, #status-bar, .toolbar-actions, #footer, .sidebar-footer {
+  #top-bar, #sidebar, #toolbar, #graph-menu, #db-menu, #canvas-menu, #status-bar, .toolbar-actions {
     display: none !important;
   }
-
   .main-layout {
     display: block !important;
-    height: auto !important;
-    overflow: visible !important;
-    width: 100% !important;
   }
-
-  #editor-container {
+  #editor-container, #preview {
     display: block !important;
     padding: 0 !important;
     height: auto !important;
     overflow: visible !important;
     position: static !important;
     background: white !important;
-    width: 100% !important;
-    margin: 0 !important;
   }
-
-  .split-view {
-    display: block !important;
-    height: auto !important;
-    overflow: visible !important;
-    width: 100% !important;
-  }
-
   textarea#editor {
     display: none !important;
   }
-
   #preview {
-    display: block !important;
     width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
-    padding: 1cm !important;
-    background: white !important;
-    position: static !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  #preview img {
-    max-width: 100% !important;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    page-break-after: avoid;
-    break-after: avoid;
-  }
-
-  p, blockquote, pre, ul, ol, li {
-    page-break-inside: auto;
-    break-inside: auto;
+    display: block !important;
   }
 }
 
