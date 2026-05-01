@@ -517,17 +517,21 @@ button.btn-danger:hover {
 /* Print Styles for PDF Export */
 @media print {
   @page {
-    margin: 1cm;
+    margin: 0;
     size: auto;
   }
-  
 
   html, body {
     height: auto !important;
     overflow: visible !important;
+    background: white !important;
     color: black !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+
+  body {
+    padding: 1cm !important; /* Default print margin moved to body padding */
   }
 
   html.print-with-background,
@@ -536,12 +540,13 @@ button.btn-danger:hover {
     color: var(--text-primary) !important;
     print-color-adjust: exact !important;
     -webkit-print-color-adjust: exact !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 
   body, #app {
     background: inherit !important;
     color: inherit !important;
-    padding: 0 !important;
     border: none !important;
   }
 
@@ -565,7 +570,7 @@ button.btn-danger:hover {
   /* Force Code Blocks to be black even if backgrounds are "off" */
   pre, code, .markdown-body pre, .markdown-body code {
     background-color: #1a1a1a !important;
-    color: exact !important;
+    color: #e6e6e6 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
