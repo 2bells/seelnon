@@ -1,10 +1,13 @@
 /* Night Mode Theme - Altus Plateau / Vintage Dark Brown Aesthetic */
-body.night-mode {
+.night-mode {
   --bg-main: #241f1a;      /* Dark Brown Paper */
   --bg-workspace: #1c1814; /* Deepened workspace */
   --bg-secondary: #2e2821; /* Lighter bark/paper for headers */
   --text-primary: #a18a5e; /* Burnished Elden Gold */
   --border-thick: 2px solid #3d342b;
+}
+
+body.night-mode {
   background: #14110e;     /* Frame background - dark and moody */
 }
 

@@ -80,6 +80,7 @@ class CavemanApp {
     if (savedNightMode === 'true') {
       this.isNightMode = true;
       document.body.classList.add('night-mode');
+      document.documentElement.classList.add('night-mode');
     }
 
     await this.vault.init();
@@ -181,6 +182,7 @@ class CavemanApp {
 
   toggleTheme() {
     document.body.classList.toggle('night-mode');
+    document.documentElement.classList.toggle('night-mode');
     const isNight = document.body.classList.contains('night-mode');
     localStorage.setItem('caveman-night-mode', isNight ? 'true' : 'false');
     if (isNight) {
