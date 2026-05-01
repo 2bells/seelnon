@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+import JSZip from './jszip';
 import { Vault } from './db.js';
 import { Editor } from './editor.js';
 import { GraphModule } from './graph.js';
