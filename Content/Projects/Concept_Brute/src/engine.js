@@ -1987,7 +1987,7 @@ export class Engine {
                     sCtx.translate(px, py); if (hasRotation) sCtx.rotate(this.rotation);
                     // Boost visibility of smudge. 
                     // Higher flow = more opaque smudge stamp.
-                    sCtx.globalAlpha = Math.min(1.0, flow * 1.5); 
+                    sCtx.globalAlpha = Math.min(1.0, flow * 4.5); 
                     sCtx.drawImage(this.smudgeCanvas, -sR, -sR, sSz, sSz);
                     sCtx.restore();
                 }
