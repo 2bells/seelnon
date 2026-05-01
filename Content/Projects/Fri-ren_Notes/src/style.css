@@ -525,7 +525,6 @@ button.btn-danger:hover {
   html, body {
     height: auto !important;
     overflow: visible !important;
-    background: white !important;
     color: black !important;
     margin: 0 !important;
     padding: 0 !important;
