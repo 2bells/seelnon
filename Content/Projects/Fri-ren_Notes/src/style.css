@@ -517,26 +517,39 @@ button.btn-danger:hover {
 /* Print Styles for PDF Export */
 @media print {
   @page {
-    margin: 0;
+    margin: 1cm;
     size: auto;
   }
 
-  html, body {
-    height: auto !important;
-    overflow: visible !important;
+  html {
+    min-height: 100% !important;
     background: white !important;
-    color: black !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    height: auto !important;
   }
 
   body {
-    padding: 1cm !important; /* Default print margin moved to body padding */
+    min-height: 100% !important;
+    overflow: visible !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
   }
 
-  html.print-with-background,
-  body.print-with-background {
+  html.print-with-background {
     background: var(--bg-main) !important;
+    background-attachment: fixed !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  html.print-with-background body {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+  }
+
+  body.print-with-background {
+    background: transparent !important;
     color: var(--text-primary) !important;
     print-color-adjust: exact !important;
     -webkit-print-color-adjust: exact !important;
