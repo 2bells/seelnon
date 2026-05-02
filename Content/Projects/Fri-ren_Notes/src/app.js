@@ -634,6 +634,7 @@ class CavemanApp {
       this.togglePreviewBtn.textContent = 'Preview Mode';
     } else if (mode === 'preview') {
       this.previewEl.classList.remove('hidden');
+      this.previewEl.scrollTop = 0;
       this.togglePreviewBtn.textContent = 'Editor Mode';
       this.togglePreviewBtn.classList.add('active'); // Highlight active mode
       this.updatePreview();
