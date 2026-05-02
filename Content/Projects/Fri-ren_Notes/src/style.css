@@ -490,14 +490,55 @@ button.btn-danger:hover {
   font-size: 1em;
 }
 
-#preview ul {
-  padding-left: 20px;
+#preview ul, #preview ol {
+  padding-left: 2.5em;
   margin-bottom: 16px;
   font-size: 1em;
 }
 
+#preview ol {
+  list-style-type: decimal;
+}
+
 #preview li {
-  margin-bottom: 8px;
+  margin-bottom: 0.5em;
+}
+
+#preview li > ul, #preview li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0;
+}
+
+#preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  font-size: 0.9em;
+  border: 1px solid var(--text-primary);
+}
+
+#preview th, #preview td {
+  padding: 8px 12px;
+  border: 1px solid var(--text-primary);
+  text-align: left;
+}
+
+#preview th {
+  background: var(--bg-secondary);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.night-mode #preview th {
+  background: #2e2821;
+}
+
+#preview tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.night-mode #preview tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 #preview img {
@@ -523,7 +564,6 @@ button.btn-danger:hover {
 
   html, body {
     min-height: 100% !important;
-    
     height: auto !important;
     overflow: visible !important;
     color: black !important;
@@ -545,7 +585,6 @@ button.btn-danger:hover {
     -webkit-box-decoration-break: clone;
   }
 
-  /* Continuous Flow: Removes gaps between pages and prevents content breaking */
   body.print-continuous {
     padding: 1cm !important;
   }
