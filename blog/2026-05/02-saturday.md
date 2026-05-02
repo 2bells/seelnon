@@ -6,6 +6,7 @@ Weather is nice... Also...
 
 - Endless, some updates
 - Brute, some updates
+- Notes, some updates
 
 overall: letting time take its turns.
 
@@ -14,3 +15,4 @@ patience is a weapon.
 --Harkhas Bastoris, Allarus Custodian
 ```
 
+Did a lot of fun stuff in MW. Had really fun moments. Making basic core systems, nothing fancy.
