@@ -591,7 +591,7 @@ button.btn-danger:hover {
   /* Force Code Blocks to be black even if backgrounds are "off" */
   pre, code, .markdown-body pre, .markdown-body code {
     background-color: #1a1a1a !important;
-    color: #e6e6e6 !important;
+    color: exact !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
