@@ -504,8 +504,12 @@ button.btn-danger:hover {
   margin-bottom: 0.5em;
 }
 
+#preview li:last-child {
+  margin-bottom: 0;
+}
+
 #preview li > ul, #preview li > ol {
-  margin-top: 0.25em;
+  margin-top: 0.5em;
   margin-bottom: 0;
 }
 
