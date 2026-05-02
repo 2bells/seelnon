@@ -237,14 +237,28 @@ class App {
   }
 
   async init() {
+    this._status('INITIALIZING...');
+
+    // 1. STORAGE & PROJECTS (Lightweight metadata)
     try {
         await this.storage.init();
         await this.initProjectSystem();
+    } catch (e) {
+        console.error("Storage init failed", e);
+        this._status('STORAGE ERROR');
+    }
 
+    // 2. PANELS & UI (Instant responsiveness)
+    this._setupUI();
+    this._setupHotkeys();
+    await this._loadWindowPositions();
+    this._restoreWindowPositions();
+
+    // 3. LOAD NON-CANVAS SETTINGS (Fast)
+    try {
         // Load autosave settings
         const savedAutosaveSlider = await this.storage.loadSetting('autosaveDelaySlider');
         const savedAutosaveEnabled = await this.storage.loadSetting('autosaveEnabled');
-
         if (savedAutosaveSlider !== null) {
             const sliderEl = document.getElementById('settings-autosave');
             if (sliderEl) sliderEl.value = savedAutosaveSlider;
@@ -252,92 +266,69 @@ class App {
             this.autosaveDelay = seconds * 1000;
             const valEl = document.getElementById('autosave-val');
             if (valEl) valEl.innerText = `${seconds}s`;
-        } else {
-            this.autosaveDelay = 4000;
         }
-
         if (savedAutosaveEnabled !== null) {
             this.autosaveEnabled = savedAutosaveEnabled;
             const enableEl = document.getElementById('settings-autosave-enable');
             if (enableEl) enableEl.checked = savedAutosaveEnabled;
-        } else {
-            this.autosaveEnabled = true;
         }
-    } catch (e) {
-        console.error("Storage init failed", e);
-        this._status('STORAGE ERROR');
-    }
 
-    this._setupUI();
-    this._setupHotkeys();
-    
-    // Load existing data
-    try {
-        await this.load();
-        
         const savedPalette = await this.storage.loadSetting('palette');
         if (savedPalette) this.palette.baseColors = savedPalette;
 
         const canvasBg = await this.storage.loadSetting('canvasBg');
         if (canvasBg) {
             this.engine.canvasBg = canvasBg;
-            document.getElementById('settings-bg-color').value = canvasBg;
+            const bgEl = document.getElementById('settings-bg-color');
+            if (bgEl) bgEl.value = canvasBg;
         }
 
         const gridColor = await this.storage.loadSetting('gridColor');
         if (gridColor) {
             this.engine.gridColor = gridColor;
-            document.getElementById('settings-grid-color').value = gridColor;
+            const gcEl = document.getElementById('settings-grid-color');
+            if (gcEl) gcEl.value = gridColor;
         }
 
         const gridPattern = await this.storage.loadSetting('gridPattern');
         if (gridPattern) {
             this.engine.gridPattern = gridPattern;
-            document.getElementById('settings-grid-pattern').value = gridPattern;
+            const gpEl = document.getElementById('settings-grid-pattern');
+            if (gpEl) gpEl.value = gridPattern;
         }
 
         const gridSize = await this.storage.loadSetting('gridSize');
         if (gridSize) {
             this.engine.gridSize = parseInt(gridSize);
-            document.getElementById('settings-grid-size').value = gridSize;
-            document.getElementById('grid-size-val').innerText = `${gridSize}px`;
+            const gsEl = document.getElementById('settings-grid-size');
+            if (gsEl) gsEl.value = gridSize;
+            const gsvEl = document.getElementById('grid-size-val');
+            if (gsvEl) gsvEl.innerText = `${gridSize}px`;
         }
 
         const gridIntensity = await this.storage.loadSetting('gridIntensity');
         if (gridIntensity) {
             this.engine.gridIntensity = parseInt(gridIntensity) / 100;
-            document.getElementById('settings-grid-intensity').value = gridIntensity;
-            document.getElementById('grid-intensity-val').innerText = `${gridIntensity}%`;
+            const giEl = document.getElementById('settings-grid-intensity');
+            if (giEl) giEl.value = gridIntensity;
+            const givEl = document.getElementById('grid-intensity-val');
+            if (givEl) givEl.innerText = `${gridIntensity}%`;
         }
 
         const showGrid = await this.storage.loadSetting('showGrid');
         if (showGrid !== undefined) {
             this.engine.showGrid = showGrid;
-            document.getElementById('settings-grid-show').checked = showGrid;
+            const sgEl = document.getElementById('settings-grid-show');
+            if (sgEl) sgEl.checked = showGrid;
         }
 
-        const savedSensitivities = await this.storage.loadSetting('sensitivities');
-        if (savedSensitivities && typeof savedSensitivities === 'object') {
-            // Migrating old sensitivities to default brush if present
-            if (this.brushSettings[TOOLS.BRUSH]) {
-                this.brushSettings[TOOLS.BRUSH].speedSize = savedSensitivities.size ?? 8.0;
-                this.brushSettings[TOOLS.BRUSH].speedOpacity = savedSensitivities.opacity ?? 6.0;
-                this.brushSettings[TOOLS.BRUSH].speedValue = savedSensitivities.value ?? -4.0;
-                this.brushSettings[TOOLS.BRUSH].speedHue = savedSensitivities.hue ?? -10.0;
-            }
-        }
-
+        // BRUSH SETTINGS
         let savedBrushes = null;
         try {
             const raw = localStorage.getItem('brushSettings');
             if (raw) savedBrushes = JSON.parse(raw);
         } catch(e) {}
-
-        if (!savedBrushes) {
-            // Fallback for legacy
-            savedBrushes = await this.storage.loadSetting('brushSettings');
-        }
-
+        if (!savedBrushes) savedBrushes = await this.storage.loadSetting('brushSettings');
         if (savedBrushes) {
             Object.keys(savedBrushes).forEach(tool => {
                 if (this.brushSettings[tool]) {
@@ -346,27 +337,35 @@ class App {
             });
         }
 
-        // Apply initial tool settings
-        this.setTool(this.activeTool, true);
-
-        this._loadWindowPositions().then(() => this._restoreWindowPositions());
-
         const spacing = await this.storage.loadSetting('brushSpacing');
         if (spacing) {
             this.engine.brush.spacing = parseFloat(spacing);
-            if (document.getElementById('settings-brush-spacing')) {
-                document.getElementById('settings-brush-spacing').value = spacing;
-            }
+            const spEl = document.getElementById('settings-brush-spacing');
+            if (spEl) spEl.value = spacing;
         }
 
-        this.engine.refresh();
     } catch (e) {
-        console.error("Data load failed", e);
+        console.warn("Settings load failed", e);
     }
 
+    // 4. RENDER UI STATE
     this._renderPalette();
+    this._initColorSelector();
+    const firstColor = this.palette.baseColors[0];
+    this._updateHSVFromHex(firstColor);
     
+    // 5. APPLY BRUSH (Sync UI sliders)
+    this.setTool(this.activeTool, true);
+
+    // 6. HEAVY ASSETS (References & Canvas chunks)
+    this._status('LOADING ASSETS...');
+    await this.load();
+    
+    // Final sync
+    this.engine.refresh();
     this._status('READY');
+
+    // Event hooks
     this.engine.onDrawStart = () => this._clearSaveTimer();
     this.engine.onDrawMove = () => this._triggerAutoSave();
     this.engine.onDrawEnd = () => this._triggerAutoSave();
@@ -390,11 +389,6 @@ class App {
             this._status('CAPTURE CANCELLED');
         }
     };
-
-    // Init picker state
-    const firstColor = this.palette.baseColors[0];
-    this._updateHSVFromHex(firstColor);
-    this._initColorSelector();
   }
 
   _clearSaveTimer() {
@@ -898,7 +892,6 @@ class App {
   }
 
   _restoreWindowPositions() {
-      const margin = 20;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
 
@@ -908,13 +901,15 @@ class App {
 
           let { top, left } = this.windowPositions[id];
           
-          const w = el.offsetWidth || 200;
+          // Force layout if not visible to get dimensions, or fallback to defaults
+          const w = el.offsetWidth || (id === 'panel-brush-tips' ? 180 : 200);
           const h = el.offsetHeight || 200;
 
-          if (left + w < margin) left = margin;
-          if (left > vw - margin) left = vw - w - margin;
-          if (top + h < margin) top = margin;
-          if (top > vh - margin) top = vh - h - margin;
+          // Strictly clamp within viewport
+          if (left + w > vw) left = vw - w;
+          if (left < 0) left = 0;
+          if (top + h > vh) top = vh - h;
+          if (top < 0) top = 0;
 
           el.style.top = `${top}px`;
           el.style.left = `${left}px`;
