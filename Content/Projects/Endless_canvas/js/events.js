@@ -1090,6 +1090,68 @@ export function init(canvas) {
     // also update cursor when activeTool or state.brush.type changes
     window.addEventListener('activeBrushChanged', updateCanvasCursor);
 
+    // Function to process an image and add it to the canvas
+    async function processImageAndAddToCanvas(imageUrl) {
+        const tempImg = new Image();
+        tempImg.onload = async () => {
+            // Optimize image for storage before adding to state
+            const optimizedUrl = optimizeImageForStorage(tempImg);
+            const imageId = Date.now().toString();
+
+            // Save the bulky data to IndexedDB ("The Drive")
+            try {
+                await saveImageAsset(imageId, optimizedUrl);
+            } catch (dbErr) {
+                console.error("Failed to save image to Asset Drive:", dbErr);
+            }
+            
+            // Create the actual image element from the optimized URL
+            const img = new Image();
+            img.onload = () => {
+                // Center image in viewport
+                const viewport = getWorldViewport();
+                const centerX = (viewport.minX + viewport.maxX) / 2;
+                const centerY = (viewport.minY + viewport.maxY) / 2;
+                
+                // Constrain image display size to viewport if too large
+                const maxDim = Math.min(viewport.maxX - viewport.minX, viewport.maxY - viewport.minY) * 0.8;
+                let scale = 1.0;
+                if (img.width > maxDim || img.height > maxDim) {
+                    scale = maxDim / Math.max(img.width, img.height);
+                }
+
+                const newImage = {
+                    id: imageId,
+                    url: optimizedUrl, // Still kept in live state for rendering
+                    x: centerX,
+                    y: centerY,
+                    scaleX: scale,
+                    scaleY: scale,
+                    rotation: 0,
+                    opacity: 1,
+                    visible: true,
+                    locked: false,
+                    width: img.width,
+                    height: img.height,
+                    element: img
+                };
+
+                state.images.push(newImage);
+                state.selectedImageId = newImage.id;
+                state.activeTool = 'selection';
+                
+                // Reset tool buttons
+                document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('selection-tool')?.classList.add('active');
+                
+                scheduleSave();
+                requestAnimationFrame(draw);
+            };
+            img.src = optimizedUrl;
+        };
+        tempImg.src = imageUrl;
+    }
+
     // Image Import Logic
     const importBtn = document.getElementById('import-image-btn');
     const imageInput = document.getElementById('image-input');
@@ -1105,69 +1167,25 @@ export function init(canvas) {
 
             const reader = new FileReader();
             reader.onload = (event) => {
-                const url = event.target.result;
-                const tempImg = new Image();
-                tempImg.onload = async () => {
-                    // Optimize image for storage before adding to state
-                    const optimizedUrl = optimizeImageForStorage(tempImg);
-                    const imageId = Date.now().toString();
-
-                    // Save the bulky data to IndexedDB ("The Drive")
-                    try {
-                        await saveImageAsset(imageId, optimizedUrl);
-                    } catch (dbErr) {
-                        console.error("Failed to save image to Asset Drive:", dbErr);
-                    }
-                    
-                    // Create the actual image element from the optimized URL
-                    const img = new Image();
-                    img.onload = () => {
-                        // Center image in viewport
-                        const viewport = getWorldViewport();
-                        const centerX = (viewport.minX + viewport.maxX) / 2;
-                        const centerY = (viewport.minY + viewport.maxY) / 2;
-                        
-                        // Constrain image display size to viewport if too large
-                        const maxDim = Math.min(viewport.maxX - viewport.minX, viewport.maxY - viewport.minY) * 0.8;
-                        let scale = 1.0;
-                        if (img.width > maxDim || img.height > maxDim) {
-                            scale = maxDim / Math.max(img.width, img.height);
-                        }
-
-                        const newImage = {
-                            id: imageId,
-                            url: optimizedUrl, // Still kept in live state for rendering
-                            x: centerX,
-                            y: centerY,
-                            scaleX: scale,
-                            scaleY: scale,
-                            rotation: 0,
-                            opacity: 1,
-                            visible: true,
-                            locked: false,
-                            width: img.width,
-                            height: img.height,
-                            element: img
-                        };
-
-                        state.images.push(newImage);
-                        state.selectedImageId = newImage.id;
-                        state.activeTool = 'selection';
-                        
-                        // Reset tool buttons
-                        document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
-                        document.getElementById('selection-tool')?.classList.add('active');
-                        
-                        scheduleSave();
-                        requestAnimationFrame(draw);
-                    };
-                    img.src = optimizedUrl;
-                };
-                tempImg.src = url;
+                processImageAndAddToCanvas(event.target.result);
             };
             reader.readAsDataURL(file);
-            // Reset input so searching for same file works
             imageInput.value = '';
         });
     }
+
+    // Clipboard Paste Logic
+    window.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const blob = item.getAsFile();
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    processImageAndAddToCanvas(event.target.result);
+                };
+                reader.readAsDataURL(blob);
+            }
+        }
+    });
 }
