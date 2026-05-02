@@ -94,6 +94,8 @@ class App {
     this.projects = [];
     this.currentProjectId = 'default';
 
+    this.windowPositions = {};
+
     this.init();
   }
 
@@ -345,7 +347,9 @@ class App {
         }
 
         // Apply initial tool settings
-        this.setTool(this.activeTool);
+        this.setTool(this.activeTool, true);
+
+        this._loadWindowPositions().then(() => this._restoreWindowPositions());
 
         const spacing = await this.storage.loadSetting('brushSpacing');
         if (spacing) {
@@ -805,11 +809,48 @@ class App {
     this._makeDraggable(document.getElementById('panel-layers'), document.getElementById('handle-layers'));
     this._makeDraggable(document.getElementById('panel-settings'), document.getElementById('handle-settings'));
     this._makeDraggable(document.getElementById('panel-brush-tips'), document.getElementById('handle-brush-tips'));
+    this._makeDraggable(document.getElementById('panel-advanced-brush'), document.getElementById('handle-advanced-brush'));
+
+    document.getElementById('btn-advanced-brush').onclick = () => {
+        document.getElementById('panel-advanced-brush').classList.toggle('hidden');
+    };
+    document.getElementById('btn-close-advanced-brush').onclick = () => {
+        document.getElementById('panel-advanced-brush').classList.add('hidden');
+    };
+
+    const smudgeBoostInput = document.getElementById('adv-smudge-flow-boost');
+    if (smudgeBoostInput) {
+        smudgeBoostInput.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.engine.brush.smudgeFlowBoost = val;
+            document.getElementById('adv-smudge-flow-boost-val').innerText = val.toFixed(1);
+        };
+    }
+
+    const smudgePickupInput = document.getElementById('adv-smudge-pickup');
+    if (smudgePickupInput) {
+        smudgePickupInput.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.engine.brush.smudgePickup = val;
+            document.getElementById('adv-smudge-pickup-val').innerText = val.toFixed(1);
+        };
+    }
+
+    const sharpenInput = document.getElementById('adv-brush-sharpen');
+    if (sharpenInput) {
+        sharpenInput.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.engine.brush.sharpening = val;
+            document.getElementById('adv-brush-sharpen-val').innerText = val.toFixed(2);
+        };
+    }
   }
 
   _makeDraggable(el, handle) {
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
     handle.onmousedown = dragMouseDown;
+
+    const self = this;
 
     function dragMouseDown(e) {
       e.preventDefault();
@@ -835,7 +876,51 @@ class App {
     function closeDragElement() {
       document.onmouseup = null;
       document.onmousemove = null;
+      
+      // Save position
+      self.windowPositions[el.id] = {
+          top: el.offsetTop,
+          left: el.offsetLeft
+      };
+      self._saveWindowPositions();
     }
+  }
+
+  _saveWindowPositions() {
+      localStorage.setItem('window_positions', JSON.stringify(this.windowPositions));
+  }
+
+  async _loadWindowPositions() {
+      try {
+          const raw = localStorage.getItem('window_positions');
+          if (raw) this.windowPositions = JSON.parse(raw);
+      } catch (e) {}
+  }
+
+  _restoreWindowPositions() {
+      const margin = 20;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      Object.keys(this.windowPositions).forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+
+          let { top, left } = this.windowPositions[id];
+          
+          const w = el.offsetWidth || 200;
+          const h = el.offsetHeight || 200;
+
+          if (left + w < margin) left = margin;
+          if (left > vw - margin) left = vw - w - margin;
+          if (top + h < margin) top = margin;
+          if (top > vh - margin) top = vh - h - margin;
+
+          el.style.top = `${top}px`;
+          el.style.left = `${left}px`;
+          el.style.right = 'auto';
+          el.style.bottom = 'auto';
+      });
   }
 
   _updateZoomUI() {
@@ -1225,8 +1310,8 @@ class App {
     }
   }
 
-  setTool(tool) {
-    if (this.activeTool === tool) return;
+  setTool(tool, force = false) {
+    if (this.activeTool === tool && !force) return;
     this.prevTool = this.activeTool;
     this.activeTool = tool;
     

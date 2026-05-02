@@ -28,6 +28,9 @@ export class Engine {
       paintHeight: 0,
       oiliness: 0.5,
       airbrush: 0.0,
+      smudgeFlowBoost: 4.5,
+      smudgePickup: 1.0,
+      sharpening: 0,
       type: TOOLS.BRUSH 
     };
 
@@ -1987,7 +1990,7 @@ export class Engine {
                     sCtx.translate(px, py); if (hasRotation) sCtx.rotate(this.rotation);
                     // Boost visibility of smudge. 
                     // Higher flow = more opaque smudge stamp.
-                    sCtx.globalAlpha = Math.min(1.0, flow * 4.5); 
+                    sCtx.globalAlpha = Math.min(1.0, flow * (this.brush.smudgeFlowBoost || 4.5)); 
                     sCtx.drawImage(this.smudgeCanvas, -sR, -sR, sSz, sSz);
                     sCtx.restore();
                 }
@@ -2003,7 +2006,8 @@ export class Engine {
                     // Pickup from segment.
                     // Higher flow = more pickup (wetness).
                     // Higher opacity = less update (drag length).
-                    const pickUpAlpha = (0.3 + flow * 0.4) * (1.1 - opacity * 0.8);
+                    const pickupMul = this.brush.smudgePickup ?? 1.0;
+                    const pickUpAlpha = (0.3 + flow * 0.4 * pickupMul) * (1.1 - opacity * 0.8);
                     this.smudgeCtx.globalAlpha = Math.min(1.0, pickUpAlpha);
                 } else {
                     this.smudgeCtx.globalAlpha = 1.0;
