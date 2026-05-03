@@ -666,13 +666,33 @@ class App {
     // Reverse UI display: Index 3 at top, Index 0 at bottom
     // Index 0 is IMG REF, Indices 1-3 are PAINT LAYERS
     for (let i = LAYERS_COUNT - 1; i >= 0; i--) {
+      const container = document.createElement('div');
+      container.className = 'layer-item';
+      if (i === this.engine.activeLayer) container.classList.add('active-layer');
+
       const btn = document.createElement('button');
       btn.className = 'layer-btn';
-      if (i === 1) btn.classList.add('active-tool');
       btn.id = `layer-btn-${i}`;
       btn.innerHTML = i === 0 ? 'IMG REF' : `PAINT ${i}`;
       btn.onclick = () => this.setLayer(i);
-      layerStack.appendChild(btn);
+      container.appendChild(btn);
+
+      // Alpha Lock toggle for paint layers
+      if (i > 0) {
+        const lockBtn = document.createElement('button');
+        lockBtn.className = 'mini-btn layer-lock-btn';
+        lockBtn.title = 'Alpha Lock';
+        lockBtn.innerHTML = 'a'; // Small 'a' for Alpha
+        if (this.engine.layerSettings[i].alphaLock) lockBtn.classList.add('lock-active');
+        lockBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.engine.layerSettings[i].alphaLock = !this.engine.layerSettings[i].alphaLock;
+            lockBtn.classList.toggle('lock-active');
+        };
+        container.appendChild(lockBtn);
+      }
+
+      layerStack.appendChild(container);
     }
     this.engine.activeLayer = 1; // Default to first paint layer
 
@@ -1415,14 +1435,12 @@ class App {
     // Update UI
     for (let i = 0; i < LAYERS_COUNT; i++) {
         const btn = document.getElementById(`layer-btn-${i}`);
-        if (btn) {
-            btn.classList.remove('active-tool');
-        }
+        const item = btn?.parentElement;
+        if (item) item.classList.remove('active-layer');
     }
     const active = document.getElementById(`layer-btn-${index}`);
-    if (active) {
-        active.classList.add('active-tool');
-    }
+    const activeItem = active?.parentElement;
+    if (activeItem) activeItem.classList.add('active-layer');
 
     if (index === 0) {
         if (this.activeTool !== TOOLS.REF_MOVE) this.setTool(TOOLS.REF_MOVE);

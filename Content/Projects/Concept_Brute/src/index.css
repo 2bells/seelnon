@@ -565,7 +565,19 @@ body {
     border-bottom: 2px solid black;
 }
 
+.layer-item {
+    display: flex;
+    gap: 2px;
+    align-items: stretch;
+}
+
+.layer-item.active-layer .layer-btn {
+    background: #000;
+    color: #fff;
+}
+
 .layer-btn {
+    flex-grow: 1;
     border: 2px solid black;
     font-size: 10px;
     padding: 8px;
@@ -573,11 +585,31 @@ body {
     cursor: pointer;
     font-weight: 900;
     text-transform: uppercase;
+    text-align: left;
 }
 
-.layer-btn:hover, .layer-btn.active-tool {
-    background-color: black;
-    color: white;
+.layer-btn:hover {
+    background-color: #eee;
+}
+
+.layer-item.active-layer .layer-btn:hover {
+    background-color: #333;
+}
+
+.layer-lock-btn {
+    width: 28px;
+    border: 2px solid black;
+    background: #fff;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.layer-lock-btn.lock-active {
+    background: #ff00ff; /* Alpha lock color */
+    color: #fff;
 }
 
 /* ZOOM & STATUS */

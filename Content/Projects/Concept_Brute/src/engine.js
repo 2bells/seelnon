@@ -40,6 +40,8 @@ export class Engine {
     this.history = [];
     this.redoStack = [];
     this.currentStrokeDirtyChunks = new Map();
+
+    this.layerSettings = Array.from({ length: LAYERS_COUNT }, () => ({ alphaLock: false }));
     
     this.activeSelectionPath = null;
     this.clipboard = null;
@@ -1197,7 +1199,7 @@ export class Engine {
     let currentPos = { x: m.x, y: m.y };
 
     // Shift Constraint
-    if (this.keys['shift'] && this.lastPos) {
+    if ((this.keys['shift'] || e.shiftKey) && this.lastPos) {
         if (!this.shiftOrigin) {
             this.shiftOrigin = { ...this.lastPos };
             this.shiftLockAxis = null;
@@ -1363,7 +1365,14 @@ export class Engine {
                 }
 
                 ctx.globalAlpha = this.brush.opacity; // Per-stroke opacity from UI
-                ctx.globalCompositeOperation = 'source-over';
+                
+                const layerSet = this.layerSettings[this.activeLayer];
+                if (layerSet && layerSet.alphaLock) {
+                    ctx.globalCompositeOperation = 'source-atop';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+
                 ctx.drawImage(chunk.strokeCanvas, 0, 0);
                 ctx.restore();
 
@@ -2038,8 +2047,20 @@ export class Engine {
                     const iMinX = Math.max(lx, minX), iMinY = Math.max(ly, minY);
                     const iMaxX = Math.min(lx + this.chunkSize, maxX), iMaxY = Math.min(ly + this.chunkSize, maxY);
                     if (iMaxX > iMinX && iMaxY > iMinY) {
-                        chunk.ctxs[this.activeLayer].clearRect(iMinX - lx, iMinY - ly, iMaxX - iMinX, iMaxY - iMinY);
-                        chunk.ctxs[this.activeLayer].drawImage(this.segmentCanvas, iMinX - minX, iMinY - minY, iMaxX - iMinX, iMaxY - iMinY, iMinX - lx, iMinY - ly, iMaxX - iMinX, iMaxY - iMinY);
+                        const lCtx = chunk.ctxs[this.activeLayer];
+                        const layerSet = this.layerSettings[this.activeLayer];
+                        
+                        if (layerSet && layerSet.alphaLock) {
+                            lCtx.save();
+                            // If alpha lock is on, we don't clear.
+                            // We use source-atop to paint only on existing pixels.
+                            lCtx.globalCompositeOperation = 'source-atop';
+                            lCtx.drawImage(this.segmentCanvas, iMinX - minX, iMinY - minY, iMaxX - iMinX, iMaxY - iMinY, iMinX - lx, iMinY - ly, iMaxX - iMinX, iMaxY - iMinY);
+                            lCtx.restore();
+                        } else {
+                            lCtx.clearRect(iMinX - lx, iMinY - ly, iMaxX - iMinX, iMaxY - iMinY);
+                            lCtx.drawImage(this.segmentCanvas, iMinX - minX, iMinY - minY, iMaxX - iMinX, iMaxY - iMinY, iMinX - lx, iMinY - ly, iMaxX - iMinX, iMaxY - iMinY);
+                        }
                     }
                 }
             });
@@ -2083,6 +2104,11 @@ export class Engine {
         ctx.globalAlpha = opacityBase;
         
         if (isEraser) {
+            const layerSet = this.layerSettings[this.activeLayer];
+            if (layerSet && layerSet.alphaLock) {
+                ctx.restore();
+                return;
+            }
             ctx.globalCompositeOperation = 'destination-out';
         } else {
             ctx.globalCompositeOperation = 'source-over';
