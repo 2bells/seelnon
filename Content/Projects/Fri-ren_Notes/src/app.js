@@ -410,7 +410,7 @@ class CavemanApp {
   async createCustodesNote() {
     const content = `<div class="imperial-records-container">
   <div class="imperial-header">
-    <img src="/server/adeptus_custodes_icon_330x192.png" class="imperial-seal" alt="Adeptus Custodes Seal" />
+    <img src="./server/adeptus_custodes_icon_330x192.png" class="imperial-seal" alt="Adeptus Custodes Seal" />
     <div class="header-data">
       <div>++++ TRANSMITTED: +[REDACTED]+ ++++</div>
       <div>++++ RECEIVED: +SOL SYSTEM+ ++++</div>
