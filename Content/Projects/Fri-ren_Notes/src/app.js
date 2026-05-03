@@ -91,7 +91,39 @@ class CavemanApp {
     await this.loadNotes();
 
     // Event Listeners
-    this.newNoteBtn.addEventListener('click', () => this.createNewNote());
+    let newNoteTimer;
+    let longPressTriggered = false;
+
+    this.newNoteBtn.addEventListener('pointerdown', () => {
+      longPressTriggered = false;
+      newNoteTimer = setTimeout(() => {
+        this.createCustodesNote();
+        longPressTriggered = true;
+        // Simple visual feedback
+        this.newNoteBtn.classList.add('easter-egg-trigger');
+        setTimeout(() => this.newNoteBtn.classList.remove('easter-egg-trigger'), 500);
+      }, 2500);
+    });
+
+    const release = () => {
+      if (newNoteTimer) {
+        clearTimeout(newNoteTimer);
+        newNoteTimer = null;
+      }
+    };
+
+    this.newNoteBtn.addEventListener('pointerup', release);
+    this.newNoteBtn.addEventListener('pointerleave', release);
+
+    this.newNoteBtn.addEventListener('click', (e) => {
+      if (longPressTriggered) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      this.createNewNote();
+    });
+    
     this.editorEl.addEventListener('input', () => this.handleInput());
     this.titleInput.addEventListener('input', () => this.handleInput());
     this.folderInput.addEventListener('input', () => this.handleInput());
@@ -375,6 +407,76 @@ class CavemanApp {
     return `${Math.floor(diff/86400)}D`;
   }
 
+  async createCustodesNote() {
+    const content = `<div class="imperial-records-container">
+  <div class="imperial-header">
+    <img src="/server/adeptus_custodes_icon_330x192.png" class="imperial-seal" alt="Adeptus Custodes Seal" />
+    <div class="header-data">
+      <div>++++ TRANSMITTED: +[REDACTED]+ ++++</div>
+      <div>++++ RECEIVED: +SOL SYSTEM+ ++++</div>
+      <br/>
+      <div>++++ FROM: ADEPTUS CUSTODES // TALONS OF THE EMPEROR ++++</div>
+      <div>++++ TO: ALL LOYAL SUBJECTS OF THE IMPERIUM ++++</div>
+    </div>
+  </div>
+
+  <div class="imperial-titles">
+    <h1 class="imperial-title-main">✠ ADEPTUS CUSTODES ✠</h1>
+    <h2 class="imperial-title-sub">✵ OFFICIAL NOTIFICATION ✵</h2>
+    <h3 class="imperial-title-will">BY THE WILL OF THE IMMORTAL EMPEROR OF MANKIND</h3>
+  </div>
+
+  <hr class="imperial-hr" />
+
+  | Squad Designation | Regiment Name | Logistics Rating | Information |
+  | :--- | :--- | :--- | :--- |
+  | **THE GILDED HOST** | 1st Guard | **EXTREMIS** | SECTOR SECURED |
+
+  <hr class="imperial-hr" />
+
+  <h3 class="imperial-section-header">PERSONNEL STATUS RECORD</h3>
+
+  | NAME | STATUS | DEMEANOUR | CAUSE OF DEATH |
+  | :--- | :--- | :--- | :--- |
+  | **Shield-Captain Tyvar** | ACTIVE | RESOLUTE | - |
+  | **Custode Valerian** | ACTIVE | STOIC | - |
+  | **Sister Aleya** | ACTIVE | SILENT | - |
+  | **Venerable Contemptor** | DORMANT | ANCIENT | - |
+
+  <hr class="imperial-hr" />
+
+  <blockquote class="imperial-quote">
+    <strong>"THOUGHT FOR THE DAY: Wisdom is the beginning of fear."</strong>
+  </blockquote>
+
+  <hr class="imperial-hr" />
+
+  <div class="imperial-footer">
+    <p><em>Verified by the Inquisition.</em></p>
+    <p class="final-seal"><strong>✠ IN THE EMPEROR'S NAME ✠</strong></p>
+  </div>
+</div>`;
+
+    const note = {
+      title: 'ADEPTUS CUSTODES - OFFICIAL NOTICE',
+      folder: 'IMPERIAL RECORDS',
+      content: content,
+      lastViewMode: 'preview',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    
+    const id = await this.vault.saveNote(note);
+    note.id = id;
+    this.notes.push(note);
+    this.selectNote(note);
+    this.switchView('preview');
+    
+    if (this.isNightMode) {
+       console.log("%cFOR THE EMPEROR", "color: #ffd700; font-size: 30px; font-weight: bold; text-shadow: 2px 2px #000;");
+    }
+  }
+
   async createNewNote() {
     const note = {
       title: '',
@@ -577,6 +679,12 @@ class CavemanApp {
 
   async updatePreview() {
     if (!this.currentNote) return;
+
+    if (this.currentNote.folder === 'IMPERIAL RECORDS') {
+      this.previewEl.classList.add('imperial-records');
+    } else {
+      this.previewEl.classList.remove('imperial-records');
+    }
     
     let html = await this.editorModule.processMarkdown(this.currentNote.content);
     

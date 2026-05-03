@@ -1347,4 +1347,203 @@ input[type="checkbox"]:checked::after, #preview input[type="checkbox"]:checked::
   width: 100%;
 }
 
+/* Easter Egg Feedback */
+.easter-egg-trigger {
+  animation: egg-throb 0.5s infinite alternate;
+}
+
+@keyframes egg-throb {
+  from { opacity: 1; }
+  to { background: gold !important; color: black !important; box-shadow: 0 0 15px gold; transform: scale(1.05); }
+}
+
+/* Imperial Records Theme */
+#preview.imperial-records {
+  position: relative;
+  background-color: #d1b88a !important; /* Aged Parchment Base */
+  background-image: 
+    url('../server/coffee-stain-png-907672.png'),
+    url('../server/coffee-cup-png-155069.png'),
+    url('../server/90-907655_coffee-stain.png'),
+    radial-gradient(circle at 50% 50%, transparent 40%, rgba(0,0,0,0.15) 100%),
+    linear-gradient(rgba(209, 184, 138, 0.7), rgba(209, 184, 138, 0.7)), /* Simulates texture opacity */
+    url('https://www.transparenttextures.com/patterns/dark-leather.png') !important;
+  background-attachment: local, local, local, scroll, scroll, local !important;
+  background-position: 
+    90% 30px,
+    100% 1000px,   
+    0% 600px,  
+    center top,
+    center top,
+    left top !important;
+  background-size: 
+    300px auto, 
+    500px auto, 
+    500px auto, 
+    100% 100%,
+    100% 100%,
+    auto !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat !important;
+  background-blend-mode: multiply, multiply, multiply, normal, normal, multiply !important;
+  color: #1a1510 !important;
+  border-left: 12px double #4a3b2a !important;
+  border-right: 12px double #4a3b2a !important;
+  box-shadow: inset 0 0 100px rgba(0,0,0,0.2) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  z-index: 1;
+}
+
+#preview.imperial-records h1, 
+#preview.imperial-records h2, 
+#preview.imperial-records h3 {
+  color: #2e0000 !important; /* Blood red headings */
+  text-shadow: 1px 1px 0px rgba(255,255,255,0.3) !important;
+  border-bottom: none !important; /* Remove excessive lines */
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-weight: 900;
+  margin-top: 1.2em;
+  font-style: normal !important; /* Adeptus custodes should not be italic */
+}
+
+/* Custom layout classes for Custodes note */
+#preview.imperial-records .imperial-titles {
+  text-align: center;
+  margin-bottom: 2em;
+  border-bottom: 3px double #5a1a1a;
+  padding-bottom: 1em;
+}
+
+#preview.imperial-records .imperial-title-main {
+  font-size: 2.2em !important;
+  margin-top: 0 !important;
+}
+
+#preview.imperial-records .imperial-title-sub {
+  font-size: 1.2em !important;
+  letter-spacing: 5px !important;
+  margin-top: 0.5em !important;
+  opacity: 0.9;
+}
+
+#preview.imperial-records .imperial-title-will {
+  font-size: 0.8em !important;
+  letter-spacing: 1px !important;
+  margin-top: 0.5em !important;
+  opacity: 0.8;
+}
+
+#preview.imperial-records hr.imperial-hr {
+  border: none;
+  border-top: 1px solid #5a1a1a !important;
+  margin: 20px 0;
+  opacity: 0.6;
+}
+
+#preview.imperial-records .imperial-section-header {
+  font-size: 1.1em !important;
+  letter-spacing: 2px !important;
+  margin-bottom: 15px !important;
+  text-decoration: underline;
+}
+
+#preview.imperial-records .imperial-quote {
+  border-left: 5px solid #5a1a1a !important;
+  background: rgba(0, 0, 0, 0.03) !important;
+  margin: 30px 0 !important;
+}
+
+#preview.imperial-records .imperial-footer {
+  text-align: center;
+  margin-top: 3em;
+  border-top: 2px solid #5a1a1a;
+  padding-top: 1.5em;
+}
+
+#preview.imperial-records .final-seal {
+  font-size: 1.2em;
+  margin-top: 10px;
+  color: #2e0000;
+}
+
+#preview.imperial-records hr {
+  border: none;
+  border-top: 3px solid #4a3b2a !important;
+  opacity: 0.8;
+  margin: 32px 0;
+}
+
+#preview.imperial-records table {
+  border: 2px solid #4a3b2a !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  width: 100%;
+}
+
+#preview.imperial-records th, 
+#preview.imperial-records td {
+  border: 1px solid #4a3b2a !important;
+  color: #1a1510 !important;
+  padding: 12px !important;
+}
+
+#preview.imperial-records th {
+  background: #4a3b2a !important;
+  color: #d1b88a !important;
+  font-weight: 800;
+}
+
+#preview.imperial-records blockquote {
+  border-left: 4px solid #2e0000 !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  font-style: italic;
+  color: #333 !important;
+  padding: 20px !important;
+  margin: 24px 0;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+}
+
+#preview.imperial-records strong {
+  color: #2e0000 !important;
+  text-decoration: underline;
+}
+
+#preview.imperial-records img {
+  filter: sepia(0.5) contrast(1.2) brightness(0.9);
+  mix-blend-mode: multiply;
+  margin: 20px 0;
+}
+
+#preview.imperial-records .imperial-header {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 40px;
+  border-bottom: 3px solid #5a1a1a;
+  padding-bottom: 30px;
+}
+
+#preview.imperial-records .imperial-seal {
+  width: 165px; 
+  height: auto;
+  margin: 0 !important;
+  border: none !important; 
+  background: transparent !important; 
+  filter: none !important;
+  mix-blend-mode: normal !important; 
+}
+
+#preview.imperial-records .header-data {
+  flex: 1;
+  font-size: 0.9em;
+  font-weight: 800;
+  color: #2e0000;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  line-height: 1.4;
+}
+
+#preview.imperial-records .header-data div {
+  margin-bottom: 4px;
+}
+
 
