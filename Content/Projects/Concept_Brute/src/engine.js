@@ -41,7 +41,10 @@ export class Engine {
     this.redoStack = [];
     this.currentStrokeDirtyChunks = new Map();
 
-    this.layerSettings = Array.from({ length: LAYERS_COUNT }, () => ({ alphaLock: false }));
+    this.layerSettings = Array.from({ length: LAYERS_COUNT }, () => ({ 
+        alphaLock: false,
+        visible: true
+    }));
     
     this.activeSelectionPath = null;
     this.clipboard = null;
@@ -49,6 +52,7 @@ export class Engine {
     this.dirtyChunks = new Set(); // Tracks chunks that need persisting to storage
     this.referenceImages = [];
     this.selectedRefIndex = -1;
+    this.refsDirty = false;
 
     this.isExportMode = false;
     this.exportRect = null;
@@ -62,6 +66,9 @@ export class Engine {
     this.showGrid = true;
     this.isMirrored = false;
     this.isCapturingTip = false;
+    this._gridTexture = null;
+    this._lastGridParams = null;
+    
     this.captureReticle = document.getElementById('capture-reticle');
     
     // Dedicated wrapper for all canvas content that can be mirrored
@@ -335,6 +342,18 @@ export class Engine {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
+    const world = this._screenToWorld(x, y);
+    
+    return {
+        x: x, 
+        y: y,
+        wx: world.wx,
+        wy: world.wy
+    };
+  }
+
+  _screenToWorld(x, y) {
+    const rect = this.container.getBoundingClientRect();
     const cx = Math.floor(rect.width / 2);
     const cy = Math.floor(rect.height / 2);
 
@@ -347,18 +366,11 @@ export class Engine {
     let wx = (dx * cos - dy * sin) / this.zoom;
     let wy = (dx * sin + dy * cos) / this.zoom;
 
-    // Mirroring is applied FIRST in the transform chain (rightmost in CSS)
-    // so we must un-flip it LAST in the inverse
     if (this.isMirrored) {
         wx = -wx;
     }
     
-    return {
-        x: x, 
-        y: y,
-        wx: wx,
-        wy: wy
-    };
+    return { wx, wy };
   }
 
   _updateCursor() {
@@ -416,6 +428,11 @@ export class Engine {
       chunk.element.appendChild(canv);
       chunk.canvases.push(canv);
       chunk.ctxs.push(canv.getContext('2d', { alpha: true }));
+      
+      // Respect visibility
+      if (this.layerSettings[i] && !this.layerSettings[i].visible) {
+          canv.style.display = 'none';
+      }
     }
 
     // Per-stroke buffer
@@ -497,42 +514,101 @@ export class Engine {
   }
 
   refreshGrid() {
-    // Sync Background
     this.container.style.backgroundColor = this.canvasBg;
     this.canvasWrapper.style.backgroundColor = this.canvasBg;
     
     if (this.showGrid) {
-        const scaledSize = this.gridSize; // Grid is in wrapper space now
-        const color = this.gridColor;
-        const opacity = this.gridIntensity;
-        
-        let gridColorWithOpacity = color;
-        if (color.startsWith('#')) {
-            const r = parseInt(color.slice(1, 3), 16);
-            const g = parseInt(color.slice(3, 5), 16);
-            const b = parseInt(color.slice(5, 7), 16);
-            gridColorWithOpacity = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        const currentKey = `${this.gridSize}-${this.gridColor}-${this.gridIntensity}-${this.gridPattern}`;
+        if (this._lastGridParams !== currentKey) {
+            this._gridTexture = this._generateGridTexture();
+            this._lastGridParams = currentKey;
         }
 
-        let bgImage = '';
-        if (this.gridPattern === 'dots') {
-            bgImage = `radial-gradient(${gridColorWithOpacity} 1px, transparent 1px)`;
-        } else if (this.gridPattern === 'lines') {
-            bgImage = `linear-gradient(0deg, ${gridColorWithOpacity} 1px, transparent 1px)`;
-        } else if (this.gridPattern === 'squares') {
-            bgImage = `linear-gradient(90deg, ${gridColorWithOpacity} 1px, transparent 1px), linear-gradient(0deg, ${gridColorWithOpacity} 1px, transparent 1px)`;
-        } else if (this.gridPattern === 'crosses') {
-            bgImage = `linear-gradient(90deg, transparent 48%, ${gridColorWithOpacity} 48%, ${gridColorWithOpacity} 52%, transparent 52%), 
-                       linear-gradient(0deg, transparent 48%, ${gridColorWithOpacity} 48%, ${gridColorWithOpacity} 52%, transparent 52%)`;
-        }
-
-        this.canvasWrapper.style.backgroundImage = bgImage;
-        this.canvasWrapper.style.backgroundSize = `${scaledSize}px ${scaledSize}px`;
+        this.canvasWrapper.style.backgroundImage = `url(${this._gridTexture})`;
+        const texSize = this._gridTextureSize || 1024;
+        this.canvasWrapper.style.backgroundSize = `${texSize}px ${texSize}px`;
         this.canvasWrapper.style.backgroundPosition = `5000px 5000px`;
+        this.canvasWrapper.style.backgroundRepeat = 'repeat';
     } else {
         this.canvasWrapper.style.backgroundImage = 'none';
-        this.canvasWrapper.style.backgroundPosition = '0 0';
     }
+  }
+
+  _generateGridTexture() {
+      const targetSize = 1024;
+      const cellCount = Math.max(1, Math.round(targetSize / this.gridSize));
+      const size = cellCount * this.gridSize;
+      this._gridTextureSize = size;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      
+      const color = this.gridColor;
+      const opacity = this.gridIntensity;
+      
+      let r=200, g=200, b=200;
+      if (color.startsWith('#')) {
+          if (color.length === 4) {
+              r = parseInt(color[1] + color[1], 16);
+              g = parseInt(color[2] + color[2], 16);
+              b = parseInt(color[3] + color[3], 16);
+          } else {
+              r = parseInt(color.slice(1, 3), 16);
+              g = parseInt(color.slice(3, 5), 16);
+              b = parseInt(color.slice(5, 7), 16);
+          }
+      }
+      const gridColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+      
+      ctx.strokeStyle = gridColor;
+      ctx.fillStyle = gridColor;
+      ctx.lineWidth = 1;
+
+      // Adjust gridSize slightly so it tiles perfectly
+      const step = this.gridSize;
+      
+      if (this.gridPattern === 'dots') {
+          const radius = Math.max(0.5, step * 0.05);
+          for (let x = 0; x < cellCount; x++) {
+              for (let y = 0; y < cellCount; y++) {
+                  ctx.beginPath();
+                  ctx.arc(x * step + step/2, y * step + step/2, radius, 0, Math.PI * 2);
+                  ctx.fill();
+              }
+          }
+      } else if (this.gridPattern === 'lines') {
+          for (let i = 0; i <= cellCount; i++) {
+              ctx.beginPath();
+              ctx.moveTo(0, i * step);
+              ctx.lineTo(size, i * step);
+              ctx.stroke();
+          }
+      } else if (this.gridPattern === 'squares') {
+          for (let i = 0; i <= cellCount; i++) {
+              // Vert
+              ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, size); ctx.stroke();
+              // Horiz
+              ctx.beginPath(); ctx.moveTo(0, i * step); ctx.lineTo(size, i * step); ctx.stroke();
+          }
+      } else if (this.gridPattern === 'crosses') {
+          const arm = Math.max(1, step * 0.2);
+          for (let x = 0; x < cellCount; x++) {
+              for (let y = 0; y < cellCount; y++) {
+                  const px = x * step + step/2;
+                  const py = y * step + step/2;
+                  ctx.beginPath();
+                  ctx.moveTo(px - arm, py); ctx.lineTo(px + arm, py);
+                  ctx.stroke();
+                  ctx.beginPath();
+                  ctx.moveTo(px, py - arm); ctx.lineTo(px, py + arm);
+                  ctx.stroke();
+              }
+          }
+      }
+      
+      return canvas.toDataURL();
   }
 
   refresh() {
@@ -1076,7 +1152,7 @@ export class Engine {
     
     // Clear dirty chunks tracking for this stroke
     this.currentStrokeDirtyChunks = new Map();
-    this.redoStack = []; // Clear redo on new action
+    this._clearStack(this.redoStack);
   }
 
   _moveStroke(e) {
@@ -1210,7 +1286,6 @@ export class Engine {
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
 
-        // Increased tolerance to prevent accidental axis jumping
         const tolerance = 4; 
         if (!this.shiftLockAxis) {
             if (absX > tolerance || absY > tolerance) {
@@ -1223,10 +1298,14 @@ export class Engine {
         } else if (this.shiftLockAxis === 'y') {
             currentPos.x = this.shiftOrigin.x;
         } else {
-            // Not enough movement to lock yet, stay at origin to prevent "jitters"
             currentPos.x = this.shiftOrigin.x;
             currentPos.y = this.shiftOrigin.y;
         }
+        
+        // Update world coordinates based on the constrained screen coordinates
+        const constrainedWorld = this._screenToWorld(currentPos.x, currentPos.y);
+        m.wx = constrainedWorld.wx;
+        m.wy = constrainedWorld.wy;
     } else {
         this.shiftOrigin = null;
         this.shiftLockAxis = null;
@@ -1292,11 +1371,11 @@ export class Engine {
         const from = this.lastWorldPos || worldTo;
         this._paintOnChunks(from, worldTo, Math.max(1, dynamicSize * 0.1), opacMod, color);
         
-        const thresholdMax = dynamicSize * 4;
-        const thresholdMin = dynamicSize * 0.5;
+        const thresholdMax = dynamicSize * (this.brush.wireRange ?? 4.0);
+        const thresholdMin = dynamicSize * (this.brush.wireMinDist ?? 0.5);
         const points = this.strokePoints;
         const count = points.length;
-        const maxSeek = 30;
+        const maxSeek = this.brush.wireDensity ?? 30;
         for (let i = Math.max(0, count - maxSeek); i < count - 1; i++) {
             const p = points[i];
             const d = Math.sqrt((p.x - worldTo.x)**2 + (p.y - worldTo.y)**2);
@@ -1400,7 +1479,14 @@ export class Engine {
             zoom: this.zoom,
             pan: { ...this.pan }
         });
-        if (this.history.length > 30) this.history.shift();
+        if (this.history.length > 50) { // Increased history slightly but with disposal
+            const oldest = this.history.shift();
+            this._disposeAction(oldest);
+        }
+    }
+    
+    if (this.brush.type === TOOLS.REF_MOVE) {
+        this.refsDirty = true;
     }
     
     if (this.onDrawEnd && this.isDrawing) this.onDrawEnd();
@@ -1579,6 +1665,7 @@ export class Engine {
           const ref = this.referenceImages[index];
           if (ref.element) ref.element.remove();
           this.referenceImages.splice(index, 1);
+          this.refsDirty = true;
           if (this.selectedRefIndex === index) {
               this.selectedRefIndex = this.referenceImages.length - 1;
           } else if (this.selectedRefIndex > index) {
@@ -1888,7 +1975,8 @@ export class Engine {
 
     // 3. Cache and Smudge Prep
     if (tip && !isSmudge) {
-        const cacheKey = `${airbrush}_${bSize}`;
+        const sharpen = this.brush.brushSharpen || 0;
+        const cacheKey = `${airbrush}_${bSize}_${sharpen}`;
         if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color) {
             this._updateTipCache(bSize, airbrush, color);
         }
@@ -1996,14 +2084,13 @@ export class Engine {
                 
                 if (this.smudgeDirty) {
                     sCtx.save();
-                    sCtx.translate(px, py); if (hasRotation) sCtx.rotate(this.rotation);
-                    // Boost visibility of smudge. 
+                    sCtx.translate(px, py); if (hasRotation) sCtx.rotate(this.rotation);                    // Boost visibility of smudge. 
                     // Higher flow = more opaque smudge stamp.
-                    sCtx.globalAlpha = Math.min(1.0, flow * (this.brush.smudgeFlowBoost || 4.5)); 
+                    sCtx.globalAlpha = Math.min(1.0, flow * (this.brush.smudgeFlowBoost ?? 10.0)); 
                     sCtx.drawImage(this.smudgeCanvas, -sR, -sR, sSz, sSz);
                     sCtx.restore();
                 }
-
+ 
                 this.smudgeCtx.save();
                 this.smudgeCtx.clearRect(0, 0, 128, 128);
                 
@@ -2015,7 +2102,7 @@ export class Engine {
                     // Pickup from segment.
                     // Higher flow = more pickup (wetness).
                     // Higher opacity = less update (drag length).
-                    const pickupMul = this.brush.smudgePickup ?? 1.0;
+                    const pickupMul = this.brush.smudgePickup ?? 2.0;
                     const pickUpAlpha = (0.3 + flow * 0.4 * pickupMul) * (1.1 - opacity * 0.8);
                     this.smudgeCtx.globalAlpha = Math.min(1.0, pickUpAlpha);
                 } else {
@@ -2160,11 +2247,20 @@ export class Engine {
     const dSize = Math.max(1, s * scale);
     const canv = document.createElement('canvas'); canv.width = s; canv.height = s;
     const tctx = canv.getContext('2d');
+    
     if (airbrush > 0) tctx.filter = `blur(${blur}px)`;
+    
+    const sharpen = this.brush.brushSharpen || 0;
+    if (sharpen > 0) {
+        const contrast = 100 + sharpen * 900;
+        const currentFilter = (tctx.filter && tctx.filter !== 'none') ? tctx.filter : '';
+        tctx.filter = (currentFilter ? currentFilter + ' ' : '') + `contrast(${contrast}%)`;
+    }
+
     tctx.drawImage(this.brush.tip, (s-dSize)/2, (s-dSize)/2, dSize, dSize);
     tctx.globalCompositeOperation = 'source-in';
     tctx.fillStyle = color; tctx.fillRect(0,0,s,s);
-    this._tipColorCache = { canvas: canv, key: `${airbrush}_${s}`, color, srcTip: this.brush.tip };
+    this._tipColorCache = { canvas: canv, key: `${airbrush}_${s}_${sharpen}`, color, srcTip: this.brush.tip };
   }
 
   _updateReliefCache(s, blur) {
@@ -2185,8 +2281,8 @@ export class Engine {
 
   addReferenceImage(img, name, x = null, y = null, config = {}) {
     const rect = this.container.getBoundingClientRect();
-    const wx = x !== null ? x : (-this.pan.x + rect.width / 2) / this.zoom;
-    const wy = y !== null ? y : (-this.pan.y + rect.height / 2) / this.zoom;
+    const wx = x !== null ? x : (-this.pan.x) / this.zoom;
+    const wy = y !== null ? y : (-this.pan.y) / this.zoom;
 
     const el = document.createElement('img');
     el.src = img.src;
@@ -2211,6 +2307,7 @@ export class Engine {
     };
 
     this.referenceImages.push(ref);
+    this.refsDirty = true;
     this.selectedRefIndex = this.referenceImages.length - 1;
     this.refresh();
     return ref;
@@ -2251,6 +2348,49 @@ export class Engine {
       this.addReferenceImage(img, 'Imported');
   }
 
+  _disposeAction(action) {
+      if (!action || !action.chunks) return;
+      action.chunks.forEach(data => {
+          if (data.canvas) {
+              data.canvas.width = 1;
+              data.canvas.height = 1;
+              data.canvas = null;
+          }
+      });
+      action.chunks.clear();
+  }
+
+  _clearStack(stack) {
+      if (!stack) return;
+      while (stack.length > 0) {
+          this._disposeAction(stack.pop());
+      }
+  }
+
+  compact() {
+      // Clear redo stack on save to free up memory
+      this._clearStack(this.redoStack);
+      
+      // If history is very large, maybe trim it? 
+      // But 50 is usually fine with disposal.
+  }
+
+  setLayerVisibility(index, visible) {
+      if (this.layerSettings[index]) {
+          this.layerSettings[index].visible = visible;
+          
+          if (index === 0) {
+              this.refLayer.style.display = visible ? 'block' : 'none';
+          }
+          
+          this.chunks.forEach(chunk => {
+              if (chunk.canvases[index]) {
+                  chunk.canvases[index].style.display = visible ? 'block' : 'none';
+              }
+          });
+      }
+  }
+
   undo() {
     if (this.history.length === 0) return;
     
@@ -2278,6 +2418,7 @@ export class Engine {
                 this._markDirty(id, data.layer);
             }
         });
+        this._disposeAction(action);
     }
 
     // Restore Selection/Transform state
@@ -2335,6 +2476,7 @@ export class Engine {
     }
 
     this.history.push(undoAction);
+    this._disposeAction(action);
     this._updateSelectionPreview();
     this.refresh();
     this._status('REDO');

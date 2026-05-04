@@ -251,10 +251,23 @@ export class TipManager {
         }
         const angleRad = (rotation * Math.PI) / 180;
 
+        // Row-based opacity logic
+        let baseAlpha = 1.0;
+        if (i < 3) {
+            // Row 1: 100%
+            baseAlpha = 1.0;
+        } else if (i < 6) {
+            // Row 2: 50-100%
+            baseAlpha = 0.5 + Math.random() * 0.5;
+        } else {
+            // Row 3: random
+            baseAlpha = Math.random();
+        }
+
         tctx.save();
         tctx.translate(32, 32);
         tctx.rotate(angleRad);
-        tctx.globalAlpha = 0.5;
+        tctx.globalAlpha = baseAlpha;
         tctx.drawImage(t1.canvas, -32, -32, 64, 64);
         tctx.drawImage(t2.canvas, -32, -32, 64, 64);
         tctx.restore();
@@ -268,7 +281,7 @@ export class TipManager {
             cctx.save();
             cctx.translate(64, 64);
             cctx.rotate(angleRad);
-            cctx.globalAlpha = 0.5;
+            cctx.globalAlpha = baseAlpha;
             cctx.drawImage(t1.canvas, -64, -64);
             cctx.drawImage(t2.canvas, -64, -64);
             cctx.restore();

@@ -79,33 +79,23 @@ export class ImgHandler {
       if (!btn) return;
       btn.onclick = () => {
         this._setRefTool(id);
-      };
-    });
 
-    // Specific actions
-    if (this.refTools.EXTRACT) {
-      this.refTools.EXTRACT.onclick = async () => {
-        if (this.engine.selectedRefIndex >= 0) {
-            await this.engine.extractPaletteFromRef(this.engine.selectedRefIndex);
-            if (this.onUpdate) this.onUpdate();
+        // Additional actions after setting tool if needed
+        if (id === 'EXTRACT') {
+            if (this.engine.selectedRefIndex >= 0) {
+                this.engine.extractPaletteFromRef(this.engine.selectedRefIndex).then(() => {
+                    if (this.onUpdate) this.onUpdate();
+                });
+            }
+        } else if (id === 'CROP') {
+            if (this.engine.selectedRefIndex >= 0) this.engine.cropRefImage(this.engine.selectedRefIndex);
+        } else if (id === 'KNIFE') {
+            if (this.engine.selectedRefIndex >= 0) this.engine.knifeRefImage(this.engine.selectedRefIndex);
+        } else if (id === 'COLOR') {
+            if (this.engine.selectedRefIndex >= 0) this.engine.colorCorrectRefImage(this.engine.selectedRefIndex);
         }
       };
-    }
-    if (this.refTools.CROP) {
-        this.refTools.CROP.onclick = () => {
-            if (this.engine.selectedRefIndex >= 0) this.engine.cropRefImage(this.engine.selectedRefIndex);
-        };
-    }
-    if (this.refTools.KNIFE) {
-        this.refTools.KNIFE.onclick = () => {
-            if (this.engine.selectedRefIndex >= 0) this.engine.knifeRefImage(this.engine.selectedRefIndex);
-        };
-    }
-    if (this.refTools.COLOR) {
-        this.refTools.COLOR.onclick = () => {
-            if (this.engine.selectedRefIndex >= 0) this.engine.colorCorrectRefImage(this.engine.selectedRefIndex);
-        };
-    }
+    });
   }
 
   _setRefTool(toolId) {

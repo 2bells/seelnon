@@ -54,6 +54,12 @@ class App {
             paintHeight: 0,
             oiliness: 0.5,
             airbrush: 0.0,
+            smudgeFlowBoost: 10.0,
+            smudgePickup: 2.0,
+            brushSharpen: 0.0,
+            wireDensity: 30,
+            wireRange: 4.0,
+            wireMinDist: 0.5,
             tip: null
         };
     });
@@ -203,14 +209,26 @@ class App {
     this.engine.saveQuality = settings.quality || 0.92;
     
     // Wipe engine state
-    this.engine.chunks.forEach(c => c.element.remove());
+    this.engine.chunks.forEach(c => {
+        // Explicitly clear chunk canvases
+        c.canvases.forEach(canv => {
+            canv.width = 1;
+            canv.height = 1;
+        });
+        if (c.strokeCanvas) {
+            c.strokeCanvas.width = 1;
+            c.strokeCanvas.height = 1;
+        }
+        c.element.remove();
+    });
     this.engine.chunks.clear();
     this.engine.loadViewport(id);
     this.engine.rotation = 0;
-    this.engine.history = [];
-    this.engine.redoStack = [];
+    this.engine._clearStack(this.engine.history);
+    this.engine._clearStack(this.engine.redoStack);
     this.engine.referenceImages.forEach(r => r.element.remove());
     this.engine.referenceImages = [];
+    this._updateRefImageList();
     this.engine.dirtyChunks.clear();
     
     await this.load();
@@ -320,6 +338,7 @@ class App {
             this.engine.showGrid = showGrid;
             const sgEl = document.getElementById('settings-grid-show');
             if (sgEl) sgEl.checked = showGrid;
+            this.engine.refreshGrid();
         }
 
         // BRUSH SETTINGS
@@ -351,8 +370,10 @@ class App {
     // 4. RENDER UI STATE
     this._renderPalette();
     this._initColorSelector();
-    const firstColor = this.palette.baseColors[0];
-    this._updateHSVFromHex(firstColor);
+    
+    const lastColor = await this.storage.loadSetting('lastColor') || this.palette.baseColors[0];
+    this.setColor(lastColor);
+    this._updateHSVFromHex(lastColor);
     
     // 5. APPLY BRUSH (Sync UI sliders)
     this.setTool(this.activeTool, true);
@@ -465,12 +486,12 @@ class App {
     document.getElementById('file-import').onchange = (e) => this._handleImport(e);
 
     // Settings
-    const settingsPanel = document.getElementById('panel-settings');
+    this.settingsPanel = document.getElementById('panel-settings');
     document.getElementById('btn-settings').onclick = () => {
-        settingsPanel.classList.toggle('hidden');
+        this.settingsPanel.classList.toggle('hidden');
         this._updateStorageStat();
     };
-    document.getElementById('btn-close-settings').onclick = () => settingsPanel.classList.add('hidden');
+    document.getElementById('btn-close-settings').onclick = () => this.settingsPanel.classList.add('hidden');
 
     // Settings Tabs
     document.querySelectorAll('.settings-tab').forEach(tab => {
@@ -677,21 +698,46 @@ class App {
       btn.onclick = () => this.setLayer(i);
       container.appendChild(btn);
 
+      // Controls container
+      const controls = document.createElement('div');
+      controls.className = 'layer-controls';
+
       // Alpha Lock toggle for paint layers
       if (i > 0) {
         const lockBtn = document.createElement('button');
-        lockBtn.className = 'mini-btn layer-lock-btn';
+        lockBtn.className = 'layer-lock-btn';
         lockBtn.title = 'Alpha Lock';
-        lockBtn.innerHTML = 'a'; // Small 'a' for Alpha
+        lockBtn.innerHTML = 'A';
         if (this.engine.layerSettings[i].alphaLock) lockBtn.classList.add('lock-active');
         lockBtn.onclick = (e) => {
             e.stopPropagation();
             this.engine.layerSettings[i].alphaLock = !this.engine.layerSettings[i].alphaLock;
             lockBtn.classList.toggle('lock-active');
         };
-        container.appendChild(lockBtn);
+        controls.appendChild(lockBtn);
       }
 
+      // Visibility Toggle for ALL layers
+      const visBtn = document.createElement('button');
+      visBtn.className = 'layer-vis-btn';
+      visBtn.title = 'Toggle Visibility';
+      
+      const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      const eyeOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
+      
+      visBtn.innerHTML = this.engine.layerSettings[i].visible ? eyeIcon : eyeOffIcon;
+      if (!this.engine.layerSettings[i].visible) visBtn.classList.add('vis-hidden');
+      
+      visBtn.onclick = (e) => {
+          e.stopPropagation();
+          const newVis = !this.engine.layerSettings[i].visible;
+          this.engine.setLayerVisibility(i, newVis);
+          visBtn.innerHTML = newVis ? eyeIcon : eyeOffIcon;
+          visBtn.classList.toggle('vis-hidden', !newVis);
+      };
+      controls.appendChild(visBtn);
+
+      container.appendChild(controls);
       layerStack.appendChild(container);
     }
     this.engine.activeLayer = 1; // Default to first paint layer
@@ -821,7 +867,7 @@ class App {
     this._makeDraggable(document.getElementById('panel-color'), document.getElementById('handle-color'));
     this._makeDraggable(document.getElementById('panel-images'), document.getElementById('handle-images'));
     this._makeDraggable(document.getElementById('panel-layers'), document.getElementById('handle-layers'));
-    this._makeDraggable(document.getElementById('panel-settings'), document.getElementById('handle-settings'));
+    this._makeDraggable(this.settingsPanel, document.getElementById('handle-settings'));
     this._makeDraggable(document.getElementById('panel-brush-tips'), document.getElementById('handle-brush-tips'));
     this._makeDraggable(document.getElementById('panel-advanced-brush'), document.getElementById('handle-advanced-brush'));
 
@@ -836,7 +882,8 @@ class App {
     if (smudgeBoostInput) {
         smudgeBoostInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            this.engine.brush.smudgeFlowBoost = val;
+            this.brushSettings[TOOLS.SMUDGE].smudgeFlowBoost = val;
+            if (this.activeTool === TOOLS.SMUDGE) this.engine.brush.smudgeFlowBoost = val;
             document.getElementById('adv-smudge-flow-boost-val').innerText = val.toFixed(1);
         };
     }
@@ -845,7 +892,8 @@ class App {
     if (smudgePickupInput) {
         smudgePickupInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            this.engine.brush.smudgePickup = val;
+            this.brushSettings[TOOLS.SMUDGE].smudgePickup = val;
+            if (this.activeTool === TOOLS.SMUDGE) this.engine.brush.smudgePickup = val;
             document.getElementById('adv-smudge-pickup-val').innerText = val.toFixed(1);
         };
     }
@@ -854,8 +902,41 @@ class App {
     if (sharpenInput) {
         sharpenInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            this.engine.brush.sharpening = val;
+            // Apply to Brush 1 specifically as it's the primary tool for the tip
+            this.brushSettings[TOOLS.BRUSH].brushSharpen = val;
+            if (this.activeTool === TOOLS.BRUSH) this.engine.brush.brushSharpen = val;
             document.getElementById('adv-brush-sharpen-val').innerText = val.toFixed(2);
+        };
+    }
+
+    // Wireframe Settings
+    const wireDensityInput = document.getElementById('adv-wire-density');
+    if (wireDensityInput) {
+        wireDensityInput.oninput = (e) => {
+            const val = parseInt(e.target.value);
+            this.brushSettings[TOOLS.WIREFRAME].wireDensity = val;
+            if (this.activeTool === TOOLS.WIREFRAME) this.engine.brush.wireDensity = val;
+            document.getElementById('adv-wire-density-val').innerText = val;
+        };
+    }
+
+    const wireRangeInput = document.getElementById('adv-wire-range');
+    if (wireRangeInput) {
+        wireRangeInput.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.brushSettings[TOOLS.WIREFRAME].wireRange = val;
+            if (this.activeTool === TOOLS.WIREFRAME) this.engine.brush.wireRange = val;
+            document.getElementById('adv-wire-range-val').innerText = val.toFixed(1);
+        };
+    }
+
+    const wireMinDistInput = document.getElementById('adv-wire-min-dist');
+    if (wireMinDistInput) {
+        wireMinDistInput.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.brushSettings[TOOLS.WIREFRAME].wireMinDist = val;
+            if (this.activeTool === TOOLS.WIREFRAME) this.engine.brush.wireMinDist = val;
+            document.getElementById('adv-wire-min-dist-val').innerText = val.toFixed(1);
         };
     }
   }
@@ -983,6 +1064,10 @@ class App {
           if (this.engine.activeSelectionPath) {
             this.engine.deleteSelection();
             e.preventDefault();
+          } else if (this.activeTool === TOOLS.REF_MOVE && this.engine.selectedRefIndex !== -1) {
+            this.engine.removeReferenceImage(this.engine.selectedRefIndex);
+            this._updateRefImageList();
+            e.preventDefault();
           }
           break;
         case 't':
@@ -1035,7 +1120,7 @@ class App {
               this._endExportMode();
               this._status('EXPORT CANCELLED');
           }
-          settingsPanel.classList.add('hidden');
+          this.settingsPanel.classList.add('hidden');
           document.getElementById('modal-new-project').classList.add('hidden');
           document.getElementById('modal-export').classList.add('hidden');
           this.isCapturingTip = false;
@@ -1374,6 +1459,13 @@ class App {
     this.engine.brush.paintHeight = settings.paintHeight || 0;
     this.engine.brush.oiliness = settings.oiliness ?? 0.5;
     this.engine.brush.airbrush = settings.airbrush || 0;
+    
+    this.engine.brush.smudgeFlowBoost = settings.smudgeFlowBoost;
+    this.engine.brush.smudgePickup = settings.smudgePickup;
+    this.engine.brush.brushSharpen = settings.brushSharpen;
+    this.engine.brush.wireDensity = settings.wireDensity;
+    this.engine.brush.wireRange = settings.wireRange;
+    this.engine.brush.wireMinDist = settings.wireMinDist;
 
     if (tool === TOOLS.ERASER || tool === TOOLS.SMUDGE) {
         // Shared tip from Brush 1
@@ -1408,6 +1500,8 @@ class App {
     if (preview) preview.style.backgroundColor = color;
     this._updateBrushPreview();
     
+    if (this.storage) this.storage.saveSetting('lastColor', color);
+
     // Sync picker if it differs significantly or always sync?
     // Always sync to ensure the selector matches current color
     const rgb = hexToRgb(color);
@@ -1422,7 +1516,7 @@ class App {
   }
 
   setLayer(index) {
-    if (this.engine.activeLayer === index) return;
+    const prevLayer = this.engine.activeLayer;
     this.engine.activeLayer = index;
 
     // Deselect reference when switching to paint layer
@@ -1569,19 +1663,25 @@ class App {
     
     this._status('SAVING...');
     try {
-        // Save Reference Images
-        const refData = this.engine.referenceImages.map(r => ({
-            name: r.name,
-            src: r.img.src,
-            x: r.x,
-            y: r.y,
-            rotation: r.rotation,
-            scale: r.scale,
-            opacity: r.opacity,
-            mirrorX: r.mirrorX,
-            mirrorY: r.mirrorY
-        }));
-        await this.storage.saveSetting('referenceImages', refData);
+        // Save Reference Images only if modified
+        if (this.engine.refsDirty) {
+            const refData = this.engine.referenceImages.map(r => ({
+                id: r.id,
+                name: r.name,
+                src: r.img.src,
+                x: r.x,
+                y: r.y,
+                rotation: r.rotation,
+                scale: r.scale,
+                opacity: r.opacity,
+                mirrorX: r.mirrorX,
+                mirrorY: r.mirrorY
+            }));
+            await this.storage.saveSetting('referenceImages', refData);
+            this.engine.refsDirty = false;
+        }
+
+        this.engine.compact();
 
         if (!this.engine.dirtyChunks || this.engine.dirtyChunks.size === 0) {
             this._status('SAVED');
