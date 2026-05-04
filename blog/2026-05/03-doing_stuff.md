@@ -22,7 +22,7 @@ Also there is ability to paint on 'alpha channel', making something like this mo
 
 ![logo](blog/2026-05/img/adeptus_custodes_icon_sml.png)
 
-[Brute Paint](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
+[Brute Paint](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/)
 
 ## Notes
 

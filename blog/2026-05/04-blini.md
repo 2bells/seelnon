@@ -26,3 +26,11 @@ to buy things they don't need
 to impress people they don't like."
  J.Carlin.
 ```
+
+# BRUTE
+
+Pressure sensitivity inbound: Windows Ink.
+
+![frieren](blog/2026-05/img/CONCEPT_BRUTE_frieren.jpg)
+
+[brute it](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/)
