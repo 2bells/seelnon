@@ -47,8 +47,8 @@ class App {
             size: 40,
             opacity: 1.0,
             flow: 1.0,
-            speedSize: 8.0,
-            speedOpacity: 6.0,
+            speedSize: 3.0,
+            speedOpacity: 2.0,
             speedValue: -4.0,
             speedHue: -10.0,
             paintHeight: 0,
@@ -70,25 +70,41 @@ class App {
     this.brushSettings[TOOLS.WIREFRAME].size = 20;
 
     this.tipManager = new TipManager(document.getElementById('panel-brush-tips'), (tip, height, oiliness, airbrush) => {
-        if (!this.brushSettings[TOOLS.BRUSH]) return; // Safety
-        this.brushSettings[TOOLS.BRUSH].tip = tip;
-        if (height !== undefined) {
-            this.brushSettings[TOOLS.BRUSH].paintHeight = height;
-            this.engine.brush.paintHeight = height;
+        // Always store tip in BRUSH settings as it serves as the source for shared tips
+        if (this.brushSettings[TOOLS.BRUSH]) {
+            this.brushSettings[TOOLS.BRUSH].tip = tip;
+            if (height !== undefined) this.brushSettings[TOOLS.BRUSH].paintHeight = height;
+            if (oiliness !== undefined) this.brushSettings[TOOLS.BRUSH].oiliness = oiliness;
+            if (airbrush !== undefined) this.brushSettings[TOOLS.BRUSH].airbrush = airbrush;
         }
-        if (oiliness !== undefined) {
-            this.brushSettings[TOOLS.BRUSH].oiliness = oiliness;
-            this.engine.brush.oiliness = oiliness;
+
+        // Only update active engine brush and current tool settings if they are relevant
+        const currentSettings = this.brushSettings[this.activeTool];
+        if (currentSettings) {
+            // Update tip for all compatible tools (Brush, Eraser, Smudge)
+            if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE) {
+                this.engine.brush.tip = tip;
+            }
+
+            // Specific property synchronization
+            if (this.activeTool === TOOLS.BRUSH) {
+                if (height !== undefined) this.engine.brush.paintHeight = height;
+                if (oiliness !== undefined) this.engine.brush.oiliness = oiliness;
+                if (airbrush !== undefined) this.engine.brush.airbrush = airbrush;
+            } else if (this.activeTool === TOOLS.SMUDGE) {
+                // Smudge might want oiliness from tip, but usually airbrush stays at tool setting
+                if (oiliness !== undefined) {
+                    this.engine.brush.oiliness = oiliness;
+                    currentSettings.oiliness = oiliness;
+                }
+            } else if (this.activeTool === TOOLS.ERASER) {
+                // Eraser strictly ignores tip properties for blur/height
+                this.engine.brush.airbrush = currentSettings.airbrush || 0;
+                this.engine.brush.paintHeight = 0;
+            }
         }
-        if (airbrush !== undefined) {
-            this.brushSettings[TOOLS.BRUSH].airbrush = airbrush;
-            this.engine.brush.airbrush = airbrush;
-        }
-        this._updateBrushSettingsUI(TOOLS.BRUSH);
-        
-        if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE) {
-            this.engine.brush.tip = tip;
-        }
+
+        this._updateBrushSettingsUI(this.activeTool);
         this._updateBrushPreview();
     }, this.storage);
 
@@ -750,6 +766,7 @@ class App {
       this.brushSettings[this.activeTool].size = val;
       this.engine.brush.size = val;
       sizeVal.innerText = val;
+      this._saveBrushSettings();
     };
 
     const opacitySlider = document.getElementById('brush-opacity');
@@ -761,6 +778,7 @@ class App {
           this.brushSettings[this.activeTool].opacity = val / 100;
           this.engine.brush.opacity = val / 100;
           opacityVal.innerText = `${val}%`;
+          this._saveBrushSettings();
         };
     }
 
@@ -773,6 +791,7 @@ class App {
           this.brushSettings[this.activeTool].flow = val / 100;
           this.engine.brush.flow = val / 100;
           flowVal.innerText = `${val}%`;
+          this._saveBrushSettings();
         };
     }
 
@@ -789,6 +808,7 @@ class App {
             if (this.activeTool === TOOLS.BRUSH) {
                 this.tipManager.updateActiveTipSettings(val / 100, undefined, undefined);
             }
+            this._saveBrushSettings();
         };
     }
 
@@ -805,6 +825,7 @@ class App {
             if (this.activeTool === TOOLS.BRUSH) {
                 this.tipManager.updateActiveTipSettings(undefined, val / 100, undefined);
             }
+            this._saveBrushSettings();
         };
     }
 
@@ -821,6 +842,7 @@ class App {
             if (this.activeTool === TOOLS.BRUSH) {
                 this.tipManager.updateActiveTipSettings(undefined, undefined, val / 100);
             }
+            this._saveBrushSettings();
         };
     }
 
@@ -885,6 +907,7 @@ class App {
             this.brushSettings[TOOLS.SMUDGE].smudgeFlowBoost = val;
             if (this.activeTool === TOOLS.SMUDGE) this.engine.brush.smudgeFlowBoost = val;
             document.getElementById('adv-smudge-flow-boost-val').innerText = val.toFixed(1);
+            this._saveBrushSettings();
         };
     }
 
@@ -895,6 +918,7 @@ class App {
             this.brushSettings[TOOLS.SMUDGE].smudgePickup = val;
             if (this.activeTool === TOOLS.SMUDGE) this.engine.brush.smudgePickup = val;
             document.getElementById('adv-smudge-pickup-val').innerText = val.toFixed(1);
+            this._saveBrushSettings();
         };
     }
 
@@ -906,6 +930,7 @@ class App {
             this.brushSettings[TOOLS.BRUSH].brushSharpen = val;
             if (this.activeTool === TOOLS.BRUSH) this.engine.brush.brushSharpen = val;
             document.getElementById('adv-brush-sharpen-val').innerText = val.toFixed(2);
+            this._saveBrushSettings();
         };
     }
 
@@ -917,6 +942,7 @@ class App {
             this.brushSettings[TOOLS.WIREFRAME].wireDensity = val;
             if (this.activeTool === TOOLS.WIREFRAME) this.engine.brush.wireDensity = val;
             document.getElementById('adv-wire-density-val').innerText = val;
+            this._saveBrushSettings();
         };
     }
 
@@ -927,6 +953,7 @@ class App {
             this.brushSettings[TOOLS.WIREFRAME].wireRange = val;
             if (this.activeTool === TOOLS.WIREFRAME) this.engine.brush.wireRange = val;
             document.getElementById('adv-wire-range-val').innerText = val.toFixed(1);
+            this._saveBrushSettings();
         };
     }
 
@@ -937,6 +964,7 @@ class App {
             this.brushSettings[TOOLS.WIREFRAME].wireMinDist = val;
             if (this.activeTool === TOOLS.WIREFRAME) this.engine.brush.wireMinDist = val;
             document.getElementById('adv-wire-min-dist-val').innerText = val.toFixed(1);
+            this._saveBrushSettings();
         };
     }
   }
@@ -1365,6 +1393,22 @@ class App {
     if (!tool) return;
     const settings = this.brushSettings[tool];
     if (this.activeTool === tool) {
+        // Toggle visibility of specific properties based on tool
+        const heightCtrl = document.getElementById('height-control');
+        const oilCtrl = document.getElementById('oiliness-control');
+        const airCtrl = document.getElementById('airbrush-control');
+        const advBtn = document.getElementById('btn-advanced-brush');
+
+        if (heightCtrl) heightCtrl.style.display = (tool === TOOLS.BRUSH) ? 'block' : 'none';
+        if (oilCtrl) oilCtrl.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE) ? 'block' : 'none';
+        if (airCtrl) airCtrl.style.display = (tool === TOOLS.BRUSH) ? 'block' : 'none';
+        
+        // Advanced settings button visibility
+        if (advBtn) {
+            const hasAdv = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME);
+            advBtn.style.display = hasAdv ? 'block' : 'none';
+        }
+
         // Update UI Sliders
         document.getElementById('brush-size').value = settings.size;
         document.getElementById('size-val').innerText = settings.size;
@@ -1407,6 +1451,49 @@ class App {
         if (document.getElementById('speed-opacity')) document.getElementById('speed-opacity').value = settings.speedOpacity * 100;
         if (document.getElementById('speed-value')) document.getElementById('speed-value').value = settings.speedValue * 100;
         if (document.getElementById('speed-hue')) document.getElementById('speed-hue').value = settings.speedHue * 100;
+
+        // Update Advanced Sliders
+        const smudgeBoost = document.getElementById('adv-smudge-flow-boost');
+        if (smudgeBoost) {
+            smudgeBoost.value = settings.smudgeFlowBoost;
+            const valEl = document.getElementById('adv-smudge-flow-boost-val');
+            if (valEl) valEl.innerText = settings.smudgeFlowBoost.toFixed(1);
+        }
+        
+        const smudgePickup = document.getElementById('adv-smudge-pickup');
+        if (smudgePickup) {
+            smudgePickup.value = settings.smudgePickup;
+            const valEl = document.getElementById('adv-smudge-pickup-val');
+            if (valEl) valEl.innerText = settings.smudgePickup.toFixed(1);
+        }
+        
+        const sharpen = document.getElementById('adv-brush-sharpen');
+        if (sharpen) {
+            sharpen.value = settings.brushSharpen;
+            const valEl = document.getElementById('adv-brush-sharpen-val');
+            if (valEl) valEl.innerText = settings.brushSharpen.toFixed(2);
+        }
+        
+        const wireDensity = document.getElementById('adv-wire-density');
+        if (wireDensity) {
+            wireDensity.value = settings.wireDensity;
+            const valEl = document.getElementById('adv-wire-density-val');
+            if (valEl) valEl.innerText = settings.wireDensity;
+        }
+        
+        const wireRange = document.getElementById('adv-wire-range');
+        if (wireRange) {
+            wireRange.value = settings.wireRange;
+            const valEl = document.getElementById('adv-wire-range-val');
+            if (valEl) valEl.innerText = settings.wireRange.toFixed(1);
+        }
+        
+        const wireMinDist = document.getElementById('adv-wire-min-dist');
+        if (wireMinDist) {
+            wireMinDist.value = settings.wireMinDist;
+            const valEl = document.getElementById('adv-wire-min-dist-val');
+            if (valEl) valEl.innerText = settings.wireMinDist.toFixed(1);
+        }
     }
   }
 
@@ -1781,6 +1868,7 @@ class App {
         }
     });
     localStorage.setItem('brushSettings', JSON.stringify(toSave));
+    this.storage.saveSetting('brushSettings', toSave);
   }
 
   async _generateThumbnail() {

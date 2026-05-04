@@ -30,7 +30,10 @@ export class Engine {
       airbrush: 0.0,
       smudgeFlowBoost: 4.5,
       smudgePickup: 1.0,
-      sharpening: 0,
+      brushSharpen: 0,
+      wireDensity: 30,
+      wireRange: 4.0,
+      wireMinDist: 0.5,
       type: TOOLS.BRUSH 
     };
 
