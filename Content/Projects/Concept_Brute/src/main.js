@@ -1543,9 +1543,9 @@ class App {
     this.engine.brush.speedOpacity = settings.speedOpacity;
     this.engine.brush.speedValue = settings.speedValue;
     this.engine.brush.speedHue = settings.speedHue;
-    this.engine.brush.paintHeight = settings.paintHeight || 0;
-    this.engine.brush.oiliness = settings.oiliness ?? 0.5;
-    this.engine.brush.airbrush = settings.airbrush || 0;
+    this.engine.brush.paintHeight = (tool === TOOLS.ERASER) ? 0 : (settings.paintHeight || 0);
+    this.engine.brush.oiliness = (tool === TOOLS.ERASER) ? 0 : (settings.oiliness ?? 0.5);
+    this.engine.brush.airbrush = (tool === TOOLS.ERASER) ? 0 : (settings.airbrush || 0);
     
     this.engine.brush.smudgeFlowBoost = settings.smudgeFlowBoost;
     this.engine.brush.smudgePickup = settings.smudgePickup;

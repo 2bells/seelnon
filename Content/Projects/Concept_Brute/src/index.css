@@ -640,6 +640,17 @@ body {
     border-color: #fff;
 }
 
+/* Fix UI interaction for stylus */
+.ui-panel {
+    pointer-events: auto;
+    touch-action: auto !important;
+}
+
+button, input, select {
+    touch-action: auto !important;
+    pointer-events: auto;
+}
+
 /* ZOOM & STATUS */
 .status-indicator {
     font-size: 8px;

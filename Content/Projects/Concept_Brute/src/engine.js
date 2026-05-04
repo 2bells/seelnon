@@ -1134,16 +1134,32 @@ export class Engine {
     this.lastTime = e.timeStamp || performance.now();
     this.smoothedVelocity = 0;
     
+    // Improved pressure detection (default to 1.0 for mouse, use raw for pen)
+    let pressure = 1.0;
+    if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+        // If pressure is 0 or 0.5 (neutral/unsupported), we use a sensible starting floor (0.15)
+        // to avoid tiny first-stamp artifacts while still feeling responsive.
+        pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : 0.15;
+    }
+    
+    // Size modulated by initial pressure
+    let initSize = this.brush.size;
+    if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+        initSize *= (0.2 + pressure * 0.8);
+    }
+
     const worldPos = {
         x: m.wx,
         y: m.wy,
-        size: this.brush.size,
-        opacity: 1.0,
+        size: initSize,
+        opacity: (0.3 + pressure * 0.7),
+        pressure: pressure,
         color: this.brush.color
     };
     this.strokePoints = [worldPos];
-    this.lastDynamicSize = this.brush.size;
-    this.lastDynamicOpac = 1.0;
+    this.lastDynamicSize = initSize;
+    this.lastDynamicOpac = worldPos.opacity;
+    this.lastPressure = pressure;
     
     this.spacingAccumulator = 0;
     this.shiftOrigin = null;
@@ -1321,6 +1337,11 @@ export class Engine {
     }
 
     const currentTime = e.timeStamp || performance.now();
+    let pressure = 1.0;
+    if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+        pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : (this.lastPressure || 0.15);
+    }
+    this.lastPressure = (this.lastPressure || pressure) * 0.7 + pressure * 0.3;
 
     const dx = currentPos.x - this.lastPos.x;
     const dy = currentPos.y - this.lastPos.y;
@@ -1350,12 +1371,15 @@ export class Engine {
     
     const sensitivityMult = 2.0; 
     
-    // Size: positive speedSize means faster=smaller
+    // Size: positive speedSize means faster=smaller. Add pressure influence.
     const sizeMod = 1 - (vFactor * this.brush.speedSize * sensitivityMult); 
-    const dynamicSize = this.brush.size * Math.max(0.05, sizeMod);
+    let dynamicSize = this.brush.size * Math.max(0.05, sizeMod);
+    if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+        dynamicSize *= (0.2 + this.lastPressure * 0.8);
+    }
     
-    // Opacity: positive speedOpacity means faster=transparent
-    const opacMod = Math.max(0.01, 1 - (vFactor * this.brush.speedOpacity * sensitivityMult));
+    // Opacity: positive speedOpacity means faster=transparent. Add pressure influence.
+    const opacMod = Math.max(0.01, 1 - (vFactor * this.brush.speedOpacity * sensitivityMult)) * (0.3 + this.lastPressure * 0.7);
 
     let color = this.brush.color;
     if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
@@ -1366,11 +1390,23 @@ export class Engine {
         ...worldTo,
         size: dynamicSize,
         opacity: opacMod,
-        color: color
+        color: color,
+        pressure: pressure
     };
 
     if (this.brush.type === TOOLS.WIREFRAME) {
-        this.strokePoints.push(worldPos);
+        // Point density normalization: only store points if we moved significantly in world space
+        // This fixes the "stylus has 10x points in same area" issue
+        const lastP = this.strokePoints[this.strokePoints.length - 1];
+        const worldDist = Math.sqrt((worldPos.x - lastP.x)**2 + (worldPos.y - lastP.y)**2);
+        
+        // Minimal distance between points in buffer (e.g., 2 pixels at size 20)
+        const minBufferDist = Math.max(1, dynamicSize * 0.1);
+        
+        if (worldDist > minBufferDist) {
+            this.strokePoints.push(worldPos);
+        }
+
         const from = this.lastWorldPos || worldTo;
         this._paintOnChunks(from, worldTo, Math.max(1, dynamicSize * 0.1), opacMod, color);
         
@@ -1379,6 +1415,7 @@ export class Engine {
         const points = this.strokePoints;
         const count = points.length;
         const maxSeek = this.brush.wireDensity ?? 30;
+        
         for (let i = Math.max(0, count - maxSeek); i < count - 1; i++) {
             const p = points[i];
             const d = Math.sqrt((p.x - worldTo.x)**2 + (p.y - worldTo.y)**2);
