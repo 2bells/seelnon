@@ -19,5 +19,10 @@
  ### Conclusions:
 
  People would call me crazy for listening to a cat on Pinterest at 4:58 am, but then they will go and buy a thing they saw in the ad... 
- 
- > "spend money they don't have to buy things they don't need to impress people they don't like." J.Carlin.
+
+ ```
+"spend money they don't have
+to buy things they don't need
+to impress people they don't like."
+ J.Carlin.
+```
