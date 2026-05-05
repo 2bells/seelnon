@@ -756,7 +756,7 @@ class App {
       container.appendChild(controls);
       layerStack.appendChild(container);
     }
-    this.engine.activeLayer = 1; // Default to first paint layer
+    this.engine.activeLayer = 2; // Default to second paint layer as requested
 
     const sizeSlider = document.getElementById('brush-size');
     const sizeVal = document.getElementById('size-val');
@@ -1648,6 +1648,7 @@ class App {
 
   async load() {
     this._status('LOADING...');
+    this.engine.selectedRefIndex = -1; // Ensure de-selected on load
     try {
         const refs = await this.storage.loadSetting('referenceImages');
         if (refs && Array.isArray(refs)) {

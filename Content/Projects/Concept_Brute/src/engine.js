@@ -6,7 +6,7 @@ export class Engine {
     this.chunkSize = settings.chunkSize || DEFAULT_CHUNK_SIZE;
     this.saveQuality = settings.quality || 0.92; // Higher default quality to avoid edge artifacts
     this.chunks = new Map(); // id -> { canvases: [canvas, canvas, canvas], ctxs: [ctx, ctx, ctx] }
-    this.activeLayer = 1; // Default to first paint layer
+    this.activeLayer = 2; // Default to second paint layer as requested
     this.currentProjectId = null;
     this.zoom = 1;
     this.pan = { x: 0, y: 0 };
@@ -2002,12 +2002,23 @@ export class Engine {
     const height = this.brush.paintHeight || 0;
 
     // 2. Generate Stamp Positions
+    // Airbrush step optimization: higher airbrush = fewer stamps (capped at ~0.3 steps at 65% airbrush)
+    // Most important for performance and visual consistency of overlapping blurs.
+    let currentSpacing = spacing;
+    if (!isSmudge && !isWire && airbrush > 0 && dist > 1) {
+        const airWeight = Math.min(1.0, airbrush / 0.65);
+        const airSpacing = dist / 0.3;
+        if (airSpacing > currentSpacing) {
+            currentSpacing = currentSpacing + (airSpacing - currentSpacing) * airWeight;
+        }
+    }
+
     const stamps = [];
     let p = this.spacingAccumulator;
     while (p <= dist) {
         const t = dist === 0 ? 0 : p / dist;
         stamps.push({ x: from.x + dx * t, y: from.y + dy * t });
-        p += spacing;
+        p += currentSpacing;
     }
     this.spacingAccumulator = p - dist;
 
@@ -2020,8 +2031,8 @@ export class Engine {
         if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color) {
             this._updateTipCache(bSize, airbrush, color);
         }
-        if (oil > 0 && dist < 500) {
-            const reliefBlur = oil * 4 * (1 - airbrush * 0.4);
+        if ((oil > 0 || height > 0) && dist < 500) {
+            const reliefBlur = (oil || 0.1) * 4 * (1 - airbrush * 0.4);
             const reliefKey = `${bSize}_${reliefBlur}`;
             if (!this._reliefCache || this._reliefCache.key !== reliefKey) {
                 this._updateReliefCache(bSize, reliefBlur);
@@ -2263,7 +2274,7 @@ export class Engine {
                     ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
                 } else if (tip) {
                     // Relief / Impasto effect should NOT apply to Eraser as it would change comp-op and paint colors
-                    if (oil > 0 && dist < 500 && !isEraser) {
+                    if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
                         const oBase = 0.5 * height;
                         ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.translate(1, 1);
                         ctx.globalAlpha = oBase * 0.4; ctx.drawImage(this._reliefCache.shadow, -stampR, -stampR); ctx.restore();
