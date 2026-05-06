@@ -17,7 +17,7 @@ export class TipManager {
   }
 
   async init() {
-    this._createDefaultTips();
+    await this._createDefaultTips();
     
     // Create initial empty generated tips
     for (let i = 0; i < 9; i++) {
@@ -141,18 +141,41 @@ export class TipManager {
     if (save) this._saveToStorage();
   }
 
-  _createDefaultTips() {
+  async _createDefaultTips() {
     this.tips = [];
     this.defaults = [];
     const types = ['rect', 'circle', 'triangle', 'scatter', 'scratchy', 'hollow'];
-    types.forEach(type => {
-      const canvas = this._createShape(type);
-      this.tips.push({ canvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 });
-      const backup = document.createElement('canvas');
-      backup.width = 128; backup.height = 128;
-      backup.getContext('2d').drawImage(canvas, 0, 0);
-      this.defaults.push(backup);
-    });
+    
+    for (let i = 0; i < types.length; i++) {
+        const type = types[i];
+        let canvas;
+        
+        if (type === 'triangle') {
+            try {
+                canvas = await new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const tc = document.createElement('canvas');
+                        tc.width = 128; tc.height = 128;
+                        tc.getContext('2d').drawImage(img, 0, 0, 128, 128);
+                        resolve(tc);
+                    };
+                    img.onerror = reject;
+                    img.src = './src/_main_brushtip.png'; // Use relative path for Vite
+                });
+            } catch (e) {
+                canvas = this._createShape(type);
+            }
+        } else {
+            canvas = this._createShape(type);
+        }
+
+        this.tips.push({ canvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 });
+        const backup = document.createElement('canvas');
+        backup.width = 128; backup.height = 128;
+        backup.getContext('2d').drawImage(canvas, 0, 0);
+        this.defaults.push(backup);
+    }
   }
 
   _createShape(type) {

@@ -2032,7 +2032,8 @@ export class Engine {
             this._updateTipCache(bSize, airbrush, color);
         }
         if ((oil > 0 || height > 0) && dist < 500) {
-            const reliefBlur = (oil || 0.1) * 4 * (1 - airbrush * 0.4);
+            // Oiliness now produces sharper highlights for a "wet" look, while impasto stays soft
+            const reliefBlur = Math.max(0.2, (height * 0.1 + oil * 0.02)) * 4 * (1 - airbrush * 0.4);
             const reliefKey = `${bSize}_${reliefBlur}`;
             if (!this._reliefCache || this._reliefCache.key !== reliefKey) {
                 this._updateReliefCache(bSize, reliefBlur);
@@ -2273,13 +2274,28 @@ export class Engine {
                     ctx.beginPath(); ctx.arc(0, 0, stampR, 0, Math.PI*2);
                     ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
                 } else if (tip) {
-                    // Relief / Impasto effect should NOT apply to Eraser as it would change comp-op and paint colors
+                    // Relief / Impasto effect
                     if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
-                        const oBase = 0.5 * height;
-                        ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.translate(1, 1);
-                        ctx.globalAlpha = oBase * 0.4; ctx.drawImage(this._reliefCache.shadow, -stampR, -stampR); ctx.restore();
-                        ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.translate(-1, -1);
-                        ctx.globalAlpha = oBase * 0.25; ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR); ctx.restore();
+                        // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
+                        if (height > 0) {
+                            ctx.save();
+                            ctx.globalCompositeOperation = 'multiply';
+                            ctx.translate(1, 1);
+                            ctx.globalAlpha = height * 0.22;
+                            ctx.drawImage(this._reliefCache.shadow, -stampR, -stampR);
+                            ctx.restore();
+                        }
+
+                        // 2. Highlight Pass - Oiliness boosts this and uses color-dodge for "wet" look
+                        const highlightOpacity = (height * 0.15) + (oil * 0.35);
+                        const highlightMode = oil > 0 ? 'color-dodge' : 'screen';
+                        
+                        ctx.save();
+                        ctx.globalCompositeOperation = highlightMode;
+                        ctx.translate(-1, -1);
+                        ctx.globalAlpha = Math.min(1.0, highlightOpacity);
+                        ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR);
+                        ctx.restore();
                     }
                     ctx.drawImage(this._tipColorCache.canvas, -stampR, -stampR);
                 } else {
