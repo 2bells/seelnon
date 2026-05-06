@@ -13,7 +13,7 @@ export class TipManager {
     this.editorCtx = this.editorCanvas.getContext('2d');
     this.isEraser = false;
     
-    this.init();
+    this.ready = this.init();
   }
 
   async init() {

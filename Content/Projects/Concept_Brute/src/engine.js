@@ -2330,7 +2330,7 @@ export class Engine {
     this._reliefCache = { shadow: shad, highlight: high, key: `${s}_${blur}`, srcTip: this.brush.tip };
   }
 
-  addReferenceImage(img, name, x = null, y = null, config = {}) {
+  addReferenceImage(img, name, x = null, y = null, config = {}, autoSelect = true) {
     const rect = this.container.getBoundingClientRect();
     const wx = x !== null ? x : (-this.pan.x) / this.zoom;
     const wy = y !== null ? y : (-this.pan.y) / this.zoom;
@@ -2359,7 +2359,9 @@ export class Engine {
 
     this.referenceImages.push(ref);
     this.refsDirty = true;
-    this.selectedRefIndex = this.referenceImages.length - 1;
+    if (autoSelect) {
+        this.selectedRefIndex = this.referenceImages.length - 1;
+    }
     this.refresh();
     return ref;
   }

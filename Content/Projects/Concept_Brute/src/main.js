@@ -283,6 +283,7 @@ class App {
     }
 
     // 2. PANELS & UI (Instant responsiveness)
+    await this.tipManager.ready;
     this._setupUI();
     this._setupHotkeys();
     await this._loadWindowPositions();
@@ -805,7 +806,7 @@ class App {
             this.engine.brush.paintHeight = val / 100;
             heightVal.innerText = `${val}%`;
             
-            if (this.activeTool === TOOLS.BRUSH) {
+            if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.SMUDGE) {
                 this.tipManager.updateActiveTipSettings(val / 100, undefined, undefined);
             }
             this._saveBrushSettings();
@@ -822,7 +823,7 @@ class App {
             this.engine.brush.oiliness = val / 100;
             oilinessVal.innerText = `${val}%`;
             
-            if (this.activeTool === TOOLS.BRUSH) {
+            if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.SMUDGE) {
                 this.tipManager.updateActiveTipSettings(undefined, val / 100, undefined);
             }
             this._saveBrushSettings();
@@ -839,7 +840,7 @@ class App {
             this.engine.brush.airbrush = val / 100;
             airbrushVal.innerText = `${val}%`;
             
-            if (this.activeTool === TOOLS.BRUSH) {
+            if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.SMUDGE) {
                 this.tipManager.updateActiveTipSettings(undefined, undefined, val / 100);
             }
             this._saveBrushSettings();
@@ -1664,7 +1665,7 @@ class App {
                     opacity: r.opacity,
                     mirrorX: r.mirrorX,
                     mirrorY: r.mirrorY
-                });
+                }, false);
             }
             this._updateRefImageList();
         }
