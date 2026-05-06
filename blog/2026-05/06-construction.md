@@ -5,3 +5,11 @@
 ```
 soon (tm)
 ```
+
+oh yeah...
+
+Oiliness in Concept Brute now does something like this:
+
+![Image](blog/2026-05/img/oiliness.jpg)
+
+pretty cool
