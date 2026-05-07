@@ -33,3 +33,9 @@ Udates to Endless Canvas:
 - some fixes
 
 [Canvas it](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/)
+
+```
+thought of the day:
+demons also want to be extra cozy
+on a cloudy day
+```
