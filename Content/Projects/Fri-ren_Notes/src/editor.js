@@ -15,7 +15,7 @@ export class Editor {
            • folder field is a <b>path</b> (e.g. <i>work/notes/2026</i>)<br>
            • connect notes with <b>[[note title]]</b><br>
            • use <b>![video]</b> for mp4/webm/YouTube<br>
-           • resize: <i>![video 500 300](link)</i><br>
+           • resize: <b>![image 500 300](link)</b> or <b>![[img 300 300]]</b><br>
            • check <b>canvas</b> mode for visual thinking
         </div>
       </div>`;
@@ -26,9 +26,13 @@ export class Editor {
     // so marked can parse them as proper list items for the task list logic.
     md = md.replace(/^[ \t]*•/gm, (match) => match.replace('•', '*'));
 
-    // Replace Obsidian-style [[img-id]] with placeholders for lazy loading
-    md = md.replace(/!\[\[(.*?)\]\]/g, (match, id) => {
-      return `<img data-img-id="${id.trim()}" class="lazy-vault-img" loading="lazy" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">`;
+    // Replace Obsidian-style [[img-id]] with placeholders for lazy loading, adding support for sizing: ![[id width height]]
+    md = md.replace(/!\[\[(.*?)(?:\s+(\d+))?(?:\s+(\d+))?\]\]/g, (match, rawId, w, h) => {
+      const id = rawId.trim();
+      const width = w ? `${w}px` : 'auto';
+      const height = h ? `${h}px` : 'auto';
+      const style = w || h ? `style="max-width:100%; width: ${width}; height: ${height}; display: block; margin: 10px 0;"` : '';
+      return `<img data-img-id="${id}" class="lazy-vault-img" loading="lazy" ${style} src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">`;
     });
 
     // Video & YouTube support: ![video](link) or ![video 500 300](link)
@@ -53,6 +57,22 @@ export class Editor {
   <source src="${u}" type="${type}">
   Your browser does not support the video tag.
 </video>`;
+    });
+
+    // Image resizing support: ![alt width height](url)
+    md = md.replace(/!\[(.*?)(?:\s+(\d+))?(?:\s+(\d+))?\]\((.*?)\)/g, (match, alt, w, h, url) => {
+      // Skip if it was already processed as video placeholder or something else
+      if (alt.startsWith('video')) return match; 
+      
+      const width = w ? `${w}px` : 'auto';
+      const height = h ? `${h}px` : 'auto';
+      const u = url.trim();
+      const a = alt ? alt.trim() : '';
+
+      if (w || h) {
+        return `<img src="${u}" alt="${a}" style="max-width:100%; width: ${width}; height: ${height}; margin: 10px 0; display: block;" loading="eager" decoding="sync" referrerpolicy="no-referrer">`;
+      }
+      return match; // Let marked handle standard images
     });
     
     // Ensure marked is configured for GFM
