@@ -922,6 +922,8 @@ class CavemanApp {
 
   async handlePaste(e) {
     const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    const noteIdOnStart = this.currentNote ? this.currentNote.id : null;
+
     for (const item of items) {
       if (item.type.indexOf('image') !== -1) {
         const blob = item.getAsFile();
@@ -944,19 +946,30 @@ class CavemanApp {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             
-            // Using PNG preserves alpha (transparency)
             const dataUrl = canvas.toDataURL('image/png');
             const imgId = this.editorModule.generateImageId();
-            this.imageCache.set(imgId, dataUrl); // Update cache
+            this.imageCache.set(imgId, dataUrl);
             await this.vault.saveImage(imgId, dataUrl);
             
-            const start = this.editorEl.selectionStart;
-            const end = this.editorEl.selectionEnd;
-            const text = this.editorEl.value;
             const reference = `![[${imgId}]]`;
-            this.editorEl.value = text.slice(0, start) + reference + text.slice(end);
             
-            this.handleInput();
+            // Check if we are still on the same note
+            if (this.currentNote && this.currentNote.id === noteIdOnStart) {
+              const start = this.editorEl.selectionStart;
+              const end = this.editorEl.selectionEnd;
+              const text = this.editorEl.value;
+              this.editorEl.value = text.slice(0, start) + reference + text.slice(end);
+              this.handleInput();
+            } else {
+              // Note switched mid-paste. Find original note and update IT on disk.
+              const originalNote = this.notes.find(n => n.id === noteIdOnStart);
+              if (originalNote) {
+                originalNote.content += (originalNote.content ? '\n\n' : '') + reference;
+                originalNote.updatedAt = Date.now();
+                await this.vault.saveNote(originalNote);
+                this.renderNoteList(); // Update sidebar timestamp
+              }
+            }
           };
           img.src = event.target.result;
         };

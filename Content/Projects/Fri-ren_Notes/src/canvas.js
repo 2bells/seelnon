@@ -65,6 +65,7 @@ export class CanvasLite {
   }
 
   setData(data) {
+    this.currentSessionId = Date.now();
     this.closeAllPeeks();
     this.selectedBox = null;
     this.selectedArrow = null;
@@ -230,14 +231,23 @@ export class CanvasLite {
   }
 
   handlePaste(e) {
+    // If we are typing in an input or textarea (like the editor), don't trigger canvas paste
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    // Only handle if canvas is likely active view
+    if (window.app && window.app.viewMode !== 'canvas') return;
+
     const items = e.clipboardData?.items;
     if (!items) return;
 
     for (const item of items) {
       if (item.type.startsWith('image/')) {
+        const sessionIdOnStart = this.currentSessionId;
         const file = item.getAsFile();
         const reader = new FileReader();
         reader.onload = (event) => {
+          if (this.currentSessionId !== sessionIdOnStart) return; 
+
           if (this.selectedBox) {
             this.selectedBox.image = event.target.result;
             this.saveHistory();
