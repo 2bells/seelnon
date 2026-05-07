@@ -204,6 +204,7 @@ export class CanvasLite {
     });
 
     window.addEventListener('paste', (e) => this.handlePaste(e));
+    window.addEventListener('copy', (e) => this.handleCopy(e));
 
     document.getElementById('canvas-add-box').addEventListener('click', () => this.addBox());
     document.getElementById('canvas-add-image').addEventListener('click', () => this.triggerImageUpload());
@@ -237,6 +238,37 @@ export class CanvasLite {
     // Only handle if canvas is likely active view
     if (window.app && window.app.viewMode !== 'canvas') return;
 
+    // 1. Try to handle Box Paste (JSON payload)
+    const text = e.clipboardData?.getData('text/plain');
+    if (text) {
+      try {
+        const payload = JSON.parse(text);
+        if (payload && payload.type === 'caveman-canvas-box') {
+          const data = payload.data;
+          // Offset the new box slightly from current selection if possible
+          const newBox = {
+            id: Date.now(),
+            x: this.selectedBox ? this.selectedBox.x + 20 : (this.canvas.width/2 - this.viewport.x)/this.viewport.scale - data.w/2,
+            y: this.selectedBox ? this.selectedBox.y + 20 : (this.canvas.height/2 - this.viewport.y)/this.viewport.scale - data.h/2,
+            w: data.w,
+            h: data.h,
+            text: data.text,
+            linkedNote: data.linkedNote,
+            image: data.image
+          };
+          this.boxes.push(newBox);
+          this.selectedBox = newBox;
+          this.saveHistory();
+          this.render();
+          e.preventDefault();
+          return;
+        }
+      } catch(err) {
+        // Not a box payload
+      }
+    }
+
+    // 2. Try to handle Image Paste
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -259,6 +291,26 @@ export class CanvasLite {
         reader.readAsDataURL(file);
       }
     }
+  }
+
+  handleCopy(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (window.app && window.app.viewMode !== 'canvas') return;
+    if (!this.selectedBox) return;
+
+    const boxData = {
+      type: 'caveman-canvas-box',
+      data: {
+        w: this.selectedBox.w,
+        h: this.selectedBox.h,
+        text: this.selectedBox.text,
+        linkedNote: this.selectedBox.linkedNote,
+        image: this.selectedBox.image
+      }
+    };
+
+    e.clipboardData.setData('text/plain', JSON.stringify(boxData));
+    e.preventDefault();
   }
 
   triggerImageUpload() {
