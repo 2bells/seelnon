@@ -821,6 +821,7 @@ class CavemanApp {
     }
     
     let html = await this.editorModule.processMarkdown(this.currentNote.content);
+    html = this.scopeStyles(html);
     
     // BACKLINKS: Find who links to THIS note
     const backlinks = this.notes.filter(n => {
@@ -1355,6 +1356,37 @@ class CavemanApp {
     
     this.lineNumbersEl.innerHTML = lineNumbersContent;
     this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
+  }
+
+  scopeStyles(html) {
+    if (!html) return '';
+    // Find all <style> blocks and scope them to the #preview container
+    return html.replace(/<style>([\s\S]*?)<\/style>/gi, (match, css) => {
+      // Simple regex to find selectors before a '{'
+      // This is not a full CSS parser but covers typical user-written styles in markdown
+      const scopedCss = css.replace(/([^\r\n,{}]+)(?=[^{}]*{)/g, (selector) => {
+        return selector.split(',').map(s => {
+          let part = s.trim();
+          if (!part) return '';
+          
+          // Skip at-rules (like @keyframes, @media)
+          if (part.startsWith('@')) return part;
+          
+          // Skip common keyframe keywords
+          if (part === 'from' || part === 'to' || /^\d+%$/.test(part)) return part;
+
+          // Replace body/html with #preview scope
+          if (part === 'body' || part === 'html') return '#preview';
+          
+          // Handle root pseudo-classes/elements attached to #preview
+          if (part.startsWith(':')) return `#preview${part}`;
+
+          // Prepend #preview selector to restrict scope
+          return `#preview ${part}`;
+        }).filter(s => s).join(', ');
+      });
+      return `<style>${scopedCss}</style>`;
+    });
   }
 }
 
