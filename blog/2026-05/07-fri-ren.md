@@ -1,6 +1,6 @@
 # Take more Notes
 
-![Image](https://i.pinimg.com/736x/f3/21/a5/f321a5aa177d1e972630cb25074b941d.jpg)
+![Image](https://i.pinimg.com/736x/2b/d6/6d/2bd66d29ccdd7c547b381a1387a9e530.jpg)
 
 Updates to Fri-ren notes:
 

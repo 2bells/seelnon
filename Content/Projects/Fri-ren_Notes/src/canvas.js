@@ -371,7 +371,7 @@ export class CanvasLite {
 
   updateEditorPos() {
     if (!this.editingBox) return;
-    this.inlineEditor.style.left = `${this.editingBox.x}px`;
+    this.inlineEditor.style.left = `${this.editingBox.x + this.editingBox.w / 2}px`;
     this.inlineEditor.style.top = `${this.editingBox.y + this.editingBox.h + 10}px`;
   }
 
@@ -389,7 +389,7 @@ export class CanvasLite {
       peekBtn.classList.add('hidden');
     }
 
-    this.toolbar.style.left = `${this.selectedBox.x + this.selectedBox.w/2 - 40}px`;
+    this.toolbar.style.left = `${this.selectedBox.x + this.selectedBox.w/2}px`;
     this.toolbar.style.top = `${this.selectedBox.y - 40}px`;
     this.updatePeekPos();
   }
