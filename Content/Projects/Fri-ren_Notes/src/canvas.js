@@ -330,7 +330,10 @@ export class CanvasLite {
 
   peekLink(box) {
     if (!box || !box.linkedNote) return;
-    if (this.activePeeks.has(box.id)) return;
+    if (this.activePeeks.has(box.id)) {
+      this.closePeek(box.id);
+      return;
+    }
 
     const notes = window.app?.notes || [];
     const note = notes.find(n => n.title === box.linkedNote);
