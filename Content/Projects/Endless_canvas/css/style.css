@@ -82,7 +82,7 @@ body {
     user-select: none;
     background: white;
     border-radius: 50px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     min-width: 100px;
     transition: all 0.2s;
@@ -115,7 +115,7 @@ body {
     border-radius: 12px;
     padding: 15px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
     width: 220px;
 }
 
@@ -161,7 +161,7 @@ body {
     user-select: none;
     z-index: 1001;
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
 }
 
 #tool-selector {
@@ -292,7 +292,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
 }
 
 .tool-button-container:hover .tool-dropdown {
@@ -358,7 +358,7 @@ body {
     height: 32px;
     padding: 0 16px;
     border-radius: 50px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
     background: white;
     cursor: pointer;
     font-size: 11px;
@@ -379,7 +379,7 @@ body {
 #right-panels button.active {
     background: #000;
     color: #fff;
-    border-color: #000;
+    border: none;
 }
 
 .floating-panel {
@@ -398,7 +398,7 @@ body {
     width: 280px;
     max-height: calc(100vh - 100px);
     overflow-y: auto;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
     z-index: 1000;
 }
 
@@ -454,7 +454,7 @@ body {
     position: absolute;
     border-radius: 50%;
     cursor: pointer;
-    border: 1.5px solid rgba(0, 0, 0, 0.1);
+    border: none;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     transition: transform 0.1s ease, box-shadow 0.2s ease, width 0.2s, height 0.2s;
     overflow: hidden;
@@ -462,7 +462,7 @@ body {
 }
 
 .palette-bottom-menu {
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-top: none;
     margin-top: 10px;
     display: flex;
     flex-direction: column;
@@ -513,7 +513,7 @@ body {
 }
 
 .swatch.active {
-    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0 0 2px #fff, 0 8px 16px rgba(0, 0, 0, 0.2);
     transform: translate(-50%, -50%) scale(1.2);
     z-index: 11;
 }
@@ -529,7 +529,7 @@ body {
     width: 32px;
     height: 32px;
     background: white;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: none;
     font-size: 16px;
     border-radius: 50%;
     cursor: pointer;
@@ -537,7 +537,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     padding: 0;
 }
 
@@ -596,7 +596,7 @@ body {
 .brush-editor-tabs {
     display: flex;
     gap: 2px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: none;
     margin-bottom: 5px;
 }
 
@@ -647,7 +647,8 @@ body {
     appearance: none;
     width: 100%;
     height: 32px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     border-radius: 8px;
     padding: 2px;
     background: white;
@@ -721,7 +722,8 @@ select {
     width: 100%;
     padding: 4px 8px;
     border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     background: white;
     font-size: 12px;
     color: #444;
@@ -736,13 +738,14 @@ select {
     flex: 1;
     padding: 6px;
     border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
     background: #f0f0f0;
     font-size: 10px;
     text-transform: uppercase;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .brush-preset-actions button:hover {
@@ -772,7 +775,8 @@ select {
     user-select: none;
     pointer-events: none;
     z-index: 100;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -839,7 +843,7 @@ select {
     background: white;
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
@@ -855,7 +859,7 @@ select {
 }
 
 .project-card.active {
-    border: 2px solid #000;
+    box-shadow: 0 0 0 2px #000;
 }
 
 .project-preview-vibe {
@@ -877,7 +881,6 @@ select {
 
 .project-card.new-project .project-preview-vibe {
     background: #f9f9f9;
-    border: 2px dashed #ddd;
 }
 
 .project-card.new-project svg {
@@ -926,7 +929,8 @@ select {
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(0,0,0,0.05);
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1047,10 +1051,11 @@ select {
     flex-direction: row;
     align-items: center;
     background: white;
-    border: 2px solid #000;
+    border: none;
     border-radius: 24px;
     height: 48px;
     padding: 0 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
 }
@@ -1123,7 +1128,9 @@ select {
     bottom: 55px;
     width: 240px;
     background: white;
-    border: 2px solid #000;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    border-radius: 16px;
     padding: 15px;
     font-size: 11px;
     line-height: 1.6;
@@ -1174,7 +1181,7 @@ select {
     border-radius: 20px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
     width: 380px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: none;
     animation: modal-appear 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1243,17 +1250,18 @@ select {
     width: 100%;
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     background-color: #f9f9f9;
     color: #333;
     font-size: 14px;
     outline: none;
-    transition: border-color 0.2s;
+    transition: box-shadow 0.2s;
 }
 
 .export-setting select:focus,
 .export-setting input[type="number"]:focus {
-    border-color: #000;
+    box-shadow: 0 0 0 2px #000;
 }
 
 .checkbox-setting {
@@ -1320,7 +1328,8 @@ select {
 
 .secondary-button {
     padding: 12px 24px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     border-radius: 50px;
     background-color: white;
     color: #666;
