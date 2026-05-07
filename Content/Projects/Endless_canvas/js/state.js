@@ -5,7 +5,7 @@ const baseBrushProperties = {
     opacity: 1,
     pressureSensitivity: false,
     speedSensitivity: true,
-    speedSensitivityFactor: 3.0,
+    speedSensitivityFactor: 2.0,
     minSizeFactor: 0.2, // Min size as a percentage of main size for dynamics
     tipShape: 'round', // 'round' or 'square'
     nonCompoundingOpacity: false, // if true, attempts to prevent opacity compounding within a stroke
@@ -36,6 +36,8 @@ export const state = {
     isPanning: false,
     isZoomingWithMouse: false,
     isSelecting: false, // For selection tool
+    selectionMode: 'rectangle', // 'rectangle' or 'lasso'
+    lassoPoints: [], // Points for the lasso tool
     isMovingSelection: false, // For moving selected strokes
     isScalingSelection: false, // For scaling selected strokes
     isRotatingSelection: false, // For rotating selected strokes
@@ -49,6 +51,8 @@ export const state = {
     zoom: 1,
     lastMousePosition: { x: 0, y: 0 },
     lastDrawPosition: { x: 0, y: 0, timestamp: 0 },
+    activePointers: new Map(), // For tracking multiple touch points
+    initialPinchData: null,    // For tracking initial pinch state
     
     // Drawing data
     strokes: [],
@@ -96,7 +100,7 @@ export const state = {
             pressureSensitivity: true,
             speedSensitivity: true,
             minSizeFactor: 0.2,
-            speedSensitivityFactor: 3.0,
+            speedSensitivityFactor: 2.0,
             pixelSize: 10,
             enableSmoothing: false,
             smoothingFactor: 0.005,

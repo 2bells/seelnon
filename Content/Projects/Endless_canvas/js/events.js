@@ -182,8 +182,41 @@ export function init(canvas) {
         });
     }
 
+    // Function to calculate distance and midpoint for two touch points
+    function getPinchData(pointers) {
+        const pts = Array.from(pointers.values());
+        const dx = pts[0].x - pts[1].x;
+        const dy = pts[0].y - pts[1].y;
+        const distance = Math.hypot(dx, dy);
+        const center = {
+            x: (pts[0].x + pts[1].x) / 2,
+            y: (pts[0].y + pts[1].y) / 2
+        };
+        return { distance, center };
+    }
+
     canvas.addEventListener('pointerdown', (e) => {
-        if (!e.isPrimary) return;
+        // Multi-touch tracking
+        state.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (state.activePointers.size > 1) {
+            // Cancel drawing/selecting if starting a gesture
+            if (state.isDrawing) {
+                state.isDrawing = false;
+                endStroke();
+            }
+            if (state.isSelecting) {
+                state.isSelecting = false;
+                state.lassoPoints = [];
+                state.selection = null;
+            }
+            
+            if (state.activePointers.size === 2) {
+                state.initialPinchData = null; // Will be initialized in pointermove
+            }
+            return;
+        }
+
         e.preventDefault();
         
         // Detect stylus for custom cursor
@@ -350,7 +383,53 @@ export function init(canvas) {
     });
 
     canvas.addEventListener('pointermove', (e) => {
-        if (!e.isPrimary) return;
+        // Multi-touch tracking update
+        if (state.activePointers.has(e.pointerId)) {
+            state.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        }
+
+        if (state.activePointers.size === 2) {
+            const pinch = getPinchData(state.activePointers);
+            
+            if (!state.initialPinchData) {
+                state.initialPinchData = {
+                    distance: pinch.distance,
+                    zoom: state.zoom,
+                    center: pinch.center,
+                    panOffset: { ...state.panOffset }
+                };
+            } else {
+                const dScale = pinch.distance / state.initialPinchData.distance;
+                const newZoom = Math.max(0.1, state.initialPinchData.zoom * dScale); // Allow deeper zoom out on mobile/pinch
+                
+                // Zoom centered on midpoint
+                const worldCenterBefore = screenToWorld(pinch.center.x, pinch.center.y);
+                state.zoom = newZoom;
+                const worldCenterAfter = screenToWorld(pinch.center.x, pinch.center.y);
+                
+                state.panOffset.x += (worldCenterAfter.x - worldCenterBefore.x) * state.zoom;
+                state.panOffset.y += (worldCenterAfter.y - worldCenterBefore.y) * state.zoom;
+
+                // Also pan by movement of the midpoint (two-finger pan)
+                state.panOffset.x += (pinch.center.x - state.initialPinchData.center.x);
+                state.panOffset.y += (pinch.center.y - state.initialPinchData.center.y);
+                
+                state.initialPinchData.center = pinch.center; // Track center for relative pan delta
+                
+                updateProjectInfo(worldCenterAfter.x, worldCenterAfter.y);
+                scheduleSave();
+                requestAnimationFrame(draw);
+            }
+            return;
+        }
+
+        if (!e.isPrimary && state.activePointers.size === 1) {
+            // If primary pointer was removed somehow but we have another, let's not block it?
+            // Usually browser handles isPrimary for the first finger.
+        } else if (state.activePointers.size > 2) {
+            return;
+        }
+
         e.preventDefault();
 
         // Update stylus cursor state
@@ -431,15 +510,22 @@ export function init(canvas) {
                         const timeDelta = eventTimestamp - state.lastDrawPosition.timestamp;
                         if (timeDelta > 2) { // Lower threshold for high-frequency events
                             const distance = Math.hypot(eventWorldPos.x - state.lastDrawPosition.x, eventWorldPos.y - state.lastDrawPosition.y);
-                            const speed = distance / timeDelta;
+                            let speed = distance / timeDelta;
+                            
+                            // Mouse speed boost: mice are often moved in smaller deltas than pens
+                            if (event.pointerType === 'mouse') {
+                                speed *= 2;
+                            }
+
                             const maxSpeed = state.brush.speedSensitivityFactor;
                             const minPressure = 0.1;
                             const calculatedPressure = 1 - (speed / maxSpeed);
                             pressure = Math.max(minPressure, Math.min(1, calculatedPressure));
                             
-                            // Smooth pressure changes to prevent jitter
+                            // Smooth pressure changes to prevent jitter - faster reaction for mouse (0.5/0.5)
                             if (state.lastDrawPosition.pressure !== undefined) {
-                                pressure = state.lastDrawPosition.pressure * 0.7 + pressure * 0.3;
+                                const smoothFactor = event.pointerType === 'mouse' ? 0.5 : 0.7;
+                                pressure = state.lastDrawPosition.pressure * smoothFactor + pressure * (1 - smoothFactor);
                             }
                         } else {
                             // Maintain previous pressure if time delta is too small to calculate speed reliably
@@ -608,7 +694,13 @@ export function init(canvas) {
     });
 
     canvas.addEventListener('pointerup', (e) => {
-        if (!e.isPrimary) return;
+        state.activePointers.delete(e.pointerId);
+        if (state.activePointers.size < 2) {
+            state.initialPinchData = null;
+        }
+
+        // Only allow primary pointer to finish actions
+        if (!e.isPrimary && state.activePointers.size >= 1) return;
 
         // Reset stylus active state on ANY pointerup for safety
         if (state.isStylusActive || e.pointerType === 'pen') {
@@ -716,7 +808,10 @@ export function init(canvas) {
     });
 
     canvas.addEventListener('pointercancel', (e) => {
-        if (!e.isPrimary) return;
+        state.activePointers.delete(e.pointerId);
+        state.initialPinchData = null;
+
+        if (!e.isPrimary && state.activePointers.size >= 1) return;
         
         if (state.isStylusActive) {
             state.isStylusActive = false;

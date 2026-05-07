@@ -63,10 +63,8 @@ function registerAnimatedStroke(stroke) {
 
 export function clearChunkCache() {
     chunkCache.forEach(chunk => {
-        if (chunk.canvas) {
-            chunk.canvas.width = 0;
-            chunk.canvas.height = 0;
-        }
+        chunk.canvas = null;
+        chunk.ctx = null;
     });
     chunkCache.clear();
 }
@@ -552,16 +550,15 @@ export function draw() {
         ctx.scale(img.scaleX || 1, img.scaleY || 1);
         ctx.globalAlpha = img.opacity !== undefined ? img.opacity : 1;
         
-        if (img.element && img.element.complete) {
-            ctx.drawImage(img.element, -img.width / 2, -img.height / 2, img.width, img.height);
-        } else if (img.url && !img.element) {
-            // Lazy load element if not exists
-            const imageEl = new Image();
+        const imageEl = img.element || new Image();
+        if (!img.element) {
             imageEl.src = img.url;
             img.element = imageEl;
-            imageEl.onload = () => {
-                requestAnimationFrame(draw);
-            };
+            imageEl.onload = () => requestAnimationFrame(draw);
+        }
+
+        if (imageEl.complete && imageEl.naturalWidth > 0 && img.width > 0 && img.height > 0) {
+            ctx.drawImage(imageEl, -img.width / 2, -img.height / 2, img.width, img.height);
         }
         ctx.restore(); // Back to Pos+Rot only (Opacity & Scale restored)
         
@@ -643,7 +640,7 @@ export function draw() {
                 renderChunk(chunk, state.zoom);
             }
             
-            if (chunk.canvas) {
+            if (chunk.canvas && chunk.canvas.width > 0 && chunk.canvas.height > 0) {
                 ctx.drawImage(chunk.canvas, chunk.worldX, chunk.worldY, CHUNK_SIZE, CHUNK_SIZE);
             }
         });
