@@ -27,6 +27,7 @@ export class CanvasLite {
 
     this.toolbar = document.getElementById('canvas-toolbar');
     this.inlineEditor = document.getElementById('canvas-inline-editor');
+    this.peeksLayer = document.getElementById('canvas-peeks-layer');
     this.boxInput = document.getElementById('canvas-box-input');
     this.boxLink = document.getElementById('canvas-box-link');
     this.peekTemplate = document.getElementById('canvas-peek-window'); // Keep reference to old one as template
@@ -65,6 +66,12 @@ export class CanvasLite {
 
   setData(data) {
     this.closeAllPeeks();
+    this.selectedBox = null;
+    this.selectedArrow = null;
+    this.editingBox = null;
+    this.inlineEditor.classList.add('hidden');
+    this.updateToolbarPos();
+
     if (!data) {
       this.boxes = [];
       this.arrows = [];
@@ -281,7 +288,7 @@ export class CanvasLite {
     
     closeBtn.onclick = () => this.closePeek(box.id);
     
-    this.container.appendChild(peek);
+    this.peeksLayer.appendChild(peek);
     this.activePeeks.set(box.id, peek);
     
     if (note) {
@@ -320,6 +327,10 @@ export class CanvasLite {
   }
 
   updatePeekPos() {
+    if (this.peeksLayer) {
+      this.peeksLayer.style.transform = `translate(${this.viewport.x}px, ${this.viewport.y}px) scale(${this.viewport.scale})`;
+    }
+
     this.activePeeks.forEach((peek, boxId) => {
       const box = this.boxes.find(b => b.id === boxId);
       if (!box) {
@@ -327,16 +338,15 @@ export class CanvasLite {
         return;
       }
 
-      const x = box.x * this.viewport.scale + this.viewport.x;
-      const y = box.y * this.viewport.scale + this.viewport.y;
+      // Position in RAW canvas coordinates (the layer handles viewport transform)
+      let targetX = box.x + box.w + 10;
+      let targetY = box.y;
       
-      let targetX = x + box.w * this.viewport.scale + 20;
-      if (targetX + 350 > this.canvas.width) {
-        targetX = x - 370; 
-      }
+      // We don't flip for screen space here because the layer is zoomed
+      // but we could still check boundaries if we wanted.
       
-      peek.style.left = `${Math.max(10, targetX)}px`;
-      peek.style.top = `${Math.max(10, y)}px`;
+      peek.style.left = `${targetX}px`;
+      peek.style.top = `${targetY}px`;
     });
   }
 
@@ -361,10 +371,8 @@ export class CanvasLite {
 
   updateEditorPos() {
     if (!this.editingBox) return;
-    const x = this.editingBox.x * this.viewport.scale + this.viewport.x;
-    const y = this.editingBox.y * this.viewport.scale + this.viewport.y;
-    this.inlineEditor.style.left = `${x}px`;
-    this.inlineEditor.style.top = `${y + this.editingBox.h * this.viewport.scale + 10}px`;
+    this.inlineEditor.style.left = `${this.editingBox.x}px`;
+    this.inlineEditor.style.top = `${this.editingBox.y + this.editingBox.h + 10}px`;
   }
 
   updateToolbarPos() {
@@ -381,10 +389,8 @@ export class CanvasLite {
       peekBtn.classList.add('hidden');
     }
 
-    const x = this.selectedBox.x * this.viewport.scale + this.viewport.x;
-    const y = this.selectedBox.y * this.viewport.scale + this.viewport.y;
-    this.toolbar.style.left = `${x + (this.selectedBox.w * this.viewport.scale)/2 - 40}px`;
-    this.toolbar.style.top = `${y - 40}px`;
+    this.toolbar.style.left = `${this.selectedBox.x + this.selectedBox.w/2 - 40}px`;
+    this.toolbar.style.top = `${this.selectedBox.y - 40}px`;
     this.updatePeekPos();
   }
 
@@ -740,7 +746,7 @@ export class CanvasLite {
       }
 
       this.ctx.fillStyle = mainColor;
-      this.ctx.font = `800 ${12 / this.viewport.scale}px "Inter"`;
+      this.ctx.font = `800 12px "Inter"`;
       this.ctx.textAlign = 'center';
       
       let displayText = box.text;
@@ -748,7 +754,7 @@ export class CanvasLite {
       this.ctx.fillText(displayText, box.x + box.w/2, box.y + box.h/2 + 5);
       
       if (box.linkedNote) {
-        this.ctx.font = `italic ${9 / this.viewport.scale}px monospace`;
+        this.ctx.font = `italic 9px monospace`;
         this.ctx.globalAlpha = 0.6;
         this.ctx.fillText(`[[${box.linkedNote}]]`, box.x + box.w/2, box.y + box.h - 8);
         this.ctx.globalAlpha = 1.0;

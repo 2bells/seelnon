@@ -9,8 +9,12 @@ export class Editor {
 
   async processMarkdown(content) {
     if (!content || content.trim() === '') {
-      return `<div style="opacity: 0.5; font-style: italic; padding: 20px; text-align: center;">
-        press 'editor mode' to start editing your markdown file
+      return `<div style="opacity: 0.5; font-style: italic; padding: 20px; text-align: center; line-height: 1.6;">
+        press 'editor mode' to start editing your markdown file<br>
+        <small style="display: block; margin-top: 10px; opacity: 0.7;">
+          tip: typing a path like 'adventures/forest/logs' in the folder field<br>
+          will create those folders automatically!
+        </small>
       </div>`;
     }
     let md = content;

@@ -683,6 +683,7 @@ button.btn-danger:hover {
   flex-direction: column;
   gap: 4px;
   z-index: 1000;
+  pointer-events: auto;
 }
 
 .night-mode #canvas-inline-editor {
@@ -715,6 +716,7 @@ button.btn-danger:hover {
   padding: 4px;
   z-index: 999;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  pointer-events: auto;
 }
 
 .night-mode #canvas-toolbar {
@@ -744,6 +746,16 @@ button.btn-danger:hover {
   background: rgba(161, 138, 94, 0.2);
 }
 
+/* Peek Window Layer */
+#canvas-peeks-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+  z-index: 100;
+}
+
 /* Peek Window */
 .canvas-peek-window {
   position: absolute;
@@ -755,6 +767,7 @@ button.btn-danger:hover {
   flex-direction: column;
   z-index: 1001;
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .night-mode .canvas-peek-window {

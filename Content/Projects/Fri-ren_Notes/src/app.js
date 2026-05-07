@@ -407,12 +407,10 @@ class CavemanApp {
       el.appendChild(titleSpan);
       el.appendChild(timeSpan);
       
-      el.onclick = async () => {
-        await this.handleInput();
+      el.onclick = () => {
         this.selectNote(note);
       };
-      el.ondblclick = async () => {
-        await this.handleInput();
+      el.ondblclick = () => {
         this.selectNote(note);
         this.titleInput.focus();
       };
@@ -609,6 +607,18 @@ class CavemanApp {
 
   async handleInput(skipPreview = false, skipHistory = false) {
     if (!this.currentNote) return;
+
+    // Check if anything actually changed before saving
+    const newTitle = this.titleInput.value;
+    const newFolder = this.folderInput.value;
+    const newContent = this.editorEl.value;
+    
+    if (this.currentNote.title === newTitle && 
+        this.currentNote.folder === newFolder && 
+        this.currentNote.content === newContent) {
+      if (!skipPreview) this.updatePreview();
+      return;
+    }
 
     if (!skipHistory) {
       const content = this.editorEl.value;
