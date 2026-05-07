@@ -19,7 +19,7 @@ Updates to Fri-ren notes:
   - centering of ui
   - zoom respect on nodes/previews
 - new editing visuals
-- supports inner `<styles>`
+- supports inner `styles/html`
 
 ![image](blog/2026-05/img/fri-renNotes.jpg)  
 
