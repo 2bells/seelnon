@@ -4,7 +4,7 @@
 
 Updates to Fri-ren notes:
 
-- ![video](link) for .mp4 / .webp / youtube
+- `![video](link)` for .mp4 / .webp / youtube
 - ![video 500 300] to resize
 - 302 bypass
 - no case sensitivity on folders
