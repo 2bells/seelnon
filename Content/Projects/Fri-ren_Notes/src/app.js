@@ -45,6 +45,7 @@ class CavemanApp {
     this.imageCache = new Map(); // Memory cache to prevent flash
     this.historyStack = new Map(); // noteId -> { undo: [], redo: [] }
     this.historyTimer = null;
+    this.measureEl = null;
 
     this.initLazyLoader();
     this.init();
@@ -146,6 +147,7 @@ class CavemanApp {
     this.importInput.addEventListener('change', (e) => this.importVault(e));
     this.searchInput.addEventListener('input', () => this.renderNoteList());
     this.themeToggle.addEventListener('click', () => this.toggleTheme());
+    window.addEventListener('resize', () => this.updateLineNumbers());
 
     this.previewEl.addEventListener('click', (e) => this.handlePreviewClick(e));
 
@@ -1305,12 +1307,52 @@ class CavemanApp {
 
   updateLineNumbers() {
     if (!this.lineNumbersEl || !this.editorEl) return;
-    const lines = this.editorEl.value.split('\n');
-    const count = lines.length;
-    let lineNumbersContent = '';
-    for (let i = 1; i <= count; i++) {
-        lineNumbersContent += `<div>${i}</div>`;
+    
+    // 1. Ensure Ghost Element for measurement
+    if (!this.measureEl) {
+      this.measureEl = document.createElement('div');
+      this.measureEl.id = 'measure-wrap-el';
+      this.measureEl.style.position = 'absolute';
+      this.measureEl.style.visibility = 'hidden';
+      this.measureEl.style.height = 'auto';
+      this.measureEl.style.whiteSpace = 'pre-wrap';
+      this.measureEl.style.wordWrap = 'break-word';
+      this.measureEl.style.overflowWrap = 'break-word';
+      this.measureEl.style.pointerEvents = 'none';
+      this.measureEl.style.top = '-9999px';
+      this.measureEl.style.left = '-9999px';
+      document.body.appendChild(this.measureEl);
     }
+
+    // 2. Sync styles with editor
+    const style = window.getComputedStyle(this.editorEl);
+    this.measureEl.style.fontFamily = style.fontFamily;
+    this.measureEl.style.fontSize = style.fontSize;
+    this.measureEl.style.lineHeight = style.lineHeight;
+    this.measureEl.style.paddingLeft = style.paddingLeft;
+    this.measureEl.style.paddingRight = style.paddingRight;
+    this.measureEl.style.boxSizing = style.boxSizing;
+    this.measureEl.style.width = this.editorEl.clientWidth + 'px';
+
+    const lines = this.editorEl.value.split('\n');
+    const lineHeight = parseFloat(style.lineHeight);
+    let lineNumbersContent = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const lineText = lines[i] || ' '; // Handle empty lines
+      this.measureEl.textContent = lineText;
+      const height = this.measureEl.getBoundingClientRect().height;
+      const visualLines = Math.max(1, Math.round(height / lineHeight));
+      
+      // Line number for the FIRST visual line
+      lineNumbersContent += `<div style="height:${lineHeight}px">${i + 1}</div>`;
+      
+      // Empty spaces for subsequent wrapped visual lines
+      for (let j = 1; j < visualLines; j++) {
+        lineNumbersContent += `<div style="height:${lineHeight}px">&nbsp;</div>`;
+      }
+    }
+    
     this.lineNumbersEl.innerHTML = lineNumbersContent;
     this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
   }
