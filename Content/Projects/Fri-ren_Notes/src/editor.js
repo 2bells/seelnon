@@ -53,7 +53,7 @@ export class Editor {
       }
 
       const type = u.endsWith('.webm') ? 'video/webm' : 'video/mp4';
-      return `<video controls loop muted style="${style}">
+      return `<video controls loop muted referrerpolicy="no-referrer" style="${style}">
   <source src="${u}" type="${type}">
   Your browser does not support the video tag.
 </video>`;
@@ -91,6 +91,9 @@ export class Editor {
       
       // Image stability hack: force eager loading and sync decoding to minimize flicker during re-renders
       html = html.replace(/<img /g, '<img loading="eager" decoding="sync" referrerpolicy="no-referrer" ');
+      
+      // Video stability hack: also add no-referrer to videos
+      html = html.replace(/<video /g, '<video referrerpolicy="no-referrer" ');
 
       // Wikilink Detection [[Note Title]]
       html = html.replace(/\[\[(.*?)\]\]/g, (match, target) => {
