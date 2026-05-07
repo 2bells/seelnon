@@ -23,13 +23,9 @@ Updates to Fri-ren notes:
   - centering of ui
   - zoom respect on nodes/previews
 - new editing visuals
-- supports inner `styles/html`
+- supports inner `styles/html` (with quirks)
 
-so this >
 ![image](blog/2026-05/img/fri-renNotes.jpg)  
-into >
-![image](blog/2026-05/img/fri-renNotes3.jpg)
-has some quirks, tho... not 1 to 1.
 
 [Use it](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
@@ -39,7 +35,7 @@ More stuff, some fixes.
 
 ![image](blog/2026-05/img/endless.jpg)
 
-Udates to Endless Canvas:
+Updates to Endless Canvas:
 
 - semi usable on iPad/touch
 - some fixes
