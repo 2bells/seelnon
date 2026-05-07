@@ -8,6 +8,11 @@ export class Editor {
   }
 
   async processMarkdown(content) {
+    if (!content || content.trim() === '') {
+      return `<div style="opacity: 0.5; font-style: italic; padding: 20px; text-align: center;">
+        press 'editor mode' to start editing your markdown file
+      </div>`;
+    }
     let md = content;
     
     // Caveman normalization: convert common bullet points (•) to markdown asterisks (*)
@@ -17,6 +22,15 @@ export class Editor {
     // Replace Obsidian-style [[img-id]] with placeholders for lazy loading
     md = md.replace(/!\[\[(.*?)\]\]/g, (match, id) => {
       return `<img data-img-id="${id.trim()}" class="lazy-vault-img" loading="lazy" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">`;
+    });
+
+    // Video support: ![video](link)
+    md = md.replace(/!\[video\]\((.*?)\)/g, (match, url) => {
+      const type = url.trim().endsWith('.webm') ? 'video/webm' : 'video/mp4';
+      return `<video controls loop muted style="max-width:100%; margin: 10px 0; border: 1px solid var(--text-primary);">
+  <source src="${url.trim()}" type="${type}">
+  Your browser does not support the video tag.
+</video>`;
     });
     
     // Ensure marked is configured for GFM
@@ -34,7 +48,7 @@ export class Editor {
       html = html.replace(/<input checked="" disabled="" type="checkbox">/g, '<input checked="" type="checkbox">');
       
       // Image stability hack: force eager loading and sync decoding to minimize flicker during re-renders
-      html = html.replace(/<img /g, '<img loading="eager" decoding="sync" ');
+      html = html.replace(/<img /g, '<img loading="eager" decoding="sync" referrerpolicy="no-referrer" ');
 
       // Wikilink Detection [[Note Title]]
       html = html.replace(/\[\[(.*?)\]\]/g, (match, target) => {

@@ -745,7 +745,7 @@ button.btn-danger:hover {
 }
 
 /* Peek Window */
-#canvas-peek-window {
+.canvas-peek-window {
   position: absolute;
   width: 350px;
   max-height: 450px;
@@ -757,7 +757,7 @@ button.btn-danger:hover {
   overflow: hidden;
 }
 
-.night-mode #canvas-peek-window {
+.night-mode .canvas-peek-window {
   background: #1c1814;
   border-color: #a18a5e;
   border-width: 1px;
@@ -780,16 +780,24 @@ button.btn-danger:hover {
   color: #1c1814;
 }
 
-#peek-close {
-  background: transparent;
-  border: none;
-  color: inherit;
+.peek-close {
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
   cursor: pointer;
   font-weight: bold;
   font-size: 14px;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
-#peek-content {
+.peek-close:hover {
+  background: transparent !important;
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+.peek-content {
   padding: 12px;
   overflow-y: auto;
   font-size: 13px;
@@ -798,7 +806,7 @@ button.btn-danger:hover {
   background: inherit;
 }
 
-#peek-content h1, #peek-content h2, #peek-content h3 {
+.peek-content h1, .peek-content h2, .peek-content h3 {
   margin-top: 0;
   font-size: 1.2em;
   border-bottom: 2px solid #000;
@@ -806,29 +814,29 @@ button.btn-danger:hover {
   margin-bottom: 12px;
 }
 
-.night-mode #peek-content h1, 
-.night-mode #peek-content h2, 
-.night-mode #peek-content h3 {
+.night-mode .peek-content h1, 
+.night-mode .peek-content h2, 
+.night-mode .peek-content h3 {
   border-bottom-color: #a18a5e;
 }
 
-#peek-content ul, #peek-content ol {
+.peek-content ul, .peek-content ol {
   padding-left: 20px;
   margin-bottom: 12px;
 }
 
-#peek-content li {
+.peek-content li {
   margin-bottom: 4px;
 }
 
-#peek-content img {
+.peek-content img {
   max-width: 100%;
   height: auto;
   border: 1px solid #000;
   margin: 10px 0;
 }
 
-.night-mode #peek-content img {
+.night-mode .peek-content img {
   border-color: #a18a5e;
 }
 
@@ -1368,7 +1376,7 @@ input[type="checkbox"]:checked::after, #preview input[type="checkbox"]:checked::
     radial-gradient(circle at 50% 50%, transparent 40%, rgba(0,0,0,0.15) 100%),
     linear-gradient(rgba(209, 184, 138, 0.7), rgba(209, 184, 138, 0.7)), /* Simulates texture opacity */
     url('https://www.transparenttextures.com/patterns/dark-leather.png') !important;
-  background-attachment: local, local, local, scroll, scroll, local !important;
+  background-attachment: local, local, local, local, local, local !important;
   background-position: 
     90% 30px,
     100% 1000px,   

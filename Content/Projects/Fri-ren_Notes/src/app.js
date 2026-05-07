@@ -41,6 +41,8 @@ class CavemanApp {
     this.closeOverlayBtns = document.querySelectorAll('.close-overlay');
     this.collapsedFolders = JSON.parse(localStorage.getItem('caveman-collapsed-folders') || '[]');
     this.imageCache = new Map(); // Memory cache to prevent flash
+    this.historyStack = new Map(); // noteId -> { undo: [], redo: [] }
+    this.historyTimer = null;
 
     this.initLazyLoader();
     this.init();
@@ -223,6 +225,20 @@ class CavemanApp {
         this.closeOverlays();
         this.graphModule.close();
       }
+      
+      // Undo/Redo
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          this.redo();
+        } else {
+          this.undo();
+        }
+      }
+      if (e.ctrlKey && e.key === 'y') {
+        e.preventDefault();
+        this.redo();
+      }
     });
 
     // 2. Restore Last Session
@@ -258,10 +274,11 @@ class CavemanApp {
   }
 
   toggleFolder(folderName) {
-    if (this.collapsedFolders.includes(folderName)) {
-      this.collapsedFolders = this.collapsedFolders.filter(f => f !== folderName);
+    const name = folderName.toUpperCase();
+    if (this.collapsedFolders.includes(name)) {
+      this.collapsedFolders = this.collapsedFolders.filter(f => f !== name);
     } else {
-      this.collapsedFolders.push(folderName);
+      this.collapsedFolders.push(name);
     }
     localStorage.setItem('caveman-collapsed-folders', JSON.stringify(this.collapsedFolders));
     this.renderNoteList();
@@ -296,8 +313,8 @@ class CavemanApp {
     
     // Deduplicate: hide public notes if a local note with the same path exists
     const filteredPublic = publicNotes.filter(pn => {
-      const pnPath = (pn.folder || '') + '/' + pn.title;
-      return !localNotes.some(ln => ((ln.folder || '') + '/' + ln.title) === pnPath);
+      const pnPath = ((pn.folder || '').toUpperCase()) + '/' + pn.title;
+      return !localNotes.some(ln => (((ln.folder || '').toUpperCase()) + '/' + ln.title) === pnPath);
     });
 
     this.notes = [...filteredPublic, ...localNotes].map(note => ({
@@ -312,7 +329,7 @@ class CavemanApp {
     this.noteListEl.innerHTML = '';
     
     const filtered = this.notes
-      .sort((a,b) => b.updatedAt - a.updatedAt)
+      .sort((a,b) => (a.title || '').localeCompare(b.title || ''))
       .filter(note => {
         if (!query) return true;
         return note._searchIndex.includes(query);
@@ -325,10 +342,11 @@ class CavemanApp {
       const parts = (note.folder || '').split('/').filter(p => p.length > 0);
       let current = root;
       parts.forEach(part => {
-        if (!current.folders[part]) {
-          current.folders[part] = { folders: {}, notes: [], path: (current.path ? current.path + '/' : '') + part };
+        const key = part.toUpperCase();
+        if (!current.folders[key]) {
+          current.folders[key] = { folders: {}, notes: [], path: (current.path ? current.path + '/' : '') + key };
         }
-        current = current.folders[part];
+        current = current.folders[key];
       });
       current.notes.push(note);
     });
@@ -389,8 +407,12 @@ class CavemanApp {
       el.appendChild(titleSpan);
       el.appendChild(timeSpan);
       
-      el.onclick = () => this.selectNote(note);
-      el.ondblclick = () => {
+      el.onclick = async () => {
+        await this.handleInput();
+        this.selectNote(note);
+      };
+      el.ondblclick = async () => {
+        await this.handleInput();
         this.selectNote(note);
         this.titleInput.focus();
       };
@@ -408,9 +430,10 @@ class CavemanApp {
   }
 
   async createCustodesNote() {
+    await this.handleInput();
     const content = `<div class="imperial-records-container">
   <div class="imperial-header">
-    <img src="./server/adeptus_custodes_icon_330x192.png" class="imperial-seal" alt="Adeptus Custodes Seal" />
+    <img src="/server/adeptus_custodes_icon_330x192.png" class="imperial-seal" alt="Adeptus Custodes Seal" />
     <div class="header-data">
       <div>++++ TRANSMITTED: +[REDACTED]+ ++++</div>
       <div>++++ RECEIVED: +SOL SYSTEM+ ++++</div>
@@ -478,6 +501,7 @@ class CavemanApp {
   }
 
   async createNewNote() {
+    await this.handleInput();
     const note = {
       title: '',
       folder: '',
@@ -496,6 +520,14 @@ class CavemanApp {
     this.titleInput.value = note.title;
     this.folderInput.value = note.folder || '';
     this.editorEl.value = note.content;
+    
+    // Initialize history for this note if it doesn't exist
+    if (!this.historyStack.has(note.id)) {
+      this.historyStack.set(note.id, {
+        undo: [{ content: note.content, start: 0, end: 0 }],
+        redo: []
+      });
+    }
     
     // Save last opened
     localStorage.setItem('caveman-last-note-id', note.id);
@@ -575,8 +607,21 @@ class CavemanApp {
     }
   }
 
-  async handleInput(skipPreview = false) {
+  async handleInput(skipPreview = false, skipHistory = false) {
     if (!this.currentNote) return;
+
+    if (!skipHistory) {
+      const content = this.editorEl.value;
+      const lastChar = content[this.editorEl.selectionStart - 1];
+      const isWordBoundary = /[\s,.!?;:]/.test(lastChar);
+      
+      clearTimeout(this.historyTimer);
+      if (isWordBoundary) {
+        this.pushHistory();
+      } else {
+        this.historyTimer = setTimeout(() => this.pushHistory(), 300);
+      }
+    }
 
     // If editing a public note, fork it into a local one first
     if (this.currentNote.isPublic) {
@@ -609,6 +654,57 @@ class CavemanApp {
     if (this.viewMode === 'preview' && skipPreview !== true) this.updatePreview();
     this.updateStats();
     this.lastSavedEl.textContent = `Saved: ${new Date().toLocaleTimeString()}`;
+  }
+
+  pushHistory() {
+    if (!this.currentNote) return;
+    const history = this.historyStack.get(this.currentNote.id);
+    if (!history) return;
+
+    const content = this.editorEl.value;
+    const last = history.undo[history.undo.length - 1];
+    
+    if (last && last.content === content) return;
+
+    history.undo.push({
+      content,
+      start: this.editorEl.selectionStart,
+      end: this.editorEl.selectionEnd
+    });
+
+    if (history.undo.length > 100) history.undo.shift();
+    history.redo = []; // Clear redo on new manual input
+  }
+
+  undo() {
+    if (!this.currentNote) return;
+    const history = this.historyStack.get(this.currentNote.id);
+    if (!history || history.undo.length <= 1) return;
+
+    const current = history.undo.pop();
+    history.redo.push(current);
+    
+    const prev = history.undo[history.undo.length - 1];
+    this.editorEl.value = prev.content;
+    this.editorEl.setSelectionRange(prev.start, prev.end);
+    
+    this.handleInput(false, true); // true = skip history push
+    this.editorEl.focus();
+  }
+
+  redo() {
+    if (!this.currentNote) return;
+    const history = this.historyStack.get(this.currentNote.id);
+    if (!history || history.redo.length === 0) return;
+
+    const next = history.redo.pop();
+    history.undo.push(next);
+    
+    this.editorEl.value = next.content;
+    this.editorEl.setSelectionRange(next.start, next.end);
+    
+    this.handleInput(false, true); // true = skip history push
+    this.editorEl.focus();
   }
 
   async handleCanvasChange(data) {
@@ -645,9 +741,19 @@ class CavemanApp {
   async navigateToNote(title) {
     // Try to find note by exact title or path (folder/title)
     let targetNote = this.notes.find(n => {
-      const fullPath = (n.folder ? n.folder + '/' : '') + n.title;
-      return n.title === title || fullPath === title;
+      const fullPath = ((n.folder || '').toUpperCase() ? (n.folder || '').toUpperCase() + '/' : '') + n.title;
+      const searchTitle = title.toUpperCase();
+      const noteTitle = n.title.toUpperCase();
+      const notePath = fullPath.toUpperCase();
+      return noteTitle === searchTitle || notePath === searchTitle;
     });
+
+    if (!targetNote) {
+      // Case-insensitive search as fallback if not found directly
+      targetNote = this.notes.find(n => {
+        return n.title.toLowerCase() === title.toLowerCase();
+      });
+    }
 
     if (!targetNote) {
       // Caveman Creation: If it doesn't exist, create it

@@ -23,16 +23,14 @@ export class CanvasLite {
     this.connectingFrom = null;
     this.tempConnectionEnd = null;
     this.editingBox = null;
-    this.peekingBox = null;
+    this.activePeeks = new Map(); // boxId -> peekElement
 
     this.toolbar = document.getElementById('canvas-toolbar');
     this.inlineEditor = document.getElementById('canvas-inline-editor');
     this.boxInput = document.getElementById('canvas-box-input');
     this.boxLink = document.getElementById('canvas-box-link');
-    this.peekWindow = document.getElementById('canvas-peek-window');
-    this.peekClose = document.getElementById('peek-close');
-    this.peekContent = document.getElementById('peek-content');
-    this.peekTitle = document.getElementById('peek-title');
+    this.peekTemplate = document.getElementById('canvas-peek-window'); // Keep reference to old one as template
+    this.peekClose = document.getElementById('peek-close'); // This might be used for template close btn
 
     this.history = [];
     this.historyIndex = -1;
@@ -66,6 +64,7 @@ export class CanvasLite {
   }
 
   setData(data) {
+    this.closeAllPeeks();
     if (!data) {
       this.boxes = [];
       this.arrows = [];
@@ -135,7 +134,7 @@ export class CanvasLite {
     this.selectedBox = null;
     this.selectedArrow = null;
     this.closeEditor();
-    this.closePeek();
+    this.closeAllPeeks();
     this.render();
 
     // Notify app of history changes (Undo/Redo)
@@ -157,7 +156,7 @@ export class CanvasLite {
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closeEditor();
-        this.closePeek();
+        this.closeAllPeeks();
       }
 
       // Undo / Redo
@@ -205,8 +204,6 @@ export class CanvasLite {
     document.getElementById('toolbar-delete').addEventListener('click', () => this.deleteSelectedBox());
     document.getElementById('toolbar-rename').addEventListener('click', () => this.openEditor(this.selectedBox));
     document.getElementById('toolbar-peek').addEventListener('click', () => this.peekLink(this.selectedBox));
-
-    this.peekClose.addEventListener('click', () => this.closePeek());
 
     // Editor events
     this.boxInput.addEventListener('input', () => {
@@ -264,56 +261,83 @@ export class CanvasLite {
 
   peekLink(box) {
     if (!box || !box.linkedNote) return;
-    this.peekingBox = box;
+    if (this.activePeeks.has(box.id)) return;
+
     const notes = window.app?.notes || [];
     const note = notes.find(n => n.title === box.linkedNote);
     
-    this.peekWindow.classList.remove('hidden');
-    this.peekTitle.textContent = box.linkedNote;
+    const peek = document.createElement('div');
+    peek.className = 'canvas-peek-window';
+    peek.innerHTML = `
+      <div class="peek-header">
+        <span class="peek-title">${box.linkedNote}</span>
+        <button class="peek-close">×</button>
+      </div>
+      <div class="peek-content markdown-body"></div>
+    `;
+
+    const closeBtn = peek.querySelector('.peek-close');
+    const content = peek.querySelector('.peek-content');
+    
+    closeBtn.onclick = () => this.closePeek(box.id);
+    
+    this.container.appendChild(peek);
+    this.activePeeks.set(box.id, peek);
     
     if (note) {
       if (window.marked && window.app?.editorModule) {
         window.app.editorModule.processMarkdown(note.content).then(html => {
-          this.peekContent.innerHTML = html;
+          content.innerHTML = html;
           
-          // Image glory logic: manually trigger lazy loading for the peek window
           if (window.app && window.app.loadLazyImage) {
-            this.peekContent.querySelectorAll('.lazy-vault-img').forEach(img => {
+            content.querySelectorAll('.lazy-vault-img').forEach(img => {
               window.app.loadLazyImage(img);
             });
           }
-
           this.updatePeekPos(); 
         });
       } else {
-        this.peekContent.innerText = note.content;
+        content.innerText = note.content;
       }
     } else {
-      this.peekContent.innerHTML = `<p><i>Note not found: "${box.linkedNote}"</i></p>`;
+      content.innerHTML = `<p><i>Note not found: "${box.linkedNote}"</i></p>`;
     }
     
     this.updatePeekPos();
   }
 
-  closePeek() {
-    this.peekingBox = null;
-    this.peekWindow.classList.add('hidden');
+  closePeek(boxId) {
+    const peek = this.activePeeks.get(boxId);
+    if (peek) {
+      peek.remove();
+      this.activePeeks.delete(boxId);
+    }
+  }
+
+  closeAllPeeks() {
+    this.activePeeks.forEach((peek) => peek.remove());
+    this.activePeeks.clear();
   }
 
   updatePeekPos() {
-    if (this.peekWindow.classList.contains('hidden') || !this.peekingBox) return;
-    const box = this.peekingBox;
-    const x = box.x * this.viewport.scale + this.viewport.x;
-    const y = box.y * this.viewport.scale + this.viewport.y;
-    
-    // Position to the right, but keep within viewport
-    let targetX = x + box.w * this.viewport.scale + 20;
-    if (targetX + 350 > this.canvas.width) {
-      targetX = x - 370; // Flip to left if no space
-    }
-    
-    this.peekWindow.style.left = `${Math.max(10, targetX)}px`;
-    this.peekWindow.style.top = `${Math.max(10, y)}px`;
+    this.activePeeks.forEach((peek, boxId) => {
+      const box = this.boxes.find(b => b.id === boxId);
+      if (!box) {
+        this.closePeek(boxId);
+        return;
+      }
+
+      const x = box.x * this.viewport.scale + this.viewport.x;
+      const y = box.y * this.viewport.scale + this.viewport.y;
+      
+      let targetX = x + box.w * this.viewport.scale + 20;
+      if (targetX + 350 > this.canvas.width) {
+        targetX = x - 370; 
+      }
+      
+      peek.style.left = `${Math.max(10, targetX)}px`;
+      peek.style.top = `${Math.max(10, y)}px`;
+    });
   }
 
   openEditor(box) {
@@ -688,6 +712,7 @@ export class CanvasLite {
       if (box.image) {
         if (!box._imgCached) {
           box._imgCached = new Image();
+          box._imgCached.referrerPolicy = "no-referrer";
           box._imgCached.src = box.image;
           box._imgCached.onload = () => {
             box._imgLoaded = true;
