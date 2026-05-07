@@ -18,6 +18,10 @@ Updates to Fri-ren notes:
   - preview attached to canvas
   - centering of ui
   - zoom respect on nodes/previews
+- new editing visuals
+- supports inner <styles>
+
+![image](blog/2026-05/img/fri-renNotes.jpg)  
 
 [Use it](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
