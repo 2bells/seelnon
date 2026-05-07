@@ -1,7 +1,7 @@
 /* Night Mode Overrides - Altus Plateau Theme */
 body.night-mode {
     background-color: #161512;
-    color: #d4b85a;
+    color: #A2845E;
 }
 
 /* Brutalist: Disable transitions and shadows */
@@ -39,13 +39,13 @@ body.night-mode {
 
 .night-mode #project-status-bar {
     background-color: #1c1a16;
-    color: #8c7a56;
+    color: #856E52;
     border: none !important;
 }
 
 .night-mode #sidebar .section-header {
     background-color: #2a2822;
-    color: #f0d8a0;
+    color: #BB9F7B;
     border: none !important;
 }
 
@@ -55,20 +55,20 @@ body.night-mode {
 }
 
 .night-mode #utility-toggle {
-    color: #d4b85a;
+    color: #A2845E;
 }
 
 .night-mode .tool-button {
-    color: #d4b85a; /* Brighter default color for icons */
+    color: #A2845E; /* Brighter default color for icons */
 }
 
 .night-mode #utility-extra .tool-button {
-    color: #f0d8a0; /* Brighter gold for visibility */
+    color: #BB9F7B; /* Brighter gold for visibility */
 }
 
 .night-mode .tool-button:hover {
-    background-color: rgba(212, 184, 90, 0.1);
-    color: #f0d8a0;
+    background-color: rgba(162, 132, 94, 0.1);
+    color: #BB9F7B;
 }
 
 .night-mode .tool-button.active {
@@ -83,18 +83,18 @@ body.night-mode {
 
 .night-mode .tool-dropdown-item:hover {
     background-color: #383228;
-    color: #d4b85a;
+    color: #A2845E;
 }
 
 .night-mode .tool-dropdown-item.active {
     background-color: #4a3e2a;
-    color: #f0d8a0;
+    color: #BB9F7B;
 }
 
 .night-mode .sidebar-section h3, 
 .night-mode .sidebar-info-section h3,
 .night-mode .panel-header h3 {
-    color: #8c7a56;
+    color: #856E52;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -135,7 +135,7 @@ body.night-mode {
 }
 
 .night-mode input[type="checkbox"]:checked {
-    background-color: #d4b85a !important;
+    background-color: #A2845E !important;
 }
 
 .night-mode input[type="checkbox"]:checked::after {
@@ -172,7 +172,7 @@ body.night-mode {
     appearance: none;
     height: 12px;
     width: 12px;
-    background: #d4b85a;
+    background: #A2845E;
     border: 1px solid #161512;
     border-radius: 50%;
     margin-top: -5px; /* Centers thumb over a 2px track */
@@ -194,51 +194,51 @@ body.night-mode {
 .night-mode .close-button:hover,
 .night-mode #palette-menu-toggle:hover {
     color: #161512 !important;
-    background: #d4b85a !important;
+    background: #A2845E !important;
 }
 
 .night-mode #utility-extra .tool-button,
 .night-mode #utility-extra .tool-button svg,
 .night-mode #utility-toggle,
 .night-mode #utility-toggle svg {
-    color: #d4b85a !important;
-    stroke: #d4b85a !important;
+    color: #A2845E !important;
+    stroke: #A2845E !important;
 }
 
 .night-mode .tool-button svg,
 .night-mode #utility-toggle svg,
 .night-mode #instructions-toggle-sub svg,
 .night-mode .close-button svg {
-    color: #d4b85a !important;
-    stroke: #d4b85a !important;
+    color: #A2845E !important;
+    stroke: #A2845E !important;
 }
 
 .night-mode .tool-button:hover svg {
-    color: #f0d8a0 !important;
-    stroke: #f0d8a0 !important;
+    color: #BB9F7B !important;
+    stroke: #BB9F7B !important;
 }
 
 .night-mode #utility-extra .tool-button:hover {
-    background-color: rgba(212, 184, 90, 0.1);
+    background-color: rgba(162, 132, 94, 0.1);
 }
 
 .night-mode #utility-extra .tool-button:hover svg {
-    color: #f0d8a0 !important;
+    color: #BB9F7B !important;
 }
 
 .night-mode #instructions-toggle-sub.active {
-    background-color: #d4b85a;
+    background-color: #A2845E;
     color: #161512;
 }
 
 .night-mode #brush-editor .brush-editor-tab-button {
-    color: #8c7a56;
+    color: #856E52;
     border-bottom: 2px solid transparent;
 }
 
 .night-mode #brush-editor .brush-editor-tab-button.active {
-    color: #d4b85a;
-    border-bottom-color: #d4b85a;
+    color: #A2845E;
+    border-bottom-color: #A2845E;
 }
 
 .night-mode .brush-setting label,
@@ -263,22 +263,22 @@ body.night-mode {
 
 .night-mode #right-panels button:hover {
     background-color: #383228;
-    color: #d4b85a;
+    color: #A2845E;
 }
 
 .night-mode #right-panels button.active {
-    background-color: #d4b85a !important;
+    background-color: #A2845E !important;
     color: #161512 !important;
     border: none !important;
 }
 
 /* Cycle Dots */
 .night-mode .cycle-dot {
-    background-color: #8c7a56; /* Dark yellow/gold */
+    background-color: #856E52; /* Dark desaturated gold */
 }
 
 .night-mode .cycle-dot.active {
-    background-color: #f0d8a0; /* Bright yellow/gold */
+    background-color: #BB9F7B; /* Bright desaturated gold */
 }
 
 .night-mode .tool-button.active .cycle-dot {
@@ -286,7 +286,7 @@ body.night-mode {
 }
 
 .night-mode .tool-button.active .cycle-dot.active {
-    background-color: #d4b85a;
+    background-color: #A2845E;
 }
 
 /* Scrollbars */
@@ -306,11 +306,11 @@ body.night-mode {
 }
 
 .night-mode ::-webkit-scrollbar-thumb:hover {
-    background: #d4b85a;
+    background: #A2845E;
 }
 
 .night-mode .settings-usage-info span {
-    color: #8c7a56;
+    color: #856E52;
 }
 
 /* Layer & Project Items */
@@ -333,12 +333,12 @@ body.night-mode {
 }
 
 .night-mode .project-name {
-    color: #f0d8a0 !important;
+    color: #BB9F7B !important;
     margin-bottom: 4px;
 }
 
 .night-mode .project-meta {
-    color: #8c7a56 !important;
+    color: #856E52 !important;
 }
 
 .night-mode .project-card.new-project {
@@ -347,7 +347,7 @@ body.night-mode {
 }
 
 .night-mode .project-card.new-project:hover {
-    border: 2px dashed #d4b85a !important;
+    border: 2px dashed #A2845E !important;
     background: #2a2822 !important;
 }
 
@@ -361,7 +361,7 @@ body.night-mode {
 }
 
 .night-mode .project-card.new-project:hover svg {
-    color: #d4b85a !important;
+    color: #A2845E !important;
 }
 
 .night-mode .layer-item.active {
@@ -370,7 +370,7 @@ body.night-mode {
 
 .night-mode .status-pill {
     background: #4a3e2a;
-    color: #d4b85a;
+    color: #A2845E;
     border: none !important;
 }
 
@@ -398,7 +398,7 @@ body.night-mode {
 
 .night-mode #palette-menu-toggle:hover {
     background-color: #383228 !important;
-    color: #d4b85a !important;
+    color: #A2845E !important;
 }
 
 .night-mode .preset-btn {
@@ -407,7 +407,7 @@ body.night-mode {
 }
 
 .night-mode .preset-btn svg {
-    color: #d4b85a;
+    color: #A2845E;
 }
 
 .night-mode .preset-btn:hover {
@@ -417,7 +417,7 @@ body.night-mode {
 /* Preset Buttons & Active State */
 .night-mode #saveCurrentPresetBtn,
 .night-mode #resetBrushBtn {
-    background-color: #d4b85a !important;
+    background-color: #A2845E !important;
     color: #161512 !important;
     border: none !important;
     font-weight: bold;
@@ -425,22 +425,22 @@ body.night-mode {
 
 .night-mode #saveCurrentPresetBtn:hover,
 .night-mode #resetBrushBtn:hover {
-    background-color: #f0d8a0 !important;
+    background-color: #BB9F7B !important;
 }
 
 .night-mode .brush-status span,
 .night-mode #activeBrushPresetName {
-    color: #8c7a56 !important;
+    color: #856E52 !important;
 }
 
 .night-mode .brush-status span#activePresetName,
 .night-mode #activeBrushPresetName {
-    color: #d4b85a !important;
+    color: #A2845E !important;
 }
 
 .night-mode .storage-bar-container {
     background-color: #131211 !important;
-    border: 1px solid #332b1d;
+    border: 1px solid #4a3e2a;
 }
 
 .night-mode .sidebar-section,
@@ -452,16 +452,16 @@ body.night-mode {
 }
 
 .night-mode .storage-bar {
-    background-color: #d4b85a !important;
+    background-color: #A2845E !important;
 }
 
 .night-mode .setting-hint {
-    color: #8c7a56 !important;
+    color: #856E52 !important;
     opacity: 0.8 !important;
 }
 
 .night-mode h2, .night-mode h3, .night-mode h4 {
-    color: #f0d8a0 !important;
+    color: #BB9F7B !important;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -478,12 +478,12 @@ body.night-mode {
 
 .night-mode .modal-header {
     background-color: #2a2822 !important;
-    color: #f0d8a0 !important;
+    color: #BB9F7B !important;
     border: none !important;
 }
 
 .night-mode h2 {
-    color: #f0d8a0 !important;
+    color: #BB9F7B !important;
 }
 
 .night-mode .modal-body,
@@ -500,12 +500,12 @@ body.night-mode {
 }
 
 .night-mode .action-button {
-    background-color: #d4b85a !important;
+    background-color: #A2845E !important;
     color: #161512 !important;
 }
 
 .night-mode .action-button:hover {
-    background-color: #f0d8a0 !important;
+    background-color: #BB9F7B !important;
 }
 
 .night-mode .secondary-button {
@@ -526,18 +526,18 @@ body.night-mode {
 /* don't touch, .swatch.active it is perfect */
 
 .night-mode .swatch.active {
-    outline: 2px solid #d4b85a;
+    outline: 2px solid #A2845E;
     border: 4px solid #161512 !important;
 }
 
 .night-mode #palette-menu-btn {
     background-color: #4a3e2a !important;
-    color: #f0d8a0 !important;
+    color: #BB9F7B !important;
     border: none !important;
 }
 
 .night-mode #palette-menu-btn:hover {
-    background-color: #d4b85a !important;
+    background-color: #A2845E !important;
     color: #161512 !important;
 }
 

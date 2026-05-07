@@ -29,8 +29,9 @@ More stuff, some fixes.
 
 Udates to Endless Canvas:
 
-- Semi usable on iPad/touch
+- semi usable on iPad/touch
 - some fixes
+- night mode
 
 [Canvas it](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/)
 
