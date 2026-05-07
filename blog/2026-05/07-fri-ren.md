@@ -4,6 +4,8 @@
 
 Updates to Fri-ren notes:
 
+
+
 - `![video](link)` for .mp4 / .webp / youtube
 - ![video 500 300] to resize
 - ![image 200 100] as well
@@ -12,6 +14,8 @@ Updates to Fri-ren notes:
 - undo/redo
 - alphabetical sorting (was date)
 - hints on + new doc
+- creation of reference via `[[this]]`
+![Image](blog/2026-05/img/fri-renNotes2.jpg)
 - canvas stuff
   - copy paste for boxes
   - preview stays
@@ -21,7 +25,11 @@ Updates to Fri-ren notes:
 - new editing visuals
 - supports inner `styles/html`
 
+so this >
 ![image](blog/2026-05/img/fri-renNotes.jpg)  
+into >
+![image](blog/2026-05/img/fri-renNotes3.jpg)
+has some quirks, tho... not 1 to 1.
 
 [Use it](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
