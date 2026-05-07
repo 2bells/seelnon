@@ -1,0 +1,555 @@
+/* Night Mode Overrides - Altus Plateau Theme */
+body.night-mode {
+    background-color: #161512;
+    color: #d4b85a;
+}
+
+/* Brutalist: Disable transitions and shadows */
+.night-mode *,
+.night-mode *::before,
+.night-mode *::after {
+    transition: none !important;
+    animation: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.night-mode #sidebar,
+.night-mode #toolbar,
+.night-mode #top-toolbar,
+.night-mode .section-content,
+.night-mode .floating-panel,
+.night-mode .modal-content,
+.night-mode #utility-bar,
+.night-mode #instructions,
+.night-mode .palette-bottom-menu,
+.night-mode #brush-editor,
+.night-mode #project-manager,
+.night-mode .tool-dropdown-inner,
+.night-mode #sidebar-top {
+    background-color: #23211c !important;
+    color: #e2d1a6;
+    border: none !important;
+}
+
+.night-mode .sidebar-section {
+    background-color: #23211c;
+    border: none !important;
+}
+
+.night-mode #project-status-bar {
+    background-color: #1c1a16;
+    color: #8c7a56;
+    border: none !important;
+}
+
+.night-mode #sidebar .section-header {
+    background-color: #2a2822;
+    color: #f0d8a0;
+    border: none !important;
+}
+
+.night-mode #utility-bar {
+    border: none !important;
+    background: #23211c !important;
+}
+
+.night-mode #utility-toggle {
+    color: #d4b85a;
+}
+
+.night-mode .tool-button {
+    color: #d4b85a; /* Brighter default color for icons */
+}
+
+.night-mode #utility-extra .tool-button {
+    color: #f0d8a0; /* Brighter gold for visibility */
+}
+
+.night-mode .tool-button:hover {
+    background-color: rgba(212, 184, 90, 0.1);
+    color: #f0d8a0;
+}
+
+.night-mode .tool-button.active {
+    background-color: #4a3e2a;
+    color: #f0d8a0;
+    border: none !important;
+}
+
+.night-mode .tool-dropdown-item {
+    color: #a69672;
+}
+
+.night-mode .tool-dropdown-item:hover {
+    background-color: #383228;
+    color: #d4b85a;
+}
+
+.night-mode .tool-dropdown-item.active {
+    background-color: #4a3e2a;
+    color: #f0d8a0;
+}
+
+.night-mode .sidebar-section h3, 
+.night-mode .sidebar-info-section h3,
+.night-mode .panel-header h3 {
+    color: #8c7a56;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.night-mode .tool-button,
+.night-mode .tool-dropdown-item,
+.night-mode .preset-btn,
+.night-mode .close-button,
+.night-mode #palette-menu-btn,
+.night-mode #brush-editor .brush-editor-tab-button {
+    transition: none !important;
+}
+
+.night-mode select, 
+.night-mode input[type="number"], 
+.night-mode input[type="text"],
+.night-mode input[type="range"],
+.night-mode .settings-color-input {
+    background-color: #131211 !important;
+    color: #e2d1a6 !important;
+    border: none !important;
+}
+
+/* Checkboxes & Toggles */
+.night-mode input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background-color: #131211 !important;
+    border: none !important;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.night-mode input[type="checkbox"]:checked {
+    background-color: #d4b85a !important;
+}
+
+.night-mode input[type="checkbox"]:checked::after {
+    content: "";
+    width: 10px;
+    height: 5px;
+    border-left: 2px solid #161512;
+    border-bottom: 2px solid #161512;
+    transform: rotate(-45deg);
+    margin-top: -2px;
+}
+
+.night-mode .brush-toggle label,
+.night-mode .canvas-setting label {
+    color: #e2d1a6;
+}
+
+.night-mode input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 2px;
+    background: transparent;
+    border: none !important;
+    margin: 10px 0;
+}
+
+.night-mode input[type="range"]::-webkit-slider-runnable-track {
+    background: #4a3e2a;
+    height: 2px;
+}
+
+.night-mode input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 12px;
+    width: 12px;
+    background: #d4b85a;
+    border: 1px solid #161512;
+    border-radius: 50%;
+    margin-top: -5px; /* Centers thumb over a 2px track */
+    cursor: pointer;
+}
+
+.night-mode .close-button {
+    color: #8c7a56;
+    background: #4a3e2a;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.night-mode .close-button:hover,
+.night-mode #palette-menu-toggle:hover {
+    color: #161512 !important;
+    background: #d4b85a !important;
+}
+
+.night-mode #utility-extra .tool-button,
+.night-mode #utility-extra .tool-button svg,
+.night-mode #utility-toggle,
+.night-mode #utility-toggle svg {
+    color: #d4b85a !important;
+    stroke: #d4b85a !important;
+}
+
+.night-mode .tool-button svg,
+.night-mode #utility-toggle svg,
+.night-mode #instructions-toggle-sub svg,
+.night-mode .close-button svg {
+    color: #d4b85a !important;
+    stroke: #d4b85a !important;
+}
+
+.night-mode .tool-button:hover svg {
+    color: #f0d8a0 !important;
+    stroke: #f0d8a0 !important;
+}
+
+.night-mode #utility-extra .tool-button:hover {
+    background-color: rgba(212, 184, 90, 0.1);
+}
+
+.night-mode #utility-extra .tool-button:hover svg {
+    color: #f0d8a0 !important;
+}
+
+.night-mode #instructions-toggle-sub.active {
+    background-color: #d4b85a;
+    color: #161512;
+}
+
+.night-mode #brush-editor .brush-editor-tab-button {
+    color: #8c7a56;
+    border-bottom: 2px solid transparent;
+}
+
+.night-mode #brush-editor .brush-editor-tab-button.active {
+    color: #d4b85a;
+    border-bottom-color: #d4b85a;
+}
+
+.night-mode .brush-setting label,
+.night-mode .canvas-setting label {
+    color: #a69672;
+}
+
+.night-mode .setting-hint {
+    color: #70654e;
+}
+
+.night-mode .toolbar-separator {
+    background-color: #4a3e2a;
+    opacity: 1;
+}
+
+.night-mode #right-panels button {
+    background-color: #23211c;
+    color: #a69672;
+    border: none !important;
+}
+
+.night-mode #right-panels button:hover {
+    background-color: #383228;
+    color: #d4b85a;
+}
+
+.night-mode #right-panels button.active {
+    background-color: #d4b85a !important;
+    color: #161512 !important;
+    border: none !important;
+}
+
+/* Cycle Dots */
+.night-mode .cycle-dot {
+    background-color: #8c7a56; /* Dark yellow/gold */
+}
+
+.night-mode .cycle-dot.active {
+    background-color: #f0d8a0; /* Bright yellow/gold */
+}
+
+.night-mode .tool-button.active .cycle-dot {
+    background-color: #5a4a33;
+}
+
+.night-mode .tool-button.active .cycle-dot.active {
+    background-color: #d4b85a;
+}
+
+/* Scrollbars */
+.night-mode ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.night-mode ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.night-mode ::-webkit-scrollbar-thumb {
+    background: #4a3e2a;
+    border: none;
+    border-radius: 0;
+}
+
+.night-mode ::-webkit-scrollbar-thumb:hover {
+    background: #d4b85a;
+}
+
+.night-mode .settings-usage-info span {
+    color: #8c7a56;
+}
+
+/* Layer & Project Items */
+.night-mode .layer-item, 
+.night-mode .project-card {
+    background: #2a2822 !important;
+    border: none !important;
+    color: #e2d1a6 !important;
+}
+
+.night-mode .project-card-info {
+    background: #1a1915 !important;
+    color: #e2d1a6 !important;
+    border: none !important;
+}
+
+.night-mode .project-preview-vibe {
+    background: #131211 !important;
+    border: none !important;
+}
+
+.night-mode .project-name {
+    color: #f0d8a0 !important;
+    margin-bottom: 4px;
+}
+
+.night-mode .project-meta {
+    color: #8c7a56 !important;
+}
+
+.night-mode .project-card.new-project {
+    background: #1a1915 !important;
+    border: 2px dashed #4a3e2a !important;
+}
+
+.night-mode .project-card.new-project:hover {
+    border: 2px dashed #d4b85a !important;
+    background: #2a2822 !important;
+}
+
+.night-mode .project-card.new-project .project-preview-vibe {
+    background: transparent !important;
+    border: none !important;
+}
+
+.night-mode .project-card.new-project svg {
+    color: #4a3e2a !important;
+}
+
+.night-mode .project-card.new-project:hover svg {
+    color: #d4b85a !important;
+}
+
+.night-mode .layer-item.active {
+    background: #383228 !important;
+}
+
+.night-mode .status-pill {
+    background: #4a3e2a;
+    color: #d4b85a;
+    border: none !important;
+}
+
+/* Palette Overrides */
+.night-mode #color-palette {
+    background-color: #23211c !important;
+    border: none !important;
+}
+
+.night-mode .palette-bottom-menu {
+    border: none !important;
+}
+
+.night-mode #palette-menu-toggle {
+    background-color: #23211c !important;
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 6px 16px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    color: #a69672 !important;
+}
+
+.night-mode #palette-menu-toggle:hover {
+    background-color: #383228 !important;
+    color: #d4b85a !important;
+}
+
+.night-mode .preset-btn {
+    background-color: #2a2822;
+    border: none !important;
+}
+
+.night-mode .preset-btn svg {
+    color: #d4b85a;
+}
+
+.night-mode .preset-btn:hover {
+    background-color: #4a3e2a;
+}
+
+/* Preset Buttons & Active State */
+.night-mode #saveCurrentPresetBtn,
+.night-mode #resetBrushBtn {
+    background-color: #d4b85a !important;
+    color: #161512 !important;
+    border: none !important;
+    font-weight: bold;
+}
+
+.night-mode #saveCurrentPresetBtn:hover,
+.night-mode #resetBrushBtn:hover {
+    background-color: #f0d8a0 !important;
+}
+
+.night-mode .brush-status span,
+.night-mode #activeBrushPresetName {
+    color: #8c7a56 !important;
+}
+
+.night-mode .brush-status span#activePresetName,
+.night-mode #activeBrushPresetName {
+    color: #d4b85a !important;
+}
+
+.night-mode .storage-bar-container {
+    background-color: #131211 !important;
+    border: 1px solid #332b1d;
+}
+
+.night-mode .sidebar-section,
+.night-mode .brush-editor-tab-content,
+.night-mode #brush-main-tab-content,
+.night-mode #brush-advanced-tab-content,
+.night-mode #canvas-settings-tab-content {
+    background-color: transparent !important;
+}
+
+.night-mode .storage-bar {
+    background-color: #d4b85a !important;
+}
+
+.night-mode .setting-hint {
+    color: #8c7a56 !important;
+    opacity: 0.8 !important;
+}
+
+.night-mode h2, .night-mode h3, .night-mode h4 {
+    color: #f0d8a0 !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.night-mode h4 {
+    margin-bottom: 12px;
+}
+
+/* Modal Specifics */
+.night-mode div#projects-modal > div:nth-of-type(1) > div:nth-of-type(1) {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+.night-mode .modal-header {
+    background-color: #2a2822 !important;
+    color: #f0d8a0 !important;
+    border: none !important;
+}
+
+.night-mode h2 {
+    color: #f0d8a0 !important;
+}
+
+.night-mode .modal-body,
+.night-mode .modal-footer {
+    background-color: #23211c !important;
+    border: none !important;
+}
+
+.night-mode .action-button,
+.night-mode .secondary-button,
+.night-mode .danger-button {
+    border: none !important;
+    border-radius: 50px !important;
+}
+
+.night-mode .action-button {
+    background-color: #d4b85a !important;
+    color: #161512 !important;
+}
+
+.night-mode .action-button:hover {
+    background-color: #f0d8a0 !important;
+}
+
+.night-mode .secondary-button {
+    background-color: #383228 !important;
+    color: #a69672 !important;
+}
+
+.night-mode .danger-button {
+    background-color: #6a1a1a !important;
+    color: #e2d1a6 !important;
+}
+
+.night-mode .swatch {
+    border: none !important;
+    box-shadow: 0 0px 10px rgba(59, 50, 20, 0.8) !important;
+}
+
+/* don't touch, .swatch.active it is perfect */
+
+.night-mode .swatch.active {
+    outline: 2px solid #d4b85a;
+    border: 4px solid #161512 !important;
+}
+
+.night-mode #palette-menu-btn {
+    background-color: #4a3e2a !important;
+    color: #f0d8a0 !important;
+    border: none !important;
+}
+
+.night-mode #palette-menu-btn:hover {
+    background-color: #d4b85a !important;
+    color: #161512 !important;
+}
+
+.night-mode .palette-bottom-menu .tool-button:hover {
+    background-color: #383228 !important;
+}
+
+.night-mode #palette-slide-menu,
+.night-mode .dropdown-menu,
+.night-mode .select-dropdown,
+.night-mode .tool-dropdown-inner {
+    background-color: #1a1915 !important;
+    color: #e2d1a6 !important;
+    border: none !important;
+}

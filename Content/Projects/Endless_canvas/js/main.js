@@ -1,4 +1,4 @@
-import { init as initCanvas, startDrawingLoop, clearCanvas, setSelectedStrokes } from './canvas.js';
+import { init as initCanvas, startDrawingLoop, clearCanvas, setSelectedStrokes, undo, redo } from './canvas.js';
 import { init as initEvents } from './events.js';
 import { state } from './state.js';
 import { loadState } from './storage.js';
@@ -15,6 +15,11 @@ async function main() {
     }
 
     await loadState();
+    
+    // Apply night mode if enabled in state
+    if (state.canvasSettings && state.canvasSettings.nightMode) {
+        document.body.classList.add('night-mode');
+    }
     
     // Create status indicator (if not already in index.html)
     // const statusIndicator = document.createElement('div');
@@ -50,11 +55,15 @@ function initUI() {
     const eraserToolBtn = document.getElementById('eraser-tool');
     const toolColorPicker = document.getElementById('toolColorPicker');
     const selectionToolBtn = document.getElementById('selection-tool');
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
 
     const colorPalette = document.getElementById('color-palette');
 
-    const instructionsToggle = document.getElementById('instructions-toggle');
     const instructionsPanel = document.getElementById('instructions');
+    const utilityToggle = document.getElementById('utility-toggle');
+    const utilityExtra = document.getElementById('utility-extra');
+    const instructionsToggle = document.getElementById('instructions-toggle-sub');
 
     // Get all dropdown items for presets
     const presetButtons = document.querySelectorAll('.tool-dropdown-item');
@@ -214,6 +223,16 @@ function initUI() {
     eraserToolBtn.addEventListener('click', () => setActiveTool('eraser'));
     selectionToolBtn.addEventListener('click', () => setActiveTool('selection'));
 
+    undoBtn.addEventListener('click', () => {
+        undo();
+        window.dispatchEvent(new CustomEvent('requestSyncUI'));
+    });
+    
+    redoBtn.addEventListener('click', () => {
+        redo();
+        window.dispatchEvent(new CustomEvent('requestSyncUI'));
+    });
+
     // Selection mode items in dropdown
     document.querySelectorAll('.selection-mode-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -307,9 +326,18 @@ function initUI() {
         }
     });
 
-    // Instructions Toggle
-    instructionsToggle.addEventListener('click', () => {
+    // Utility Bar Toggle
+    utilityToggle?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = utilityExtra.classList.toggle('open');
+        utilityToggle.classList.toggle('active', isOpen);
+    });
+
+    // Instructions Toggle (now inside drawer)
+    instructionsToggle?.addEventListener('click', (e) => {
+        e.stopPropagation();
         instructionsPanel.classList.toggle('hidden');
+        instructionsToggle.classList.toggle('active', !instructionsPanel.classList.contains('hidden'));
     });
 
     // Listen for requests to set active tool from other components (like brush editor)

@@ -53,6 +53,9 @@ export const state = {
     lastDrawPosition: { x: 0, y: 0, timestamp: 0 },
     activePointers: new Map(), // For tracking multiple touch points
     initialPinchData: null,    // For tracking initial pinch state
+    gestureStartTime: 0,
+    gestureMaxMovement: 0,
+    gesturePointerCount: 0,
     
     // Drawing data
     strokes: [],
@@ -302,6 +305,7 @@ export const state = {
         backgroundSpacing: 30, // For dots, grid, lines
         backgroundLineColor: '#D1D1D1', // New: custom pattern color
         backgroundLineWidth: 1, // New: custom pattern thickness
+        nightMode: false,
     },
 
     // Modes

@@ -197,9 +197,14 @@ export function init(canvas) {
 
     canvas.addEventListener('pointerdown', (e) => {
         // Multi-touch tracking
-        state.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        state.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
 
         if (state.activePointers.size > 1) {
+            // Track gesture state
+            state.gestureStartTime = Date.now();
+            state.gestureMaxMovement = 0;
+            state.gesturePointerCount = Math.max(state.gesturePointerCount, state.activePointers.size);
+
             // Cancel drawing/selecting if starting a gesture
             if (state.isDrawing) {
                 state.isDrawing = false;
@@ -391,6 +396,12 @@ export function init(canvas) {
         if (state.activePointers.size === 2) {
             const pinch = getPinchData(state.activePointers);
             
+            // Track movement for gesture detection (taps vs pinch)
+            state.activePointers.forEach(p => {
+                const dist = Math.hypot(p.x - p.startX, p.y - p.startY);
+                state.gestureMaxMovement = Math.max(state.gestureMaxMovement, dist);
+            });
+
             if (!state.initialPinchData) {
                 state.initialPinchData = {
                     distance: pinch.distance,
@@ -694,7 +705,30 @@ export function init(canvas) {
     });
 
     canvas.addEventListener('pointerup', (e) => {
+        // Check for gestures before removing the pointer
+        const wasMultiTouch = state.activePointers.size > 1;
+        const pointerCountBefore = state.activePointers.size;
+        const gestureDuration = Date.now() - state.gestureStartTime;
+
         state.activePointers.delete(e.pointerId);
+        
+        // Gesture Detection: 2-finger tap = Undo, 3-finger tap = Redo
+        if (wasMultiTouch && state.activePointers.size === 0) {
+            const isQuickTap = gestureDuration < 300;
+            const isStill = state.gestureMaxMovement < 20; // threshold in pixels
+
+            if (isQuickTap && isStill) {
+                if (state.gesturePointerCount === 2) {
+                    undo();
+                    window.dispatchEvent(new CustomEvent('requestSyncUI'));
+                } else if (state.gesturePointerCount === 3) {
+                    redo();
+                    window.dispatchEvent(new CustomEvent('requestSyncUI'));
+                }
+            }
+            state.gesturePointerCount = 0; // Reset
+        }
+
         if (state.activePointers.size < 2) {
             state.initialPinchData = null;
         }
@@ -855,13 +889,22 @@ export function init(canvas) {
 
     // Panning with Spacebar
     window.addEventListener('keydown', (e) => {
-        // Shield hotkeys if focused on an input or textarea
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            // Still allow Escape to blur or close modals if needed, handled elsewhere or here
+        // Shield hotkeys if focused on a text-based input or textarea
+        const isInput = (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT');
+        const isTextFocus = isInput && (e.target.type === 'text' || e.target.type === 'number' || e.target.type === 'password' || e.target.type === 'email');
+        
+        if (isInput) {
             if (e.key === 'Escape') {
                 e.target.blur();
             }
-            return;
+            // Allow global Ctrl+Z/Y even if an input is focused, unless it's a text input where we might want local undo
+            const isUndoRedo = e.ctrlKey && e.key.toLowerCase() === 'z';
+            if (isUndoRedo) {
+                // We prioritize global undo in this app
+                // Proceed to global undo logic below
+            } else if (isTextFocus) {
+                return; // Block other hotkeys if typing
+            }
         }
 
         if (e.code === 'Space' && !state.spacebarPressed) {
@@ -1002,11 +1045,13 @@ export function init(canvas) {
         if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z') {
             e.preventDefault();
             undo();
+            window.dispatchEvent(new CustomEvent('requestSyncUI'));
             updateCanvasCursor();
         }
         if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z') {
             e.preventDefault();
             redo();
+            window.dispatchEvent(new CustomEvent('requestSyncUI'));
             updateCanvasCursor();
         }
 

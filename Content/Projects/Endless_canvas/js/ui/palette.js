@@ -112,6 +112,39 @@ function createColorPalette() {
     const palette = document.createElement('div');
     palette.id = 'color-palette';
     palette.className = 'floating-panel';
+    
+    // Position/Visibility initialization immediately before appending or showing
+    const loadSavedState = () => {
+        const savedPos = localStorage.getItem('color-palette-pos');
+        if (savedPos) {
+            try {
+                const { left, top } = JSON.parse(savedPos);
+                palette.style.left = `${left}px`;
+                palette.style.top = `${top}px`;
+                palette.style.right = 'auto';
+                palette.style.bottom = 'auto';
+            } catch (e) {
+                console.error("Failed to load palette position", e);
+                palette.style.left = '20px';
+                palette.style.top = '20px';
+            }
+        } else {
+            palette.style.left = '20px';
+            palette.style.top = '20px';
+            palette.style.right = 'auto';
+            palette.style.bottom = 'auto';
+        }
+
+        const savedVisibility = localStorage.getItem('color-palette-visible');
+        if (savedVisibility === 'true') {
+            palette.classList.add('visible');
+            const toggle = document.getElementById('colorPaletteToggle');
+            if (toggle) toggle.classList.add('active');
+        }
+    };
+
+    loadSavedState();
+
     palette.innerHTML = `
         <div id="color-swatches"></div>
         <div class="palette-bottom-menu">
@@ -338,15 +371,53 @@ export function init(container) {
 
     palette.addEventListener('mousedown', startDrag);
 
+    // Failsafe to keep palette in view
+    const keepInView = () => {
+        const rect = palette.getBoundingClientRect();
+        if (rect.width === 0) return; // Not visible/rendered yet
+        let newLeft = rect.left;
+        let newTop = rect.top;
+
+        if (rect.right > window.innerWidth) newLeft = window.innerWidth - rect.width - 20;
+        if (rect.bottom > window.innerHeight) newTop = window.innerHeight - rect.height - 20;
+        if (rect.left < 0) newLeft = 20;
+        if (rect.top < 0) newTop = 20;
+
+        palette.style.left = `${newLeft}px`;
+        palette.style.top = `${newTop}px`;
+    };
+
+    // Use ResizeObserver for more reliable failsafe instead of just event listener
+    const ro = new ResizeObserver(() => {
+        if (palette.classList.contains('visible')) {
+            keepInView();
+        }
+    });
+    ro.observe(palette);
+
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         let newLeft = e.clientX - offsetX;
         let newTop = e.clientY - offsetY;
+        
+        // Boundaries
         newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - palette.offsetWidth));
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - palette.offsetHeight));
+        
         palette.style.left = `${newLeft}px`;
         palette.style.top = `${newTop}px`;
+        
+        localStorage.setItem('color-palette-pos', JSON.stringify({ left: newLeft, top: newTop }));
     });
+
+    window.addEventListener('resize', keepInView);
+    
+    // Watch for visibility changes to save them
+    const observer = new MutationObserver(() => {
+        const isVisible = palette.classList.contains('visible');
+        localStorage.setItem('color-palette-visible', isVisible);
+    });
+    observer.observe(palette, { attributes: true, attributeFilter: ['class'] });
 
     document.addEventListener('mouseup', () => {
         if (isDragging) {

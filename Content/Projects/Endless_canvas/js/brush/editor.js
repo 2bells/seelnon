@@ -255,6 +255,13 @@ function createBrushEditor() {
                 </div>
             </div>
 
+            <div class="canvas-setting">
+                <div class="brush-toggle">
+                    <input type="checkbox" id="nightModeToggle" ${state.canvasSettings.nightMode ? 'checked' : ''}>
+                    <label for="nightModeToggle">Night Mode</label>
+                </div>
+            </div>
+
             <div class="toolbar-separator" style="margin: 15px 0 10px 0; opacity: 0.2;"></div>
 
             <div class="canvas-setting">
@@ -307,6 +314,7 @@ export function init() {
     const pixelSizeValue = editor.querySelector('#pixelSizeValue');
 
     // Canvas Settings elements
+    const nightModeToggle = editor.querySelector('#nightModeToggle');
     const canvasBgColor = editor.querySelector('#canvasBgColor');
     const canvasBgType = editor.querySelector('#canvasBgType');
     const canvasBgSpacing = editor.querySelector('#canvasBgSpacing');
@@ -606,6 +614,7 @@ export function init() {
 
         // Update canvas settings (canvas tab)
         canvasBgColor.value = state.canvasSettings.backgroundColor;
+        nightModeToggle.checked = state.canvasSettings.nightMode;
         canvasBgType.value = state.canvasSettings.backgroundType;
         canvasBgSpacing.value = state.canvasSettings.backgroundSpacing;
         canvasBgSpacingValue.textContent = `${state.canvasSettings.backgroundSpacing}px`;
@@ -804,6 +813,12 @@ export function init() {
     });
 
     // Canvas settings Listeners (canvas tab)
+    nightModeToggle.addEventListener('change', (e) => {
+        state.canvasSettings.nightMode = e.target.checked;
+        document.body.classList.toggle('night-mode', state.canvasSettings.nightMode);
+        scheduleSave();
+    });
+
     canvasBgColor.addEventListener('input', (e) => {
         state.canvasSettings.backgroundColor = e.target.value;
         scheduleSave();

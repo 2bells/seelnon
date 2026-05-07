@@ -181,7 +181,9 @@ async function updateProjectPreview(projectId) {
     pCtx.fillRect(0, 0, pWidth, pHeight);
 
     // Draw the current viewport scaled down
-    pCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, pWidth, pHeight);
+    if (canvas.width > 0 && canvas.height > 0) {
+        pCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, pWidth, pHeight);
+    }
 
     const previewUrl = previewCanvas.toDataURL('image/jpeg', 0.8);
     
