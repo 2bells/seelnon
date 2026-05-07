@@ -46,10 +46,21 @@ body.night-mode .note-item:hover:not(.active) {
   background: #2e2821;
 }
 
+body.night-mode #editor-wrapper {
+  background: var(--bg-workspace);
+}
+
+body.night-mode #line-numbers {
+  background: rgba(0, 0, 0, 0.2);
+  color: #a18a5e; /* Light coffee gold */
+  opacity: 0.8;
+  border-right: 1px dashed #a18a5e;
+}
+
 body.night-mode #editor {
-  border-right-color: #3d342b;
-  color: #a18a5e;
-  background: #1c1814;
+  color: #a18a5e; /* Light coffee gold text */
+  background: var(--bg-workspace);
+  caret-color: #a18a5e;
 }
 
 body.night-mode #preview {
@@ -163,7 +174,7 @@ body.night-mode #preview hr {
 
 body.night-mode #preview pre {
   background: #000;
-  color: #d4af37;
+  color: #eab308;
   border: 1px solid #3d342b;
   box-shadow: inset 4px 4px 10px rgba(0,0,0,1);
 }
@@ -171,7 +182,7 @@ body.night-mode #preview pre {
 body.night-mode #preview code {
   background: #000;
   border: none;
-  color: #d4af37;
+  color: #eab308;
 }
 
 body.night-mode input[type="checkbox"], body.night-mode #preview input[type="checkbox"] {
@@ -273,7 +284,7 @@ body.night-mode .danger-zone {
   border-color: #cc0000;
 }
 
-/* Night Mode Backlinks */
+/* Night Mode Backlinks  */
 body.night-mode .backlinks-section {
   border-top-color: #3d342b;
 }

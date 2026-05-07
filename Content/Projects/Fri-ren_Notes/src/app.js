@@ -15,6 +15,8 @@ class CavemanApp {
     // Elements
     this.noteListEl = document.getElementById('note-list');
     this.editorEl = document.getElementById('editor');
+    this.editorWrapper = document.getElementById('editor-wrapper');
+    this.lineNumbersEl = document.getElementById('line-numbers');
     this.previewEl = document.getElementById('preview');
     this.canvasPanel = document.getElementById('canvas-panel');
     this.titleInput = document.getElementById('note-title');
@@ -126,7 +128,13 @@ class CavemanApp {
       this.createNewNote();
     });
     
-    this.editorEl.addEventListener('input', () => this.handleInput());
+    this.editorEl.addEventListener('input', () => {
+      this.handleInput();
+      this.updateLineNumbers();
+    });
+    this.editorEl.addEventListener('scroll', () => {
+      this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
+    });
     this.titleInput.addEventListener('input', () => this.handleInput());
     this.folderInput.addEventListener('input', () => this.handleInput());
     this.togglePreviewBtn.addEventListener('click', () => this.toggleEditorMode());
@@ -511,6 +519,9 @@ class CavemanApp {
     note.id = id;
     this.notes.push(note);
     this.selectNote(note);
+    if (this.viewMode === 'editor') {
+       this.updateLineNumbers();
+    }
   }
 
   selectNote(note) {
@@ -518,6 +529,10 @@ class CavemanApp {
     this.titleInput.value = note.title;
     this.folderInput.value = note.folder || '';
     this.editorEl.value = note.content;
+    
+    if (this.viewMode === 'editor') {
+      this.updateLineNumbers();
+    }
     
     // Initialize history for this note if it doesn't exist
     if (!this.historyStack.has(note.id)) {
@@ -552,6 +567,7 @@ class CavemanApp {
     this.switchView(lastMode);
     
     if (lastMode === 'preview') this.updatePreview();
+    if (lastMode === 'editor') this.updateLineNumbers();
     this.updateStats();
   }
 
@@ -845,7 +861,7 @@ class CavemanApp {
     }
     
     // Hide all
-    this.editorEl.classList.add('hidden');
+    this.editorWrapper.classList.add('hidden');
     this.previewEl.classList.add('hidden');
     this.canvasPanel.classList.add('hidden');
     
@@ -854,8 +870,9 @@ class CavemanApp {
     this.canvasModeBtn.classList.remove('active');
     
     if (mode === 'editor') {
-      this.editorEl.classList.remove('hidden');
+      this.editorWrapper.classList.remove('hidden');
       this.togglePreviewBtn.textContent = 'Preview Mode';
+      this.updateLineNumbers();
     } else if (mode === 'preview') {
       this.previewEl.classList.remove('hidden');
       this.previewEl.scrollTop = 0;
@@ -1080,6 +1097,9 @@ class CavemanApp {
     document.querySelectorAll('.zoom-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.size === size);
     });
+    if (this.viewMode === 'editor') {
+      this.updateLineNumbers();
+    }
   }
 
   toggleSidebar() {
@@ -1281,6 +1301,18 @@ class CavemanApp {
       this.lastSavedEl.textContent = "Ready";
       this.lastSavedEl.style.color = "";
     }, 4000);
+  }
+
+  updateLineNumbers() {
+    if (!this.lineNumbersEl || !this.editorEl) return;
+    const lines = this.editorEl.value.split('\n');
+    const count = lines.length;
+    let lineNumbersContent = '';
+    for (let i = 1; i <= count; i++) {
+        lineNumbersContent += `<div>${i}</div>`;
+    }
+    this.lineNumbersEl.innerHTML = lineNumbersContent;
+    this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
   }
 }
 

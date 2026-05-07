@@ -282,17 +282,43 @@ body {
   overflow: hidden;
 }
 
+#editor-wrapper {
+  display: flex;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #f0ede9; /* Warmer parchment-like grey */
+}
+
+#line-numbers {
+  width: 50px;
+  padding: 32px 10px 50vh 0;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #33302d; /* Muted coffee brown */
+  opacity: 0.7; /* Increased visibility */
+  user-select: none;
+  background: rgba(0, 0, 0, 0.04);
+  border-right: 1px dashed #413d39;
+  overflow: hidden;
+}
+
 #editor {
   flex: 1;
   border: none;
-  border-right: 1px dashed var(--text-primary);
   background: transparent;
-  padding: 32px 32px 50vh 32px;
+  padding: 32px 32px 50vh 20px;
   font-family: var(--font-mono);
-  font-size: 1em;
+  font-size: 0.9em;
+  font-weight: 400;
   line-height: 1.6;
   resize: none;
   outline: none;
+  color: #2c241c; /* Deep espresso black-brown */
+  caret-color: #5f5d5a;
 }
 
 #preview {
@@ -304,7 +330,7 @@ body {
   font-family: var(--font-mono); /* Use mono font in preview as requested */
 }
 
-#preview.hidden, #editor.hidden, #canvas-panel.hidden {
+#preview.hidden, #editor-wrapper.hidden, #canvas-panel.hidden {
   display: none;
 }
 
