@@ -14,3 +14,9 @@ Updates to Fri-ren notes:
 [Use it](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
 More stuff, some fixes.
+
+Udates to Endless Canvas:
+
+- Semi usable on iPad/touch
+
+[Canvas it](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/)
