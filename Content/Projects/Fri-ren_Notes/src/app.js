@@ -784,31 +784,54 @@ class CavemanApp {
     }
 
     if (!targetNote) {
-      // Caveman Creation: If it doesn't exist, create it
-      if (confirm(`Note "${title}" not found. Create it?`)) {
-        const parts = title.split('/');
-        const newTitle = parts.pop();
-        const newFolder = parts.join('/');
-        
-        const note = {
-          title: newTitle,
-          folder: newFolder,
-          content: `# ${newTitle}\n\nLinked from [[${this.currentNote.title}]]`,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        const id = await this.vault.saveNote(note);
-        note.id = id;
-        await this.loadNotes();
-        targetNote = this.notes.find(n => n.id === id);
-      }
+      // Brutalist Creation Prompt: Instead of confirm, show in-preview UI
+      this.renderMissingNoteUI(title);
+      return;
     }
 
     if (targetNote) {
       this.selectNote(targetNote);
-      // Auto-switch to editor if it's a new empty note? 
-      // Nah, stay in preview if we came from preview.
     }
+  }
+
+  renderMissingNoteUI(title) {
+    this.previewEl.innerHTML = `
+      <div class="missing-note-container">
+        <div class="missing-note-card">
+          <div class="missing-note-icon">?</div>
+          <h1 class="missing-note-title">NOTE NOT FOUND</h1>
+          <p class="missing-note-path">Path: <code>${title}</code></p>
+          <p>The wisdom you seek has not been inscribed in the vault yet.</p>
+          <div class="missing-note-actions">
+            <button id="create-missing-note" class="btn btn-brutalist">CREATE IT</button>
+            <button id="cancel-missing-note" class="btn">GO BACK</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('create-missing-note').onclick = async () => {
+      const parts = title.split('/');
+      const newTitle = parts.pop();
+      const newFolder = parts.join('/');
+      
+      const note = {
+        title: newTitle,
+        folder: newFolder,
+        content: `# ${newTitle}\n\nLinked from [[${this.currentNote.title}]]`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      const id = await this.vault.saveNote(note);
+      note.id = id;
+      await this.loadNotes();
+      const targetNote = this.notes.find(n => n.id === id);
+      if (targetNote) this.selectNote(targetNote);
+    };
+
+    document.getElementById('cancel-missing-note').onclick = () => {
+      this.updatePreview();
+    };
   }
 
   async updatePreview() {
@@ -1111,11 +1134,24 @@ class CavemanApp {
   }
 
   async purgeVault() {
-    if (confirm('CRITICAL WARNING: This will permanently destroy all notes and images in your vault. This action cannot be undone. Proceed?')) {
-      await this.vault.clear();
-      localStorage.removeItem('caveman-current-note-id');
-      location.reload();
+    if (!this._confirmPurge) {
+      this._confirmPurge = true;
+      const btn = document.getElementById('purge-vault-btn');
+      btn.textContent = 'REALLY? (IRREVERSIBLE)';
+      btn.classList.add('btn-danger');
+      
+      this._purgeGlobalTimeout = setTimeout(() => {
+        this._confirmPurge = false;
+        btn.textContent = 'PURGE ENTIRE VAULT';
+        btn.classList.remove('btn-danger');
+      }, 3000);
+      return;
     }
+
+    clearTimeout(this._purgeGlobalTimeout);
+    await this.vault.clear();
+    localStorage.removeItem('caveman-current-note-id');
+    location.reload();
   }
 
   async purgeUnusedImages() {
