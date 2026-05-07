@@ -9,12 +9,15 @@ export class Editor {
 
   async processMarkdown(content) {
     if (!content || content.trim() === '') {
-      return `<div style="opacity: 0.5; font-style: italic; padding: 20px; text-align: center; line-height: 1.6;">
+      return `<div style="opacity: 0.5; font-style: italic; padding: 20px; text-align: center; line-height: 1.8;">
         press 'editor mode' to start editing your markdown file<br>
-        <small style="display: block; margin-top: 10px; opacity: 0.7;">
-          tip: typing a path like 'adventures/forest/logs' in the folder field<br>
-          will create those folders automatically!
-        </small>
+        <div style="margin-top: 20px; font-size: 0.9em; opacity: 0.7; max-width: 400px; margin-left: auto; margin-right: auto; text-align: left; border-top: 1px dashed var(--text-primary); padding-top: 15px;">
+           • folder field is a <b>path</b> (e.g. <i>work/notes/2026</i>)<br>
+           • connect notes with <b>[[note title]]</b><br>
+           • use <b>![video]</b> for mp4/webm/YouTube<br>
+           • resize: <i>![video 500 300](link)</i><br>
+           • check <b>canvas</b> mode for visual thinking
+        </div>
       </div>`;
     }
     let md = content;
@@ -28,11 +31,26 @@ export class Editor {
       return `<img data-img-id="${id.trim()}" class="lazy-vault-img" loading="lazy" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">`;
     });
 
-    // Video support: ![video](link)
-    md = md.replace(/!\[video\]\((.*?)\)/g, (match, url) => {
-      const type = url.trim().endsWith('.webm') ? 'video/webm' : 'video/mp4';
-      return `<video controls loop muted style="max-width:100%; margin: 10px 0; border: 1px solid var(--text-primary);">
-  <source src="${url.trim()}" type="${type}">
+    // Video & YouTube support: ![video](link) or ![video 500 300](link)
+    md = md.replace(/!\[video(?:\s+(\d+))?(?:\s+(\d+))?\]\((.*?)\)/g, (match, w, h, url) => {
+      const u = url.trim();
+      const width = w ? `${w}px` : '100%';
+      const height = h ? `${h}px` : 'auto';
+      const style = `max-width:100%; width: ${width}; height: ${height}; margin: 10px 0; border: 1px solid var(--text-primary); display: block;`;
+      
+      // YouTube Detector
+      const ytMatch = u.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+      if (ytMatch) {
+        return `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" 
+          style="${style} aspect-ratio: 16/9;" 
+          frameborder="0" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+          allowfullscreen></iframe>`;
+      }
+
+      const type = u.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+      return `<video controls loop muted style="${style}">
+  <source src="${u}" type="${type}">
   Your browser does not support the video tag.
 </video>`;
     });
