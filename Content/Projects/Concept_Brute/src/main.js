@@ -972,36 +972,43 @@ class App {
 
   _makeDraggable(el, handle) {
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-    handle.onmousedown = dragMouseDown;
+    handle.onpointerdown = dragPointerDown;
 
     const self = this;
 
-    function dragMouseDown(e) {
+    function dragPointerDown(e) {
+      // Don't drag if we're interacting with a control inside the handle (if any)
+      if (e.target.closest('input, button, select')) return;
+
       e.preventDefault();
       e.stopPropagation();
+      
       pos3 = e.clientX;
       pos4 = e.clientY;
-      document.onmouseup = closeDragElement;
-      document.onmousemove = elementDrag;
+      
+      handle.setPointerCapture(e.pointerId);
+      handle.onpointermove = elementDrag;
+      handle.onpointerup = closeDragElement;
+      handle.onpointercancel = closeDragElement;
     }
 
     function elementDrag(e) {
-      e.preventDefault();
       pos1 = pos3 - e.clientX;
       pos2 = pos4 - e.clientY;
       pos3 = e.clientX;
       pos4 = e.clientY;
       el.style.top = (el.offsetTop - pos2) + "px";
       el.style.left = (el.offsetLeft - pos1) + "px";
-      el.style.right = 'auto'; // Disable right-anchor if it was there
-      el.style.bottom = 'auto'; // Disable bottom-anchor to prevent stretching
+      el.style.right = 'auto'; 
+      el.style.bottom = 'auto'; 
     }
 
-    function closeDragElement() {
-      document.onmouseup = null;
-      document.onmousemove = null;
+    function closeDragElement(e) {
+      handle.releasePointerCapture(e.pointerId);
+      handle.onpointermove = null;
+      handle.onpointerup = null;
+      handle.onpointercancel = null;
       
-      // Save position
       self.windowPositions[el.id] = {
           top: el.offsetTop,
           left: el.offsetLeft
@@ -1337,15 +1344,21 @@ class App {
         this._applyHSV();
     };
 
-    svPicker.onmousedown = (e) => {
+    svPicker.onpointerdown = (e) => {
+        svPicker.setPointerCapture(e.pointerId);
         updateFromSV(e);
-        const onMouseMove = (me) => updateFromSV(me);
-        const onMouseUp = () => {
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
+        
+        const onPointerMove = (pe) => updateFromSV(pe);
+        const onPointerUp = (pe) => {
+            svPicker.releasePointerCapture(pe.pointerId);
+            svPicker.removeEventListener('pointermove', onPointerMove);
+            svPicker.removeEventListener('pointerup', onPointerUp);
+            svPicker.removeEventListener('pointercancel', onPointerUp);
         };
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
+        
+        svPicker.addEventListener('pointermove', onPointerMove);
+        svPicker.addEventListener('pointerup', onPointerUp);
+        svPicker.addEventListener('pointercancel', onPointerUp);
     };
 
     hueSlider.oninput = (e) => {

@@ -86,6 +86,7 @@ body {
     background: #fff;
     border-bottom: 2px solid #000;
     cursor: crosshair;
+    touch-action: none;
 }
 
 #tip-editor-canvas {
@@ -180,6 +181,7 @@ body {
     justify-content: space-between;
     align-items: center;
     cursor: move;
+    touch-action: none;
 }
 
 .panel-handle:active {
@@ -480,6 +482,7 @@ body {
     border: 2px solid black;
     background: linear-gradient(to bottom, transparent, black), 
                 linear-gradient(to right, white, transparent);
+    touch-action: none;
 }
 
 .sv-cursor {

@@ -69,6 +69,7 @@ export class Engine {
     this.showGrid = true;
     this.isMirrored = false;
     this.isCapturingTip = false;
+    this.activePointers = new Map(); // For multitouch gestures
     this._gridTexture = null;
     this._lastGridParams = null;
     
@@ -187,6 +188,18 @@ export class Engine {
 
   _initEvents() {
     this.container.addEventListener('pointerdown', (e) => {
+        this.activePointers.set(e.pointerId, e);
+
+        if (this.activePointers.size > 1) {
+            // Cancel current stroke if a second finger is added
+            if (this.isDrawing) {
+                this._endStroke();
+            }
+            this.isGesture = true;
+            this._initGesture();
+            return;
+        }
+
         if (this.isExportMode) {
             const m = this._getMousePos(e);
             this.exportStartPos = { x: m.wx, y: m.wy };
@@ -204,7 +217,7 @@ export class Engine {
         }
 
         this.isMouseDown = true;
-        if (e.button === 1) { // Middle click
+        if (e.button === 1 || this.keys[' ']) { // Middle click or Space
             this.isPanning = true;
             this.lastMousePos = { x: e.clientX, y: e.clientY };
             this._updateCursor();
@@ -214,6 +227,15 @@ export class Engine {
     });
 
     window.addEventListener('pointermove', (e) => {
+      this.activePointers.set(e.pointerId, e);
+
+      if (this.activePointers.size > 1) {
+          this._handleGesture();
+          return;
+      }
+
+      if (this.isGesture) return;
+
       if (this.isExportMode && this.isDrawing) {
           const m = this._getMousePos(e);
           const x1 = this.exportStartPos.x;
@@ -256,7 +278,13 @@ export class Engine {
       this._updateBrushCursor(e);
     });
 
-    window.addEventListener('pointerup', (e) => {
+    const endHandler = (e) => {
+        this.activePointers.delete(e.pointerId);
+        
+        if (this.activePointers.size < 2) {
+            this.isGesture = false;
+        }
+
         if (this.isExportMode && this.isDrawing) {
             this.isDrawing = false;
             this.isExportMode = false;
@@ -276,7 +304,10 @@ export class Engine {
             return;
         }
         this._endStroke(e);
-    });
+    };
+
+    window.addEventListener('pointerup', endHandler);
+    window.addEventListener('pointercancel', endHandler);
        
     window.addEventListener('keydown', (e) => {
         const key = e.key.toLowerCase();
@@ -2671,5 +2702,52 @@ export class Engine {
     } catch(e) {
         console.warn('Failed to load viewport', e);
     }
+  }
+
+  _initGesture() {
+    const pointers = Array.from(this.activePointers.values());
+    if (pointers.length < 2) return;
+    const p1 = pointers[0];
+    const p2 = pointers[1];
+    
+    this.gestureStartCenter = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+    this.gestureStartDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+    this.gestureStartAngle = Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX);
+    
+    this.gestureStartPan = { ...this.pan };
+    this.gestureStartZoom = this.zoom;
+    this.gestureStartRotation = this.rotation;
+  }
+
+  _handleGesture() {
+    const pointers = Array.from(this.activePointers.values());
+    if (pointers.length < 2) return;
+    const p1 = pointers[0];
+    const p2 = pointers[1];
+    
+    const center = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+    const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+    const angle = Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX);
+    
+    const zoomFactor = dist / Math.max(1, this.gestureStartDist);
+    const angleDelta = angle - this.gestureStartAngle;
+    const dx = center.x - this.gestureStartCenter.x;
+    const dy = center.y - this.gestureStartCenter.y;
+    
+    // Multi-finger gesture logic:
+    // Reset to starting point state first to avoid accumulation drift
+    this.pan = { ...this.gestureStartPan };
+    this.zoom = this.gestureStartZoom;
+    this.rotation = this.gestureStartRotation;
+    
+    // Apply zoom & rotation anchored at the original midpoint of the fingers
+    this.setZoom(this.gestureStartZoom * zoomFactor, this.gestureStartCenter.x, this.gestureStartCenter.y);
+    this.setRotation(this.gestureStartRotation + angleDelta, this.gestureStartCenter.x, this.gestureStartCenter.y);
+    
+    // Finally apply translation of the center point itself
+    this.pan.x += dx;
+    this.pan.y += dy;
+    
+    this.refresh();
   }
 }

@@ -211,16 +211,24 @@ export class TipManager {
     let drawing = false;
 
     const startDraw = (e) => {
+        editor.setPointerCapture(e.pointerId);
         drawing = true;
         this._drawEditor(e, true);
     };
     
     const moveDraw = (e) => { if (drawing) this._drawEditor(e); };
-    const stopDraw = () => { if (drawing) { drawing = false; this._updateFromEditor(); } };
+    const stopDraw = (e) => { 
+        if (drawing) { 
+            editor.releasePointerCapture(e.pointerId);
+            drawing = false; 
+            this._updateFromEditor(); 
+        } 
+    };
 
-    editor.onmousedown = startDraw;
-    window.addEventListener('mousemove', moveDraw);
-    window.addEventListener('mouseup', stopDraw);
+    editor.onpointerdown = startDraw;
+    editor.onpointermove = moveDraw;
+    editor.onpointerup = stopDraw;
+    editor.onpointercancel = stopDraw;
     
     document.getElementById('btn-tip-clear').onclick = () => {
         this.editorCtx.clearRect(0,0,128,128);
