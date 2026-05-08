@@ -527,6 +527,9 @@ class CavemanApp {
   }
 
   selectNote(note) {
+    if (this.currentNote && !this.currentNote.isPublic) {
+      this.handleInput(true); // Persist changes of the previous note before switching
+    }
     this.currentNote = note;
     this.titleInput.value = note.title;
     this.folderInput.value = note.folder || '';

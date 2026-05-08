@@ -520,6 +520,7 @@ button.btn-danger:hover {
 #preview p {
   margin-bottom: 16px;
   font-size: 1em;
+  display: flow-root; /* Ensures vertical stacking of paragraphs containing inline-blocks */
 }
 
 #preview ul, #preview ol {
@@ -582,13 +583,27 @@ button.btn-danger:hover {
   border: 1px solid var(--text-primary);
   padding: 4px;
   background: var(--bg-secondary);
-  display: block;
-  margin: 1rem 0;
+  display: inline-block;
+  vertical-align: top;
+  margin: 5px;
   height: auto;
   min-height: 20px;
   /* Prevent layout jump by giving hints to the browser */
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;
+}
+
+#preview video, #preview iframe {
+  max-width: 100%;
+  border: 1px solid var(--text-primary);
+  display: inline-block;
+  vertical-align: top;
+  margin: 5px;
+}
+
+#preview span {
+  display: inline-block;
+  vertical-align: top;
 }
 
 /* Print Styles for PDF Export */

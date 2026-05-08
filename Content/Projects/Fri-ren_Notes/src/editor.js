@@ -31,32 +31,32 @@ export class Editor {
       const id = rawId.trim();
       const width = w ? `${w}px` : 'auto';
       const height = h ? `${h}px` : 'auto';
-      const style = w || h ? `style="max-width:100%; width: ${width}; height: ${height}; display: block; margin: 10px 0;"` : '';
-      return `<img data-img-id="${id}" class="lazy-vault-img" loading="lazy" ${style} src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">`;
+      const style = `style="max-width:100%; width: ${width}; height: ${height}; margin: 10px 5px; vertical-align: top;"`;
+      return `<span><img data-img-id="${id}" class="lazy-vault-img" loading="lazy" ${style} src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"></span>`;
     });
 
     // Video & YouTube support: ![video](link) or ![video 500 300](link)
     md = md.replace(/!\[video(?:\s+(\d+))?(?:\s+(\d+))?\]\((.*?)\)/g, (match, w, h, url) => {
       const u = url.trim();
-      const width = w ? `${w}px` : '100%';
+      const width = w ? `${w}px` : 'auto';
       const height = h ? `${h}px` : 'auto';
-      const style = `max-width:100%; width: ${width}; height: ${height}; margin: 10px 0; border: 1px solid var(--text-primary); display: block;`;
+      const style = `max-width:100%; width: ${width}; height: ${height}; margin: 10px 5px; border: 1px solid var(--text-primary); vertical-align: top;`;
       
       // YouTube Detector
       const ytMatch = u.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
       if (ytMatch) {
-        return `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" 
+        return `<span><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" 
           style="${style} aspect-ratio: 16/9;" 
           frameborder="0" 
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-          allowfullscreen></iframe>`;
+          allowfullscreen></iframe></span>`;
       }
 
       const type = u.endsWith('.webm') ? 'video/webm' : 'video/mp4';
-      return `<video controls loop muted referrerpolicy="no-referrer" style="${style}">
+      return `<span><video controls loop muted referrerpolicy="no-referrer" style="${style}">
   <source src="${u}" type="${type}">
   Your browser does not support the video tag.
-</video>`;
+</video></span>`;
     });
 
     // Image resizing support: ![alt width height](url)
@@ -69,10 +69,7 @@ export class Editor {
       const u = url.trim();
       const a = alt ? alt.trim() : '';
 
-      if (w || h) {
-        return `<img src="${u}" alt="${a}" style="max-width:100%; width: ${width}; height: ${height}; margin: 10px 0; display: block;" loading="eager" decoding="sync" referrerpolicy="no-referrer">`;
-      }
-      return match; // Let marked handle standard images
+      return `<span><img src="${u}" alt="${a}" style="max-width:100%; width: ${width}; height: ${height}; margin: 10px 5px; vertical-align: top;" loading="eager" decoding="sync" referrerpolicy="no-referrer"></span>`;
     });
     
     // Ensure marked is configured for GFM
