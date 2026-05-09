@@ -11,6 +11,9 @@
 - Bug fix on removing resized images from DB
 - Custom colors in settings
 
+![Image](blog/2026-05/img/fri-notes1.jpg)
+
+
 [noted](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
 ---
@@ -24,9 +27,6 @@ pretty cool
 
 we knew about it for 70 years
 
-```
->_
-```
 waiting for some spicy stuff
 
 most likely will be same old
