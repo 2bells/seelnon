@@ -60,6 +60,7 @@ body {
     width: 2048px;
     height: 2048px;
     background-repeat: repeat;
+    touch-action: none;
 }
 
 #brush-cursor {

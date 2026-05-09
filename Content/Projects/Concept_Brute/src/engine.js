@@ -190,6 +190,9 @@ export class Engine {
 
   _initEvents() {
     this.container.addEventListener('pointerdown', (e) => {
+        // Stop browser gestures (zoom/pan) especially for Windows Ink/Stylus
+        if (e.cancelable) e.preventDefault();
+        
         this.activePointers.set(e.pointerId, e);
 
         if (this.activePointers.size > 1) {
@@ -229,6 +232,9 @@ export class Engine {
     });
 
     window.addEventListener('pointermove', (e) => {
+      // Stop browser gestures (zoom/pan) especially for Windows Ink/Stylus
+      if (e.cancelable) e.preventDefault();
+
       this.activePointers.set(e.pointerId, e);
 
       if (this.activePointers.size > 1) {
@@ -460,6 +466,7 @@ export class Engine {
       canv.width = this.chunkSize * dpr;
       canv.height = this.chunkSize * dpr;
       canv.className = 'absolute inset-0';
+      canv.style.touchAction = 'none';
       // Smooth rendering for better brush quality (seams are handled by chunk alignment)
       canv.style.imageRendering = 'auto'; 
       canv.style.backfaceVisibility = 'hidden';
