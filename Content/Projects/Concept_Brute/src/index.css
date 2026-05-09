@@ -53,6 +53,10 @@ body {
     overflow: hidden;
     background-color: #f0f0f0;
     touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
 }
 
 #canvas-wrapper {
@@ -61,6 +65,8 @@ body {
     height: 2048px;
     background-repeat: repeat;
     touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 #brush-cursor {

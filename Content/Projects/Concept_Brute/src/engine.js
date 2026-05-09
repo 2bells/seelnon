@@ -105,6 +105,7 @@ export class Engine {
     this.container.appendChild(this.brushCursor);
 
     this.lastPos = null;
+    this.lastMousePos = { x: 0, y: 0 };
     this.lastTime = null;
     this.smoothedVelocity = 0;
     this.zoomAnchor = null;
@@ -193,6 +194,20 @@ export class Engine {
         // Stop browser gestures (zoom/pan) especially for Windows Ink/Stylus
         if (e.cancelable) e.preventDefault();
         
+        // Prioritize non-mouse pointers (Pen/Touch)
+        const pointers = Array.from(this.activePointers.values());
+        const hasNonMouse = pointers.some(p => p.pointerType !== 'mouse');
+        
+        // If we have a pen/touch active, ignore any new mouse downs
+        if (hasNonMouse && e.pointerType === 'mouse') return;
+        
+        // If this is a pen/touch down, clear any ghost mouse pointers
+        if (e.pointerType !== 'mouse') {
+            for (const [id, p] of this.activePointers) {
+                if (p.pointerType === 'mouse') this.activePointers.delete(id);
+            }
+        }
+
         this.activePointers.set(e.pointerId, e);
 
         if (this.activePointers.size > 1) {
@@ -231,9 +246,20 @@ export class Engine {
         this._startStroke(e);
     });
 
+    // Block browser gestures and selection on the canvas
+    this.container.addEventListener('selectstart', (e) => e.preventDefault());
+    this.container.addEventListener('gesturestart', (e) => e.preventDefault());
+    this.container.addEventListener('gesturechange', (e) => e.preventDefault());
+    this.container.addEventListener('gestureend', (e) => e.preventDefault());
+
     window.addEventListener('pointermove', (e) => {
       // Stop browser gestures (zoom/pan) especially for Windows Ink/Stylus
-      if (e.cancelable) e.preventDefault();
+      if (e.cancelable && e.target === this.container) e.preventDefault();
+
+      // Ignore mouse moves if we already have non-mouse pointers active, BUT only if target is the canvas
+      // This allows mouse to still work on UI sliders even if stylus is hovering.
+      const hasNonMouse = Array.from(this.activePointers.values()).some(p => p.pointerType !== 'mouse');
+      if (hasNonMouse && e.pointerType === 'mouse' && e.target === this.container) return;
 
       this.activePointers.set(e.pointerId, e);
 
@@ -312,10 +338,23 @@ export class Engine {
             return;
         }
         this._endStroke(e);
+        
+        // Hide brush cursor when finger/pen is removed on iPad/Pen devices
+        if (e.pointerType !== 'mouse') {
+            if (this.brushCursor) this.brushCursor.style.display = 'none';
+        }
     };
 
     window.addEventListener('pointerup', endHandler);
     window.addEventListener('pointercancel', endHandler);
+    window.addEventListener('pointerout', (e) => {
+        this.activePointers.delete(e.pointerId);
+        if (e.pointerType !== 'mouse' && this.brushCursor) this.brushCursor.style.display = 'none';
+    });
+    window.addEventListener('pointerleave', (e) => {
+        this.activePointers.delete(e.pointerId);
+        if (e.pointerType !== 'mouse' && this.brushCursor) this.brushCursor.style.display = 'none';
+    });
        
     window.addEventListener('keydown', (e) => {
         const key = e.key.toLowerCase();
@@ -1604,8 +1643,12 @@ export class Engine {
   _updateBrushCursor(e) {
     if (!this.brushCursor) return;
 
+    // Fallback if e is missing or doesn't have coords
+    const mouseX = e ? e.clientX : this.lastMousePos.x;
+    const mouseY = e ? e.clientY : this.lastMousePos.y;
+
     // Clear cursor on touch if no pointers are touching
-    if (this.activePointers.size === 0 && (e.pointerType === 'touch' || e.pointerType === 'pen')) {
+    if (this.activePointers.size === 0 && e && (e.pointerType === 'touch' || e.pointerType === 'pen')) {
         this.brushCursor.style.display = 'none';
         return;
     }
@@ -1613,7 +1656,7 @@ export class Engine {
     const rect = this.container.getBoundingClientRect();
 
     // Hide if mouse is over UI
-    if (e.target.closest('.ui-panel') || e.target.closest('button') || e.target.closest('input') || e.target.closest('#top-bar')) {
+    if (e && (e.target.closest('.ui-panel') || e.target.closest('button') || e.target.closest('input') || e.target.closest('#top-bar'))) {
         this.brushCursor.style.display = 'none';
         return;
     } else {
@@ -1682,11 +1725,11 @@ export class Engine {
     this.brushCursor.style.maskSize = '100% 100%';
 
     // Position relative to container
-    let mouseX = e.clientX - rect.left;
-    let mouseY = e.clientY - rect.top;
+    let mX = mouseX - rect.left;
+    let mY = mouseY - rect.top;
 
-    this.brushCursor.style.left = `${mouseX - w/2}px`;
-    this.brushCursor.style.top = `${mouseY - h/2}px`;
+    this.brushCursor.style.left = `${mX - w/2}px`;
+    this.brushCursor.style.top = `${mY - h/2}px`;
     
     let transform = `rotate(${this.rotation}rad)`;
     if (this.isMirrored) {
@@ -2779,7 +2822,7 @@ export class Engine {
 
   _handleGesture() {
     const pointers = Array.from(this.activePointers.values());
-    if (pointers.length < 2) return;
+    if (pointers.length < 2 || !this.gestureStartCenter) return;
     const p1 = pointers[0];
     const p2 = pointers[1];
     
