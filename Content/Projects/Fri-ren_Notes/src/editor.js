@@ -10,7 +10,7 @@ export class Editor {
   async processMarkdown(content) {
     if (!content || content.trim() === '') {
       return `<div style="opacity: 0.5; font-style: italic; padding: 20px; text-align: center; line-height: 1.8;">
-        press 'editor mode' to start editing your markdown file<br>
+        press 'edit' to start editing your markdown file<br>
         <div style="margin-top: 20px; font-size: 0.9em; opacity: 0.7; max-width: 400px; margin-left: auto; margin-right: auto; text-align: left; border-top: 1px dashed var(--text-primary); padding-top: 15px;">
            • folder field is a <b>path</b> (e.g. <i>work/notes/2026</i>)<br>
            • connect notes with <b>[[note title]]</b><br>
@@ -53,7 +53,7 @@ export class Editor {
       }
 
       const type = u.endsWith('.webm') ? 'video/webm' : 'video/mp4';
-      return `<span><video controls loop muted referrerpolicy="no-referrer" style="${style}">
+      return `<span><video controls loop muted playsinline crossorigin="anonymous" referrerpolicy="no-referrer" style="${style}">
   <source src="${u}" type="${type}">
   Your browser does not support the video tag.
 </video></span>`;

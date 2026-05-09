@@ -526,14 +526,20 @@ class CavemanApp {
     }
   }
 
-  selectNote(note) {
+  async selectNote(note) {
     if (this.currentNote && !this.currentNote.isPublic) {
-      this.handleInput(true); // Persist changes of the previous note before switching
+      // Ensure we await the save before switching context to avoid clobbering data
+      await this.handleInput(true); 
     }
     this.currentNote = note;
     this.titleInput.value = note.title;
     this.folderInput.value = note.folder || '';
     this.editorEl.value = note.content;
+    
+    // Reset scroll positions
+    this.editorEl.scrollTop = 0;
+    this.previewEl.scrollTop = 0;
+    this.lineNumbersEl.scrollTop = 0;
     
     if (this.viewMode === 'editor') {
       this.updateLineNumbers();
@@ -670,7 +676,7 @@ class CavemanApp {
       
       // Update notes list
       await this.loadNotes();
-      this.selectNote(newNote);
+      await this.selectNote(newNote);
       return;
     }
 
@@ -793,7 +799,7 @@ class CavemanApp {
     }
 
     if (targetNote) {
-      this.selectNote(targetNote);
+      await this.selectNote(targetNote);
     }
   }
 
@@ -900,12 +906,12 @@ class CavemanApp {
     
     if (mode === 'editor') {
       this.editorWrapper.classList.remove('hidden');
-      this.togglePreviewBtn.textContent = 'Preview Mode';
+      this.togglePreviewBtn.textContent = 'View';
       this.updateLineNumbers();
     } else if (mode === 'preview') {
       this.previewEl.classList.remove('hidden');
       this.previewEl.scrollTop = 0;
-      this.togglePreviewBtn.textContent = 'Editor Mode';
+      this.togglePreviewBtn.textContent = 'Edit';
       this.togglePreviewBtn.classList.add('active'); // Highlight active mode
       this.updatePreview();
     } else if (mode === 'canvas') {
@@ -960,7 +966,7 @@ class CavemanApp {
     await this.vault.deleteNote(this.currentNote.id);
     await this.loadNotes();
     if (this.notes.length > 0) {
-      this.selectNote(this.notes[0]);
+      await this.selectNote(this.notes[0]);
     } else {
       this.createNewNote();
     }
@@ -1004,7 +1010,15 @@ class CavemanApp {
               const start = this.editorEl.selectionStart;
               const end = this.editorEl.selectionEnd;
               const text = this.editorEl.value;
-              this.editorEl.value = text.slice(0, start) + reference + text.slice(end);
+              
+              const newContent = text.slice(0, start) + reference + text.slice(end);
+              this.editorEl.value = newContent;
+              
+              // Restore cursor after the inserted reference
+              const newPos = start + reference.length;
+              this.editorEl.setSelectionRange(newPos, newPos);
+              this.editorEl.focus();
+
               this.handleInput();
             } else {
               // Note switched mid-paste. Find original note and update IT on disk.
@@ -1158,15 +1172,19 @@ class CavemanApp {
   }
 
   async purgeUnusedImages() {
-    const notes = await this.vault.getNotes();
+    const allNotes = await this.vault.getNotes();
     const images = await this.vault.getAllImages();
     const usedImageIds = new Set();
-    const imgPattern = /!\[\[(img-.*?)\]\]/g;
     
-    this.notes.forEach(note => {
+    // Updated regex to correctly identify IDs even with sizing arguments
+    // ![[img-id]] or ![[img-id 100 100]]
+    const imgPattern = /!\[\[(img-[a-zA-Z0-9_-]*)(?:\s+\d+)?(?:\s+\d+)?\]\]/g;
+    
+    allNotes.forEach(note => {
       let match;
-      while ((match = imgPattern.exec(note.content)) !== null) {
-        usedImageIds.add(match[1]);
+      const content = note.content || '';
+      while ((match = imgPattern.exec(content)) !== null) {
+        usedImageIds.add(match[1].trim());
       }
     });
     
@@ -1368,28 +1386,40 @@ class CavemanApp {
     const style = window.getComputedStyle(this.editorEl);
     this.measureEl.style.fontFamily = style.fontFamily;
     this.measureEl.style.fontSize = style.fontSize;
-    this.measureEl.style.lineHeight = style.lineHeight;
+    
+    // Force a numeric line-height for calculations if 'normal'
+    let lineHeight = parseFloat(style.lineHeight);
+    if (isNaN(lineHeight)) {
+      lineHeight = parseFloat(style.fontSize) * 1.6;
+    }
+    this.measureEl.style.lineHeight = lineHeight + 'px';
+    
     this.measureEl.style.paddingLeft = style.paddingLeft;
     this.measureEl.style.paddingRight = style.paddingRight;
     this.measureEl.style.boxSizing = style.boxSizing;
+    
+    // Width must be exact to match textarea wrapping behavior
+    // We use clientWidth but account for potential scrollbar flicker
     this.measureEl.style.width = this.editorEl.clientWidth + 'px';
 
     const lines = this.editorEl.value.split('\n');
-    const lineHeight = parseFloat(style.lineHeight);
     let lineNumbersContent = '';
     
     for (let i = 0; i < lines.length; i++) {
-      const lineText = lines[i] || ' '; // Handle empty lines
+      const lineText = lines[i] || ' '; 
       this.measureEl.textContent = lineText;
       const height = this.measureEl.getBoundingClientRect().height;
-      const visualLines = Math.max(1, Math.round(height / lineHeight));
+      
+      // Calculate visual lines by dividing total height by line height
+      // We use a small epsilon to avoid floating point rounding issues
+      const visualLines = Math.max(1, Math.round((height + 0.1) / lineHeight));
       
       // Line number for the FIRST visual line
-      lineNumbersContent += `<div style="height:${lineHeight}px">${i + 1}</div>`;
+      lineNumbersContent += `<div style="height:${lineHeight}px; line-height:${lineHeight}px;">${i + 1}</div>`;
       
-      // Empty spaces for subsequent wrapped visual lines
+      // Empty slots for subsequent wrapped visual lines
       for (let j = 1; j < visualLines; j++) {
-        lineNumbersContent += `<div style="height:${lineHeight}px">&nbsp;</div>`;
+        lineNumbersContent += `<div style="height:${lineHeight}px; line-height:${lineHeight}px;">&nbsp;</div>`;
       }
     }
     

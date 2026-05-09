@@ -297,13 +297,14 @@ body {
   font-family: var(--font-mono);
   font-size: 0.9em;
   font-weight: 400;
-  line-height: 1.6;
-  color: #33302d; /* Muted coffee brown */
-  opacity: 0.7; /* Increased visibility */
+  line-height: 1.6; /* Matches editor exactly */
+  color: #141414; /* Solid black for better readability */
+  opacity: 0.5; /* Slightly muted but distinct */
   user-select: none;
-  background: rgba(0, 0, 0, 0.04);
-  border-right: 1px dashed #413d39;
+  background: rgba(0, 0, 0, 0.03);
+  border-right: 1px dashed #141414;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 #editor {
@@ -319,6 +320,16 @@ body {
   outline: none;
   color: #2c241c; /* Deep espresso black-brown */
   caret-color: #5f5d5a;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.night-mode #line-numbers {
+  color: #a18a5e !important;
+  opacity: 0.8 !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-right: 1px dashed #a18a5e !important;
 }
 
 #preview {
@@ -601,9 +612,67 @@ button.btn-danger:hover {
   margin: 5px;
 }
 
-#preview span {
-  display: inline-block;
-  vertical-align: top;
+/* Missing Note Style */
+.missing-note-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100% - 50vh);
+  width: 100%;
+}
+
+.missing-note-card {
+  max-width: 400px;
+  padding: 40px;
+  background: var(--bg-secondary);
+  border: var(--border-thick);
+  box-shadow: 12px 12px 0 var(--text-primary);
+  text-align: center;
+}
+
+.night-mode .missing-note-card {
+  background: #1c1814;
+  border-color: #a18a5e;
+  box-shadow: 12px 12px 0 #a18a5e;
+}
+
+.missing-note-icon {
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  opacity: 0.3;
+}
+
+.missing-note-title {
+  font-size: 1.5em;
+  margin-bottom: 12px;
+  font-weight: 800;
+}
+
+.missing-note-path {
+  margin-bottom: 24px;
+  font-size: 0.9em;
+}
+
+.missing-note-path code {
+  background: rgba(0,0,0,0.1) !important;
+  color: inherit !important;
+}
+
+.missing-note-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.btn-brutalist {
+  background: var(--text-primary) !important;
+  color: var(--bg-main) !important;
+}
+
+.night-mode .btn-brutalist {
+  background: #a18a5e !important;
+  color: #14110e !important;
 }
 
 /* Print Styles for PDF Export */
