@@ -13,17 +13,21 @@
 
 [noted](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
+---
+
 ## NEWS
 
-```
+
 UFO files are getting released
 pretty cool
 we knew about it for 70 years
->_
+`>_`
 waiting for some spicy stuff
 most likely will be same old
->_
+`>_`
+
+
 ```
-
-thought of a day: '[   ]'
-
+thought of a day:
+'[   ]'
+```
