@@ -1043,3 +1043,45 @@ button, input, select {
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: white; border-left: 2px solid black; }
 ::-webkit-scrollbar-thumb { background: black; }
+
+/* SETTINGS CATEGORIES */
+.settings-category {
+    border: 2px solid black;
+    margin-bottom: 8px;
+    background: #fff;
+}
+
+.category-header {
+    background: #000;
+    color: #fff;
+    padding: 4px 8px;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.category-header:hover {
+    background: #333;
+}
+
+.category-content {
+    padding: 8px;
+}
+
+.category-collapsed .category-content {
+    display: none;
+}
+
+.category-header::after {
+    content: '▼';
+    font-size: 8px;
+}
+
+.category-collapsed .category-header::after {
+    content: '▶';
+}
+

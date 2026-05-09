@@ -63,7 +63,11 @@ class App {
             tip: null,
             spacing: 0.05,
             pressureEnabled: true,
-            pressureInfluence: 1.0
+            pressureInfluence: 1.0,
+            jitterSize: 0,
+            jitterAngle: 0,
+            jitterPos: 0,
+            jitterHue: 0
         };
     });
     // Set some defaults
@@ -122,6 +126,21 @@ class App {
 
     this.init();
     this._initToggles();
+    this._initCategories();
+  }
+
+  _initCategories() {
+    document.querySelectorAll('.settings-category').forEach(cat => {
+        const header = cat.querySelector('.category-header');
+        header.onclick = () => {
+            cat.classList.toggle('category-collapsed');
+            localStorage.setItem(`cat_collapsed_${cat.id}`, cat.classList.contains('category-collapsed'));
+        };
+
+        // Restore state
+        const isCollapsed = localStorage.getItem(`cat_collapsed_${cat.id}`) === 'true';
+        if (isCollapsed) cat.classList.add('category-collapsed');
+    });
   }
 
   _initToggles() {
@@ -704,6 +723,57 @@ class App {
             pressureVal.innerText = val.toFixed(1);
             if (this.brushSettings[this.activeTool]) {
                 this.brushSettings[this.activeTool].pressureInfluence = val;
+                this._saveBrushSettings();
+            }
+        };
+    }
+
+    // Jitter sliders
+    const jitterSize = document.getElementById('settings-jitter-size');
+    const jitterAngle = document.getElementById('settings-jitter-angle');
+    const jitterPos = document.getElementById('settings-jitter-pos');
+    const jitterHue = document.getElementById('settings-jitter-hue');
+
+    if (jitterSize) {
+        jitterSize.oninput = (e) => {
+            const val = parseInt(e.target.value);
+            this.engine.brush.jitterSize = val / 100;
+            document.getElementById('jitter-size-val').innerText = `${val}%`;
+            if (this.brushSettings[this.activeTool]) {
+                this.brushSettings[this.activeTool].jitterSize = val;
+                this._saveBrushSettings();
+            }
+        };
+    }
+    if (jitterAngle) {
+        jitterAngle.oninput = (e) => {
+            const val = parseInt(e.target.value);
+            this.engine.brush.jitterAngle = (val * Math.PI) / 180;
+            document.getElementById('jitter-angle-val').innerText = `${val}°`;
+            if (this.brushSettings[this.activeTool]) {
+                this.brushSettings[this.activeTool].jitterAngle = val;
+                this._saveBrushSettings();
+            }
+        };
+    }
+    if (jitterPos) {
+        jitterPos.oninput = (e) => {
+            const val = parseInt(e.target.value);
+            this.engine.brush.jitterPos = val / 100;
+            document.getElementById('jitter-pos-val').innerText = `${val}%`;
+            if (this.brushSettings[this.activeTool]) {
+                this.brushSettings[this.activeTool].jitterPos = val;
+                this._saveBrushSettings();
+            }
+        };
+    }
+    if (jitterHue) {
+        jitterHue.oninput = (e) => {
+            const val = parseInt(e.target.value);
+            this.engine.brush.jitterHue = val / 100;
+            document.getElementById('jitter-hue-val').innerText = `${val}%`;
+            if (this.brushSettings[this.activeTool]) {
+                this.brushSettings[this.activeTool].jitterHue = val;
                 this._saveBrushSettings();
             }
         };
@@ -1624,6 +1694,32 @@ class App {
             const valEl = document.getElementById('pressure-val');
             if (valEl) valEl.innerText = (settings.pressureInfluence ?? 1.0).toFixed(1);
         }
+
+        // Jitter Sliders
+        const jitterSize = document.getElementById('settings-jitter-size');
+        if (jitterSize) {
+            jitterSize.value = settings.jitterSize ?? 0;
+            const valEl = document.getElementById('jitter-size-val');
+            if (valEl) valEl.innerText = `${(settings.jitterSize ?? 0)}%`;
+        }
+        const jitterAngle = document.getElementById('settings-jitter-angle');
+        if (jitterAngle) {
+            jitterAngle.value = settings.jitterAngle ?? 0;
+            const valEl = document.getElementById('jitter-angle-val');
+            if (valEl) valEl.innerText = `${(settings.jitterAngle ?? 0)}°`;
+        }
+        const jitterPos = document.getElementById('settings-jitter-pos');
+        if (jitterPos) {
+            jitterPos.value = settings.jitterPos ?? 0;
+            const valEl = document.getElementById('jitter-pos-val');
+            if (valEl) valEl.innerText = `${(settings.jitterPos ?? 0)}%`;
+        }
+        const jitterHue = document.getElementById('settings-jitter-hue');
+        if (jitterHue) {
+            jitterHue.value = settings.jitterHue ?? 0;
+            const valEl = document.getElementById('jitter-hue-val');
+            if (valEl) valEl.innerText = `${(settings.jitterHue ?? 0)}%`;
+        }
     }
   }
 
@@ -1686,6 +1782,10 @@ class App {
     this.engine.brush.spacing = settings.spacing ?? 0.05;
     this.engine.brush.pressureEnabled = settings.pressureEnabled ?? true;
     this.engine.brush.pressureInfluence = settings.pressureInfluence ?? 1.0;
+    this.engine.brush.jitterSize = (settings.jitterSize ?? 0) / 100;
+    this.engine.brush.jitterAngle = ((settings.jitterAngle ?? 0) * Math.PI) / 180;
+    this.engine.brush.jitterPos = (settings.jitterPos ?? 0) / 100;
+    this.engine.brush.jitterHue = (settings.jitterHue ?? 0) / 100;
 
     if (tool === TOOLS.ERASER || tool === TOOLS.SMUDGE) {
         // Shared tip from Brush 1

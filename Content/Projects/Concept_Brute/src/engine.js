@@ -36,6 +36,10 @@ export class Engine {
       wireMinDist: 0.5,
       pressureEnabled: true,
       pressureInfluence: 1.0,
+      jitterSize: 0,
+      jitterAngle: 0,
+      jitterPos: 0,
+      jitterHue: 0,
       type: TOOLS.BRUSH 
     };
 
@@ -191,8 +195,13 @@ export class Engine {
 
   _initEvents() {
     this.container.addEventListener('pointerdown', (e) => {
+        // UI SHIELD: Ignore if hitting any UI element
+        if (e.target !== this.container && e.target.closest('.ui-panel, .tool-btn, .brutal-btn, .dots-btn, #top-bar, #top-bar-ref, .brutal-range, button, input, select')) {
+            return;
+        }
+
         // Stop browser gestures (zoom/pan) especially for Windows Ink/Stylus
-        if (e.cancelable) e.preventDefault();
+        if (e.cancelable && e.target === this.container) e.preventDefault();
         
         // Prioritize non-mouse pointers (Pen/Touch)
         const pointers = Array.from(this.activePointers.values());
@@ -210,13 +219,32 @@ export class Engine {
 
         this.activePointers.set(e.pointerId, e);
 
+        const currentPointers = Array.from(this.activePointers.values());
+        const hasPen = currentPointers.some(p => p.pointerType === 'pen');
+        const hasTouch = currentPointers.some(p => p.pointerType === 'touch');
+
+        // IF we have a pen, IGNORE ALL touch pointers in the map (and from event)
+        if (hasPen && e.pointerType === 'touch') {
+            this.activePointers.delete(e.pointerId);
+            return;
+        }
+
         if (this.activePointers.size > 1) {
-            // Cancel current stroke if a second finger is added
-            if (this.isDrawing) {
-                this._endStroke();
+            // Only allow gestures if ALL active pointers are touch (no pen interfering)
+            const allTouch = currentPointers.every(p => p.pointerType === 'touch');
+            if (allTouch) {
+                // Cancel current stroke if a second finger is added
+                if (this.isDrawing) {
+                    this._endStroke();
+                }
+                this.isGesture = true;
+                this._initGesture();
+            } else if (hasPen) {
+                // If we have a pen and something else, keep only the pen
+                for (const [id, p] of this.activePointers) {
+                    if (p.pointerType !== 'pen') this.activePointers.delete(id);
+                }
             }
-            this.isGesture = true;
-            this._initGesture();
             return;
         }
 
@@ -261,9 +289,20 @@ export class Engine {
       const hasNonMouse = Array.from(this.activePointers.values()).some(p => p.pointerType !== 'mouse');
       if (hasNonMouse && e.pointerType === 'mouse' && e.target === this.container) return;
 
+      const pointers = Array.from(this.activePointers.values());
+      const hasPen = pointers.some(p => p.pointerType === 'pen');
+      if (hasPen && e.pointerType === 'touch') {
+          this.activePointers.delete(e.pointerId);
+          return;
+      }
+
       this.activePointers.set(e.pointerId, e);
 
-      if (this.activePointers.size > 1) {
+      // Filter pointers list again after set
+      const currentPointers = Array.from(this.activePointers.values());
+      const nonMouseCount = currentPointers.filter(p => p.pointerType !== 'mouse').length;
+      
+      if (this.isGesture && nonMouseCount > 1) {
           this._handleGesture();
           return;
       }
@@ -2126,9 +2165,48 @@ export class Engine {
 
     const stamps = [];
     let p = this.spacingAccumulator;
+    const jPos = this.brush.jitterPos || 0;
+    const jSize = this.brush.jitterSize || 0;
+    const jAngle = this.brush.jitterAngle || 0;
+    const jHue = this.brush.jitterHue || 0;
+
     while (p <= dist) {
         const t = dist === 0 ? 0 : p / dist;
-        stamps.push({ x: from.x + dx * t, y: from.y + dy * t });
+        let sx = from.x + dx * t;
+        let sy = from.y + dy * t;
+        
+        // Position Jitter
+        if (jPos > 0) {
+            const range = bSize * jPos * 2;
+            sx += (Math.random() - 0.5) * range;
+            sy += (Math.random() - 0.5) * range;
+        }
+
+        const stamp = { x: sx, y: sy };
+
+        // Size Jitter
+        if (jSize > 0) {
+            stamp.size = bSize * (1 + (Math.random() - 0.5) * jSize);
+        } else {
+            stamp.size = bSize;
+        }
+
+        // Angle Jitter
+        if (jAngle > 0) {
+            stamp.angle = (this.rotation || 0) + (Math.random() - 0.5) * jAngle * 2;
+        } else {
+            stamp.angle = this.rotation || 0;
+        }
+
+        // Hue Jitter
+        if (jHue > 0) {
+            // Shift hue by up to 180 degrees based on jitter amount
+            stamp.color = this._shiftColor(color, (Math.random() - 0.5) * jHue * 360, 0);
+        } else {
+            stamp.color = color;
+        }
+
+        stamps.push(stamp);
         p += currentSpacing;
     }
     this.spacingAccumulator = p - dist;
@@ -2162,14 +2240,14 @@ export class Engine {
     }
 
     // 4. Find Affected Chunks and grouping stamps
-    const stampR = bSize / 2;
     const affectedChunks = new Map();
 
     for (const s of stamps) {
-        const sCX = Math.floor((s.x - stampR) / this.chunkSize);
-        const eCX = Math.floor((s.x + stampR) / this.chunkSize);
-        const sCY = Math.floor((s.y - stampR) / this.chunkSize);
-        const eCY = Math.floor((s.y + stampR) / this.chunkSize);
+        const sR = s.size / 2;
+        const sCX = Math.floor((s.x - sR) / this.chunkSize);
+        const eCX = Math.floor((s.x + sR) / this.chunkSize);
+        const sCY = Math.floor((s.y - sR) / this.chunkSize);
+        const eCY = Math.floor((s.y + sR) / this.chunkSize);
 
         for (let cx = sCX; cx <= eCX; cx++) {
             for (let cy = sCY; cy <= eCY; cy++) {
@@ -2188,13 +2266,14 @@ export class Engine {
     // Eraser and Smudge are direct-to-layer, so they must apply the main brush opacity immediately.
     // Regular brushes apply it at the end of the stroke (baking step).
     const opacityBase = (isEraser || isSmudge) ? (opacity * flow * this.brush.opacity) : (opacity * flow);
-    const hasRotation = this.rotation !== 0;
+    const hasSpecialJitter = (jSize > 0 || jHue > 0);
 
     if (isSmudge) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const s of stamps) {
-            minX = Math.min(minX, s.x - stampR); minY = Math.min(minY, s.y - stampR);
-            maxX = Math.max(maxX, s.x + stampR); maxY = Math.max(maxY, s.y + stampR);
+            const sR = s.size / 2;
+            minX = Math.min(minX, s.x - sR); minY = Math.min(minY, s.y - sR);
+            maxX = Math.max(maxX, s.x + sR); maxY = Math.max(maxY, s.y + sR);
         }
         minX = Math.floor(minX - 4); minY = Math.floor(minY - 4);
         maxX = Math.ceil(maxX + 4); maxY = Math.ceil(maxY + 4);
@@ -2244,11 +2323,11 @@ export class Engine {
             const sCtx = this.segmentCtx;
             for (const s of stamps) {
                 const px = s.x - minX, py = s.y - minY;
-                const sSz = Math.max(4, bSize), sR = sSz / 2;
+                const sSz = Math.max(4, s.size), sR = sSz / 2;
                 
                 if (this.smudgeDirty) {
                     sCtx.save();
-                    sCtx.translate(px, py); if (hasRotation) sCtx.rotate(this.rotation);                    // Boost visibility of smudge. 
+                    sCtx.translate(px, py); sCtx.rotate(s.angle);                   // Boost visibility of smudge. 
                     // Higher flow = more opaque smudge stamp.
                     sCtx.globalAlpha = Math.min(1.0, flow * (this.brush.smudgeFlowBoost ?? 10.0)); 
                     sCtx.drawImage(this.smudgeCanvas, -sR, -sR, sSz, sSz);
@@ -2369,26 +2448,52 @@ export class Engine {
         for (const s of group.stamps) {
             const px = Math.round(s.x - lx);
             const py = Math.round(s.y - ly);
+            const curSize = Math.round(s.size);
+            const curR = curSize / 2;
             
-            // Regular stamps: optimized by avoiding save/restore if no rotation/tip
-            if (!hasRotation && !tip && !isWire) {
+            // Regular stamps: optimized by avoiding save/restore if no rotation/tip/jitter
+            if (s.angle === 0 && !tip && !isWire && !hasSpecialJitter) {
                 if (isEraser) {
-                    ctx.clearRect(px - stampR, py - stampR/2, bSize, bSize/2);
+                    ctx.clearRect(px - curR, py - curR/2, curSize, curSize/2);
                 } else {
-                    ctx.fillRect(px - stampR, py - stampR/2, bSize, bSize/2);
+                    ctx.fillStyle = s.color;
+                    ctx.fillRect(px - curR, py - curR/2, curSize, curSize/2);
                 }
             } else {
                 ctx.save();
                 ctx.translate(px, py);
-                if (hasRotation) ctx.rotate(this.rotation);
+                if (s.angle !== 0) ctx.rotate(s.angle);
 
                 if (isWire) {
-                    ctx.beginPath(); ctx.arc(0, 0, stampR, 0, Math.PI*2);
-                    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.beginPath(); ctx.arc(0, 0, curR, 0, Math.PI*2);
+                    ctx.strokeStyle = s.color; ctx.lineWidth = 1.5; ctx.stroke();
                 } else if (tip) {
+                    // Refresh cache if size or color changed due to jitter
+                    let useTip = this._tipColorCache.canvas;
+                    if (hasSpecialJitter) {
+                        // For high performance, we should ideally have a pool of caches or just draw scaled.
+                        // However, _updateTipCache uses filters which are slow inside a loop.
+                        // Let's use the current cache but draw it scaled.
+                        // If color changed, we might need a temporary tinting pass or just accept slight inaccuracy 
+                        // for hue jitter when using custom tips (Hue jitter is mostly for solid/procedural brushes).
+                        // Actually, let's tint it if hue jitter is on.
+                    }
+
                     // Relief / Impasto effect
                     if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
-                        ctx.drawImage(this._tipColorCache.canvas, -stampR, -stampR);
+                        // Sync color for tip if jittered
+                        if (jHue > 0) {
+                            this.scratchCanvas.width = curSize;
+                            this.scratchCanvas.height = curSize;
+                            this.scratchCtx.clearRect(0, 0, curSize, curSize);
+                            this.scratchCtx.drawImage(useTip, 0, 0, curSize, curSize);
+                            this.scratchCtx.globalCompositeOperation = 'source-in';
+                            this.scratchCtx.fillStyle = s.color;
+                            this.scratchCtx.fillRect(0, 0, curSize, curSize);
+                            ctx.drawImage(this.scratchCanvas, -curR, -curR);
+                        } else {
+                            ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
+                        }
 
                         // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
                         if (height > 0) {
@@ -2396,7 +2501,7 @@ export class Engine {
                             ctx.globalCompositeOperation = 'multiply';
                             ctx.translate(1, 1);
                             ctx.globalAlpha = height * 0.22;
-                            ctx.drawImage(this._reliefCache.shadow, -stampR, -stampR);
+                            ctx.drawImage(this._reliefCache.shadow, -curR, -curR, curSize, curSize);
                             ctx.restore();
                         }
 
@@ -2407,7 +2512,7 @@ export class Engine {
                             ctx.globalCompositeOperation = 'multiply';
                             ctx.translate(-1, -1);
                             ctx.globalAlpha = Math.min(1.0, baseHighlightOpacity);
-                            ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR);
+                            ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
                             ctx.restore();
                         }
 
@@ -2419,14 +2524,37 @@ export class Engine {
                             ctx.globalCompositeOperation = 'overlay'; 
                             ctx.translate(-1.5, -1.5); // Slightly different offset for "thickness"
                             ctx.globalAlpha = Math.min(0.8, oilOpacity);
-                            ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR);
+                            ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
                             ctx.restore();
                         }
                     } else {
-                        ctx.drawImage(this._tipColorCache.canvas, -stampR, -stampR);
+                        if (jHue > 0 || jSize > 0) {
+                             ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
+                             // If hue jitter is on, we'd need to re-tint. 
+                             // To keep it fast, we skip re-tinting custom tips for now if they are 128x128.
+                             // But we can apply a globalCompositeOperation if it's not too slow.
+                             if (jHue > 0) {
+                                ctx.save();
+                                ctx.globalCompositeOperation = 'source-in';
+                                ctx.fillStyle = s.color;
+                                // This is tricky because we're in a translated state.
+                                // We'll just draw the tip then tint it.
+                                ctx.restore(); // Exit previous save
+                                ctx.save();
+                                ctx.translate(px, py);
+                                if (s.angle !== 0) ctx.rotate(s.angle);
+                                ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
+                                ctx.globalCompositeOperation = 'source-in';
+                                ctx.fillStyle = s.color;
+                                ctx.fillRect(-curR, -curR, curSize, curSize);
+                             }
+                        } else {
+                             ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
+                        }
                     }
                 } else {
-                    ctx.fillRect(-stampR, -stampR/2, bSize, bSize/2);
+                    ctx.fillStyle = s.color;
+                    ctx.fillRect(-curR, -curR/2, curSize, curSize/2);
                 }
                 ctx.restore();
             }
@@ -2822,7 +2950,10 @@ export class Engine {
 
   _handleGesture() {
     const pointers = Array.from(this.activePointers.values());
-    if (pointers.length < 2 || !this.gestureStartCenter) return;
+    if (pointers.length < 2 || !this.gestureStartCenter) {
+        this.isGesture = false;
+        return;
+    }
     const p1 = pointers[0];
     const p2 = pointers[1];
     
