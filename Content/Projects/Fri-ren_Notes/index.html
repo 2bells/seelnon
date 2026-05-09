@@ -21,7 +21,7 @@
           <span class="brand-text">FRI-REN NOTES</span>
         </div>
         <nav class="top-nav">
-          <span id="view-btn">View</span>
+          <span id="view-btn">Settings</span>
           <span id="graph-btn">Graph</span>
           <span id="db-btn">Database</span>
         </nav>
@@ -50,20 +50,31 @@
         <main id="editor-container">
           <div id="toolbar">
             <div class="note-status">
-              <input type="text" id="note-folder" placeholder="folder/" style="width: 80px; opacity: 0.5;" />
+              <input type="text" id="note-folder" placeholder="folder/" />
+              <div id="status-resizer" class="resizer-v"></div>
               <input type="text" id="note-title" placeholder="Untitled Note" />
             </div>
             <div class="toolbar-actions">
-              <button id="toggle-preview" title="Toggle Preview">Preview Mode</button>
+              <button id="toggle-preview" title="Toggle Preview">View</button>
               <button id="canvas-mode-btn" title="Toggle Canvas">Canvas</button>
               <button id="delete-note" title="Delete Note">Delete</button>
-              <button id="download-pdf-btn" title="Download as PDF">[ ↓ PDF ]</button>
+              <button id="download-pdf-btn" title="Download as PDF">↓</button>
             </div>
           </div>
           <div class="split-view">
             <div id="editor-wrapper">
               <div id="line-numbers"></div>
+              <div id="editor-highlights"></div>
               <textarea id="editor" placeholder="Write your markdown here... (Paste images with Ctrl+V)"></textarea>
+              <div id="editor-search-widget" class="hidden">
+                <div class="search-main">
+                  <input type="text" id="editor-search-input" placeholder="Find..." />
+                  <span id="editor-search-results">0/0</span>
+                  <button id="editor-search-prev" style="height: 20px; width: 24px; padding: 0;">↑</button>
+                  <button id="editor-search-next" style="height: 20px; width: 24px; padding: 0;">↓</button>
+                  <button id="editor-search-close" style="height: 20px; width: 24px; padding: 0;">×</button>
+                </div>
+              </div>
             </div>
             <div id="preview" class="hidden"></div>
             <div id="canvas-panel" class="hidden">
@@ -137,6 +148,14 @@
               <input type="checkbox" id="print-continuous-check" />
               <span>Continuous Flow</span>
             </label>
+            <label class="checkbox-container">
+              <input type="checkbox" id="dbl-click-rename-check" checked />
+              <span>Double Click Renaming</span>
+            </label>
+          </div>
+          <div class="control-group">
+            <label>TINT PALETTE (CLICK TO EDIT)</label>
+            <div id="settings-palette-grid" class="color-grid"></div>
           </div>
           <button class="close-overlay">CLOSE</button>
         </div>

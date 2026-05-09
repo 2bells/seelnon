@@ -9,22 +9,38 @@ export class Vault {
   }
 
   async init() {
+    if (this.db) return Promise.resolve();
+    
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 2); // Upgraded version for folders
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('notes')) {
-          db.createObjectStore('notes', { keyPath: 'id', autoIncrement: true });
-        }
-        if (!db.objectStoreNames.contains('images')) {
-          db.createObjectStore('images', { keyPath: 'id' });
-        }
-      };
-      request.onsuccess = (e) => {
-        this.db = e.target.result;
-        resolve();
-      };
-      request.onerror = (e) => reject(e);
+      try {
+        const request = indexedDB.open(this.dbName, 2);
+        
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('notes')) {
+            db.createObjectStore('notes', { keyPath: 'id', autoIncrement: true });
+          }
+          if (!db.objectStoreNames.contains('images')) {
+            db.createObjectStore('images', { keyPath: 'id' });
+          }
+        };
+
+        request.onsuccess = (e) => {
+          this.db = e.target.result;
+          resolve();
+        };
+
+        request.onerror = (e) => {
+          console.error("Vault activation error:", e.target.error);
+          reject(e.target.error);
+        };
+
+        request.onblocked = () => {
+          console.warn("Vault upgrade blocked. Please close other instances of this monolith.");
+        };
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 

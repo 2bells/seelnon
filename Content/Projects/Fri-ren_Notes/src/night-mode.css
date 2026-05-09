@@ -59,8 +59,17 @@ body.night-mode #line-numbers {
 
 body.night-mode #editor {
   color: #a18a5e; /* Light coffee gold text */
-  background: var(--bg-workspace);
+  background: transparent;
   caret-color: #a18a5e;
+}
+
+body.night-mode #editor-highlights mark {
+  background-color: rgba(255, 230, 0, 0.15) !important; /* Faint yellow glow for matches */
+}
+
+body.night-mode #editor-highlights mark.current {
+  background-color: rgba(255, 120, 0, 0.25) !important; /* High contrast orange for current */
+  border-bottom: 2px solid #ff7800 !important;
 }
 
 body.night-mode #preview {

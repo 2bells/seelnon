@@ -40,12 +40,38 @@ class CavemanApp {
     this.graphBtn = document.getElementById('graph-btn');
     this.dbMenu = document.getElementById('db-menu');
     this.graphMenu = document.getElementById('graph-menu');
+    this.statusResizer = document.getElementById('status-resizer');
     this.closeOverlayBtns = document.querySelectorAll('.close-overlay');
     this.collapsedFolders = JSON.parse(localStorage.getItem('caveman-collapsed-folders') || '[]');
     this.imageCache = new Map(); // Memory cache to prevent flash
     this.historyStack = new Map(); // noteId -> { undo: [], redo: [] }
     this.historyTimer = null;
     this.measureEl = null;
+    this.renamingFolder = null;
+    this.renamingNoteId = null;
+    this.lastFolderClick = { time: 0, path: null };
+    this.lastNoteClick = { time: 0, id: null };
+    this.FAST_DBL_CLICK_THRESHOLD = 250;
+    this.dblClickRenaming = localStorage.getItem('caveman-dbl-click-rename') !== 'false';
+    this.folderSettings = JSON.parse(localStorage.getItem('caveman-folder-settings') || '{}');
+    this.activePopover = null;
+    this.DEFAULT_PALETTE = [
+      '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff',
+      '#a0c4ff', '#bdb2ff', '#ffc6ff', '#fffffc'
+    ];
+    this.tintPalette = JSON.parse(localStorage.getItem('caveman-tint-palette') || JSON.stringify(this.DEFAULT_PALETTE));
+    this.paletteGridEl = document.getElementById('settings-palette-grid');
+
+    // Search Widget Elements
+    this.editorSearchWidget = document.getElementById('editor-search-widget');
+    this.editorSearchInput = document.getElementById('editor-search-input');
+    this.editorSearchResults = document.getElementById('editor-search-results');
+    this.editorSearchNext = document.getElementById('editor-search-next');
+    this.editorSearchPrev = document.getElementById('editor-search-prev');
+    this.editorSearchClose = document.getElementById('editor-search-close');
+    this.editorSearchMatches = [];
+    this.currentSearchMatchIndex = -1;
+    this.editorHighlightsEl = document.getElementById('editor-highlights');
 
     this.initLazyLoader();
     this.init();
@@ -81,21 +107,73 @@ class CavemanApp {
   }
 
   async init() {
-    // 0. Theme First (Immediate Caveman Comfort)
-    const savedNightMode = localStorage.getItem('caveman-night-mode');
-    if (savedNightMode === 'true') {
-      this.isNightMode = true;
-      document.body.classList.add('night-mode');
-      document.documentElement.classList.add('night-mode');
+    try {
+      // 0. Theme First (Immediate Caveman Comfort)
+      const savedNightMode = localStorage.getItem('caveman-night-mode');
+      if (savedNightMode === 'true') {
+        this.isNightMode = true;
+        document.body.classList.add('night-mode');
+        document.documentElement.classList.add('night-mode');
+      }
+
+      // Explicitly wait for vault before proceeding to UI binding
+      await this.vault.init();
+      
+      // 1. Initial Load (Local Vault First)
+      this.publicNotes = [];
+      await this.loadNotes();
+      
+      // Initialize settings elements
+      this.dblClickRenameCheck = document.getElementById('dbl-click-rename-check');
+      if (this.dblClickRenameCheck) {
+        this.dblClickRenameCheck.checked = this.dblClickRenaming;
+      }
+
+      // 2. Restore Last Session OR Create New (Critical: Await this before listeners)
+      if (this.notes.length > 0) {
+        const lastNoteId = localStorage.getItem('caveman-last-note-id');
+        const lastNote = this.notes.find(n => String(n.id) === String(lastNoteId));
+        if (lastNote) {
+          await this.selectNote(lastNote);
+        } else {
+          await this.selectNote(this.notes[0]);
+        }
+      } else {
+        await this.createNewNote();
+      }
+
+      this.renderPaletteInSettings();
+      // 3. Attach Listeners ONLY after initial state is set
+      this.attachEventListeners();
+
+      // 4. Background Load Ancient Scrolls (Public Tutorial)
+      this.loadPublicNotes().then(() => {
+        this.loadNotes(); // Update registry with public notes when ready
+      }).catch(err => console.warn("Scroll acquisition failed", err));
+
+    } catch (err) {
+      console.error("CRITICAL: Ancient monolith failed to activate.", err);
+      // Fallback: Notify user or attempt one retry?
+    }
+  }
+
+  attachEventListeners() {
+    window.addEventListener('mousedown', (e) => {
+      if (this.activePopover && !this.activePopover.contains(e.target)) {
+        this.activePopover.remove();
+        this.activePopover = null;
+        this.renderNoteList(); 
+      }
+    });
+
+    if (this.dblClickRenameCheck) {
+      this.dblClickRenameCheck.addEventListener('change', () => {
+        this.dblClickRenaming = this.dblClickRenameCheck.checked;
+        localStorage.setItem('caveman-dbl-click-rename', this.dblClickRenaming);
+      });
     }
 
-    await this.vault.init();
-    
-    // 1. Initial Load (Local Vault First)
-    this.publicNotes = [];
-    await this.loadNotes();
-
-    // Event Listeners
+    // New Note logic
     let newNoteTimer;
     let longPressTriggered = false;
 
@@ -104,7 +182,6 @@ class CavemanApp {
       newNoteTimer = setTimeout(() => {
         this.createCustodesNote();
         longPressTriggered = true;
-        // Simple visual feedback
         this.newNoteBtn.classList.add('easter-egg-trigger');
         setTimeout(() => this.newNoteBtn.classList.remove('easter-egg-trigger'), 500);
       }, 2500);
@@ -132,9 +209,27 @@ class CavemanApp {
     this.editorEl.addEventListener('input', () => {
       this.handleInput();
       this.updateLineNumbers();
+      if (!this.editorSearchWidget.classList.contains('hidden')) {
+        this.performSearch(false); // Update results without jumping if typing
+      }
     });
+
+    this.editorSearchInput.addEventListener('input', () => this.performSearch());
+    this.editorSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) this.goToPrevMatch();
+        else this.goToNextMatch();
+      }
+      if (e.key === 'Escape') this.hideSearch();
+    });
+    this.editorSearchNext.addEventListener('click', () => this.goToNextMatch());
+    this.editorSearchPrev.addEventListener('click', () => this.goToPrevMatch());
+    this.editorSearchClose.addEventListener('click', () => this.hideSearch());
     this.editorEl.addEventListener('scroll', () => {
       this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
+      this.editorHighlightsEl.scrollTop = this.editorEl.scrollTop;
+      this.editorHighlightsEl.scrollLeft = this.editorEl.scrollLeft;
     });
     this.titleInput.addEventListener('input', () => this.handleInput());
     this.folderInput.addEventListener('input', () => this.handleInput());
@@ -147,6 +242,35 @@ class CavemanApp {
     this.importInput.addEventListener('change', (e) => this.importVault(e));
     this.searchInput.addEventListener('input', () => this.renderNoteList());
     this.themeToggle.addEventListener('click', () => this.toggleTheme());
+
+    // Status resizer logic
+    const savedFolderWidth = localStorage.getItem('caveman-folder-width') || '80';
+    this.folderInput.style.width = `${savedFolderWidth}px`;
+    this.isResizingStatus = false;
+
+    this.statusResizer.addEventListener('mousedown', (e) => {
+      this.isResizingStatus = true;
+      document.body.style.cursor = 'ew-resize';
+      this.statusResizer.classList.add('active');
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isResizingStatus) return;
+      const rect = this.folderInput.getBoundingClientRect();
+      const newWidth = Math.max(40, Math.min(600, e.clientX - rect.left));
+      this.folderInput.style.width = `${newWidth}px`;
+      localStorage.setItem('caveman-folder-width', newWidth);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (this.isResizingStatus) {
+        this.isResizingStatus = false;
+        document.body.style.cursor = '';
+        this.statusResizer.classList.remove('active');
+      }
+    });
+
     window.addEventListener('resize', () => this.updateLineNumbers());
 
     this.previewEl.addEventListener('click', (e) => this.handlePreviewClick(e));
@@ -163,6 +287,12 @@ class CavemanApp {
       localStorage.setItem('caveman-print-continuous', checked);
       document.body.classList.toggle('print-continuous', checked);
     });
+
+    this.dblClickRenameCheck.addEventListener('change', () => {
+      this.dblClickRenaming = this.dblClickRenameCheck.checked;
+      localStorage.setItem('caveman-dbl-click-rename', this.dblClickRenaming);
+    });
+
     this.dbBtn.addEventListener('click', () => this.openDatabaseMenu());
     this.graphBtn.addEventListener('click', () => {
       this.closeOverlays();
@@ -223,7 +353,7 @@ class CavemanApp {
         e.preventDefault();
         this.toggleEditorMode();
       }
-      if (e.ctrlKey && e.key === 'k') { // New shortcut for Canvas?
+      if (e.ctrlKey && e.key === 'k') {
         e.preventDefault();
         this.toggleCanvasMode();
       }
@@ -231,9 +361,14 @@ class CavemanApp {
         e.preventDefault();
         this.toggleSidebar();
       }
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        this.showSearch();
+      }
       if (e.key === 'Escape') {
         this.closeOverlays();
         this.graphModule.close();
+        this.hideSearch();
       }
       
       // Undo/Redo
@@ -249,24 +384,6 @@ class CavemanApp {
         e.preventDefault();
         this.redo();
       }
-    });
-
-    // 2. Restore Last Session
-    if (this.notes.length > 0) {
-      const lastNoteId = localStorage.getItem('caveman-last-note-id');
-      const lastNote = this.notes.find(n => String(n.id) === String(lastNoteId));
-      if (lastNote) {
-        this.selectNote(lastNote);
-      } else {
-        this.selectNote(this.notes[0]);
-      }
-    } else {
-      this.createNewNote();
-    }
-
-    // 3. Background Load Ancient Scrolls (Public Tutorial)
-    this.loadPublicNotes().then(() => {
-      this.loadNotes(); // Update registry with public notes when ready
     });
   }
 
@@ -317,6 +434,198 @@ class CavemanApp {
     }
   }
 
+  async renameFolder(oldFolderPath, newFolderName) {
+    if (!newFolderName || !oldFolderPath) return;
+    
+    const parts = oldFolderPath.split('/');
+    const newPathParts = [...parts];
+    newPathParts[newPathParts.length - 1] = newFolderName.toUpperCase();
+    const newFolderPath = newPathParts.join('/');
+
+    if (oldFolderPath === newFolderPath) {
+      this.renamingFolder = null;
+      this.renderNoteList();
+      return;
+    }
+
+    const updates = this.notes
+      .filter(note => !note.isPublic)
+      .filter(note => {
+        const folder = (note.folder || '').toUpperCase();
+        return folder === oldFolderPath || folder.startsWith(oldFolderPath + '/');
+      })
+      .map(async note => {
+        const folder = note.folder || '';
+        const folderUpper = folder.toUpperCase();
+        
+        let updatedFolder;
+        if (folderUpper === oldFolderPath) {
+          updatedFolder = newFolderPath;
+        } else {
+          updatedFolder = newFolderPath + folder.slice(oldFolderPath.length);
+        }
+        
+        note.folder = updatedFolder;
+        note.updatedAt = Date.now();
+        await this.vault.saveNote(note);
+      });
+
+    await Promise.all(updates);
+    this.renamingFolder = null;
+    await this.loadNotes();
+    
+    if (this.currentNote) {
+       this.folderInput.value = this.currentNote.folder || '';
+    }
+  }
+
+  async renameNote(noteId, newTitle) {
+    if (!newTitle) return;
+    const note = this.notes.find(n => n.id === noteId);
+    if (!note || note.isPublic) return;
+    
+    if (note.title === newTitle) {
+      this.renamingNoteId = null;
+      this.renderNoteList();
+      return;
+    }
+
+    note.title = note.isPublic ? note.title : newTitle;
+    if (!note.isPublic) {
+      note.updatedAt = Date.now();
+      await this.vault.saveNote(note);
+    }
+    this.renamingNoteId = null;
+    await this.loadNotes();
+    
+    if (this.currentNote && this.currentNote.id === noteId) {
+      this.titleInput.value = note.title;
+    }
+  }
+
+  async moveNoteToFolder(noteId, folderPath) {
+    const note = this.notes.find(n => n.id.toString() === noteId.toString());
+    if (!note || note.isPublic) return;
+
+    if (note.folder === folderPath) return;
+
+    note.folder = folderPath;
+    note.updatedAt = Date.now();
+    await this.vault.saveNote(note);
+    await this.loadNotes();
+    
+    if (this.currentNote && this.currentNote.id.toString() === noteId.toString()) {
+      this.folderInput.value = folderPath;
+    }
+  }
+
+  openFolderSettings(folderPath, triggerEl) {
+    if (this.activePopover) {
+      this.activePopover.remove();
+    }
+
+    const rect = triggerEl.getBoundingClientRect();
+    const popover = document.createElement('div');
+    popover.className = 'folder-settings-popover';
+    popover.style.top = `${rect.bottom + 5}px`;
+    popover.style.left = `${Math.max(10, rect.left)}px`;
+
+    const settings = this.folderSettings[folderPath] || { color: '#fffffc', emoji: '' };
+
+    // Emoji Picker
+    const emojiTitle = document.createElement('div');
+    emojiTitle.className = 'popover-title';
+    emojiTitle.textContent = 'FOLDER ICON';
+    popover.appendChild(emojiTitle);
+
+    const emojiField = document.createElement('div');
+    emojiField.className = 'emoji-picker-field';
+    const emojiInput = document.createElement('input');
+    emojiInput.type = 'text';
+    emojiInput.className = 'emoji-picker-input';
+    emojiInput.placeholder = 'Emoji...';
+    emojiInput.value = settings.emoji || '';
+    emojiField.appendChild(emojiInput);
+    popover.appendChild(emojiField);
+
+    // Color Picker
+    const colorTitle = document.createElement('div');
+    colorTitle.className = 'popover-title';
+    colorTitle.textContent = 'TINT COLOR';
+    popover.appendChild(colorTitle);
+
+    const colorGrid = document.createElement('div');
+    colorGrid.className = 'color-grid';
+    const colors = [...this.tintPalette, ''];
+
+    colors.forEach(c => {
+      const swatch = document.createElement('div');
+      swatch.className = `color-swatch ${settings.color === c ? 'active' : ''}`;
+      if (!c) swatch.classList.add('empty');
+      if (c) swatch.style.backgroundColor = c;
+      swatch.onclick = () => {
+        settings.color = c;
+        this.folderSettings[folderPath] = { ...settings };
+        this.saveFolderSettings();
+        this.renderNoteList();
+        popover.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+      };
+      colorGrid.appendChild(swatch);
+    });
+    popover.appendChild(colorGrid);
+
+    emojiInput.oninput = () => {
+      settings.emoji = emojiInput.value.trim().slice(0, 2);
+      this.folderSettings[folderPath] = { ...settings };
+      this.saveFolderSettings();
+      this.renderNoteList(); 
+    };
+
+    emojiInput.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        this.renderNoteList();
+        popover.remove();
+        this.activePopover = null;
+      }
+    };
+
+    document.body.appendChild(popover);
+    this.activePopover = popover;
+  }
+
+  saveFolderSettings() {
+    localStorage.setItem('caveman-folder-settings', JSON.stringify(this.folderSettings));
+  }
+  
+  savePalette() {
+    localStorage.setItem('caveman-tint-palette', JSON.stringify(this.tintPalette));
+  }
+
+  renderPaletteInSettings() {
+    if (!this.paletteGridEl) return;
+    this.paletteGridEl.innerHTML = '';
+    this.tintPalette.forEach((color, index) => {
+      const item = document.createElement('div');
+      item.className = 'palette-item';
+      item.style.backgroundColor = color;
+      
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.value = color;
+      input.oninput = (e) => {
+        const newColor = e.target.value;
+        this.tintPalette[index] = newColor;
+        item.style.backgroundColor = newColor;
+        this.savePalette();
+        this.renderNoteList(); 
+      };
+      
+      item.appendChild(input);
+      this.paletteGridEl.appendChild(item);
+    });
+  }
+
   async loadNotes() {
     const localNotes = await this.vault.getNotes();
     const publicNotes = this.publicNotes || [];
@@ -338,6 +647,26 @@ class CavemanApp {
     const query = this.searchInput.value.toLowerCase();
     this.noteListEl.innerHTML = '';
     
+    // ROOT DROP TARGET (for moving notes out of folders)
+    this.noteListEl.ondragover = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      this.noteListEl.classList.add('drag-over-root');
+    };
+    this.noteListEl.ondragleave = () => {
+      this.noteListEl.classList.remove('drag-over-root');
+    };
+    this.noteListEl.ondrop = async (e) => {
+      // Only trigger if we dropped on the actual list container, not children
+      if (e.target !== this.noteListEl) return;
+      e.preventDefault();
+      this.noteListEl.classList.remove('drag-over-root');
+      const noteId = e.dataTransfer.getData('text/plain');
+      if (noteId) {
+        await this.moveNoteToFolder(noteId, '');
+      }
+    };
+
     const filtered = this.notes
       .sort((a,b) => (a.title || '').localeCompare(b.title || ''))
       .filter(note => {
@@ -369,25 +698,104 @@ class CavemanApp {
     Object.keys(node.folders).sort().forEach(name => {
       const folder = node.folders[name];
       const isCollapsed = this.collapsedFolders.includes(folder.path);
+      const isRenaming = this.renamingFolder === folder.path;
       
       const header = document.createElement('div');
-      header.className = `sidebar-folder-label ${isCollapsed ? 'collapsed' : ''}`;
-      header.style.paddingLeft = `${16 + (depth * 12)}px`;
-      header.textContent = name.toUpperCase();
+      header.className = `sidebar-folder-label ${isCollapsed ? 'collapsed' : ''} ${isRenaming ? 'renaming' : ''}`;
+      header.style.paddingLeft = '4px'; // Almost hugging the left wall
       
-      header.onclick = (e) => {
-        e.stopPropagation();
-        this.toggleFolder(folder.path);
-      };
+      if (isRenaming) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'folder-rename-input';
+        input.style.marginLeft = `${depth * 12}px`;
+        input.value = name;
+        header.appendChild(input);
+        
+        // Timeout to focus because browser might not have attached it yet
+        setTimeout(() => {
+          input.focus();
+          input.select();
+        }, 10);
 
-      header.ondblclick = (e) => {
-        e.stopPropagation();
-        this.folderInput.focus();
-      };
+        const handleRename = async () => {
+          const newName = input.value.trim().toUpperCase();
+          if (newName && newName !== name) {
+            await this.renameFolder(folder.path, newName);
+          } else {
+            this.renamingFolder = null;
+            this.renderNoteList();
+          }
+        };
+
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter') handleRename();
+          if (e.key === 'Escape') {
+            this.renamingFolder = null;
+            this.renderNoteList();
+          }
+        };
+        input.onblur = handleRename;
+        input.onclick = (e) => e.stopPropagation();
+      } else {
+        const settings = this.folderSettings[folder.path] || {};
+        const tint = settings.color || '';
+        if (tint) {
+          header.style.backgroundColor = `${tint}33`; // 33 hex is roughly 20% alpha
+        } else {
+          header.style.backgroundColor = '';
+        }
+
+        const configTrigger = document.createElement('div');
+        configTrigger.className = 'folder-config-trigger';
+        configTrigger.textContent = settings.emoji || '⋮';
+        configTrigger.onclick = (e) => {
+          e.stopPropagation();
+          this.openFolderSettings(folder.path, configTrigger);
+        };
+        header.appendChild(configTrigger);
+
+        const labelText = document.createElement('span');
+        labelText.className = 'folder-label-text';
+        labelText.textContent = name.toUpperCase();
+        labelText.style.paddingLeft = `${depth * 12}px`;
+        header.appendChild(labelText);
+
+        header.onclick = (e) => {
+          e.stopPropagation();
+          const now = Date.now();
+          if (this.dblClickRenaming && now - this.lastFolderClick.time < this.FAST_DBL_CLICK_THRESHOLD && this.lastFolderClick.path === folder.path) {
+            this.renamingFolder = folder.path;
+            this.renderNoteList();
+          } else {
+            this.toggleFolder(folder.path);
+          }
+          this.lastFolderClick = { time: now, path: folder.path };
+        };
+
+        // DRAG AND DROP: FOLDER DROP TARGET
+        header.ondragover = (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          header.classList.add('drag-over');
+        };
+        header.ondragleave = () => {
+          header.classList.remove('drag-over');
+        };
+        header.ondrop = async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          header.classList.remove('drag-over');
+          const noteId = e.dataTransfer.getData('text/plain');
+          if (noteId) {
+            await this.moveNoteToFolder(noteId, folder.path);
+          }
+        };
+      }
 
       container.appendChild(header);
 
-      if (!isCollapsed) {
+      if (!isCollapsed && !isRenaming) {
         const folderContent = document.createElement('div');
         folderContent.className = 'folder-content';
         this.renderTree(folder, folderContent, depth + 1);
@@ -397,33 +805,85 @@ class CavemanApp {
 
     // Render notes in this folder
     node.notes.forEach(note => {
+      const isRenaming = this.renamingNoteId === note.id;
       const el = document.createElement('div');
-      el.className = `note-item ${this.currentNote && this.currentNote.id === note.id ? 'active' : ''}`;
+      el.className = `note-item ${this.currentNote && this.currentNote.id === note.id ? 'active' : ''} ${isRenaming ? 'renaming' : ''}`;
       el.style.paddingLeft = `${depth > 0 ? 16 + (depth * 12) : 16}px`;
 
-      const titleSpan = document.createElement('span');
-      titleSpan.textContent = note.title || 'Untitled';
-      if (note.isPublic) el.classList.add('note-public');
-      titleSpan.style.overflow = 'hidden';
-      titleSpan.style.textOverflow = 'ellipsis';
-      titleSpan.style.whiteSpace = 'nowrap';
-      
-      const timeSpan = document.createElement('span');
-      timeSpan.className = 'opacity-60';
-      timeSpan.style.fontSize = '9px';
-      timeSpan.style.marginLeft = '8px';
-      timeSpan.textContent = this.formatRelativeTime(note.updatedAt);
-      
-      el.appendChild(titleSpan);
-      el.appendChild(timeSpan);
-      
-      el.onclick = () => {
-        this.selectNote(note);
-      };
-      el.ondblclick = () => {
-        this.selectNote(note);
-        this.titleInput.focus();
-      };
+      if (isRenaming) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'note-rename-input';
+        input.value = note.title;
+        el.appendChild(input);
+
+        setTimeout(() => {
+          input.focus();
+          input.select();
+        }, 10);
+
+        const handleRename = async () => {
+          const newTitle = input.value.trim();
+          if (newTitle && newTitle !== note.title) {
+            await this.renameNote(note.id, newTitle);
+          } else {
+            this.renamingNoteId = null;
+            this.renderNoteList();
+          }
+        };
+
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter') handleRename();
+          if (e.key === 'Escape') {
+            this.renamingNoteId = null;
+            this.renderNoteList();
+          }
+        };
+        input.onblur = handleRename;
+        input.onclick = (e) => e.stopPropagation();
+      } else {
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = note.title || 'Untitled';
+        if (note.isPublic) el.classList.add('note-public');
+        titleSpan.style.overflow = 'hidden';
+        titleSpan.style.textOverflow = 'ellipsis';
+        titleSpan.style.whiteSpace = 'nowrap';
+        
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'opacity-60';
+        timeSpan.style.fontSize = '9px';
+        timeSpan.style.marginLeft = '8px';
+        timeSpan.textContent = this.formatRelativeTime(note.updatedAt);
+        
+        el.appendChild(titleSpan);
+        el.appendChild(timeSpan);
+        
+        el.onclick = () => {
+          const now = Date.now();
+          if (this.dblClickRenaming && now - this.lastNoteClick.time < this.FAST_DBL_CLICK_THRESHOLD && this.lastNoteClick.id === note.id) {
+            if (!note.isPublic) {
+              this.renamingNoteId = note.id;
+              this.renderNoteList();
+            }
+          } else {
+            this.selectNote(note);
+          }
+          this.lastNoteClick = { time: now, id: note.id };
+        };
+
+        // DRAG AND DROP: NOTE DRAGGABLE
+        if (!note.isPublic) {
+          el.draggable = true;
+          el.ondragstart = (e) => {
+            e.dataTransfer.setData('text/plain', note.id.toString());
+            e.dataTransfer.effectAllowed = 'move';
+            el.style.opacity = '0.5';
+          };
+          el.ondragend = () => {
+            el.style.opacity = '1';
+          };
+        }
+      }
 
       container.appendChild(el);
     });
@@ -527,6 +987,7 @@ class CavemanApp {
   }
 
   async selectNote(note) {
+    this.hideSearch();
     if (this.currentNote && !this.currentNote.isPublic) {
       // Ensure we await the save before switching context to avoid clobbering data
       await this.handleInput(true); 
@@ -535,11 +996,6 @@ class CavemanApp {
     this.titleInput.value = note.title;
     this.folderInput.value = note.folder || '';
     this.editorEl.value = note.content;
-    
-    // Reset scroll positions
-    this.editorEl.scrollTop = 0;
-    this.previewEl.scrollTop = 0;
-    this.lineNumbersEl.scrollTop = 0;
     
     if (this.viewMode === 'editor') {
       this.updateLineNumbers();
@@ -580,6 +1036,15 @@ class CavemanApp {
     if (lastMode === 'preview') this.updatePreview();
     if (lastMode === 'editor') this.updateLineNumbers();
     this.updateStats();
+
+    // Final scroll reset to ensure we are at the top regardless of previous note's state
+    this.editorEl.scrollTop = 0;
+    this.editorEl.scrollLeft = 0;
+    this.previewEl.scrollTop = 0;
+    this.lineNumbersEl.scrollTop = 0;
+    this.editorHighlightsEl.scrollTop = 0;
+    this.editorHighlightsEl.scrollLeft = 0;
+    this.renderHighlights();
   }
 
   async handlePreviewClick(e) {
@@ -1019,7 +1484,8 @@ class CavemanApp {
               this.editorEl.setSelectionRange(newPos, newPos);
               this.editorEl.focus();
 
-              this.handleInput();
+              this.handleInput(false, true); // Save but skip pushing current state to history (we'll push separately if needed)
+              this.updateLineNumbers();
             } else {
               // Note switched mid-paste. Find original note and update IT on disk.
               const originalNote = this.notes.find(n => n.id === noteIdOnStart);
@@ -1148,6 +1614,144 @@ class CavemanApp {
   toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.toggle('hidden');
+  }
+
+  showSearch() {
+    this.editorSearchWidget.classList.remove('hidden');
+    this.editorSearchInput.focus();
+    this.editorSearchInput.select();
+    this.performSearch();
+  }
+
+  hideSearch() {
+    this.editorSearchWidget.classList.add('hidden');
+    this.renderHighlights(); // Clear marks
+    this.editorEl.focus();
+  }
+
+  performSearch(shouldJump = true) {
+    const query = this.editorSearchInput.value;
+    if (!query || query.length < 1) {
+      this.editorSearchMatches = [];
+      this.currentSearchMatchIndex = -1;
+      this.renderHighlights();
+      this.updateSearchUI();
+      return;
+    }
+
+    const text = this.editorEl.value;
+    try {
+      const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      this.editorSearchMatches = [];
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        this.editorSearchMatches.push({ start: match.index, end: match.index + match[0].length });
+      }
+
+      if (this.editorSearchMatches.length > 0) {
+        if (this.currentSearchMatchIndex === -1 || shouldJump) {
+          this.currentSearchMatchIndex = 0;
+          if (shouldJump) {
+            this.highlightMatch(false); 
+          }
+        }
+      } else {
+        this.currentSearchMatchIndex = -1;
+      }
+      this.renderHighlights();
+      this.updateSearchUI();
+    } catch (e) {
+      this.editorSearchMatches = [];
+      this.currentSearchMatchIndex = -1;
+      this.renderHighlights();
+      this.updateSearchUI();
+    }
+  }
+
+  updateSearchUI() {
+    const total = this.editorSearchMatches.length;
+    const current = total > 0 ? this.currentSearchMatchIndex + 1 : 0;
+    this.editorSearchResults.textContent = `${current}/${total}`;
+  }
+
+  highlightMatch(stealFocus = true) {
+    if (this.currentSearchMatchIndex === -1) return;
+    const match = this.editorSearchMatches[this.currentSearchMatchIndex];
+    
+    if (stealFocus) {
+      this.editorEl.focus();
+    }
+    
+    const lineHeight = parseFloat(getComputedStyle(this.editorEl).lineHeight);
+    const beforeText = this.editorEl.value.substring(0, match.start);
+    const lines = beforeText.split('\n');
+    const lineIndex = lines.length - 1;
+    
+    const targetScroll = lineIndex * lineHeight - (this.editorEl.clientHeight / 2);
+    
+    this.editorEl.scrollTop = targetScroll;
+    this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
+    this.editorHighlightsEl.scrollTop = this.editorEl.scrollTop;
+    
+    this.renderHighlights();
+  }
+
+  renderHighlights() {
+    const text = this.editorEl.value;
+    const query = this.editorSearchInput.value;
+    
+    if (!query || this.editorSearchWidget.classList.contains('hidden')) {
+      this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+      return;
+    }
+
+    try {
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedQuery, 'gi');
+      
+      let lastIndex = 0;
+      let html = '';
+      let match;
+      let count = 0;
+
+      while ((match = regex.exec(text)) !== null) {
+        html += this.escapeHtml(text.substring(lastIndex, match.index));
+        const isCurrent = (count === this.currentSearchMatchIndex);
+        html += `<mark class="${isCurrent ? 'current' : ''}">${this.escapeHtml(match[0])}</mark>`;
+        lastIndex = regex.lastIndex;
+        count++;
+      }
+      html += this.escapeHtml(text.substring(lastIndex));
+      this.editorHighlightsEl.innerHTML = html + '\n';
+    } catch (e) {
+      this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+    }
+  }
+
+  escapeHtml(str) {
+    return str.replace(/[&<>"']/g, function(m) {
+      return {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[m];
+    });
+  }
+
+  goToNextMatch() {
+    if (this.editorSearchMatches.length === 0) return;
+    this.currentSearchMatchIndex = (this.currentSearchMatchIndex + 1) % this.editorSearchMatches.length;
+    this.highlightMatch(false);
+    this.updateSearchUI();
+  }
+
+  goToPrevMatch() {
+    if (this.editorSearchMatches.length === 0) return;
+    this.currentSearchMatchIndex = (this.currentSearchMatchIndex - 1 + this.editorSearchMatches.length) % this.editorSearchMatches.length;
+    this.highlightMatch(false);
+    this.updateSearchUI();
   }
 
   async purgeVault() {
