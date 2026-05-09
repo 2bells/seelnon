@@ -2326,6 +2326,8 @@ export class Engine {
                 } else if (tip) {
                     // Relief / Impasto effect
                     if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
+                        ctx.drawImage(this._tipColorCache.canvas, -stampR, -stampR);
+
                         // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
                         if (height > 0) {
                             ctx.save();
@@ -2336,18 +2338,31 @@ export class Engine {
                             ctx.restore();
                         }
 
-                        // 2. Highlight Pass - Oiliness boosts this and uses color-dodge for "wet" look
-                        const highlightOpacity = (height * 0.15) + (oil * 0.35);
-                        const highlightMode = oil > 0 ? 'color-dodge' : 'screen';
-                        
-                        ctx.save();
-                        ctx.globalCompositeOperation = highlightMode;
-                        ctx.translate(-1, -1);
-                        ctx.globalAlpha = Math.min(1.0, highlightOpacity);
-                        ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR);
-                        ctx.restore();
+                        // 2. Base Highlight Pass - Using screen for volumetric height stability
+                        const baseHighlightOpacity = height * 0.15;
+                        if (baseHighlightOpacity > 0) {
+                            ctx.save();
+                            ctx.globalCompositeOperation = 'multiply';
+                            ctx.translate(-1, -1);
+                            ctx.globalAlpha = Math.min(1.0, baseHighlightOpacity);
+                            ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR);
+                            ctx.restore();
+                        }
+
+                        // 3. Wet/Oil Pass - Using overlay or dodge for that high-specular shiny look
+                        const oilOpacity = oil * 0.35;
+                        if (oilOpacity > 0) {
+                            ctx.save();
+                            // overlay provides rich contrast without blowing out blacks
+                            ctx.globalCompositeOperation = 'overlay'; 
+                            ctx.translate(-1.5, -1.5); // Slightly different offset for "thickness"
+                            ctx.globalAlpha = Math.min(0.8, oilOpacity);
+                            ctx.drawImage(this._reliefCache.highlight, -stampR, -stampR);
+                            ctx.restore();
+                        }
+                    } else {
+                        ctx.drawImage(this._tipColorCache.canvas, -stampR, -stampR);
                     }
-                    ctx.drawImage(this._tipColorCache.canvas, -stampR, -stampR);
                 } else {
                     ctx.fillRect(-stampR, -stampR/2, bSize, bSize/2);
                 }
