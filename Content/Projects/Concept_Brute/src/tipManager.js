@@ -37,7 +37,7 @@ export class TipManager {
                 if (savedMain[i]) {
                     const tipData = (typeof savedMain[i] === 'string') ? { src: savedMain[i] } : savedMain[i];
                     const img = new Image();
-                    await new Promise(r => { img.onload = r; img.src = tipData.src; });
+                    await new Promise(r => { img.onload = r; img.onerror = r; img.src = tipData.src; });
                     const c = document.createElement('canvas');
                     c.width = 128; c.height = 128;
                     c.getContext('2d').drawImage(img, 0, 0);
@@ -60,7 +60,7 @@ export class TipManager {
             for (let i = 0; i < savedGen.length && i < this.generatedTips.length; i++) {
                 if (savedGen[i] && savedGen[i].src) {
                     const img = new Image();
-                    await new Promise(r => { img.onload = r; img.src = savedGen[i].src; });
+                    await new Promise(r => { img.onload = r; img.onerror = r; img.src = savedGen[i].src; });
                     const c = document.createElement('canvas');
                     c.width = 128; c.height = 128;
                     c.getContext('2d').drawImage(img, 0, 0);
@@ -161,7 +161,7 @@ export class TipManager {
                         resolve(tc);
                     };
                     img.onerror = reject;
-                    img.src = './src/_main_brushtip.png'; // Use relative path for Vite
+                    img.src = '/src/_main_brushtip.png'; // Use absolute path for dev environment
                 });
             } catch (e) {
                 canvas = this._createShape(type);
@@ -211,7 +211,7 @@ export class TipManager {
     let drawing = false;
 
     const startDraw = (e) => {
-        editor.setPointerCapture(e.pointerId);
+        this.editorCanvas.setPointerCapture(e.pointerId);
         drawing = true;
         this._drawEditor(e, true);
     };
@@ -219,16 +219,16 @@ export class TipManager {
     const moveDraw = (e) => { if (drawing) this._drawEditor(e); };
     const stopDraw = (e) => { 
         if (drawing) { 
-            editor.releasePointerCapture(e.pointerId);
+            this.editorCanvas.releasePointerCapture(e.pointerId);
             drawing = false; 
             this._updateFromEditor(); 
         } 
     };
 
-    editor.onpointerdown = startDraw;
-    editor.onpointermove = moveDraw;
-    editor.onpointerup = stopDraw;
-    editor.onpointercancel = stopDraw;
+    this.editorCanvas.onpointerdown = startDraw;
+    this.editorCanvas.onpointermove = moveDraw;
+    this.editorCanvas.onpointerup = stopDraw;
+    this.editorCanvas.onpointercancel = stopDraw;
     
     document.getElementById('btn-tip-clear').onclick = () => {
         this.editorCtx.clearRect(0,0,128,128);
