@@ -1184,12 +1184,14 @@ export class Engine {
         // to avoid tiny first-stamp artifacts while still feeling responsive.
         pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : 0.15;
     }
+    if (!Number.isFinite(pressure)) pressure = 0.5;
     
     // Size modulated by initial pressure
     let initSize = this.brush.size;
     if (e.pointerType === 'pen' || e.pointerType === 'touch') {
         initSize *= (0.2 + pressure * 0.8);
     }
+    if (!Number.isFinite(initSize)) initSize = this.brush.size;
 
     const worldPos = {
         x: m.wx,
@@ -1384,13 +1386,17 @@ export class Engine {
     if (e.pointerType === 'pen' || e.pointerType === 'touch') {
         pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : (this.lastPressure || 0.15);
     }
+    if (!Number.isFinite(pressure)) pressure = this.lastPressure || 0.5;
+
     this.lastPressure = (this.lastPressure || pressure) * 0.7 + pressure * 0.3;
+    if (!Number.isFinite(this.lastPressure)) this.lastPressure = 0.5;
 
     const dx = currentPos.x - this.lastPos.x;
     const dy = currentPos.y - this.lastPos.y;
     const dt = Math.max(0.1, currentTime - this.lastTime); // Prevent division by zero or extreme near-zero
     const dist = Math.sqrt(dx * dx + dy * dy);
     
+    if (!Number.isFinite(dist)) return;
     // Prevent artifacts from jitter (very small movements)
     if (dist < 0.1) return;
     
@@ -1399,6 +1405,7 @@ export class Engine {
     
     // Smooth velocity to prevent wild jumps (Exponential Moving Average)
     this.smoothedVelocity = this.smoothedVelocity * 0.8 + rawVelocity * 0.2;
+    if (!Number.isFinite(this.smoothedVelocity)) this.smoothedVelocity = rawVelocity;
     
     // Clamp smoothed velocity to avoid outliers - increased to 2000 for fast gestures
     const velocity = Math.min(this.smoothedVelocity, 2000); 
@@ -1422,6 +1429,7 @@ export class Engine {
         const inf = this.brush.pressureInfluence ?? 1.0;
         dynamicSize *= ( (1 - inf) + this.lastPressure * inf );
     }
+    if (!Number.isFinite(dynamicSize)) dynamicSize = this.brush.size;
     
     // Opacity: positive speedOpacity means faster=transparent. Add pressure influence.
     const opacBase = 1 - (vFactor * this.brush.speedOpacity * sensitivityMult);
@@ -1431,6 +1439,7 @@ export class Engine {
         const inf = this.brush.pressureInfluence ?? 1.0;
         opacMod *= ( (1 - inf) + this.lastPressure * inf );
     }
+    if (!Number.isFinite(opacMod)) opacMod = 1.0;
 
     let color = this.brush.color;
     if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
@@ -2045,7 +2054,9 @@ export class Engine {
     // 1. Prepare Brush Params
     const isSmudge = this.brush.type === TOOLS.SMUDGE;
     const bSize = Math.round(size);
-    const spacing = isSmudge ? Math.max(1, bSize * 0.05) : Math.max(2, bSize * this.brush.spacing); 
+    let spacing = isSmudge ? Math.max(1, bSize * 0.05) : Math.max(2, bSize * this.brush.spacing); 
+    if (!Number.isFinite(spacing) || spacing < 0.5) spacing = 2;
+
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -2078,6 +2089,7 @@ export class Engine {
         p += currentSpacing;
     }
     this.spacingAccumulator = p - dist;
+    if (!Number.isFinite(this.spacingAccumulator)) this.spacingAccumulator = 0;
 
     if (stamps.length === 0) return;
 
