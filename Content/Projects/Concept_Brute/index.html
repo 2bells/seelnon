@@ -23,7 +23,7 @@
           </button>
         </div>
         
-        <div class="toolbar-divider"></div>
+        <button id="toggle-tools" class="dots-btn" title="Toggle Tools">⋮</button>
 
         <div class="tool-group" id="tool-group">
           <button id="btn-brush" class="tool-btn active-tool" title="Brush (1)">
@@ -46,50 +46,63 @@
           </button>
         </div>
 
+        <button id="toggle-sliders" class="dots-btn" title="Toggle Sliders">⋮</button>
 
-        <div class="slider-group">
+        <div class="slider-group" id="slider-group">
             <div class="slider-container">
-                <label class="slider-label">SIZE</label>
-                <div class="slider-controls">
-                    <input type="range" id="brush-size" min="1" max="500" value="40" class="brutal-range">
+                <div class="slider-header">
+                    <label class="slider-label">SIZE</label>
                     <span id="size-val" class="slider-value">40</span>
                 </div>
+                <input type="range" id="brush-size" min="0" max="400" value="214" class="brutal-range main-range">
             </div>
 
             <div class="slider-container">
-                <label class="slider-label">OPACITY</label>
-                <div class="slider-controls">
-                    <input type="range" id="brush-opacity" min="0" max="100" value="100" class="brutal-range">
+                <div class="slider-header">
+                    <label class="slider-label">OPACITY</label>
                     <span id="opacity-val" class="slider-value">100%</span>
                 </div>
+                <input type="range" id="brush-opacity" min="0" max="100" value="100" class="brutal-range main-range">
             </div>
 
             <div class="slider-container">
-                <label class="slider-label">FLOW</label>
-                <div class="slider-controls">
-                    <input type="range" id="brush-flow" min="0" max="100" value="100" class="brutal-range">
+                <div class="slider-header">
+                    <label class="slider-label">FLOW</label>
                     <span id="flow-val" class="slider-value">100%</span>
                 </div>
+                <input type="range" id="brush-flow" min="0" max="100" value="100" class="brutal-range main-range">
             </div>
         </div>
 
+        <button id="toggle-sensitivity" class="dots-btn" title="Toggle Sensitivity">⋮</button>
         
-        
-        <div class="sensitivity-group hidden">
+        <div class="sensitivity-group group-collapsed" id="sensitivity-group">
           <div class="slider-container">
-            <label class="slider-label" title="Speed Size Sensitivity">S-SIZE</label>
+            <div class="slider-header">
+                <label class="slider-label" title="Speed Size Sensitivity">S-SIZE</label>
+                <span id="s-size-val" class="slider-value">300</span>
+            </div>
             <input type="range" id="speed-size" min="-500" max="500" value="300" class="brutal-range s-range">
           </div>
           <div class="slider-container">
-            <label class="slider-label" title="Speed Opacity Sensitivity">S-OPAC</label>
+            <div class="slider-header">
+                <label class="slider-label" title="Speed Opacity Sensitivity">S-OPAC</label>
+                <span id="s-opac-val" class="slider-value">200</span>
+            </div>
             <input type="range" id="speed-opacity" min="-500" max="500" value="200" class="brutal-range s-range">
           </div>
           <div class="slider-container">
-            <label class="slider-label" title="Speed Value Sensitivity">S-VAL</label>
+            <div class="slider-header">
+                <label class="slider-label" title="Speed Value Sensitivity">S-VAL</label>
+                <span id="s-val-val" class="slider-value">-400</span>
+            </div>
             <input type="range" id="speed-value" min="-2000" max="2000" value="-400" class="brutal-range s-range">
           </div>
           <div class="slider-container">
-            <label class="slider-label" title="Speed Hue Sensitivity">S-HUE</label>
+            <div class="slider-header">
+                <label class="slider-label" title="Speed Hue Sensitivity">S-HUE</label>
+                <span id="s-hue-val" class="slider-value">-1000</span>
+            </div>
             <input type="range" id="speed-hue" min="-2000" max="2000" value="-1000" class="brutal-range s-range">
           </div>
         </div>
@@ -99,11 +112,6 @@
         <div class="flex-grow"></div>
 
         <div class="toolbar-divider"></div>
-        <div style="display: flex; align-items: center; gap: 8px; margin-right: 8px;">
-           <div id="brush-preview-container" style="width: 32px; height: 32px; border: 2px solid black; background: white; position: relative;">
-               <canvas id="brush-preview-canvas" width="32" height="32" style="width: 100%; height: 100%; display: block;"></canvas>
-           </div>
-        </div>
         <div class="history-group" style="margin-right: 8px;">
           <button id="btn-settings" title="Settings" class="tool-btn with-shadow">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -227,7 +235,7 @@
                     </div>
                     <input type="range" id="brush-airbrush" min="0" max="100" value="0" class="minimal-range" style="width: 100%;">
                   </div>
-                  <button id="btn-advanced-brush" class="brutal-btn full-width" style="margin-top: 4px; font-size: 9px; height: 24px;">ADVANCED SETTINGS</button>
+                  <button id="btn-advanced-brush" class="brutal-btn full-width" style="margin-top: 4px; font-size: 9px; height: 24px;">ADVANCED</button>
               </div>
              <div id="tip-palette">
                 <!-- 6 main slots -->
@@ -320,10 +328,6 @@
                      </div>
                   </div>
                   <div class="settings-divider"></div>
-                  <div class="settings-group">
-                     <label class="settings-label">BRUSH SPACING</label>
-                     <input type="range" id="settings-brush-spacing" min="0.01" max="0.5" step="0.01" value="0.05" class="brutal-range" style="width: 100%;">
-                  </div>
               </div>
 
              <!-- PROJECTS TAB -->
@@ -401,50 +405,73 @@
           </div>
           <div class="panel-content">
              <div class="settings-group">
-                <label class="settings-label">SMUDGE FLOW BOOST</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                   <input type="range" id="adv-smudge-flow-boost" min="1" max="20" step="0.5" value="10.0" class="brutal-range full-width">
-                   <span id="adv-smudge-flow-boost-val" style="font-size: 9px; font-weight: 900; width: 24px;">10.0</span>
+                <div class="settings-row" style="margin-bottom: 8px;">
+                   <label class="settings-label">PEN PRESSURE</label>
+                   <div class="checkbox-wrapper">
+                      <input type="checkbox" id="settings-pressure-enable" checked class="settings-input-check">
+                      <span class="checkbox-custom"></span>
+                   </div>
                 </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                   <label class="settings-label">PRESSURE INFLUENCE</label>
+                   <span id="pressure-val" style="font-size: 9px; font-weight: 900;">1.0</span>
+                </div>
+                <input type="range" id="settings-pressure-influence" min="0" max="2" step="0.1" value="1.0" class="brutal-range" style="width: 100%;">
              </div>
              <div class="settings-group">
-                <label class="settings-label">SMUDGE PICKUP (WETNESS)</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                   <input type="range" id="adv-smudge-pickup" min="0" max="4" step="0.1" value="2.0" class="brutal-range full-width">
-                   <span id="adv-smudge-pickup-val" style="font-size: 9px; font-weight: 900; width: 24px;">2.0</span>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">BRUSH SPACING</label>
                 </div>
+                <input type="range" id="settings-brush-spacing" min="0.01" max="0.5" step="0.01" value="0.05" class="brutal-range" style="width: 100%;">
              </div>
-             <div class="settings-group">
-                <label class="settings-label">BRUSH SHARPENING</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                   <input type="range" id="adv-brush-sharpen" min="0" max="1" step="0.05" value="0" class="brutal-range full-width">
-                   <span id="adv-brush-sharpen-val" style="font-size: 9px; font-weight: 900; width: 24px;">0</span>
-                </div>
-             </div>
-             
+
              <div class="settings-divider"></div>
-             <span class="settings-label" style="display: block; margin-bottom: 8px;">WIREFRAME SETTINGS (BRUSH 2)</span>
+
+             <div class="settings-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">SMUDGE FLOW BOOST</label>
+                    <span id="adv-smudge-flow-boost-val" style="font-size: 9px; font-weight: 900;">10.0</span>
+                </div>
+                <input type="range" id="adv-smudge-flow-boost" min="1" max="20" step="0.5" value="10.0" class="brutal-range" style="width: 100%;">
+             </div>
+             <div class="settings-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">SMUDGE PICKUP (WETNESS)</label>
+                    <span id="adv-smudge-pickup-val" style="font-size: 9px; font-weight: 900;">2.0</span>
+                </div>
+                <input type="range" id="adv-smudge-pickup" min="0" max="4" step="0.1" value="2.0" class="brutal-range" style="width: 100%;">
+             </div>
+             <div class="settings-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">BRUSH SHARPENING</label>
+                    <span id="adv-brush-sharpen-val" style="font-size: 9px; font-weight: 900;">0</span>
+                </div>
+                <input type="range" id="adv-brush-sharpen" min="0" max="1" step="0.05" value="0" class="brutal-range" style="width: 100%;">
+             </div>
+
+             <div class="settings-divider"></div>
+             <span class="settings-label" style="display: block; margin-bottom: 8px;">WIREFRAME</span>
              
              <div class="settings-group">
-                <label class="settings-label">LINE DENSITY</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                   <input type="range" id="adv-wire-density" min="1" max="40" step="1" value="30" class="brutal-range full-width">
-                   <span id="adv-wire-density-val" style="font-size: 9px; font-weight: 900; width: 24px;">30</span>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">LINE DENSITY</label>
+                    <span id="adv-wire-density-val" style="font-size: 9px; font-weight: 900;">30</span>
                 </div>
+                <input type="range" id="adv-wire-density" min="1" max="40" step="1" value="30" class="brutal-range" style="width: 100%;">
              </div>
              <div class="settings-group">
-                <label class="settings-label">CONNECTION RANGE</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                   <input type="range" id="adv-wire-range" min="0.1" max="10" step="0.1" value="4.0" class="brutal-range full-width">
-                   <span id="adv-wire-range-val" style="font-size: 9px; font-weight: 900; width: 24px;">4.0</span>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">CONNECTION RANGE</label>
+                    <span id="adv-wire-range-val" style="font-size: 9px; font-weight: 900;">4.0</span>
                 </div>
+                <input type="range" id="adv-wire-range" min="0.1" max="10" step="0.1" value="4.0" class="brutal-range" style="width: 100%;">
              </div>
              <div class="settings-group">
-                <label class="settings-label">MIN CONNECTION DIST</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                   <input type="range" id="adv-wire-min-dist" min="0" max="2" step="0.1" value="0.5" class="brutal-range full-width">
-                   <span id="adv-wire-min-dist-val" style="font-size: 9px; font-weight: 900; width: 24px;">0.5</span>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">MIN CONNECTION DIST</label>
+                    <span id="adv-wire-min-dist-val" style="font-size: 9px; font-weight: 900;">0.5</span>
                 </div>
+                <input type="range" id="adv-wire-min-dist" min="0" max="2" step="0.1" value="0.5" class="brutal-range" style="width: 100%;">
              </div>
           </div>
         </div>

@@ -60,7 +60,10 @@ class App {
             wireDensity: 30,
             wireRange: 4.0,
             wireMinDist: 0.5,
-            tip: null
+            tip: null,
+            spacing: 0.05,
+            pressureEnabled: true,
+            pressureInfluence: 1.0
         };
     });
     // Set some defaults
@@ -105,7 +108,6 @@ class App {
         }
 
         this._updateBrushSettingsUI(this.activeTool);
-        this._updateBrushPreview();
     }, this.storage);
 
     this.hsv = { h: 0, s: 70, v: 70 };
@@ -119,6 +121,43 @@ class App {
     this.windowPositions = {};
 
     this.init();
+    this._initToggles();
+  }
+
+  _initToggles() {
+    const toggles = [
+        { btn: 'toggle-tools', target: 'tool-group', key: 'toggle_tools' },
+        { btn: 'toggle-sliders', target: 'slider-group', key: 'toggle_sliders' },
+        { btn: 'toggle-sensitivity', target: 'sensitivity-group', key: 'toggle_sensitivity' }
+    ];
+
+    toggles.forEach(t => {
+        const btn = document.getElementById(t.btn);
+        const target = document.getElementById(t.target);
+        if (btn && target) {
+            // Load state
+            const saved = localStorage.getItem(t.key);
+            // Default to open (not collapsed) for sensitivity, others follow their HTML classes
+            if (saved === 'collapsed') {
+                target.classList.add('group-collapsed');
+            } else if (saved === 'open') {
+                target.classList.remove('group-collapsed');
+            } else if (t.key === 'toggle_sensitivity') {
+                // Default if no saved state
+                target.classList.remove('group-collapsed');
+            }
+
+            // Sync visual
+            btn.style.opacity = target.classList.contains('group-collapsed') ? '0.3' : '1';
+
+            btn.onclick = () => {
+                target.classList.toggle('group-collapsed');
+                const isCollapsed = target.classList.contains('group-collapsed');
+                btn.style.opacity = isCollapsed ? '0.3' : '1';
+                localStorage.setItem(t.key, isCollapsed ? 'collapsed' : 'open');
+            };
+        }
+    });
   }
 
   async initProjectSystem() {
@@ -638,9 +677,37 @@ class App {
         this.storage.saveSetting('showGrid', e.target.checked);
     };
     document.getElementById('settings-brush-spacing').oninput = (e) => {
-        this.engine.brush.spacing = parseFloat(e.target.value);
-        this.storage.saveSetting('brushSpacing', e.target.value);
+        const val = parseFloat(e.target.value);
+        this.engine.brush.spacing = val;
+        if (this.brushSettings[this.activeTool]) {
+            this.brushSettings[this.activeTool].spacing = val;
+            this._saveBrushSettings();
+        }
     };
+
+    const pressureEnable = document.getElementById('settings-pressure-enable');
+    const pressureInf = document.getElementById('settings-pressure-influence');
+    const pressureVal = document.getElementById('pressure-val');
+
+    if (pressureEnable && pressureInf) {
+        pressureEnable.onchange = (e) => {
+            const val = e.target.checked;
+            this.engine.brush.pressureEnabled = val;
+            if (this.brushSettings[this.activeTool]) {
+                this.brushSettings[this.activeTool].pressureEnabled = val;
+                this._saveBrushSettings();
+            }
+        };
+        pressureInf.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.engine.brush.pressureInfluence = val;
+            pressureVal.innerText = val.toFixed(1);
+            if (this.brushSettings[this.activeTool]) {
+                this.brushSettings[this.activeTool].pressureInfluence = val;
+                this._saveBrushSettings();
+            }
+        };
+    }
 
     // Zoom controls
     document.getElementById('btn-zoom-in').onclick = () => {
@@ -763,10 +830,11 @@ class App {
     const sizeVal = document.getElementById('size-val');
     sizeSlider.oninput = (e) => {
       const val = parseInt(e.target.value);
+      const size = Math.round(this._mapSliderToSize(val));
       if (!this.activeTool) return;
-      this.brushSettings[this.activeTool].size = val;
-      this.engine.brush.size = val;
-      sizeVal.innerText = val;
+      this.brushSettings[this.activeTool].size = size;
+      this.engine.brush.size = size;
+      sizeVal.innerText = size;
       this._saveBrushSettings();
     };
 
@@ -856,6 +924,8 @@ class App {
     if (sSize) sSize.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedSize = val;
+        const el = document.getElementById('s-size-val');
+        if (el) el.innerText = e.target.value;
         if (this.activeTool) {
             this.brushSettings[this.activeTool].speedSize = val;
             this._saveBrushSettings();
@@ -864,6 +934,8 @@ class App {
     if (sOpac) sOpac.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedOpacity = val;
+        const el = document.getElementById('s-opac-val');
+        if (el) el.innerText = e.target.value;
         if (this.activeTool) {
             this.brushSettings[this.activeTool].speedOpacity = val;
             this._saveBrushSettings();
@@ -872,6 +944,8 @@ class App {
     if (sVal) sVal.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedValue = val;
+        const el = document.getElementById('s-val-val');
+        if (el) el.innerText = e.target.value;
         if (this.activeTool) {
             this.brushSettings[this.activeTool].speedValue = val;
             this._saveBrushSettings();
@@ -880,6 +954,8 @@ class App {
     if (sHue) sHue.oninput = (e) => {
         const val = parseInt(e.target.value) / 100;
         this.engine.brush.speedHue = val;
+        const el = document.getElementById('s-hue-val');
+        if (el) el.innerText = e.target.value;
         if (this.activeTool) {
             this.brushSettings[this.activeTool].speedHue = val;
             this._saveBrushSettings();
@@ -1176,19 +1252,22 @@ class App {
     if (!this.activeTool) return;
     const el = document.getElementById('brush-size');
     const valEl = document.getElementById('size-val');
-    const currentVal = parseInt(el.value);
+    const currentSize = this.brushSettings[this.activeTool].size;
     
-    // Low amount precision bias: if current value < 20, reduce delta effect
+    // Low amount precision bias (shortcut keys)
     let effectiveDelta = delta;
-    if (currentVal < 20) {
+    if (currentSize < 20) {
         effectiveDelta = Math.sign(delta) * Math.max(1, Math.floor(Math.abs(delta) / 4));
     }
     
-    const newVal = Math.max(1, Math.min(500, currentVal + effectiveDelta));
-    el.value = newVal;
-    this.brushSettings[this.activeTool].size = newVal;
-    this.engine.brush.size = newVal;
-    if (valEl) valEl.innerText = newVal;
+    const newSize = Math.max(1, Math.min(500, currentSize + effectiveDelta));
+    
+    this.brushSettings[this.activeTool].size = newSize;
+    this.engine.brush.size = newSize;
+    
+    if (el) el.value = this._mapSizeToSlider(newSize);
+    if (valEl) valEl.innerText = newSize;
+    
     this._saveBrushSettings();
   }
 
@@ -1424,7 +1503,7 @@ class App {
         }
 
         // Update UI Sliders
-        document.getElementById('brush-size').value = settings.size;
+        document.getElementById('brush-size').value = this._mapSizeToSlider(settings.size);
         document.getElementById('size-val').innerText = settings.size;
         
         const opacEl = document.getElementById('brush-opacity');
@@ -1461,10 +1540,30 @@ class App {
         }
 
         // Update Sensitivity UI
-        if (document.getElementById('speed-size')) document.getElementById('speed-size').value = settings.speedSize * 100;
-        if (document.getElementById('speed-opacity')) document.getElementById('speed-opacity').value = settings.speedOpacity * 100;
-        if (document.getElementById('speed-value')) document.getElementById('speed-value').value = settings.speedValue * 100;
-        if (document.getElementById('speed-hue')) document.getElementById('speed-hue').value = settings.speedHue * 100;
+        const sSize = document.getElementById('speed-size');
+        if (sSize) {
+            sSize.value = settings.speedSize * 100;
+            const val = document.getElementById('s-size-val');
+            if (val) val.innerText = Math.round(settings.speedSize * 100);
+        }
+        const sOpac = document.getElementById('speed-opacity');
+        if (sOpac) {
+            sOpac.value = settings.speedOpacity * 100;
+            const val = document.getElementById('s-opac-val');
+            if (val) val.innerText = Math.round(settings.speedOpacity * 100);
+        }
+        const sVal = document.getElementById('speed-value');
+        if (sVal) {
+            sVal.value = settings.speedValue * 100;
+            const val = document.getElementById('s-val-val');
+            if (val) val.innerText = Math.round(settings.speedValue * 100);
+        }
+        const sHue = document.getElementById('speed-hue');
+        if (sHue) {
+            sHue.value = settings.speedHue * 100;
+            const val = document.getElementById('s-hue-val');
+            if (val) val.innerText = Math.round(settings.speedHue * 100);
+        }
 
         // Update Advanced Sliders
         const smudgeBoost = document.getElementById('adv-smudge-flow-boost');
@@ -1507,6 +1606,23 @@ class App {
             wireMinDist.value = settings.wireMinDist;
             const valEl = document.getElementById('adv-wire-min-dist-val');
             if (valEl) valEl.innerText = settings.wireMinDist.toFixed(1);
+        }
+
+        const spacingEl = document.getElementById('settings-brush-spacing');
+        if (spacingEl) {
+            spacingEl.value = settings.spacing ?? 0.05;
+        }
+
+        const pressureEnable = document.getElementById('settings-pressure-enable');
+        if (pressureEnable) {
+            pressureEnable.checked = settings.pressureEnabled ?? true;
+        }
+
+        const pressureInf = document.getElementById('settings-pressure-influence');
+        if (pressureInf) {
+            pressureInf.value = settings.pressureInfluence ?? 1.0;
+            const valEl = document.getElementById('pressure-val');
+            if (valEl) valEl.innerText = (settings.pressureInfluence ?? 1.0).toFixed(1);
         }
     }
   }
@@ -1567,6 +1683,9 @@ class App {
     this.engine.brush.wireDensity = settings.wireDensity;
     this.engine.brush.wireRange = settings.wireRange;
     this.engine.brush.wireMinDist = settings.wireMinDist;
+    this.engine.brush.spacing = settings.spacing ?? 0.05;
+    this.engine.brush.pressureEnabled = settings.pressureEnabled ?? true;
+    this.engine.brush.pressureInfluence = settings.pressureInfluence ?? 1.0;
 
     if (tool === TOOLS.ERASER || tool === TOOLS.SMUDGE) {
         // Shared tip from Brush 1
@@ -1599,7 +1718,6 @@ class App {
     this.engine.brush.color = color;
     const preview = document.getElementById('current-color-preview');
     if (preview) preview.style.backgroundColor = color;
-    this._updateBrushPreview();
     
     if (this.storage) this.storage.saveSetting('lastColor', color);
 
@@ -2073,26 +2191,18 @@ class App {
       else this.setTool(TOOLS.BRUSH);
   }
 
-  _updateBrushPreview() {
-      const canvas = document.getElementById('brush-preview-canvas');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, 32, 32);
-      
-      const tip = this.engine.brush.tip;
-      if (!tip) return;
-      
-      const color = this.engine.brush.color;
-      
-      const temp = document.createElement('canvas');
-      temp.width = 32; temp.height = 32;
-      const tctx = temp.getContext('2d');
-      tctx.fillStyle = color;
-      tctx.fillRect(0, 0, 32, 32);
-      tctx.globalCompositeOperation = 'destination-in';
-      tctx.drawImage(tip, 4, 4, 24, 24);
-      
-      ctx.drawImage(temp, 0, 0);
+  _mapSliderToSize(val) {
+    if (val <= 100) return 1 + (val / 100) * (10 - 1);
+    if (val <= 200) return 10 + ((val - 100) / 100) * (30 - 10);
+    if (val <= 300) return 30 + ((val - 200) / 100) * (100 - 30);
+    return 100 + ((val - 300) / 100) * (500 - 100);
+  }
+
+  _mapSizeToSlider(size) {
+    if (size <= 10) return ((size - 1) / (10 - 1)) * 100;
+    if (size <= 30) return 100 + ((size - 10) / (30 - 10)) * 100;
+    if (size <= 100) return 200 + ((size - 30) / (100 - 30)) * 100;
+    return 300 + ((size - 100) / (500 - 100)) * 100;
   }
 }
 

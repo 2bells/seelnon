@@ -76,7 +76,14 @@ body {
 #panel-brush-tips {
     top: 60px;
     right: 220px;
-    width: 180px;
+    width: 160px;
+    max-height: 80vh;
+}
+
+#tips-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 #tip-editor-container {
@@ -87,6 +94,7 @@ body {
     border-bottom: 2px solid #000;
     cursor: crosshair;
     touch-action: none;
+    flex-shrink: 0;
 }
 
 #tip-editor-canvas {
@@ -103,7 +111,7 @@ body {
 
 #tip-palette {
     padding: 8px;
-    max-height: 300px;
+    flex-grow: 1;
     overflow-y: auto;
 }
 
@@ -341,37 +349,66 @@ body {
     transform: translate(1px, 1px);
 }
 
+.dots-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    font-weight: 900;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+    user-select: none;
+}
+
+.dots-btn:hover {
+    background: #eee;
+}
+
+.dots-btn:active {
+    background: #ddd;
+}
+
+.group-collapsed {
+    display: none !important;
+}
+
 /* SLIDERS */
 .slider-group {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 8px;
 }
 
 .slider-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    min-width: 60px;
+}
+
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
 }
 
 .slider-label {
-    font-size: 9px;
-    font-weight: 900;
+    font-size: 8px;
+    font-weight: 910;
     text-transform: uppercase;
-}
-
-.slider-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    white-space: nowrap;
 }
 
 .slider-value {
-    font-size: 12px;
-    font-weight: 900;
-    width: 40px;
-    text-align: center;
+    font-size: 9px;
+    font-weight: 910;
+    text-align: right;
 }
+
 
 .brutal-range {
     appearance: none;

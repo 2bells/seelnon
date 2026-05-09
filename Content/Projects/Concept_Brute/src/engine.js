@@ -34,6 +34,8 @@ export class Engine {
       wireDensity: 30,
       wireRange: 4.0,
       wireMinDist: 0.5,
+      pressureEnabled: true,
+      pressureInfluence: 1.0,
       type: TOOLS.BRUSH 
     };
 
@@ -331,6 +333,9 @@ export class Engine {
     });
     
     this.container.addEventListener('wheel', (e) => {
+      // Disable zoom/pan if hovering over UI panels
+      if (e.target.closest('.ui-panel')) return;
+
       e.preventDefault();
       if (e.ctrlKey) {
         // Pan Y with Ctrl+Scroll
@@ -1405,12 +1410,20 @@ export class Engine {
     // Size: positive speedSize means faster=smaller. Add pressure influence.
     const sizeMod = 1 - (vFactor * this.brush.speedSize * sensitivityMult); 
     let dynamicSize = this.brush.size * Math.max(0.05, sizeMod);
-    if (e.pointerType === 'pen' || e.pointerType === 'touch') {
-        dynamicSize *= (0.2 + this.lastPressure * 0.8);
+    
+    if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
+        const inf = this.brush.pressureInfluence ?? 1.0;
+        dynamicSize *= ( (1 - inf) + this.lastPressure * inf );
     }
     
     // Opacity: positive speedOpacity means faster=transparent. Add pressure influence.
-    const opacMod = Math.max(0.01, 1 - (vFactor * this.brush.speedOpacity * sensitivityMult)) * (0.3 + this.lastPressure * 0.7);
+    const opacBase = 1 - (vFactor * this.brush.speedOpacity * sensitivityMult);
+    let opacMod = Math.max(0.01, opacBase);
+    
+    if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
+        const inf = this.brush.pressureInfluence ?? 1.0;
+        opacMod *= ( (1 - inf) + this.lastPressure * inf );
+    }
 
     let color = this.brush.color;
     if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
@@ -1574,6 +1587,12 @@ export class Engine {
 
   _updateBrushCursor(e) {
     if (!this.brushCursor) return;
+
+    // Clear cursor on touch if no pointers are touching
+    if (this.activePointers.size === 0 && (e.pointerType === 'touch' || e.pointerType === 'pen')) {
+        this.brushCursor.style.display = 'none';
+        return;
+    }
 
     const rect = this.container.getBoundingClientRect();
 
@@ -2362,16 +2381,21 @@ export class Engine {
   }
 
   _updateReliefCache(s, blur) {
+    if (!this.brush.tip || this.brush.tip.width === 0 || s < 1) return;
     const shad = document.createElement('canvas'); shad.width = s; shad.height = s;
     const sctx = shad.getContext('2d');
     if (blur > 0) sctx.filter = `blur(${blur}px)`;
-    sctx.drawImage(this.brush.tip, 0, 0, s, s);
+    try {
+        sctx.drawImage(this.brush.tip, 0, 0, s, s);
+    } catch(e) { return; }
     sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
 
     const high = document.createElement('canvas'); high.width = s; high.height = s;
     const hctx = high.getContext('2d');
     if (blur > 0) hctx.filter = `blur(${blur}px)`;
-    hctx.drawImage(this.brush.tip, 0, 0, s, s);
+    try {
+        hctx.drawImage(this.brush.tip, 0, 0, s, s);
+    } catch(e) { return; }
     hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
     
     this._reliefCache = { shadow: shad, highlight: high, key: `${s}_${blur}`, srcTip: this.brush.tip };
