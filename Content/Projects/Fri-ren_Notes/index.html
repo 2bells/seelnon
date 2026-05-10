@@ -2,13 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Fri-ren Notes</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="stylesheet" href="./src/style.css" />
     <link rel="stylesheet" href="./src/night-mode.css" />
     <!-- Marked library for markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- PrismJS for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" id="prism-theme" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-diff.min.js"></script>
     <!-- JSZip library for vault export/import -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   </head>
@@ -65,6 +74,7 @@
             <div id="editor-wrapper">
               <div id="line-numbers"></div>
               <div id="editor-highlights"></div>
+              <div id="search-marks"></div>
               <textarea id="editor" placeholder="Write your markdown here... (Paste images with Ctrl+V)"></textarea>
               <div id="editor-search-widget" class="hidden">
                 <div class="search-main">
@@ -88,7 +98,7 @@
                   <button id="canvas-add-image" title="Add image">+ IMAGE</button>
                 </div>
               </div>
-              <div id="canvas-lite-root" style="height: 100%; width: 100%;">
+              <div id="canvas-lite-root" style="flex: 1; width: 100%; position: relative; overflow: hidden;">
                 <!-- Canvas UI elements like editor/toolbar go here -->
                 <canvas id="canvas-lite"></canvas>
                 <div id="canvas-peeks-layer">
@@ -137,6 +147,10 @@
           <div class="control-group">
             <label>INTERFACE</label>
             <button id="toggle-sidebar-btn">Toggle Sidebar (Ctrl+[)</button>
+            <label class="checkbox-container" style="margin-top: 10px;">
+              <input type="checkbox" id="show-editor-highlights-check" checked />
+              <span>Show Syntax Highlights</span>
+            </label>
           </div>
           <div class="control-group">
             <label>PRINT OPTIONS</label>

@@ -158,6 +158,51 @@ export class CanvasLite {
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+    
+    // Touch support
+    this.canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        this.handleMouseDown(this.touchToMouse(e.touches[0]));
+      } else if (e.touches.length === 2) {
+        this.lastPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const rect = this.canvas.getBoundingClientRect();
+        this.pinchCenter = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top
+        };
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1) {
+        this.handleMouseMove(this.touchToMouse(e.touches[0]));
+      } else if (e.touches.length === 2) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = dist / this.lastPinchDist;
+        this.lastPinchDist = dist;
+        
+        const newScale = Math.min(Math.max(0.1, this.viewport.scale * factor), 5);
+        this.viewport.x = this.pinchCenter.x - (this.pinchCenter.x - this.viewport.x) * (newScale / this.viewport.scale);
+        this.viewport.y = this.pinchCenter.y - (this.pinchCenter.y - this.viewport.y) * (newScale / this.viewport.scale);
+        this.viewport.scale = newScale;
+        
+        this.render();
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchend', (e) => {
+      this.handleMouseUp(null);
+      e.preventDefault();
+    }, { passive: false });
+
     this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
     this.canvas.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
     
@@ -321,7 +366,16 @@ export class CanvasLite {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => this.addBox(event.target.result);
+        reader.onload = (event) => {
+          const dataUrl = event.target.result;
+          if (this.selectedBox) {
+            this.selectedBox.image = dataUrl;
+            this.saveHistory();
+            this.render();
+          } else {
+            this.addBox(dataUrl);
+          }
+        };
         reader.readAsDataURL(file);
       }
     };
@@ -459,6 +513,15 @@ export class CanvasLite {
     this.updatePeekPos();
   }
 
+  touchToMouse(touch) {
+    return {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      button: 0,
+      preventDefault: () => {}
+    };
+  }
+
   getMousePos(e) {
     const rect = this.canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left - this.viewport.x) / this.viewport.scale;
@@ -520,8 +583,8 @@ export class CanvasLite {
 
     // Check for resize handle (bottom-right corner)
     const resizableBox = this.boxes.find(b => 
-      x >= b.x + b.w - 15 && x <= b.x + b.w + 5 && 
-      y >= b.y + b.h - 15 && y <= b.y + b.h + 5
+      x >= b.x + b.w - 20 && x <= b.x + b.w + 10 && 
+      y >= b.y + b.h - 20 && y <= b.y + b.h + 10
     );
 
     if (resizableBox) {
@@ -614,9 +677,13 @@ export class CanvasLite {
 
   handleMouseUp(e) {
     if (this.mode === 'connecting' && this.connectingFrom) {
-      const pos = this.getMousePos(e);
+      const pos = e ? this.getMousePos(e) : { 
+        x: (this.lastMousePos.x - this.viewport.x) / this.viewport.scale, 
+        y: (this.lastMousePos.y - this.viewport.y) / this.viewport.scale 
+      };
+      const { x, y } = pos;
       const targetBox = this.boxes.find(b => 
-        pos.x >= b.x && pos.x <= b.x + b.w && pos.y >= b.y && pos.y <= b.y + b.h
+        x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h
       );
 
       if (targetBox && targetBox.id !== this.connectingFrom.id) {
@@ -633,7 +700,8 @@ export class CanvasLite {
     }
 
     if (this.isDragging || this.isResizing) {
-      this.saveHistory();
+      if (e) this.saveHistory();
+      else this.saveHistory(true); // Touch usually doesn't have multiple 'history' states during move
     }
 
     this.isDragging = false;
@@ -781,10 +849,25 @@ export class CanvasLite {
       
       // Draw image if exists
       if (box.image) {
-        if (!box._imgCached) {
+        const isVaultImg = typeof box.image === 'string' && box.image.includes('![[');
+        const imgSrc = isVaultImg ? this.extractImgId(box.image) : box.image;
+
+        if (!box._imgCached || box._imgSource !== box.image) {
+          box._imgSource = box.image;
+          box._imgLoaded = false;
           box._imgCached = new Image();
           box._imgCached.referrerPolicy = "no-referrer";
-          box._imgCached.src = box.image;
+          
+          if (isVaultImg && window.app?.vault) {
+            window.app.vault.getImage(imgSrc).then(data => {
+              if (data) {
+                box._imgCached.src = data;
+              }
+            });
+          } else {
+            box._imgCached.src = box.image;
+          }
+
           box._imgCached.onload = () => {
             box._imgLoaded = true;
             this.render();
@@ -807,7 +890,22 @@ export class CanvasLite {
         
         // Resize handle
         this.ctx.fillStyle = highlightColor;
-        this.ctx.fillRect(box.x + box.w - 8, box.y + box.h - 8, 8, 8);
+        this.ctx.beginPath();
+        this.ctx.moveTo(box.x + box.w, box.y + box.h - 15);
+        this.ctx.lineTo(box.x + box.w, box.y + box.h);
+        this.ctx.lineTo(box.x + box.w - 15, box.y + box.h);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Resize iconic lines
+        this.ctx.strokeStyle = isNight ? '#000' : '#fff';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(box.x + box.w - 10, box.y + box.h - 2);
+        this.ctx.lineTo(box.x + box.w - 2, box.y + box.h - 10);
+        this.ctx.moveTo(box.x + box.w - 6, box.y + box.h - 2);
+        this.ctx.lineTo(box.x + box.w - 2, box.y + box.h - 6);
+        this.ctx.stroke();
       }
 
       this.ctx.fillStyle = mainColor;
@@ -835,6 +933,11 @@ export class CanvasLite {
     this.ctx.textAlign = 'left';
     this.ctx.fillText('SPACE + DRAG to Pan • WHEEL to Zoom • DRAG SIDE CIRCLE to Connect • DEL to Delete', 20, this.canvas.height - 20);
     this.ctx.globalAlpha = 1.0;
+  }
+
+  extractImgId(text) {
+    const match = text.match(/!\[\[(.*?)\]\]/);
+    return match ? match[1] : text;
   }
 
   drawSmartArrow(from, to, color, isSelected = false) {

@@ -23,9 +23,16 @@ body {
   color: var(--text-primary);
   background: var(--text-primary); /* Thick frame */
   height: 100vh;
+  height: 100dvh;
   padding: 12px;
   overflow: hidden;
   font-size: var(--zoom-scale);
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 4px; /* Slimmer frame on mobile */
+  }
 }
 
 #app {
@@ -537,7 +544,7 @@ body {
   background: #f0ede9; /* Warmer parchment-like grey */
 }
 
-#editor-highlights {
+#editor-highlights, #search-marks {
   position: absolute;
   top: 0;
   left: 50px;
@@ -548,23 +555,66 @@ body {
   font-size: 0.9em;
   font-weight: 400;
   line-height: 1.6;
-  color: transparent;
   white-space: pre-wrap;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  letter-spacing: normal !important;
+  font-variant-ligatures: none !important;
   pointer-events: none;
   overflow: hidden;
-  z-index: 1;
 }
 
-#editor-highlights mark {
-  background-color: rgba(255, 180, 0, 0.3);
+#editor-highlights {
+  z-index: 1;
+  color: #2c241c;
+}
+
+/* Editor Syntax Highlighting (Prism Markdown) */
+#editor-highlights .token.header { color: #b91c1c; border-bottom: 1px double rgba(185, 28, 28, 0.3); }
+#editor-highlights .token.list { color: #166534; }
+#editor-highlights .token.code { color: #1e40af; background: rgba(0,0,0,0.05); }
+#editor-highlights .token.blockquote { color: #3730a3; background: rgba(0,0,0,0.03); }
+#editor-highlights .token.bold { color: #2c241c; border-bottom: 1px solid rgba(0,0,0,0.2); }
+#editor-highlights .token.italic { color: #5f5d5a; border-bottom: 1px dashed rgba(0,0,0,0.2); }
+#editor-highlights .token.url { color: #1e40af; text-decoration: underline; }
+#editor-highlights .token.wikilink { 
+  color: #7e4b2d; 
+  background: rgba(126, 75, 45, 0.1);
+  padding: 0 2px;
+  border-bottom: 1px solid rgba(126, 75, 45, 0.3);
+}
+
+.night-mode #editor-highlights {
+  color: #bfa594; /* Richer 'coffee' tone base */
+}
+
+.night-mode #editor-highlights .token.header { color: #ecb1a0; border-bottom: 1px double rgba(236, 177, 160, 0.3); }
+.night-mode #editor-highlights .token.list { color: #a1b58d; } /* Olive-greenish desaturated list markers */
+.night-mode #editor-highlights .token.code { color: #8cb4e6; background: rgba(255,255,255,0.08); }
+.night-mode #editor-highlights .token.blockquote { color: #9da5e6; background: rgba(255,255,255,0.05); }
+.night-mode #editor-highlights .token.bold { color: #e5e7eb; border-bottom: 1px solid rgba(255,255,255,0.3); }
+.night-mode #editor-highlights .token.italic { color: #a8a29e; border-bottom: 1px dashed rgba(255,255,255,0.2); }
+.night-mode #editor-highlights .token.url { color: #c49a7a; text-decoration: underline; } /* Desaturated link orange */
+.night-mode #editor-highlights .token.string { color: #c49a7a; }
+.night-mode #editor-highlights .token.wikilink { 
+  color: #db8c5c; 
+  background: rgba(219, 140, 92, 0.15);
+  border-bottom: 1px solid rgba(219, 140, 92, 0.3);
+}
+
+#search-marks {
+  z-index: 2;
+  color: transparent;
+}
+
+#search-marks mark {
+  background-color: rgba(255, 180, 0, 0.4);
   color: transparent;
   border-radius: 1px;
 }
 
-#editor-highlights mark.current {
-  background-color: rgba(255, 120, 0, 0.5);
+#search-marks mark.current {
+  background-color: rgba(255, 120, 0, 0.6);
   border-bottom: 2px solid #ff7800;
 }
 
@@ -590,7 +640,7 @@ body {
 #editor {
   flex: 1;
   position: relative;
-  z-index: 2;
+  z-index: 5;
   border: none;
   background: transparent;
   padding: 32px 32px 50vh 20px;
@@ -600,11 +650,18 @@ body {
   line-height: 1.6;
   resize: none;
   outline: none;
-  color: #2c241c; /* Deep espresso black-brown */
-  caret-color: #5f5d5a;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: #2c241c;
   white-space: pre-wrap;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  letter-spacing: normal !important;
+  font-variant-ligatures: none !important;
+}
+
+.night-mode #editor {
+  caret-color: #c0b9b3;
 }
 
 #preview {
@@ -756,7 +813,7 @@ button.btn-danger:hover {
   color: var(--bg-main);
 }
 
-/* Editor Search Widget */
+/* Editor Search Widget  */
 #editor-search-widget {
   position: absolute;
   top: 10px;
@@ -822,7 +879,7 @@ button.btn-danger:hover {
 }
 
 #preview pre {
-  background: #000;
+  background: #1a1a1a;
   color: #f0f0f0;
   padding: 24px;
   border: 1px solid #000;
@@ -830,6 +887,8 @@ button.btn-danger:hover {
   margin-bottom: 24px;
   box-shadow: inset 4px 4px 10px rgba(0,0,0,0.8);
   position: relative;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
 }
 
 #preview pre code {
@@ -838,13 +897,54 @@ button.btn-danger:hover {
   border: none;
   padding: 0;
   box-shadow: none;
+  font-family: inherit;
+}
+
+/* Syntax Highlighting Adjustments */
+#preview pre[class*="language-"],
+#preview code[class*="language-"],
+#preview .token {
+  text-shadow: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  border: none !important;
+}
+
+#preview pre[class*="language-"] {
+  background: #080808 !important; /* Keep the block background dark */
+  box-shadow: none !important;
+  opacity: 1;
+}
+
+.line-diff-added {
+  display: inline-block;
+  min-width: 100%;
+  background-color: rgba(46, 164, 79, 0.15);
+  color: #1b7c36 !important;
+}
+
+.line-diff-removed {
+  display: inline-block;
+  min-width: 100%;
+  background-color: rgba(207, 34, 46, 0.15);
+  color: #b91c1c !important;
+}
+
+.night-mode .line-diff-added {
+  background-color: rgba(46, 164, 79, 0.25);
+  color: #7ee787 !important;
+}
+
+.night-mode .line-diff-removed {
+  background-color: rgba(207, 34, 46, 0.25);
+  color: #ffa198 !important;
 }
 
 #preview code {
   font-family: var(--font-mono);
-  font-size: 13px;
-  background: #000;
-  color: #fff;
+  font-size: 0.9em;
+  background: #1a1a1a;
+  color: #fff; /* Runes are white on dark background in both modes */
   padding: 2px 6px;
   border: none;
 }
@@ -949,6 +1049,16 @@ button.btn-danger:hover {
   display: inline-block;
   vertical-align: top;
   margin: 5px;
+}
+
+/* Toggle for highlights */
+body.no-highlights #editor-highlights {
+  display: none !important;
+}
+
+body.no-highlights #editor {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
 }
 
 /* Missing Note Style */
@@ -1663,6 +1773,19 @@ label[for="import-vault"] {
   color: #fff;
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0px #141414;
+}
+
+.night-mode #preview a {
+  background: #2e2821;
+  color: #c49a7a; /* Desaturated link orange */
+  border-color: #433d36;
+  box-shadow: 2px 2px 0px #433d36;
+}
+
+.night-mode #preview a:hover {
+  background: #a18a5e;
+  color: #14110e;
+  box-shadow: 3px 3px 0px #433d36;
 }
 
 /* Link Animations */

@@ -61,6 +61,7 @@ class CavemanApp {
     ];
     this.tintPalette = JSON.parse(localStorage.getItem('caveman-tint-palette') || JSON.stringify(this.DEFAULT_PALETTE));
     this.paletteGridEl = document.getElementById('settings-palette-grid');
+    this.showEditorHighlights = localStorage.getItem('caveman-show-editor-highlights') !== 'false';
 
     // Search Widget Elements
     this.editorSearchWidget = document.getElementById('editor-search-widget');
@@ -72,6 +73,7 @@ class CavemanApp {
     this.editorSearchMatches = [];
     this.currentSearchMatchIndex = -1;
     this.editorHighlightsEl = document.getElementById('editor-highlights');
+    this.searchMarksEl = document.getElementById('search-marks');
 
     this.initLazyLoader();
     this.init();
@@ -115,6 +117,7 @@ class CavemanApp {
         document.body.classList.add('night-mode');
         document.documentElement.classList.add('night-mode');
       }
+      this.updatePrismTheme();
 
       // Explicitly wait for vault before proceeding to UI binding
       await this.vault.init();
@@ -143,6 +146,14 @@ class CavemanApp {
       }
 
       this.renderPaletteInSettings();
+      
+      // Initialize Highlights Toggle
+      this.showHighlightsCheck = document.getElementById('show-editor-highlights-check');
+      if (this.showHighlightsCheck) {
+        this.showHighlightsCheck.checked = this.showEditorHighlights;
+        document.body.classList.toggle('no-highlights', !this.showEditorHighlights);
+      }
+
       // 3. Attach Listeners ONLY after initial state is set
       this.attachEventListeners();
 
@@ -170,6 +181,15 @@ class CavemanApp {
       this.dblClickRenameCheck.addEventListener('change', () => {
         this.dblClickRenaming = this.dblClickRenameCheck.checked;
         localStorage.setItem('caveman-dbl-click-rename', this.dblClickRenaming);
+      });
+    }
+
+    if (this.showHighlightsCheck) {
+      this.showHighlightsCheck.addEventListener('change', () => {
+        this.showEditorHighlights = this.showHighlightsCheck.checked;
+        localStorage.setItem('caveman-show-editor-highlights', this.showEditorHighlights);
+        document.body.classList.toggle('no-highlights', !this.showEditorHighlights);
+        this.renderHighlights(); // Re-render if enabled
       });
     }
 
@@ -209,6 +229,7 @@ class CavemanApp {
     this.editorEl.addEventListener('input', () => {
       this.handleInput();
       this.updateLineNumbers();
+      this.renderHighlights();
       if (!this.editorSearchWidget.classList.contains('hidden')) {
         this.performSearch(false); // Update results without jumping if typing
       }
@@ -230,6 +251,8 @@ class CavemanApp {
       this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
       this.editorHighlightsEl.scrollTop = this.editorEl.scrollTop;
       this.editorHighlightsEl.scrollLeft = this.editorEl.scrollLeft;
+      this.searchMarksEl.scrollTop = this.editorEl.scrollTop;
+      this.searchMarksEl.scrollLeft = this.editorEl.scrollLeft;
     });
     this.titleInput.addEventListener('input', () => this.handleInput());
     this.folderInput.addEventListener('input', () => this.handleInput());
@@ -392,11 +415,22 @@ class CavemanApp {
     document.documentElement.classList.toggle('night-mode');
     const isNight = document.body.classList.contains('night-mode');
     localStorage.setItem('caveman-night-mode', isNight ? 'true' : 'false');
+    this.updatePrismTheme();
     if (isNight) {
       console.log("%cBONFIRE LIT", "color: #c0a062; font-size: 40px; font-weight: bold; font-family: serif; font-style: italic;");
     }
     if (this.canvasModule) {
       this.canvasModule.render();
+    }
+  }
+
+  updatePrismTheme() {
+    const isNight = document.body.classList.contains('night-mode');
+    const prismTheme = document.getElementById('prism-theme');
+    if (prismTheme) {
+      prismTheme.href = isNight 
+        ? 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css'
+        : 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css';
     }
   }
 
@@ -640,6 +674,14 @@ class CavemanApp {
       ...note,
       _searchIndex: `${note.folder || ''} ${note.title} ${note.content}`.toLowerCase()
     }));
+
+    if (this.currentNote) {
+      const found = this.notes.find(n => n.id.toString() === this.currentNote.id.toString());
+      if (found) {
+        this.currentNote = found;
+      }
+    }
+
     this.renderNoteList();
   }
 
@@ -956,6 +998,7 @@ class CavemanApp {
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
+    note._searchIndex = `${note.folder} ${note.title} ${note.content}`.toLowerCase();
     
     const id = await this.vault.saveNote(note);
     note.id = id;
@@ -977,6 +1020,7 @@ class CavemanApp {
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
+    note._searchIndex = '  '; // empty folder + empty title + empty content
     const id = await this.vault.saveNote(note);
     note.id = id;
     this.notes.push(note);
@@ -1044,6 +1088,8 @@ class CavemanApp {
     this.lineNumbersEl.scrollTop = 0;
     this.editorHighlightsEl.scrollTop = 0;
     this.editorHighlightsEl.scrollLeft = 0;
+    this.searchMarksEl.scrollTop = 0;
+    this.searchMarksEl.scrollLeft = 0;
     this.renderHighlights();
   }
 
@@ -1700,8 +1746,24 @@ class CavemanApp {
     const text = this.editorEl.value;
     const query = this.editorSearchInput.value;
     
-    if (!query || this.editorSearchWidget.classList.contains('hidden')) {
+    // 1. Syntax Highlighting
+    if (typeof Prism !== 'undefined' && Prism.languages.markdown) {
+      // Custom Wikilink Support for Prism Editor
+      if (!Prism.languages.markdown.wikilink) {
+        Prism.languages.markdown.wikilink = {
+          pattern: /\[\[.*?\]\]/,
+          alias: 'wikilink'
+        };
+      }
+      
+      this.editorHighlightsEl.innerHTML = Prism.highlight(text, Prism.languages.markdown, 'markdown') + '\n';
+    } else {
       this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+    }
+
+    // 2. Search Highlights
+    if (!query || this.editorSearchWidget.classList.contains('hidden')) {
+      this.searchMarksEl.innerHTML = this.escapeHtml(text) + '\n';
       return;
     }
 
@@ -1722,9 +1784,9 @@ class CavemanApp {
         count++;
       }
       html += this.escapeHtml(text.substring(lastIndex));
-      this.editorHighlightsEl.innerHTML = html + '\n';
+      this.searchMarksEl.innerHTML = html + '\n';
     } catch (e) {
-      this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+      this.searchMarksEl.innerHTML = this.escapeHtml(text) + '\n';
     }
   }
 

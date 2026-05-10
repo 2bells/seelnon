@@ -79,6 +79,60 @@ export class Editor {
         breaks: true,
         headerIds: true
       });
+      
+      const renderer = new marked.Renderer();
+      
+      renderer.code = (arg1, arg2) => {
+        let code = arg1;
+        let language = arg2;
+        
+        // Handle new Marked API where first arg is an object { text, lang, escaped }
+        if (typeof arg1 === 'object' && arg1 !== null) {
+          code = arg1.text;
+          language = arg1.lang;
+        }
+        
+        const lang = language || 'text';
+        if (typeof Prism !== 'undefined') {
+          try {
+            const prismLang = Prism.languages[lang];
+            let highlighted;
+            
+            if (prismLang) {
+              highlighted = Prism.highlight(code, prismLang, lang);
+            } else {
+              // Fallback to plain text with basic escaping
+              highlighted = code
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+            }
+            
+            // Manual Diff Highlighting Logic for leading + and -
+            const lines = highlighted.split('\n');
+            const processedLines = lines.map(line => {
+              const plainLine = line.replace(/<[^>]+>/g, '').trim();
+              if (plainLine.startsWith('+')) {
+                return `<span class="line-diff-added">${line}</span>`;
+              } else if (plainLine.startsWith('-')) {
+                return `<span class="line-diff-removed">${line}</span>`;
+              }
+              return line;
+            });
+            
+            highlighted = processedLines.join('\n');
+            return `<pre class="language-${lang}"><code class="language-${lang}">${highlighted}</code></pre>`;
+          } catch (e) {
+            console.warn("Prism highlight error:", e);
+          }
+        }
+        return `<pre class="language-text"><code>${code}</code></pre>`;
+      };
+
+      marked.setOptions({ renderer });
+
       let html = marked.parse(md);
       
       // Brutalist Hack: marked makes checkboxes 'disabled' by default. 
