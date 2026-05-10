@@ -229,10 +229,18 @@ class CavemanApp {
     this.editorEl.addEventListener('input', () => {
       this.handleInput();
       this.updateLineNumbers();
-      this.renderHighlights();
+      setTimeout(() => this.renderHighlights(), 0);
       if (!this.editorSearchWidget.classList.contains('hidden')) {
-        this.performSearch(false); // Update results without jumping if typing
+        this.performSearch(false);
       }
+    });
+
+    this.editorEl.addEventListener('keyup', () => {
+      setTimeout(() => this.renderHighlights(), 0);
+    });
+
+    this.editorEl.addEventListener('mouseup', () => {
+      setTimeout(() => this.renderHighlights(), 0);
     });
 
     this.editorSearchInput.addEventListener('input', () => this.performSearch());
@@ -1138,7 +1146,8 @@ class CavemanApp {
 
       if (newContent !== content) {
         this.editorEl.value = newContent;
-        this.handleInput(true); // Persists but skips re-render to avoid flashing
+        await this.handleInput(true); // Persists but skips re-render to avoid flashing
+        this.renderHighlights();
       }
     }
   }
@@ -1237,6 +1246,8 @@ class CavemanApp {
     this.editorEl.setSelectionRange(prev.start, prev.end);
     
     this.handleInput(false, true); // true = skip history push
+    setTimeout(() => this.renderHighlights(), 0);
+    this.updateLineNumbers();
     this.editorEl.focus();
   }
 
@@ -1252,6 +1263,8 @@ class CavemanApp {
     this.editorEl.setSelectionRange(next.start, next.end);
     
     this.handleInput(false, true); // true = skip history push
+    setTimeout(() => this.renderHighlights(), 0);
+    this.updateLineNumbers();
     this.editorEl.focus();
   }
 
@@ -1419,6 +1432,7 @@ class CavemanApp {
       this.editorWrapper.classList.remove('hidden');
       this.togglePreviewBtn.textContent = 'View';
       this.updateLineNumbers();
+      setTimeout(() => this.renderHighlights(), 0);
     } else if (mode === 'preview') {
       this.previewEl.classList.remove('hidden');
       this.previewEl.scrollTop = 0;
@@ -1532,6 +1546,7 @@ class CavemanApp {
 
               this.handleInput(false, true); // Save but skip pushing current state to history (we'll push separately if needed)
               this.updateLineNumbers();
+              this.renderHighlights();
             } else {
               // Note switched mid-paste. Find original note and update IT on disk.
               const originalNote = this.notes.find(n => n.id === noteIdOnStart);
@@ -1743,21 +1758,28 @@ class CavemanApp {
   }
 
   renderHighlights() {
+    if (!this.currentNote || this.viewMode !== 'editor') return;
+    
     const text = this.editorEl.value;
     const query = this.editorSearchInput.value;
     
-    // 1. Syntax Highlighting
-    if (typeof Prism !== 'undefined' && Prism.languages.markdown) {
-      // Custom Wikilink Support for Prism Editor
-      if (!Prism.languages.markdown.wikilink) {
-        Prism.languages.markdown.wikilink = {
-          pattern: /\[\[.*?\]\]/,
-          alias: 'wikilink'
-        };
+    try {
+      // 1. Syntax Highlighting
+      if (typeof Prism !== 'undefined' && Prism.languages.markdown) {
+        // Custom Wikilink Support for Prism Editor
+        if (!Prism.languages.markdown.wikilink) {
+          Prism.languages.markdown.wikilink = {
+            pattern: /\[\[.*?\]\]/,
+            alias: 'wikilink'
+          };
+        }
+        
+        this.editorHighlightsEl.innerHTML = Prism.highlight(text, Prism.languages.markdown, 'markdown') + '\n';
+      } else {
+        this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
       }
-      
-      this.editorHighlightsEl.innerHTML = Prism.highlight(text, Prism.languages.markdown, 'markdown') + '\n';
-    } else {
+    } catch (e) {
+      console.warn("Highlighter failed:", e);
       this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
     }
 

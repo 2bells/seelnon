@@ -6,6 +6,7 @@
 
 - PrismJS to make color text
 - Some fixes
+- Mobile (hope)
 
 So editor respects your language:
 
@@ -15,7 +16,7 @@ So code blocks look like code:
 
 ![code](blog/2026-05/img/fri-notes_PrismJS_view.jpg)
 
-There is a setting to remove hightlights in the editor. For code block you have to specify your language after the start of code block: ` ```js ```py ```json `
+There is a setting to remove hightlights in the editor if needed. And for a code block you have to specify your language after the start of code block: ` ```js ```py ```json `
 
 [Use it](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
@@ -27,4 +28,4 @@ about things
 they don't have
 ```
 
-//I also need to start using damn things more, idk, got stuck in... ye ye ye... just do this and then it is this and then it is done and then I use it! But I'm already in territory making it usable for mobile, so it is feature complete + -
+//I also need to start using damn things more, idk, got stuck in... feature creep land... Idea of how far I can push it until it breaks. Then fix -> then keep pushing -> bloat -> sad -> windows 11 era. Story of humanity.
