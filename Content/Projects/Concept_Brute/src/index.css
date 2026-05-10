@@ -18,8 +18,14 @@ body {
     touch-action: none;
 }
 
-button:focus, input:focus, select:focus {
-    outline: none;
+button:focus, input:focus, select:focus, .tool-btn:focus, .brutal-btn:focus, .mini-btn:focus {
+    outline: none !important;
+    box-shadow: inherit; /* Don't add default blue glows */
+}
+
+/* Fix for iPad highlight on tap */
+* {
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* APP STRUCTURE */

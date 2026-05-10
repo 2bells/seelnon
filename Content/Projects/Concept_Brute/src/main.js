@@ -2326,12 +2326,8 @@ class App {
     return 300 + ((size - 100) / (500 - 100)) * 100;
   }
 
-  _mapSliderToPrecision(val, max = 100) {
-    // 0-25 -> 0-10%
-    // 25-50 -> 10-30%
-    // 50-75 -> 30-60%
-    // 75-100 -> 60-100%
-    const t = (val / max) * 100; // normalized to 0-100
+  _mapSliderToPrecision(val, rangeMax = 100) {
+    const t = val; // Sliders are 0-100
     let res;
     if (t <= 25) {
         res = (t / 25) * 10;
@@ -2342,22 +2338,20 @@ class App {
     } else {
         res = 60 + ((t - 75) / 25) * 40;
     }
-    return (res / 100) * max;
+    return (res / 100) * rangeMax;
   }
 
-  _mapPrecisionToSlider(val, max = 100) {
-    const t = (val / max) * 100; // normalized to 0-100
-    let res;
+  _mapPrecisionToSlider(val, rangeMax = 100) {
+    const t = (val / rangeMax) * 100;
     if (t <= 10) {
-        res = (t / 10) * 25;
+        return (t / 10) * 25;
     } else if (t <= 30) {
-        res = 25 + ((t - 10) / 20) * 25;
+        return 25 + ((t - 10) / 20) * 25;
     } else if (t <= 60) {
-        res = 50 + ((t - 30) / 30) * 25;
+        return 50 + ((t - 30) / 30) * 25;
     } else {
-        res = 75 + ((t - 60) / 40) * 25;
+        return 75 + ((t - 60) / 40) * 25;
     }
-    return (res / 100) * max;
   }
 }
 

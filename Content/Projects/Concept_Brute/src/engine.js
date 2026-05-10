@@ -1462,31 +1462,31 @@ export class Engine {
     const currentTime = e.timeStamp || performance.now();
     let pressure = 1.0;
     if (e.pointerType === 'pen' || e.pointerType === 'touch') {
-        pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : (this.lastPressure || 0.15);
+        // More robust pressure fallback
+        pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : (this.lastPressure || 0.2);
     }
     if (!Number.isFinite(pressure)) pressure = this.lastPressure || 0.5;
 
-    this.lastPressure = (this.lastPressure || pressure) * 0.7 + pressure * 0.3;
+    // Smoother pressure
+    this.lastPressure = (this.lastPressure || pressure) * 0.6 + pressure * 0.4;
     if (!Number.isFinite(this.lastPressure)) this.lastPressure = 0.5;
 
     const dx = currentPos.x - this.lastPos.x;
     const dy = currentPos.y - this.lastPos.y;
-    const dt = Math.max(0.1, currentTime - this.lastTime); // Prevent division by zero or extreme near-zero
+    // dt: increase min to 4ms (250fps) to avoid extreme velocities on high-poll rate devices
+    const dt = Math.max(4, currentTime - this.lastTime); 
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (!Number.isFinite(dist)) return;
-    // Prevent artifacts from jitter (very small movements)
     if (dist < 0.1) return;
     
-    // Raw velocity
     const rawVelocity = dist / dt;
-    
-    // Smooth velocity to prevent wild jumps (Exponential Moving Average)
-    this.smoothedVelocity = this.smoothedVelocity * 0.8 + rawVelocity * 0.2;
+    // Smoother velocity tracking
+    this.smoothedVelocity = this.smoothedVelocity * 0.85 + rawVelocity * 0.15;
     if (!Number.isFinite(this.smoothedVelocity)) this.smoothedVelocity = rawVelocity;
     
-    // Clamp smoothed velocity to avoid outliers - increased to 2000 for fast gestures
-    const velocity = Math.min(this.smoothedVelocity, 2000); 
+    // Clamp velocity more strictly to avoid giant "crashes"
+    const velocity = Math.min(this.smoothedVelocity, 400); 
 
     const worldTo = {
       x: m.wx,
@@ -1494,34 +1494,41 @@ export class Engine {
     };
 
     // --- Brush Sensitivity ---
-    const threshold = 10 + (this.brush.flow * 40); 
-    const vFactor = Math.pow(Math.min(velocity / threshold, 1.5), 1.2); 
+    // Higher threshold means you need to move faster to see the effect
+    const threshold = 35 + (this.brush.flow * 50); 
+    // Lower exponent (0.75) makes the response much less explosive
+    const vFactor = Math.pow(Math.min(velocity / threshold, 1.8), 0.75); 
     
-    const sensitivityMult = 2.0; 
+    const sensitivityMult = 1.0; // Reduced further from 1.2 for more control
     
-    // Size: positive speedSize means faster=smaller. Add pressure influence.
-    const sizeMod = 1 - (vFactor * this.brush.speedSize * sensitivityMult); 
-    let dynamicSize = this.brush.size * Math.max(0.05, sizeMod);
+    // Size: Clamp sizeMod
+    const speedSizeFactor = this.brush.speedSize || 0;
+    const sizeMod = 1 - (vFactor * speedSizeFactor * sensitivityMult); 
+    let dynamicSize = this.brush.size * Math.max(0.01, sizeMod);
     
     if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
         const inf = this.brush.pressureInfluence ?? 1.0;
         dynamicSize *= ( (1 - inf) + this.lastPressure * inf );
     }
+    // Final clamp to prevent "crashed chunks" (e.g. 5000px stamps)
+    dynamicSize = Math.max(0.1, Math.min(1500, dynamicSize));
     if (!Number.isFinite(dynamicSize)) dynamicSize = this.brush.size;
     
-    // Opacity: positive speedOpacity means faster=transparent. Add pressure influence.
+    // Opacity: Clamp opacMod
     const opacBase = 1 - (vFactor * this.brush.speedOpacity * sensitivityMult);
-    let opacMod = Math.max(0.01, opacBase);
+    let opacMod = Math.max(0.01, Math.min(1.0, opacBase));
     
     if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
         const inf = this.brush.pressureInfluence ?? 1.0;
         opacMod *= ( (1 - inf) + this.lastPressure * inf );
     }
+    opacMod = Math.max(0.005, Math.min(1.0, opacMod));
     if (!Number.isFinite(opacMod)) opacMod = 1.0;
 
     let color = this.brush.color;
     if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
-        color = this._shiftColor(color, vFactor * this.brush.speedHue * 60, -vFactor * (this.brush.speedValue / 5)); 
+        // Reduced color shift sensitivity
+        color = this._shiftColor(color, vFactor * this.brush.speedHue * 40, -vFactor * (this.brush.speedValue / 8)); 
     }
 
     const worldPos = {
@@ -2564,25 +2571,46 @@ export class Engine {
   }
 
   _updateTipCache(s, airbrush, color) {
+    if (!this.brush.tip || this.brush.tip.width === 0 || s < 1) return;
+    
     const blur = airbrush * s * 0.45;
     const scale = 1.0 / (1.0 + airbrush * 1.5);
     const dSize = Math.max(1, s * scale);
     const canv = document.createElement('canvas'); canv.width = s; canv.height = s;
     const tctx = canv.getContext('2d');
     
-    if (airbrush > 0) tctx.filter = `blur(${blur}px)`;
+    // Check for filter support
+    const supportsFilters = typeof tctx.filter !== 'undefined';
     
-    const sharpen = this.brush.brushSharpen || 0;
-    if (sharpen > 0) {
-        const contrast = 100 + sharpen * 900;
-        const currentFilter = (tctx.filter && tctx.filter !== 'none') ? tctx.filter : '';
-        tctx.filter = (currentFilter ? currentFilter + ' ' : '') + `contrast(${contrast}%)`;
+    if (airbrush > 0 && blur > 0) {
+        if (supportsFilters) {
+            tctx.filter = `blur(${blur}px)`;
+            tctx.drawImage(this.brush.tip, (s-dSize)/2, (s-dSize)/2, dSize, dSize);
+            tctx.globalCompositeOperation = 'source-in';
+            tctx.fillStyle = color; 
+            tctx.fillRect(0,0,s,s);
+        } else {
+            // Shadow fallback for older mobile browsers
+            tctx.shadowBlur = blur;
+            tctx.shadowColor = color;
+            tctx.shadowOffsetX = s;
+            tctx.shadowOffsetY = 0;
+            // Draw off-canvas to only see the shadow
+            tctx.drawImage(this.brush.tip, (s-dSize)/2 - s, (s-dSize)/2, dSize, dSize);
+        }
+    } else {
+        const sharpen = this.brush.brushSharpen || 0;
+        if (sharpen > 0 && supportsFilters) {
+            const contrast = 100 + sharpen * 900;
+            tctx.filter = `contrast(${contrast}%)`;
+        }
+        tctx.drawImage(this.brush.tip, (s-dSize)/2, (s-dSize)/2, dSize, dSize);
+        tctx.globalCompositeOperation = 'source-in';
+        tctx.fillStyle = color; 
+        tctx.fillRect(0,0,s,s);
     }
-
-    tctx.drawImage(this.brush.tip, (s-dSize)/2, (s-dSize)/2, dSize, dSize);
-    tctx.globalCompositeOperation = 'source-in';
-    tctx.fillStyle = color; tctx.fillRect(0,0,s,s);
-    this._tipColorCache = { canvas: canv, key: `${airbrush}_${s}_${sharpen}`, color, srcTip: this.brush.tip };
+    
+    this._tipColorCache = { canvas: canv, key: `${airbrush}_${s}_${this.brush.brushSharpen || 0}`, color, srcTip: this.brush.tip };
   }
 
   _updateReliefCache(s, blur) {
