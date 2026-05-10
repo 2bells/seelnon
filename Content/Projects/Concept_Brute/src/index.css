@@ -3,6 +3,7 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -11,6 +12,14 @@ body {
     overflow: hidden;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
+    touch-action: none;
+}
+
+button:focus, input:focus, select:focus {
+    outline: none;
 }
 
 /* APP STRUCTURE */
@@ -238,6 +247,10 @@ body {
     color: white;
 }
 
+.tool-btn:focus {
+    outline: none;
+}
+
 .tool-btn.with-shadow {
     box-shadow: 2px 2px 0px 0px black;
 }
@@ -329,6 +342,10 @@ body {
     color: white;
     box-shadow: none;
     transform: translate(1px, 1px);
+}
+
+.brutal-btn:focus {
+    outline: none;
 }
 
 .mini-btn {

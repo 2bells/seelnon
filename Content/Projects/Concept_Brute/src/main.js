@@ -127,6 +127,19 @@ class App {
     this.init();
     this._initToggles();
     this._initCategories();
+
+    // Global UI focus prevention
+    document.addEventListener('pointerup', (e) => {
+        const btn = e.target.closest('button');
+        if (btn) {
+            // Delay slightly to allow the click/action to complete if needed
+            setTimeout(() => {
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+            }, 50);
+        }
+    }, true);
   }
 
   _initCategories() {
@@ -729,49 +742,57 @@ class App {
     }
 
     // Jitter sliders
-    const jitterSize = document.getElementById('settings-jitter-size');
-    const jitterAngle = document.getElementById('settings-jitter-angle');
-    const jitterPos = document.getElementById('settings-jitter-pos');
-    const jitterHue = document.getElementById('settings-jitter-hue');
+    const jitterSizeInput = document.getElementById('settings-jitter-size');
+    const jitterAngleInput = document.getElementById('settings-jitter-angle');
+    const jitterPosInput = document.getElementById('settings-jitter-pos');
+    const jitterHueInput = document.getElementById('settings-jitter-hue');
 
-    if (jitterSize) {
-        jitterSize.oninput = (e) => {
-            const val = parseInt(e.target.value);
+    if (jitterSizeInput) {
+        jitterSizeInput.oninput = (e) => {
+            const rawVal = parseFloat(e.target.value);
+            const val = Math.round(this._mapSliderToPrecision(rawVal, 100));
             this.engine.brush.jitterSize = val / 100;
-            document.getElementById('jitter-size-val').innerText = `${val}%`;
+            const valEl = document.getElementById('jitter-size-val');
+            if (valEl) valEl.innerText = `${val}%`;
             if (this.brushSettings[this.activeTool]) {
                 this.brushSettings[this.activeTool].jitterSize = val;
                 this._saveBrushSettings();
             }
         };
     }
-    if (jitterAngle) {
-        jitterAngle.oninput = (e) => {
-            const val = parseInt(e.target.value);
+    if (jitterAngleInput) {
+        jitterAngleInput.oninput = (e) => {
+            const rawVal = parseFloat(e.target.value);
+            const val = Math.round(this._mapSliderToPrecision(rawVal, 180));
             this.engine.brush.jitterAngle = (val * Math.PI) / 180;
-            document.getElementById('jitter-angle-val').innerText = `${val}°`;
+            const valEl = document.getElementById('jitter-angle-val');
+            if (valEl) valEl.innerText = `${val}°`;
             if (this.brushSettings[this.activeTool]) {
                 this.brushSettings[this.activeTool].jitterAngle = val;
                 this._saveBrushSettings();
             }
         };
     }
-    if (jitterPos) {
-        jitterPos.oninput = (e) => {
-            const val = parseInt(e.target.value);
+    if (jitterPosInput) {
+        jitterPosInput.oninput = (e) => {
+            const rawVal = parseFloat(e.target.value);
+            const val = Math.round(this._mapSliderToPrecision(rawVal, 200));
             this.engine.brush.jitterPos = val / 100;
-            document.getElementById('jitter-pos-val').innerText = `${val}%`;
+            const valEl = document.getElementById('jitter-pos-val');
+            if (valEl) valEl.innerText = `${val}%`;
             if (this.brushSettings[this.activeTool]) {
                 this.brushSettings[this.activeTool].jitterPos = val;
                 this._saveBrushSettings();
             }
         };
     }
-    if (jitterHue) {
-        jitterHue.oninput = (e) => {
-            const val = parseInt(e.target.value);
+    if (jitterHueInput) {
+        jitterHueInput.oninput = (e) => {
+            const rawVal = parseFloat(e.target.value);
+            const val = Math.round(this._mapSliderToPrecision(rawVal, 100));
             this.engine.brush.jitterHue = val / 100;
-            document.getElementById('jitter-hue-val').innerText = `${val}%`;
+            const valEl = document.getElementById('jitter-hue-val');
+            if (valEl) valEl.innerText = `${val}%`;
             if (this.brushSettings[this.activeTool]) {
                 this.brushSettings[this.activeTool].jitterHue = val;
                 this._saveBrushSettings();
@@ -1698,25 +1719,25 @@ class App {
         // Jitter Sliders
         const jitterSize = document.getElementById('settings-jitter-size');
         if (jitterSize) {
-            jitterSize.value = settings.jitterSize ?? 0;
+            jitterSize.value = this._mapPrecisionToSlider(settings.jitterSize ?? 0, 100);
             const valEl = document.getElementById('jitter-size-val');
             if (valEl) valEl.innerText = `${(settings.jitterSize ?? 0)}%`;
         }
         const jitterAngle = document.getElementById('settings-jitter-angle');
         if (jitterAngle) {
-            jitterAngle.value = settings.jitterAngle ?? 0;
+            jitterAngle.value = this._mapPrecisionToSlider(settings.jitterAngle ?? 0, 180);
             const valEl = document.getElementById('jitter-angle-val');
             if (valEl) valEl.innerText = `${(settings.jitterAngle ?? 0)}°`;
         }
         const jitterPos = document.getElementById('settings-jitter-pos');
         if (jitterPos) {
-            jitterPos.value = settings.jitterPos ?? 0;
+            jitterPos.value = this._mapPrecisionToSlider(settings.jitterPos ?? 0, 200);
             const valEl = document.getElementById('jitter-pos-val');
             if (valEl) valEl.innerText = `${(settings.jitterPos ?? 0)}%`;
         }
         const jitterHue = document.getElementById('settings-jitter-hue');
         if (jitterHue) {
-            jitterHue.value = settings.jitterHue ?? 0;
+            jitterHue.value = this._mapPrecisionToSlider(settings.jitterHue ?? 0, 100);
             const valEl = document.getElementById('jitter-hue-val');
             if (valEl) valEl.innerText = `${(settings.jitterHue ?? 0)}%`;
         }
@@ -2303,6 +2324,40 @@ class App {
     if (size <= 30) return 100 + ((size - 10) / (30 - 10)) * 100;
     if (size <= 100) return 200 + ((size - 30) / (100 - 30)) * 100;
     return 300 + ((size - 100) / (500 - 100)) * 100;
+  }
+
+  _mapSliderToPrecision(val, max = 100) {
+    // 0-25 -> 0-10%
+    // 25-50 -> 10-30%
+    // 50-75 -> 30-60%
+    // 75-100 -> 60-100%
+    const t = (val / max) * 100; // normalized to 0-100
+    let res;
+    if (t <= 25) {
+        res = (t / 25) * 10;
+    } else if (t <= 50) {
+        res = 10 + ((t - 25) / 25) * 20;
+    } else if (t <= 75) {
+        res = 30 + ((t - 50) / 25) * 30;
+    } else {
+        res = 60 + ((t - 75) / 25) * 40;
+    }
+    return (res / 100) * max;
+  }
+
+  _mapPrecisionToSlider(val, max = 100) {
+    const t = (val / max) * 100; // normalized to 0-100
+    let res;
+    if (t <= 10) {
+        res = (t / 10) * 25;
+    } else if (t <= 30) {
+        res = 25 + ((t - 10) / 20) * 25;
+    } else if (t <= 60) {
+        res = 50 + ((t - 30) / 30) * 25;
+    } else {
+        res = 75 + ((t - 60) / 40) * 25;
+    }
+    return (res / 100) * max;
   }
 }
 
