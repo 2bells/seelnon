@@ -1921,6 +1921,9 @@ class CavemanApp {
       const notesToExport = this.notes.filter(n => !n.isPublic);
 
       zip.file("notes.json", JSON.stringify(notesToExport, null, 2));
+      zip.file("folder-settings.json", JSON.stringify(this.folderSettings, null, 2));
+      zip.file("tint-palette.json", JSON.stringify(this.tintPalette, null, 2));
+      zip.file("collapsed-folders.json", JSON.stringify(this.collapsedFolders, null, 2));
       
       const imgFolder = zip.folder("images");
       for (const img of images) {
@@ -1988,6 +1991,18 @@ class CavemanApp {
               await this.vault.saveImage(img.id, img.data);
             }
           }
+          if (data.folderSettings) {
+            this.folderSettings = { ...this.folderSettings, ...data.folderSettings };
+            localStorage.setItem('caveman-folder-settings', JSON.stringify(this.folderSettings));
+          }
+          if (data.tintPalette) {
+            this.tintPalette = data.tintPalette;
+            localStorage.setItem('caveman-tint-palette', JSON.stringify(this.tintPalette));
+          }
+          if (data.collapsedFolders) {
+            this.collapsedFolders = [...new Set([...this.collapsedFolders, ...data.collapsedFolders])];
+            localStorage.setItem('caveman-collapsed-folders', JSON.stringify(this.collapsedFolders));
+          }
           this.statusMessenger(`Imported ${data.notes.length} notes.`, "success");
           await this.loadNotes();
           if (this.notes.length > 0) this.selectNote(this.notes[0]);
@@ -2010,6 +2025,27 @@ class CavemanApp {
       const notesData = JSON.parse(await notesFile.async("string"));
       for (const note of notesData) {
         await this.vault.saveNote(note);
+      }
+
+      const settingsFile = zip.file("folder-settings.json");
+      if (settingsFile) {
+        const settingsData = JSON.parse(await settingsFile.async("string"));
+        this.folderSettings = { ...this.folderSettings, ...settingsData };
+        localStorage.setItem('caveman-folder-settings', JSON.stringify(this.folderSettings));
+      }
+
+      const paletteFile = zip.file("tint-palette.json");
+      if (paletteFile) {
+        const paletteData = JSON.parse(await paletteFile.async("string"));
+        this.tintPalette = paletteData;
+        localStorage.setItem('caveman-tint-palette', JSON.stringify(this.tintPalette));
+      }
+
+      const collapsedFile = zip.file("collapsed-folders.json");
+      if (collapsedFile) {
+        const collapsedData = JSON.parse(await collapsedFile.async("string"));
+        this.collapsedFolders = [...new Set([...this.collapsedFolders, ...collapsedData])];
+        localStorage.setItem('caveman-collapsed-folders', JSON.stringify(this.collapsedFolders));
       }
 
       const imgFolder = zip.folder("images");
