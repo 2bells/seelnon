@@ -802,6 +802,18 @@ button.btn-danger {
   transform: none !important;
 }
 
+button.btn-danger-dark {
+  background: #bb0000 !important;
+  color: white !important;
+  border-color: #000 !important;
+}
+
+button.btn-danger-extreme {
+  background: #660000 !important;
+  color: white !important;
+  border-color: #000 !important;
+}
+
 button.btn-danger:hover {
   background: #cc0000;
 }

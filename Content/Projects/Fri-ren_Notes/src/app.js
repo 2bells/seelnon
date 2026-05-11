@@ -1849,24 +1849,33 @@ class CavemanApp {
   }
 
   async purgeVault() {
-    if (!this._confirmPurge) {
-      this._confirmPurge = true;
-      const btn = document.getElementById('purge-vault-btn');
+    const btn = document.getElementById('purge-vault-btn');
+    if (!this._vaultPurgeStep) this._vaultPurgeStep = 0;
+    this._vaultPurgeStep++;
+
+    if (this._purgeGlobalTimeout) clearTimeout(this._purgeGlobalTimeout);
+
+    if (this._vaultPurgeStep === 1) {
       btn.textContent = 'REALLY? (IRREVERSIBLE)';
-      btn.classList.add('btn-danger');
-      
-      this._purgeGlobalTimeout = setTimeout(() => {
-        this._confirmPurge = false;
-        btn.textContent = 'PURGE ENTIRE VAULT';
-        btn.classList.remove('btn-danger');
-      }, 3000);
+      btn.className = 'btn-danger'; // Standard red
+    } else if (this._vaultPurgeStep === 2) {
+      btn.textContent = 'EVERYTHING WILL BE GONE!';
+      btn.className = 'btn-danger-dark'; // Darker red
+    } else if (this._vaultPurgeStep === 3) {
+      btn.textContent = 'ARE YOU REALLY REALLY SURE?';
+      btn.className = 'btn-danger-extreme'; // Deep red
+    } else if (this._vaultPurgeStep === 4) {
+      await this.vault.clear();
+      localStorage.removeItem('caveman-current-note-id');
+      location.reload();
       return;
     }
 
-    clearTimeout(this._purgeGlobalTimeout);
-    await this.vault.clear();
-    localStorage.removeItem('caveman-current-note-id');
-    location.reload();
+    this._purgeGlobalTimeout = setTimeout(() => {
+      this._vaultPurgeStep = 0;
+      btn.textContent = 'PURGE ENTIRE VAULT';
+      btn.className = '';
+    }, 4000); // Give them 4 seconds between clicks
   }
 
   async purgeUnusedImages() {
