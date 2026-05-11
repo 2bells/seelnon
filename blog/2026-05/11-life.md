@@ -18,7 +18,7 @@ It is very 'is'... and for now stood a test of mine on both Desktop and Mobile:
 
 ![Desktop](Content/Projects/Concept_Brute/img/CONCEPT_BRUTE_sss3506446.jpg)
 
-For tablet I don't have a good pen or shortcuts [maybe shortcuts to be implemented somehow, like a floating panel what is accessible in the settings so users can put in a specific place on the canvas and have all shortcut-y buttons for them... hmm... write that down, write that down]
+For tablet I don't have a good pen or shortcuts [maybe shortcuts to be implemented somehow, like a floating panel that is accessible in the settings so users can drag it into a specific place on the canvas and have all shortcut-y buttons for them... hmm... write that down, write that down]
 
 ![Tablet](Content/Projects/Concept_Brute/img/ipad_concept_brute.jpg)
 
