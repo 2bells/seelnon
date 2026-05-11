@@ -4,8 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GIL ARCHIVE - PORTFOLIO</title>
-    <link rel="stylesheet" href="archive.css">
+    
+    <!-- Preload fonts to avoid layout shift and flash of unstyled text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Immediate styles to prevent flashing and stretching */
+        body.archive-body {
+            background-color: #0a0a0f !important; /* Force immediately */
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        #archive-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            opacity: 0; /* Use opacity instead of visibility for smoother transition */
+            transition: opacity 0.3s ease;
+        }
+        /* Style the header structure immediately so it doesn't jump */
+        .archive-header {
+            text-align: center;
+            border-bottom: 2px solid #ffd700;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+        }
+        .archive-main-title {
+            font-family: 'VT323', monospace;
+            font-size: 4rem;
+            margin: 0;
+        }
+    </style>
+    
+    <link rel="stylesheet" href="archive.css" id="main-css">
     <link rel="stylesheet" href="wonderlands.css">
+    <script>
+        // Reveal UI only when CSS and Fonts are likely ready
+        window.addEventListener('load', () => {
+            document.fonts.ready.then(() => {
+                document.getElementById('archive-container').style.opacity = '1';
+            });
+        });
+    </script>
 </head>
 <body class="archive-body">
     <div id="archive-container">

@@ -92,7 +92,7 @@ const searchInput = document.getElementById('archive-search');
 const fileCountEl = document.getElementById('file-count');
 const clockEl = document.getElementById('clock');
 
-function renderArchive(filter = "") {
+async function renderArchive(filter = "", isInitialLoad = false) {
     const filtered = archiveData.filter(item => 
         item.title.toLowerCase().includes(filter.toLowerCase()) || 
         item.id.toLowerCase().includes(filter.toLowerCase()) ||
@@ -101,7 +101,37 @@ function renderArchive(filter = "") {
 
     fileCountEl.textContent = filtered.length;
 
-    archiveList.innerHTML = filtered.map(item => `
+    if (!isInitialLoad) {
+        // Instant render for searches
+        archiveList.innerHTML = filtered.map(item => createItemHtml(item)).join('');
+        return;
+    }
+
+    // Sequential load for initial page load
+    archiveList.innerHTML = '';
+    for (const item of filtered) {
+        const itemHtml = createItemHtml(item);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = itemHtml;
+        const itemElement = tempDiv.firstElementChild;
+        itemElement.style.opacity = '0';
+        itemElement.style.transform = 'translateY(20px)';
+        itemElement.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        
+        archiveList.appendChild(itemElement);
+        
+        // Trigger reflow
+        itemElement.offsetHeight;
+        
+        itemElement.style.opacity = '1';
+        itemElement.style.transform = 'translateY(0)';
+        
+        await new Promise(resolve => setTimeout(resolve, 150)); // Delay between items
+    }
+}
+
+function createItemHtml(item) {
+    return `
         <article class="archive-item" id="${item.id}">
             <div class="item-banner">${item.banner}</div>
             <div class="item-content-flex">
@@ -135,11 +165,11 @@ function renderArchive(filter = "") {
                 </div>
             </div>
         </article>
-    `).join('');
+    `;
 }
 
 searchInput.addEventListener('input', (e) => {
-    renderArchive(e.target.value);
+    renderArchive(e.target.value, false);
 });
 
 function updateClock() {
@@ -169,6 +199,9 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Init
-renderArchive();
-setInterval(updateClock, 1000);
-updateClock();
+// Wait for fonts/css if possible, but the onload in HTML handles visibility
+document.addEventListener('DOMContentLoaded', () => {
+    renderArchive("", true);
+    setInterval(updateClock, 1000);
+    updateClock();
+});
