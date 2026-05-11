@@ -22,11 +22,15 @@ For tablet I don't have a good pen or shortcuts [maybe shortcuts to be implement
 
 ![Tablet](Content/Projects/Concept_Brute/img/ipad_concept_brute.jpg)
 
+[Brute it](https://2bells.github.io/seelnon/Content/Projects/Concept_Brute/)
+
 ## Endless Canvas
 
 Also did the mobile test, nothing crazy, but the main point is note taking + sketching. And it did the job:
 
 ![EC](blog/2026-05/img/endless_canavas.jpg)
+
+[Endless it](https://2bells.github.io/seelnon/Content/Projects/Endless_canvas/)
 
 ## Fri-ren Notes
 
@@ -34,6 +38,8 @@ UPD:
 
 - fixed the bug with scrollbar changing the container size
 - purge images is moved up and to delete everything is 4 presses
+
+[Note it](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
 ---
 
