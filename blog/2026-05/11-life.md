@@ -2,7 +2,7 @@
 
 Ah, the days, the weeks, the months, the years. 
 
-And my fellow friend, teacher, mentor and a nightly brother “fear”. How long should our journey be, as I learnt your ways, your schemes, your wishes, yet the light of day has shined upon your teachings. 
+And my fellow friend, teacher, mentor and a nightly brother “fear”. How long should our journey be, as I have learned your ways, your schemes, your wishes, yet the light of day has shined upon your teachings. 
 
 And my fellow friend, teacher, mentor and a lightly sister “love”. How long should our journey be, as I wish to learn your ways, your schemes, your wishes. Will the dark of night shadow thoughts of yours before you grant them onto me?
 
