@@ -1,6 +1,7 @@
 import { FS } from "./fs.js";
 import { openAboutMeWindow } from "./about_me.js"; // Import the new about_me module
 import { openBlogWindow, preloadBlogPosts } from "./blog.js"; // Import the new blog module
+import { openTutorialsWindow, preloadTutorials } from "./tutorials/tutorials.js"; // Import the new tutorials module
 import { openWonderlandWindow } from "./wonderlands.js"; // Import the new wonderlands module
 import { initMascot, cleanupMascot } from "./mascot.js"; // NEW: Import initMascot and cleanupMascot
 
@@ -401,6 +402,7 @@ function iconForType(type) {
     case 'html': return 'https://cdn.jsdelivr.net/gh/tabler/tabler-icons/icons/file-type-html.svg';
     case 'about': return 'icons/about_me_icon.png';
     case 'blog': return 'icons/projects_icon.png';
+    case 'tutorials': return 'icons/talent_icon_debug.png';
     default: return 'https://cdn.jsdelivr.net/gh/tabler/tabler-icons/icons/file.svg';
   }
 }
@@ -430,6 +432,8 @@ function renderDesktop() {
       type = 'ai-research';
     } else if (entry.name === 'GIL Archive') {
       type = 'gil-archive';
+    } else if (entry.name === 'Tutorials') {
+      type = 'tutorials';
     } else {
       type = 'left-column';
     }
@@ -471,6 +475,9 @@ function renderDesktop() {
     } else if (type === 'gil-archive') {
       finalLeft = desktop.clientWidth - iconEl.offsetWidth - rightMargin;
       finalTop = topMargin + iconSpacingY;
+    } else if (type === 'tutorials') {
+      finalLeft = desktop.clientWidth - iconEl.offsetWidth - rightMargin;
+      finalTop = topMargin + 2 * iconSpacingY;
     }
     
     // Apply calculated positions
@@ -1341,6 +1348,7 @@ async function openEntry(path) {
   }
   else if (entry.type === 'about') windowId = openAboutMeWindow(entry.name, openWindow); // Handle 'about' type
   else if (entry.type === 'blog') windowId = await openBlogWindow(entry.name, openWindow); // Handle 'blog' type
+  else if (entry.type === 'tutorials') windowId = await openTutorialsWindow(entry.name, openWindow); // Handle 'tutorials' type
   else if (entry.type === 'wonderland') {
     windowId = await openWonderlandWindow(entry, openWindow);
   }
@@ -1531,6 +1539,7 @@ function initializeApp() {
 
     // Preload blog posts to update mascot hints with latest italicized phrases
     preloadBlogPosts();
+    preloadTutorials();
 
     // Automatically open Blog on load
     const blogNode = FS.findByName('Blog');

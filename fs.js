@@ -68,6 +68,7 @@ export const FS = (() => {
   const wonderlands = folder('Wonderlands', '/', { desktopShortcut: true });
   const blog = folder('Blog', '/', { desktopShortcut: true, type: 'blog' }); // New 'Blog' entry
   const gilArchive = html('GIL Archive', 'archive.html', '/', { desktopShortcut: true, icon: 'icons/talent_icon_pixel.png' }); // Pointer to archive.html
+  const tutorials = folder('Tutorials', '/', { desktopShortcut: true, type: 'tutorials' }); 
   const aboutMe = folder('About Me', '/', { desktopShortcut: true, type: 'about' }); // New 'About Me' entry
   // Path for aiResearchApp is already relative, but can be simplified for consistency if in root
   const aiResearchApp = html('AI_research', 'ai_research/new_index.html', '/', { desktopShortcut: true, icon: 'icons/ai_research_icon.png' });
@@ -116,7 +117,7 @@ export const FS = (() => {
     updatesUrl: 'wonderlands/orszaghaz/updates.md',
     icon: "https://avatars.mds.yandex.net/i?id=0b2cf640211c6f941219cafacc01dd41_sr-5147303-images-thumbs&n=13"
   });  
-    wonderland('League of GUN', 'wonderlands/league_of_gun/TAG.txt', '/Wonderlands', { 
+  wonderland('League of GUN', 'wonderlands/league_of_gun/TAG.txt', '/Wonderlands', { 
     description: 'League, but FPS.',
     updatesUrl: 'wonderlands/league_of_gun/updates.md',
     icon: "wonderlands/league_of_gun/cover.jpg"
@@ -130,6 +131,7 @@ export const FS = (() => {
   wonderlands.icon = 'icons/chest_icon.png';
   blog.icon = 'icons/projects_icon.png';
   gilArchive.icon = 'icons/talent_icon_pixel.png';
+  tutorials.icon = 'icons/talent_icon_debug.png';
   aboutMe.icon = 'icons/about_me_icon.png';
   aiResearchApp.icon = 'icons/ai_research_icon.png'; // Kept as png as it's a specific app icon
 

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUTORIALS - VIEW ONLY</title>
+    <link rel="stylesheet" href="tutorials.css">
+    <!-- Marked for MD -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Prism for Syntax -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="brand">
+                <div class="dot"></div>
+                <span class="brand-text">KNOWLEDGE_BASE</span>
+            </div>
+            <div id="file-path" style="font-size: 10px; opacity: 0.5; font-family: monospace;"></div>
+        </header>
+
+        <div class="main-layout">
+            <aside>
+                <div class="sidebar-header">ARCHIVE_INDEX</div>
+                <div id="tutorial-list">
+                    <!-- Loaded via JS -->
+                </div>
+            </aside>
+            <main>
+                <article id="content">
+                    <!-- Rendered MD -->
+                    <div style="text-align: center; margin-top: 50px; opacity: 0.5;">
+                        SELECT A SCROLL TO BEGIN READING...
+                    </div>
+                </article>
+            </main>
+        </div>
+    </div>
+    <script src="tutorials.js"></script>
+</body>
+</html>
