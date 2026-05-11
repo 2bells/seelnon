@@ -302,7 +302,10 @@ class CavemanApp {
       }
     });
 
-    window.addEventListener('resize', () => this.updateLineNumbers());
+    window.addEventListener('resize', () => {
+      this.updateLineNumbers();
+      this.renderHighlights();
+    });
 
     this.previewEl.addEventListener('click', (e) => this.handlePreviewClick(e));
 
@@ -1669,12 +1672,21 @@ class CavemanApp {
     });
     if (this.viewMode === 'editor') {
       this.updateLineNumbers();
+      this.renderHighlights();
     }
   }
 
   toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.toggle('hidden');
+    
+    // Crucial: Update editor layouts after sidebar push/pull
+    if (this.viewMode === 'editor') {
+      setTimeout(() => {
+        this.updateLineNumbers();
+        this.renderHighlights();
+      }, 0);
+    }
   }
 
   showSearch() {
@@ -1759,57 +1771,55 @@ class CavemanApp {
 
   renderHighlights() {
     if (!this.currentNote || this.viewMode !== 'editor') return;
-    
-    const text = this.editorEl.value;
-    const query = this.editorSearchInput.value;
-    
-    try {
-      // 1. Syntax Highlighting
-      if (typeof Prism !== 'undefined' && Prism.languages.markdown) {
-        // Custom Wikilink Support for Prism Editor
-        if (!Prism.languages.markdown.wikilink) {
-          Prism.languages.markdown.wikilink = {
-            pattern: /\[\[.*?\]\]/,
-            alias: 'wikilink'
-          };
-        }
-        
-        this.editorHighlightsEl.innerHTML = Prism.highlight(text, Prism.languages.markdown, 'markdown') + '\n';
-      } else {
-        this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
-      }
-    } catch (e) {
-      console.warn("Highlighter failed:", e);
-      this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
-    }
 
-    // 2. Search Highlights
-    if (!query || this.editorSearchWidget.classList.contains('hidden')) {
-      this.searchMarksEl.innerHTML = this.escapeHtml(text) + '\n';
-      return;
-    }
-
-    try {
-      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(escapedQuery, 'gi');
+    requestAnimationFrame(() => {
+      const text = this.editorEl.value;
+      const query = this.editorSearchInput.value;
       
-      let lastIndex = 0;
-      let html = '';
-      let match;
-      let count = 0;
+      try {
+        // 1. Syntax Highlighting
+        if (typeof Prism !== 'undefined' && Prism.languages.markdown) {
+          // Custom Wikilink Support for Prism Editor
+          if (!Prism.languages.markdown.wikilink) {
+            Prism.languages.markdown.wikilink = {
+              pattern: /\[\[.*?\]\]/,
+              alias: 'wikilink'
+            };
+          }
+          
+          this.editorHighlightsEl.innerHTML = Prism.highlight(text, Prism.languages.markdown, 'markdown') + '\n';
+        } else {
+          this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+        }
 
-      while ((match = regex.exec(text)) !== null) {
-        html += this.escapeHtml(text.substring(lastIndex, match.index));
-        const isCurrent = (count === this.currentSearchMatchIndex);
-        html += `<mark class="${isCurrent ? 'current' : ''}">${this.escapeHtml(match[0])}</mark>`;
-        lastIndex = regex.lastIndex;
-        count++;
+        // 2. Search Highlights
+        if (!query || this.editorSearchWidget.classList.contains('hidden')) {
+          this.searchMarksEl.innerHTML = this.escapeHtml(text) + '\n';
+          return;
+        }
+
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedQuery, 'gi');
+        
+        let lastIndex = 0;
+        let html = '';
+        let match;
+        let count = 0;
+
+        while ((match = regex.exec(text)) !== null) {
+          html += this.escapeHtml(text.substring(lastIndex, match.index));
+          const isCurrent = (count === this.currentSearchMatchIndex);
+          html += `<mark class="${isCurrent ? 'current' : ''}">${this.escapeHtml(match[0])}</mark>`;
+          lastIndex = regex.lastIndex;
+          count++;
+        }
+        html += this.escapeHtml(text.substring(lastIndex));
+        this.searchMarksEl.innerHTML = html + '\n';
+      } catch (e) {
+        console.warn("Highlighter failed:", e);
+        if (this.editorHighlightsEl) this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
       }
-      html += this.escapeHtml(text.substring(lastIndex));
-      this.searchMarksEl.innerHTML = html + '\n';
-    } catch (e) {
-      this.searchMarksEl.innerHTML = this.escapeHtml(text) + '\n';
-    }
+    });
   }
 
   escapeHtml(str) {
@@ -2124,7 +2134,12 @@ class CavemanApp {
     
     // Width must be exact to match textarea wrapping behavior
     // We use clientWidth but account for potential scrollbar flicker
-    this.measureEl.style.width = this.editorEl.clientWidth + 'px';
+    const editorWidth = this.editorEl.clientWidth;
+    this.measureEl.style.width = editorWidth + 'px';
+    
+    // Sync highlight overlays to match the same text area width (compensating for scrollbars)
+    if (this.editorHighlightsEl) this.editorHighlightsEl.style.width = editorWidth + 'px';
+    if (this.searchMarksEl) this.searchMarksEl.style.width = editorWidth + 'px';
 
     const lines = this.editorEl.value.split('\n');
     let lineNumbersContent = '';
