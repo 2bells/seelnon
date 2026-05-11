@@ -38,8 +38,6 @@ If the styling above works, <span class="custom-highlight">this text should be h
     }
 
     header {
-        text-align: center;
-        padding: 30px;
         animation: fadeIn 2s ease-in-out;
     }
 
