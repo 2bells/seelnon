@@ -10,13 +10,13 @@ idk, day existed.
 
 I had like a philosophical idea about nature of a thought, if taken from the point of view of lightning and triggering simple things inside of complex system. And why we cannot detect a thought, because, while it runs through, no part of the 'thought' contains it and the act of observation of 'lightning' is the thought itself.
 
-Pretty much same idea as: it doesn't matter how much boards we look at, it never be a 'ship'. Meaning the problem of finding a thought is similar of trying to study grains of sand to understand the desert. Making it a 'problem of scale'.
+Pretty much same idea as: it doesn't matter how much boards we look at, it never be a 'ship'. Meaning the problem of finding a thought is similar to trying to study grains of sand to understand the desert. Making it a 'problem of scale'.
 
 Thus things like 'abstraction' to a higher level as 'manipulating a person to have a specific thought' (ex. "Don't think of a white bear"... [here you go, manipulated.]) show itself as a better tool of 'thought exploration', while devices can only detect activity, but not a thought.
 
 Then an idea of 'not all activity is decoded'. The idea of 'paying attention' to a specific thought as they might happen at the same time and multiple of them. So here we have to understand the point of an 'observer' or a need of one. So it requires something that could be explained as consciousness or awareness.
 
-Still it becomes a pie of 'trust me bro' as no thought/consciousness/awareness/will are exiting as measurable units. But all science relies on point of reference and if you dig deep enough, there is a statement of 'because I said so'. Let's say 1 in math is representing 1 unit of something, but if apple has 10^7 atoms and another 11^7 atoms, both apples are abstracted to 1. And 1 + 1 = 2, while 1 = 1... even though apples are different.
+Still it becomes a pie of 'trust me bro' as no thought / consciousness / awareness / will are existing as measurable units. But all science relies on point of reference and if you dig deep enough, there is a statement of 'because I said so'. Let's say 1 in math is representing 1 unit of something, but if apple has 10^7 atoms and another 11^7 atoms, both apples are abstracted to 1. And 1 + 1 = 2, while 1 = 1... even though apples are different.
 
 So science relies on packaging the subjective into sets of objectifications with a prayer at the end that after manipulation of objective sets, subjective could be controlled. Making most science and devices fail when 'reality' becomes more of a 'suggestion' than a reality itself, making it almost impossible to detect things that are 'complex enough'. [scale works, complexity doesn't]
 
