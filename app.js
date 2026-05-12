@@ -1415,25 +1415,41 @@ function createEmber(container) {
 
 // NEW: Preloading and Initialization logic
 async function startPreloading() {
-    const preloadLinks = [...document.querySelectorAll('link[rel="preload"][as="image"]')];
+    const preloadLinks = [...document.querySelectorAll('link[rel="preload"], link[rel="modulepreload"]')];
     const totalAssets = preloadLinks.length;
 
     for (let i = 0; i < totalAssets; i++) {
         const link = preloadLinks[i];
         const url = link.href;
+        const asType = link.getAttribute('as') || (link.rel === 'modulepreload' ? 'script' : null);
         
         const fileName = url.split('/').pop();
         loadingFile.textContent = `Loading: ${fileName}...`;
         
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+        );
+
         try {
-            await new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = url;
-            });
+            if (asType === 'image') {
+                await Promise.race([
+                    new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = resolve;
+                        img.onerror = reject;
+                        img.src = url;
+                    }),
+                    timeoutPromise
+                ]);
+            } else {
+                // For scripts, styles, or other types, use fetch to populate the cache
+                await Promise.race([
+                    fetch(url, { mode: 'no-cors' }),
+                    timeoutPromise
+                ]);
+            }
         } catch (error) {
-            console.warn(`Could not preload asset: ${url}`);
+            console.warn(`Could not preload asset: ${url} - ${error.message}`);
             // Still count it as "loaded" to not hang the progress bar
         }
 
