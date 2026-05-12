@@ -14,7 +14,7 @@ Pretty much same idea as: it doesn't matter how much boards we look at, it never
 
 Thus things like 'abstraction' to a higher level as 'manipulating a person to have a specific thought' (ex. "Don't think of a white bear"... [here you go, manipulated.]) show itself as a better tool of 'thought exploration', while devices can only detect activity, but not a thought.
 
-Then an idea of 'not all activity is decoded'. The idea of 'paying attention' to a specific thoughts as they might happen at the same time and multiple of them. So here we have to understand the point of an 'observer' or a need of one. So it requires something that could be explained as consciousness or awareness.
+Then an idea of 'not all activity is decoded'. The idea of 'paying attention' to a specific thought as they might happen at the same time and multiple of them. So here we have to understand the point of an 'observer' or a need of one. So it requires something that could be explained as consciousness or awareness.
 
 Still it becomes a pie of 'trust me bro' as no thought/consciousness/awareness/will are exiting as measurable units. But all science relies on point of reference and if you dig deep enough, there is a statement of 'because I said so'. Let's say 1 in math is representing 1 unit of something, but if apple has 10^7 atoms and another 11^7 atoms, both apples are abstracted to 1. And 1 + 1 = 2, while 1 = 1... even though apples are different.
 
@@ -38,7 +38,8 @@ Tiring.
 
 //Wake up Samurai, time to collapse the function.
 
----
+![img](blog/2026-05/img/endless_test.jpg)
+
 
 ```
 thought of a day:
