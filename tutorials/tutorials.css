@@ -221,13 +221,41 @@ main {
 #content a {
   color: var(--accent);
   text-decoration: none;
-  border-bottom: 1px dashed var(--accent);
+  border: 1px solid #4a3e34;
+  padding: 4px 10px;
+  background: #1c1814;
+  display: inline-block;
   transition: all 0.2s;
+  position: relative;
+  margin: 2px 0;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+#content a::after {
+  content: " _";
+  opacity: 0.5;
+  animation: underscore-blink 1s step-end infinite;
+}
+
+@keyframes underscore-blink {
+  from, to { opacity: 0.5; }
+  50% { opacity: 0; }
+}
+
+#content a:hover::after {
+  animation: none;
+  opacity: 1;
 }
 
 #content a:hover {
-  background: var(--accent);
-  color: #1c1814;
+  background: #241f1a;
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 2px 2px 0 #000;
 }
 
 #content hr {

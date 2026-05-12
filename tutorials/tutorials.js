@@ -78,6 +78,15 @@ export async function openTutorialsWindow(title, openWindowFn) {
             .tutorials-content a::after {
                 content: " _";
                 opacity: 0.5;
+                animation: underscore-blink 1s step-end infinite;
+            }
+            @keyframes underscore-blink {
+                from, to { opacity: 0.5; }
+                50% { opacity: 0; }
+            }
+            .tutorials-content a:hover::after {
+                animation: none;
+                opacity: 1;
             }
             .tutorials-content a:hover { 
                 background: #241f1a; 
