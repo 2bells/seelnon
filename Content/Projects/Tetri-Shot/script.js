@@ -17,6 +17,16 @@ const COLORS = {
     'Z': '#f00000'
 };
 
+const COLORS_ALTUS = {
+    'I': '#ffcc00', // Gold
+    'J': '#c0c0c0', // Silver
+    'L': '#cd7f32', // Bronze
+    'O': '#b8860b', // Dark Goldenrod
+    'S': '#8b4513', // Saddle Brown
+    'T': '#daa520', // Goldenrod
+    'Z': '#a0522d'  // Sienna
+};
+
 const SHAPES = {
     'I': [[1, 1, 1, 1]],
     'J': [[1, 0, 0], [1, 1, 1]],
@@ -27,16 +37,141 @@ const SHAPES = {
     'Z': [[1, 1, 0], [0, 1, 1]]
 };
 
+/**
+ * BRUTALIST 8-BIT AUDIO ENGINE
+ */
+class AudioManager {
+    constructor() {
+        this.ctx = null;
+    }
+
+    init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    playSfx(type) {
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const now = this.ctx.currentTime;
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        switch (type) {
+            case 'spawn':
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+                break;
+
+            case 'panic':
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+                break;
+
+            case 'land':
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(80, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+                break;
+
+            case 'clear':
+                this.playTone(110, 0.15, 'square');
+                setTimeout(() => this.playTone(147, 0.15, 'square'), 50);
+                break;
+
+            case 'tetris':
+                [82, 110, 138, 165].forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 0.25, 'square'), i * 100);
+                });
+                break;
+
+            case 'click':
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1200, now);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+                break;
+
+            case 'rotate':
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(330, now);
+                osc.frequency.linearRampToValueAtTime(660, now + 0.05);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+                break;
+
+            case 'gameover':
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.linearRampToValueAtTime(55, now + 0.5);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+                break;
+        }
+    }
+
+    playTone(freq, dur, type = 'square') {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const now = this.ctx.currentTime;
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + dur);
+    }
+}
+
 class Game {
     constructor() {
+        this.audio = new AudioManager();
         this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
         
+        // Load Theme Preference
+        const savedTheme = localStorage.getItem('tetri-shot-theme');
+        if (savedTheme === 'altus') {
+            document.body.classList.add('altus');
+            const themeBtn = document.getElementById('theme-toggle');
+            if (themeBtn) themeBtn.innerText = 'RETRO MODE';
+        }
+
         this.nextCanvas = document.getElementById('next-canvas');
         this.nextCtx = this.nextCanvas.getContext('2d');
         
         this.holdCanvas = document.getElementById('hold-canvas');
         this.holdCtx = this.holdCanvas.getContext('2d');
+
+        // Load Highscore
+        this.highscore = parseInt(localStorage.getItem('tetri-shot-highscore')) || 0;
+        document.getElementById('highscore-val').innerText = this.highscore.toLocaleString();
 
         this.canvas.width = BOARD_WIDTH * BLOCK_SIZE;
         this.canvas.height = BOARD_HEIGHT * BLOCK_SIZE;
@@ -71,10 +206,12 @@ class Game {
     generatePiece() {
         const types = Object.keys(SHAPES);
         const type = types[Math.floor(Math.random() * types.length)];
+        const isAltus = document.body.classList.contains('altus');
+        const colorSet = isAltus ? COLORS_ALTUS : COLORS;
         return {
             type,
             matrix: SHAPES[type],
-            color: COLORS[type]
+            color: colorSet[type]
         };
     }
 
@@ -92,6 +229,7 @@ class Game {
             ? this.rotateMatrix(this.currentPiece.matrix)
             : this.rotateMatrixCCW(this.currentPiece.matrix);
         
+        this.audio.playSfx('rotate');
         // Ensure visual bounds
         const pw = this.currentPiece.matrix[0].length;
         const ph = this.currentPiece.matrix.length;
@@ -101,15 +239,19 @@ class Game {
 
     holdAction() {
         if (this.state !== 'PLAYING') return;
+        this.audio.playSfx('click');
+        
+        const isAltus = document.body.classList.contains('altus');
+        const colorSet = isAltus ? COLORS_ALTUS : COLORS;
         
         if (this.holdPiece === null) {
-            this.holdPiece = { type: this.currentPiece.type, matrix: SHAPES[this.currentPiece.type], color: COLORS[this.currentPiece.type] };
+            this.holdPiece = { type: this.currentPiece.type, matrix: SHAPES[this.currentPiece.type], color: colorSet[this.currentPiece.type] };
             this.currentPiece = this.nextPieces.shift();
             this.nextPieces.push(this.generatePiece());
         } else {
-            const temp = { type: this.currentPiece.type, matrix: SHAPES[this.currentPiece.type], color: COLORS[this.currentPiece.type] };
+            const temp = { type: this.currentPiece.type, matrix: SHAPES[this.currentPiece.type], color: colorSet[this.currentPiece.type] };
             const oldType = this.holdPiece.type;
-            this.currentPiece = { type: oldType, matrix: SHAPES[oldType], color: COLORS[oldType] };
+            this.currentPiece = { type: oldType, matrix: SHAPES[oldType], color: colorSet[oldType] };
             this.holdPiece = temp;
         }
         this.updateUI();
@@ -138,6 +280,10 @@ class Game {
             if (this.state === 'PLAYING') this.shoot();
         });
 
+        // Initialize Audio on first interaction
+        window.addEventListener('mousedown', () => this.audio.init(), { once: true });
+        window.addEventListener('keydown', () => this.audio.init(), { once: true });
+
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' || e.key === 'e' || e.key === 'E' || e.key === 'ArrowUp') {
                 this.rotateCurrent(true);
@@ -154,12 +300,15 @@ class Game {
         });
 
         document.getElementById('start-btn').onclick = () => {
+            this.audio.init();
+            this.audio.playSfx('click');
             document.getElementById('start-screen').classList.add('hidden');
             this.reset();
             this.state = 'PLAYING';
         };
 
         document.getElementById('restart-btn').onclick = () => {
+            this.audio.playSfx('click');
             document.getElementById('game-over').classList.add('hidden');
             this.reset();
             this.state = 'PLAYING';
@@ -168,10 +317,32 @@ class Game {
         const pauseBtn = document.getElementById('pause-btn');
         if (pauseBtn) {
             pauseBtn.onclick = () => {
+                this.audio.playSfx('click');
                 this.state = this.state === 'PAUSED' ? 'PLAYING' : 'PAUSED';
                 pauseBtn.innerText = this.state === 'PAUSED' ? 'RESUME' : 'PAUSE';
             };
         }
+
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn) {
+            themeBtn.onclick = () => {
+                this.audio.playSfx('click');
+                const isAltus = document.body.classList.toggle('altus');
+                themeBtn.innerText = isAltus ? 'RETRO MODE' : 'NIGHT MODE';
+                localStorage.setItem('tetri-shot-theme', isAltus ? 'altus' : 'retro');
+                // Refresh colors for existing pieces
+                this.refreshPieceColors();
+            };
+        }
+    }
+
+    refreshPieceColors() {
+        const isAltus = document.body.classList.contains('altus');
+        const colorSet = isAltus ? COLORS_ALTUS : COLORS;
+        if (this.currentPiece) this.currentPiece.color = colorSet[this.currentPiece.type];
+        if (this.holdPiece) this.holdPiece.color = colorSet[this.holdPiece.type];
+        this.nextPieces.forEach(p => p.color = colorSet[p.type]);
+        this.activePieces.forEach(p => p.color = colorSet[p.type]);
     }
 
     reset() {
@@ -190,6 +361,7 @@ class Game {
 
     shoot() {
         if (!this.currentPiece) return;
+        this.audio.playSfx('spawn');
         const targetX = this.handX;
         const targetY = this.handY;
 
@@ -262,6 +434,7 @@ class Game {
 
     autoDump() {
         if (this.nextPieces.length === 0) return;
+        this.audio.playSfx('panic');
         
         const dumpPiece = this.nextPieces.shift();
         this.nextPieces.push(this.generatePiece());
@@ -280,6 +453,7 @@ class Game {
 
     placePiece(x, y, piece) {
         if (!piece) return;
+        this.audio.playSfx('land');
         
         // "Just in case" - ensure piece is actually supported before placing
         let finalY = Math.floor(y);
@@ -329,8 +503,10 @@ class Game {
         for (let r = BOARD_HEIGHT - 1; r >= 0; r--) {
             if (this.grid[r].every(cell => cell !== 0)) {
                 // Line clear FX
+                const isAltus = document.body.classList.contains('altus');
+                const colorSet = isAltus ? COLORS_ALTUS : COLORS;
                 for(let c=0; c<BOARD_WIDTH; c++) {
-                    this.spawnParticles(c * BLOCK_SIZE + BLOCK_SIZE/2, r * BLOCK_SIZE + BLOCK_SIZE/2, COLORS[this.grid[r][c]], 8);
+                    this.spawnParticles(c * BLOCK_SIZE + BLOCK_SIZE/2, r * BLOCK_SIZE + BLOCK_SIZE/2, colorSet[this.grid[r][c]], 8);
                 }
                 this.flashes.push({ y: r, life: 1.0 });
 
@@ -343,15 +519,18 @@ class Game {
         
         if (linesCleared > 0) {
             if (linesCleared === 4) {
+                this.audio.playSfx('tetris');
                 this.shake = 40;
+                const isAltus = document.body.classList.contains('altus');
                 this.popups.push({
                     x: this.canvas.width / 2,
                     y: BOARD_HEIGHT * BLOCK_SIZE / 2,
                     text: 'TETRIS!',
                     life: 1.5,
-                    color: '#f82d97'
+                    color: isAltus ? '#ffd700' : '#f82d97'
                 });
             } else {
+                this.audio.playSfx('clear');
                 this.shake = 15;
             }
             this.lines += linesCleared;
@@ -362,9 +541,16 @@ class Game {
     }
 
     gameOver() {
+        this.audio.playSfx('gameover');
         this.state = 'GAMEOVER';
         document.getElementById('game-over').classList.remove('hidden');
         document.getElementById('final-score').innerText = this.score;
+
+        if (this.score > this.highscore) {
+            this.highscore = this.score;
+            localStorage.setItem('tetri-shot-highscore', this.highscore);
+            document.getElementById('highscore-val').innerText = this.highscore.toLocaleString();
+        }
     }
 
     updateUI() {
@@ -450,8 +636,32 @@ class Game {
         
         const currentMax = this.getPanicDuration();
         const panicPercent = Math.max(0, 1 - (this.panicTime / currentMax));
-        document.getElementById('timer-val').innerText = `${Math.floor(panicPercent * 100)}%`;
-        document.getElementById('clock-hand').style.transform = `translateX(-50%) rotate(${panicPercent * 360}deg)`;
+        
+        const timerVal = document.getElementById('timer-val');
+        const clockHand = document.getElementById('clock-hand');
+        const panicClock = document.getElementById('panic-clock');
+        const isAltus = document.body.classList.contains('altus');
+        
+        timerVal.innerText = `${Math.floor(panicPercent * 100)}%`;
+        clockHand.style.transform = `translateX(-50%) rotate(${panicPercent * 360}deg)`;
+
+        // Color shift logic
+        if (panicPercent > 0.8) {
+            const color = '#ff3333';
+            timerVal.style.color = color;
+            clockHand.style.backgroundColor = color;
+            panicClock.style.borderColor = color;
+        } else if (panicPercent > 0.6) {
+            const color = isAltus ? '#cc7722' : '#ff9900';
+            timerVal.style.color = color;
+            clockHand.style.backgroundColor = color;
+            panicClock.style.borderColor = color;
+        } else {
+            // Reset to defaults
+            timerVal.style.color = '';
+            clockHand.style.backgroundColor = '';
+            panicClock.style.borderColor = '';
+        }
 
         const FALL_SPEED = Math.max(50, 400 / this.multiplier);
         this.activePieces.sort((a, b) => b.y - a.y);
@@ -494,12 +704,16 @@ class Game {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Draw grid
+        const isAltus = document.body.classList.contains('altus');
+        const gridColor = isAltus ? 'rgba(218, 165, 32, 0.05)' : 'rgba(255,255,255,0.03)';
+        const colorSet = isAltus ? COLORS_ALTUS : COLORS;
+
         for (let r = 0; r < BOARD_HEIGHT; r++) {
             for (let c = 0; c < BOARD_WIDTH; c++) {
                 if (this.grid[r][c]) {
-                    this.drawBlock(c, r, COLORS[this.grid[r][c]]);
+                    this.drawBlock(c, r, colorSet[this.grid[r][c]]);
                 } else {
-                    this.ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                    this.ctx.strokeStyle = gridColor;
                     this.ctx.lineWidth = 1;
                     this.ctx.strokeRect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
                 }
@@ -507,18 +721,18 @@ class Game {
         }
 
         // Draw Line Flashes
+        const flashColor = isAltus ? '218, 165, 32' : '255, 255, 255';
         this.flashes.forEach(f => {
-            this.ctx.fillStyle = `rgba(255, 255, 255, ${f.life * 0.5})`;
+            this.ctx.fillStyle = `rgba(${flashColor}, ${f.life * 0.5})`;
             this.ctx.fillRect(0, f.y * BLOCK_SIZE, this.canvas.width, BLOCK_SIZE);
         });
 
         if (this.state === 'PLAYING') {
             const matrix = this.currentPiece.matrix;
+            const ghostColor = isAltus ? 'rgba(218, 165, 32, 0.15)' : 'rgba(255, 255, 255, 0.1)';
+            
             // Ghost at spawn
-            this.drawPiece(this.handX, this.handY, matrix, 'rgba(255, 255, 255, 0.1)', true);
-            // Landing ghost
-            const landing = this.findLandingPoint(this.handX, this.handY, matrix);
-            this.drawPiece(landing.x, landing.y, matrix, 'rgba(255, 255, 255, 0.05)', true);
+            this.drawPiece(this.handX, this.handY, matrix, ghostColor, true);
             // Loaded piece indicator at top
             this.drawPiece(this.handX, -1, matrix, this.currentPiece.color);
         }

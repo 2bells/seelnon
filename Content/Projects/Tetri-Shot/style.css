@@ -5,6 +5,40 @@
     --border-dark: #2a2d6c;
     --text-color: #fff;
     --accent-pink: #f82d97;
+    --ui-gold: #ffcc00;
+}
+
+body.altus {
+    --bg-color: #0c0800;
+    --well-bg: radial-gradient(circle at center, #1a1408 0%, #0c0800 100%);
+    --border-main: #7c6d4a;
+    --border-dark: #4a412c;
+    --text-color: #bfae8f;
+    --accent-pink: #9a8a61;
+    --ui-gold: #bfae8f;
+}
+
+body.altus main#main-view {
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.7);
+}
+
+body.altus .multiplier-box {
+    color: #9a8a61;
+    text-shadow: 0 0 8px rgba(154, 138, 97, 0.4);
+}
+
+body.altus #timer-val {
+    color: #9a8a61;
+}
+
+body.altus #panic-clock {
+    border-color: #4a412c;
+    background: #0c0800;
+    box-shadow: none;
+}
+
+body.altus #clock-hand {
+    background: #9a8a61;
 }
 
 * {
@@ -15,7 +49,7 @@
 }
 
 body {
-    background-color: #000;
+    background-color: var(--bg-color);
     font-family: monospace;
     font-weight: 700;
     color: var(--text-color);
@@ -30,7 +64,7 @@ body {
 #game-container {
     width: 600px;
     height: 620px;
-    background: #000;
+    background: var(--bg-color);
     display: flex;
     padding: 10px;
 }
@@ -49,7 +83,7 @@ aside {
 /* PIXEL BOX */
 .pixel-box {
     border: 4px solid var(--border-main);
-    background: #000;
+    background: var(--bg-color);
     margin-bottom: 20px;
     position: relative;
     padding-top: 15px;
@@ -59,7 +93,7 @@ aside {
     position: absolute;
     top: -12px;
     left: 10px;
-    background: #000;
+    background: var(--bg-color);
     padding: 0 5px;
     font-size: 14px;
     color: var(--border-main);
@@ -92,6 +126,20 @@ aside {
     font-size: 20px;
     text-align: right;
     padding-right: 5px;
+}
+
+.stat-panel-mini {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px;
+}
+
+.stat-value-mini {
+    font-size: 14px;
+    color: var(--text-color);
+    word-break: break-all;
+    text-align: center;
 }
 
 .multiplier-box {
@@ -176,7 +224,7 @@ aside {
 .overlay-box {
     padding: 20px;
     border: 4px solid var(--border-main);
-    background: #000;
+    background: var(--bg-color);
 }
 
 h1 {
@@ -213,6 +261,28 @@ button:hover {
     border: 2px solid var(--border-main);
     color: var(--border-main);
     font-size: 14px;
+    margin-bottom: 10px;
+}
+
+#theme-toggle {
+    width: 100%;
+    background: transparent;
+    border: 2px solid var(--border-main);
+    color: var(--border-main);
+    font-size: 10px;
+    padding: 5px;
+    margin-top: 10px;
+}
+
+body.altus button {
+    background: #2a1e0a;
+    color: var(--ui-gold);
+    border: 1px solid var(--border-main);
+}
+
+body.altus button:hover {
+    background: var(--border-main);
+    color: #fff;
 }
 
 .hidden {
