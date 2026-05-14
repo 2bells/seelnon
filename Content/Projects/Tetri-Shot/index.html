@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TETRIS SHOT</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- LEFT SIDEBAR -->
+        <aside id="left-sidebar">
+            <div class="pixel-box">
+                <div class="box-label">HOLD</div>
+                <div class="box-content">
+                    <canvas id="hold-canvas" width="80" height="80"></canvas>
+                </div>
+            </div>
+            
+            <div class="clock-container">
+               <div id="panic-clock">
+                  <div id="clock-hand"></div>
+               </div>
+               <div id="timer-val">0%</div>
+            </div>
+        </aside>
+
+        <!-- MAIN WELL -->
+        <main id="main-view">
+            <div id="viewport">
+                <canvas id="game-canvas"></canvas>
+                
+                <div id="game-over" class="hidden">
+                    <div class="overlay-box">
+                        <h1>SYSTEM OVERFLOW</h1>
+                        <p>FINAL SCORE: <span id="final-score">0</span></p>
+                        <button id="restart-btn">REBOOT</button>
+                    </div>
+                </div>
+
+                <div id="start-screen">
+                    <div class="overlay-box">
+                        <h1>TETRI-SHOT</h1>
+                        <p>AIM & CLICK TO SPAWN</p>
+                        <p>PIECES FALL FROM SPAWN</p>
+                        <p>DON'T OVERFLOW THE WELL</p>
+                        <button id="start-btn">ENGAGE</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR -->
+        <aside id="right-sidebar">
+            <div class="pixel-box">
+                <div class="box-label">NEXT</div>
+                <div class="box-content">
+                    <canvas id="next-canvas" width="80" height="120"></canvas>
+                </div>
+            </div>
+
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <div class="stat-label">LINES</div>
+                    <div id="lines-val" class="stat-value">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">TIME</div>
+                    <div id="time-val" class="stat-value">0:00</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">SCORE</div>
+                    <div id="score-val" class="stat-value">0</div>
+                </div>
+            </div>
+
+            <div class="multiplier-box">
+                <div id="multiplier-val">X1.0</div>
+            </div>
+
+            <button id="pause-btn">PAUSE</button>
+        </aside>
+    </div>
+
+    <script type="module" src="./script.js"></script>
+</body>
+</html>
