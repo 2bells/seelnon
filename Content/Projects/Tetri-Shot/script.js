@@ -169,6 +169,9 @@ class Game {
         this.holdCanvas = document.getElementById('hold-canvas');
         this.holdCtx = this.holdCanvas.getContext('2d');
 
+        this.controlCanvas = document.getElementById('control-canvas');
+        this.controlCtx = this.controlCanvas?.getContext('2d');
+
         // Load Highscore
         this.highscore = parseInt(localStorage.getItem('tetri-shot-highscore')) || 0;
         document.getElementById('highscore-val').innerText = this.highscore.toLocaleString();
@@ -230,6 +233,7 @@ class Game {
             : this.rotateMatrixCCW(this.currentPiece.matrix);
         
         this.audio.playSfx('rotate');
+        this.updateUI();
         // Ensure visual bounds
         const pw = this.currentPiece.matrix[0].length;
         const ph = this.currentPiece.matrix.length;
@@ -276,7 +280,7 @@ class Game {
             }
         });
 
-        window.addEventListener('mousedown', () => {
+        this.canvas.addEventListener('mousedown', () => {
             if (this.state === 'PLAYING') this.shoot();
         });
 
@@ -334,6 +338,11 @@ class Game {
                 this.refreshPieceColors();
             };
         }
+
+        const rotCw = document.getElementById('rot-cw');
+        const rotCcw = document.getElementById('rot-ccw');
+        if (rotCw) rotCw.onclick = () => this.rotateCurrent(true);
+        if (rotCcw) rotCcw.onclick = () => this.rotateCurrent(false);
     }
 
     refreshPieceColors() {
@@ -559,6 +568,7 @@ class Game {
         document.getElementById('multiplier-val').innerText = `X${this.multiplier.toFixed(1)}`;
         this.drawNext();
         this.drawHold();
+        this.drawControl();
     }
 
     drawNext() {
@@ -580,6 +590,17 @@ class Game {
         const px = (this.holdCanvas.width - matrix[0].length * size) / 2;
         const py = (this.holdCanvas.height - matrix.length * size) / 2;
         this.drawMatrix(this.holdCtx, matrix, px, py, size, this.holdPiece.color);
+    }
+
+    drawControl() {
+        if (!this.controlCtx) return;
+        this.controlCtx.clearRect(0, 0, this.controlCanvas.width, this.controlCanvas.height);
+        if (!this.currentPiece) return;
+        const size = 12;
+        const matrix = this.currentPiece.matrix;
+        const px = (this.controlCanvas.width - matrix[0].length * size) / 2;
+        const py = (this.controlCanvas.height - matrix.length * size) / 2;
+        this.drawMatrix(this.controlCtx, matrix, px, py, size, this.currentPiece.color);
     }
 
     drawMatrix(ctx, matrix, x, y, size, color) {

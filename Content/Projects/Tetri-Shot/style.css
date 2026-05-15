@@ -142,6 +142,34 @@ aside {
     text-align: center;
 }
 
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px;
+}
+
+.rot-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.rot-btn {
+    width: 35px !important;
+    height: 30px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    margin: 0 !important;
+}
+
+#control-canvas {
+    image-rendering: pixelated;
+}
+
 .multiplier-box {
     margin-bottom: 20px;
     text-align: center;
