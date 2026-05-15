@@ -7,9 +7,8 @@ Surprisingly... on theme.
 ```
 nevermind...
 //
-previous one was 15th
-and also
-triple fire
+previous one was also 15th
+and also triple fire
 >_
 more scripted
 than my life.
@@ -50,15 +49,16 @@ What about his brother you ask?
 }
 ```
 
-This guy. But at least, he is easy to understand, it selects, you don't want to select, so it is a problem, but it is easy to solve and logically is code related. While the other one throws you for a loop of self contemplation about browser settings.
+This guy. But at least, he is easy to understand, it selects, you don't want to select, and it is logically code related. While the other one throws you for a loop of self contemplation about browser settings.
 
 
 ```
 thought of a day:
 
-things people are
+things that people are
 constantly suspicious
 about...
+
 is
 a self report
 ```
