@@ -27,29 +27,6 @@ I have night mode as well, the usual 'coffee' theme.
   style="border: none; width: 97%; height: 800px;">
 </iframe>
 
-## The NEMESIS
-
-There was a nemesis that was plaguing my existence and HE IS NO MORE! GONE, DELETED, REMOVED! He is not a threat and never was.
-
-And I'm not even talking about his brother, but the MENACE HIMSELF!
-
-```css
-.element {
-  touch-action: manipulation;
-}
-```
-
-Yes, the double tap zoom in the damn mobile was such an annoying one, who knew it is just a CSS fix. For some reason in my mind it was a problem of a browser on mobile...
-
-What about his brother you ask?
-
-```css
-.no-select {
-  user-select: none; 
-}
-```
-
-This guy. But at least, he is easy to understand, it selects, you don't want to select, and it is logically code related. While the other one throws you for a loop of self contemplation about browser settings.
 
 //Update for double tap is up on: tetris / endless canvas / concept brute / fri-ren notes.
 
