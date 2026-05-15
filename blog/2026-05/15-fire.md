@@ -51,15 +51,13 @@ What about his brother you ask?
 
 This guy. But at least, he is easy to understand, it selects, you don't want to select, and it is logically code related. While the other one throws you for a loop of self contemplation about browser settings.
 
+//Update for double tap is up on: tetris / endless canvas / concept brute / fri-ren notes.
 
 ```
 thought of a day:
 
-things that people are
-constantly suspicious
-about...
-
-is
-a self report
+Constant suspicion is
+>_
+a self-report.
 ```
 
