@@ -299,7 +299,7 @@ class Game {
                 this.holdAction();
             }
             if (e.key === 'Escape') {
-                this.state = this.state === 'PAUSED' ? 'PLAYING' : 'PAUSED';
+                this.togglePause();
             }
         });
 
@@ -320,10 +320,22 @@ class Game {
 
         const pauseBtn = document.getElementById('pause-btn');
         if (pauseBtn) {
-            pauseBtn.onclick = () => {
+            pauseBtn.onclick = () => this.togglePause();
+        }
+
+        const resumeBtn = document.getElementById('resume-btn');
+        if (resumeBtn) {
+            resumeBtn.onclick = () => this.togglePause();
+        }
+
+        const pauseRestartBtn = document.getElementById('pause-restart-btn');
+        if (pauseRestartBtn) {
+            pauseRestartBtn.onclick = () => {
                 this.audio.playSfx('click');
-                this.state = this.state === 'PAUSED' ? 'PLAYING' : 'PAUSED';
-                pauseBtn.innerText = this.state === 'PAUSED' ? 'RESUME' : 'PAUSE';
+                document.getElementById('pause-screen').classList.add('hidden');
+                this.reset();
+                this.state = 'PLAYING';
+                document.getElementById('pause-btn').innerText = 'PAUSE';
             };
         }
 
@@ -343,6 +355,22 @@ class Game {
         const rotCcw = document.getElementById('rot-ccw');
         if (rotCw) rotCw.onclick = () => this.rotateCurrent(true);
         if (rotCcw) rotCcw.onclick = () => this.rotateCurrent(false);
+    }
+
+    togglePause() {
+        if (this.state === 'START' || this.state === 'GAMEOVER') return;
+        this.audio.playSfx('click');
+        this.state = this.state === 'PAUSED' ? 'PLAYING' : 'PAUSED';
+        const pauseBtn = document.getElementById('pause-btn');
+        const pauseScreen = document.getElementById('pause-screen');
+        
+        if (this.state === 'PAUSED') {
+            pauseBtn.innerText = 'RESUME';
+            pauseScreen.classList.remove('hidden');
+        } else {
+            pauseBtn.innerText = 'PAUSE';
+            pauseScreen.classList.add('hidden');
+        }
     }
 
     refreshPieceColors() {

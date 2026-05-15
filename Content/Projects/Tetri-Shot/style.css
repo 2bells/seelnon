@@ -46,6 +46,7 @@ body.altus #clock-hand {
     padding: 0;
     box-sizing: border-box;
     user-select: none;
+    touch-action: manipulation;
 }
 
 body {
@@ -235,7 +236,7 @@ aside {
 }
 
 /* OVERLAYS */
-#game-over, #start-screen {
+#game-over, #start-screen, #pause-screen {
     position: absolute;
     top: 0;
     left: 0;
