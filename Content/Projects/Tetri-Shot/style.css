@@ -1,11 +1,12 @@
 :root {
-    --bg-color: #000;
-    --well-bg: #111440;
+    --bg-color: #08060a;
+    --well-bg: #0d0b1a;
     --border-main: #4a4d8c;
     --border-dark: #2a2d6c;
-    --text-color: #fff;
-    --accent-pink: #f82d97;
-    --ui-gold: #ffcc00;
+    --text-color: #e2dff0;
+    --accent-pink: #F83882;
+    --ui-gold: #FFC138;
+    --clock-border: rgba(226, 223, 240, 0.4);
 }
 
 body.altus {
@@ -24,7 +25,7 @@ body.altus main#main-view {
 
 body.altus .multiplier-box {
     color: #9a8a61;
-    text-shadow: 0 0 8px rgba(154, 138, 97, 0.4);
+    text-shadow: none;
 }
 
 body.altus #timer-val {
@@ -124,6 +125,7 @@ aside {
 }
 
 .stat-value {
+    font-family: sans-serif;
     font-size: 20px;
     text-align: right;
     padding-right: 5px;
@@ -137,6 +139,7 @@ aside {
 }
 
 .stat-value-mini {
+    font-family: sans-serif;
     font-size: 14px;
     color: var(--text-color);
     word-break: break-all;
@@ -174,9 +177,9 @@ aside {
 .multiplier-box {
     margin-bottom: 20px;
     text-align: center;
+    font-family: sans-serif;
     font-size: 32px;
     color: var(--accent-pink);
-    text-shadow: 0 0 10px var(--accent-pink);
 }
 
 /* PANIC CLOCK */
@@ -191,17 +194,17 @@ aside {
 #panic-clock {
     width: 60px;
     height: 60px;
-    border: 4px solid var(--accent-pink);
+    border: 4px solid var(--clock-border, var(--accent-pink));
     border-radius: 50%;
     position: relative;
-    background: #fff;
+    background: transparent;
 }
 
 #clock-hand {
     position: absolute;
     width: 4px;
     height: 25px;
-    background: #000;
+    background: var(--text-color);
     left: 50%;
     bottom: 50%;
     transform-origin: bottom center;
@@ -210,6 +213,7 @@ aside {
 
 #timer-val {
     color: var(--accent-pink);
+    font-family: sans-serif;
     font-size: 14px;
 }
 
@@ -265,23 +269,23 @@ h1 {
 p {
     margin-bottom: 10px;
     font-size: 12px;
-    color: #888;
+    color: var(--border-main);
 }
 
 button {
     margin-top: 20px;
     padding: 10px 20px;
-    background: #fff;
-    color: #000;
-    border: none;
+    background: transparent;
+    color: var(--text-color);
+    border: 2px solid var(--border-main);
     font-family: inherit;
     font-weight: 900;
     cursor: pointer;
 }
 
 button:hover {
-    background: var(--accent-pink);
-    color: #fff;
+    background: var(--text-color);
+    color: var(--bg-color);
 }
 
 #pause-btn {

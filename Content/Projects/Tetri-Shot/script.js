@@ -1,5 +1,5 @@
 /**
- * TETRI-SHOT - Classic Pixel Edition
+ * TETRI-SHOT -  Classic Pixel Edition
  */
 
 const BOARD_WIDTH = 10;
@@ -8,13 +8,13 @@ const BLOCK_SIZE = 28;
 const PANIC_TIME_START = 5.0;
 
 const COLORS = {
-    'I': '#00f0f0',
-    'J': '#0000f0',
-    'L': '#f0a000',
-    'O': '#f0f000',
-    'S': '#00f000',
-    'T': '#a000f0',
-    'Z': '#f00000'
+    'I': '#2ABCFF',
+    'J': '#6A14FF',
+    'L': '#FA6B37',
+    'O': '#FFF019',
+    'S': '#28FC4B',
+    'T': '#F7C138',
+    'Z': '#F83882'
 };
 
 const COLORS_ALTUS = {
@@ -380,6 +380,7 @@ class Game {
         if (this.holdPiece) this.holdPiece.color = colorSet[this.holdPiece.type];
         this.nextPieces.forEach(p => p.color = colorSet[p.type]);
         this.activePieces.forEach(p => p.color = colorSet[p.type]);
+        this.updateUI();
     }
 
     reset() {
@@ -637,7 +638,7 @@ class Game {
             for (let c = 0; c < matrix[r].length; c++) {
                 if (matrix[r][c]) {
                     ctx.fillRect(x + c * size, y + r * size, size, size);
-                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
                     ctx.lineWidth = 1;
                     ctx.strokeRect(x + c * size, y + r * size, size, size);
                 }
