@@ -27,6 +27,7 @@ body {
   padding: 12px;
   overflow: hidden;
   font-size: var(--zoom-scale);
+  touch-action: manipulation;
 }
 
 @media (max-width: 600px) {
