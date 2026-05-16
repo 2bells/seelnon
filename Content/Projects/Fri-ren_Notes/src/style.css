@@ -545,29 +545,36 @@ body {
   background: #f0ede9; /* Warmer parchment-like grey */
 }
 
+#editor-highlights, #editor, #search-marks {
+  font-family: var(--font-mono) !important;
+  font-size: var(--zoom-scale) !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  letter-spacing: 0px !important;
+  word-spacing: 0px !important;
+  font-variant-ligatures: none !important;
+  font-kerning: none !important;
+  font-stretch: normal !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed !important;
+  tab-size: 4 !important;
+  -moz-tab-size: 4 !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  padding: 32px 32px 50vh 20px !important;
+  box-sizing: border-box !important;
+}
+
 #editor-highlights, #search-marks {
   position: absolute;
   top: 0;
   left: 50px;
   right: 0;
   bottom: 0;
-  padding: 32px 32px 50vh 20px;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-  font-weight: 400;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  letter-spacing: normal !important;
-  word-spacing: normal !important;
-  font-variant-ligatures: none !important;
-  text-rendering: optimizeSpeed !important;
-  tab-size: 4;
-  -moz-tab-size: 4;
   pointer-events: none;
   overflow: hidden;
-  box-sizing: border-box !important;
 }
 
 #editor-highlights .token {
@@ -640,12 +647,12 @@ body {
   z-index: 3;
   padding: 32px 10px 50vh 0;
   text-align: right;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-  font-weight: 400;
-  line-height: 1.6; /* Matches editor exactly */
-  color: #141414; /* Solid black for better readability */
-  opacity: 0.5; /* Slightly muted but distinct */
+  font-family: var(--font-mono) !important;
+  font-size: var(--zoom-scale) !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  color: #141414;
+  opacity: 0.5;
   user-select: none;
   background: rgba(0, 0, 0, 0.03);
   border-right: 1px dashed #141414;
@@ -659,26 +666,11 @@ body {
   z-index: 5;
   border: none;
   background: transparent;
-  padding: 32px 32px 50vh 20px;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-  font-weight: 400;
-  line-height: 1.6;
   resize: none;
   outline: none;
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   caret-color: #2c241c;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  letter-spacing: normal !important;
-  word-spacing: normal !important;
-  font-variant-ligatures: none !important;
-  text-rendering: optimizeSpeed !important;
-  tab-size: 4;
-  -moz-tab-size: 4;
-  box-sizing: border-box !important;
 }
 
 .night-mode #editor {
