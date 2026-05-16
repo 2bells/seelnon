@@ -186,6 +186,8 @@ class Game {
         this.panicTime = PANIC_TIME_START;
         this.gameTime = 0;
         this.state = 'START';
+        this.isPracticeMode = false;
+        this.wasPracticeUsedInRun = false;
         
         // Juice & FX
         this.shake = 0;
@@ -355,6 +357,22 @@ class Game {
         const rotCcw = document.getElementById('rot-ccw');
         if (rotCw) rotCw.onclick = () => this.rotateCurrent(true);
         if (rotCcw) rotCcw.onclick = () => this.rotateCurrent(false);
+
+        const practiceBtn = document.getElementById('practice-btn');
+        if (practiceBtn) {
+            practiceBtn.onclick = () => {
+                this.audio.playSfx('click');
+                this.isPracticeMode = !this.isPracticeMode;
+                if (this.isPracticeMode) {
+                    this.wasPracticeUsedInRun = true;
+                    document.body.classList.add('practice-mode');
+                } else {
+                    document.body.classList.remove('practice-mode');
+                }
+                practiceBtn.innerText = this.isPracticeMode ? 'PRACTICE: ON' : 'PRACTICE: OFF';
+                this.updateUI();
+            };
+        }
     }
 
     togglePause() {
@@ -390,6 +408,7 @@ class Game {
         this.multiplier = 1.0;
         this.gameTime = 0;
         this.panicTime = PANIC_TIME_START;
+        this.wasPracticeUsedInRun = this.isPracticeMode; // Carry over if still ON, but resets if starting clean
         this.currentPiece = this.generatePiece();
         this.nextPieces = [this.generatePiece(), this.generatePiece(), this.generatePiece()];
         this.holdPiece = null;
@@ -574,6 +593,10 @@ class Game {
             this.lines += linesCleared;
             this.score += Math.floor([0, 100, 300, 500, 1000][linesCleared] * this.multiplier);
             this.multiplier += linesCleared * 0.1;
+            if (this.isPracticeMode) {
+                // Keep multiplier frozen in practice mode
+                this.multiplier -= linesCleared * 0.1;
+            }
             this.updateUI();
         }
     }
@@ -582,9 +605,9 @@ class Game {
         this.audio.playSfx('gameover');
         this.state = 'GAMEOVER';
         document.getElementById('game-over').classList.remove('hidden');
-        document.getElementById('final-score').innerText = this.score;
+        document.getElementById('final-score').innerText = this.wasPracticeUsedInRun ? 'N/A' : this.score;
 
-        if (this.score > this.highscore) {
+        if (this.score > this.highscore && !this.wasPracticeUsedInRun) {
             this.highscore = this.score;
             localStorage.setItem('tetri-shot-highscore', this.highscore);
             document.getElementById('highscore-val').innerText = this.highscore.toLocaleString();
@@ -592,7 +615,12 @@ class Game {
     }
 
     updateUI() {
-        document.getElementById('score-val').innerText = this.score.toLocaleString();
+        const scoreVal = document.getElementById('score-val');
+        if (this.wasPracticeUsedInRun) {
+            scoreVal.innerText = 'N/A';
+        } else {
+            scoreVal.innerText = this.score.toLocaleString();
+        }
         document.getElementById('lines-val').innerText = this.lines.toString();
         document.getElementById('multiplier-val').innerText = `X${this.multiplier.toFixed(1)}`;
         this.drawNext();
@@ -681,8 +709,10 @@ class Game {
         const s = sec % 60;
         document.getElementById('time-val').innerText = `${min}:${s.toString().padStart(2, '0')}`;
 
-        this.panicTime -= dt / 1000;
-        if (this.panicTime <= 0) this.autoDump();
+        if (!this.isPracticeMode) {
+            this.panicTime -= dt / 1000;
+            if (this.panicTime <= 0) this.autoDump();
+        }
         
         const currentMax = this.getPanicDuration();
         const panicPercent = Math.max(0, 1 - (this.panicTime / currentMax));

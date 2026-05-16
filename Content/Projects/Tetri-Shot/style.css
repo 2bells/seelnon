@@ -288,6 +288,34 @@ button:hover {
     color: var(--bg-color);
 }
 
+body.practice-mode #practice-btn {
+    border-color: #5f63aa;
+    color: #5f63aa;
+}
+
+body.altus.practice-mode #practice-btn {
+    border-color: var(--ui-gold);
+    color: var(--ui-gold);
+}
+
+#practice-btn {
+    width: 100%;
+    background: transparent;
+    border: 2px solid var(--border-main);
+    color: var(--border-main);
+    font-size: 10px;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+body.practice-mode .multiplier-box {
+    opacity: 0.5;
+}
+
+body.practice-mode #score-val {
+    color: var(--border-main);
+}
+
 #pause-btn {
     width: 100%;
     background: transparent;
