@@ -560,9 +560,23 @@ body {
   word-wrap: break-word;
   overflow-wrap: break-word;
   letter-spacing: normal !important;
+  word-spacing: normal !important;
   font-variant-ligatures: none !important;
+  text-rendering: optimizeSpeed !important;
+  tab-size: 4;
+  -moz-tab-size: 4;
   pointer-events: none;
   overflow: hidden;
+  box-sizing: border-box !important;
+}
+
+#editor-highlights .token {
+  font-weight: 400 !important;
+  font-style: normal !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
 }
 
 #editor-highlights {
@@ -581,7 +595,6 @@ body {
 #editor-highlights .token.wikilink { 
   color: #7e4b2d; 
   background: rgba(126, 75, 45, 0.1);
-  padding: 0 2px;
   border-bottom: 1px solid rgba(126, 75, 45, 0.3);
 }
 
@@ -612,6 +625,8 @@ body {
   background-color: rgba(255, 180, 0, 0.4);
   color: transparent;
   border-radius: 1px;
+  font-weight: 400 !important;
+  font-style: normal !important;
 }
 
 #search-marks mark.current {
@@ -658,7 +673,12 @@ body {
   word-wrap: break-word;
   overflow-wrap: break-word;
   letter-spacing: normal !important;
+  word-spacing: normal !important;
   font-variant-ligatures: none !important;
+  text-rendering: optimizeSpeed !important;
+  tab-size: 4;
+  -moz-tab-size: 4;
+  box-sizing: border-box !important;
 }
 
 .night-mode #editor {
