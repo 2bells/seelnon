@@ -125,7 +125,7 @@ body.night-mode #preview h2 {
 
 body.night-mode #preview img {
   border-color: #5a4b3a;
-  filter: sepia(0.4) contrast(1.1) brightness(0.9);
+  filter: sepia(0.2) brightness(0.9);
 }
 
 body.night-mode #status-bar {
