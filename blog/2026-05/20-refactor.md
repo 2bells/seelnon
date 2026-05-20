@@ -32,5 +32,5 @@ but in your favor.
 
 ///
 [unless_]
-[you are a playing a boss character]
+[you are playing a boss character]
 ```
