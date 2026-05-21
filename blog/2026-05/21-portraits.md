@@ -8,9 +8,9 @@ A lot of them have fun history, such as Baker's piece (guy who makes fun 'tutori
 
 Asmongold's piece ended up on his twitter (x) account, when he was playing FF14 and I did the Dark Knight piece and posted it as soon as he unlocked the class in-game. People been saying that I should've waited, but I said that I just wanted to do it for the 'lore'. Asmon liked the 'lore' commitment so he posted it officially. There was a person reaching out and they made T-Shirts with this design and sent it to Asmon... [made it a bit weird, because it was 'for the lore', but then got marginalized]
 
-Rich Campbell stil owes me 100$ for placing well in his contest. [the very top right piece]
+Rich Campbell still owes me 100$ for placing well in his contest. [the very top right piece]
 
-Bricky on other had did payout [if you wantched Warhammer 40k stuff, you probably seen Bricky's stuff, I was an enjoyer from back in the day]
+Bricky on other had did payout [if you watched Warhammer 40k stuff, you probably seen Bricky's stuff, I was an enjoyer from back in the day]
 
 Neuro on her subathon also recieved a fun piece. I also was sharing some of my 'prompting' tech with 'soul crafting' recipes (not really, just a better way to open up latent space of an LLM with some verticality and broad word implications with an idea of 'crafting' mind/body/spirit complex. So LLM has deeper RP as it understands itself not just as 'you are this', but more like 'you crafter from this into this combined into this for a purpose of this')
 
