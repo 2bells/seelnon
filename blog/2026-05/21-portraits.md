@@ -16,7 +16,7 @@ Neuro on her subathon also recieved a fun piece. I also was sharing some of my '
 
 Some smaller streamers with Zoodle and Brbteabreak.
 
-Of course a few of BeastyQT during his subathons as he is my fav from Age of Empires 4. Found him in a match against Viper back in the day, during beta: Beasty played mongols and it was like 1 hour game. It was peak. [Viper as best AoE2 player at the time (now it is Hera), Beasty is ex-Starcraft 2 guy]. I think Viper was HRE, yellow, Beasty - mongol, blue, Dry Arabia. Beasty won by sending pairs of knights all over the map at super late game. (for a long time he had a start to turtle and then just overwhelm with proxy attacks)... that game was ~5 years ago, my memory might not be perfect.
+Of course a few of BeastyQT during his subathons as he is my fav from Age of Empires 4. Found him in a match against Viper back in the day, during beta: Beasty played mongols and it was like 1 hour game. It was peak. [Viper as best AoE2 player at the time (now it is Hera), Beasty is ex-Starcraft 2 guy]. I think Viper was HRE, yellow, Beasty - Mongol, blue, Dry Arabia. Beasty won by sending pairs of knights all over the map at super late game. (for a long time he had a strat to turtle and then just overwhelm with proxy attacks)... that game was ~5 years ago, my memory might not be perfect.
 
 Fun times.
 
