@@ -81,6 +81,7 @@ export const FS = (() => {
   image('Character Designs - 2016', 'Content/Images/2016_december.jpg', '/Pictures', { description: 'Had a 14 day grind, designing different characters. December 2016' });
   image('Ex-Mansion Designs - 2024', 'Content/Images/2024-april-ex-mansion.jpg', '/Pictures', { description: 'Godot game dev, did some designs for myself. April 2024' });
   image('Ex-Mansion Sketches - 2024', 'Content/Images/2024_sketches.jpg', '/Pictures', { description: 'Ex-Mansion. Lore, redesigns, exploration' });
+  image('Streamers 2019 - 2025', 'Content/Images/streamers_portraits.jpg', '/Pictures', { description: 'Portraits, paintings of streamers' });  
 
 
 
