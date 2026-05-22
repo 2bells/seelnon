@@ -12,15 +12,15 @@ Still, I was mostly experimenting with things here and there and constantly tryi
 
 That journey was separated on 'Idk, let's try', starting with Ramlethal (Guilty Gear) and Zeta (Granblue), Noelle and Ningguang (Genshin).
 
--
+
 ![Ram](blog/2026-05/img/Ram_face1.jpg)
--
+
 ![zeta](blog/2026-05/img/Zeta_face1.jpg)
--
+
 ![noelle](blog/2026-05/img/Noele_face_1.jpg)
--
+
 ![ning](blog/2026-05/img/Ningguang_face1.jpg)
--
+
 
 And it already felt decent, but I wanted to explore. So welcome to 'Krita Wireframe age'... 
 
@@ -42,7 +42,7 @@ This lead to age of 'custom stuff' + hue shifts.
 
 And slowly approaching the 'painterly aesthetic':
 
-![unsertanty](blog/2026-05/img/Beauty of Unsertanty_brush.jpg)
+![unsertanty](blog/2026-05/img/unsertanty_brush.jpg)
 
 ___
 
