@@ -44,7 +44,6 @@ And slowly approaching the 'painterly aesthetic':
 
 ![unsertanty](blog/2026-05/img/unsertanty_brush.jpg)
 
-___
 
 These 2 pieces of Beidou >_
 
@@ -60,7 +59,6 @@ were the final exploration line of the 'Krita ark' and start of 'Rebelle' discov
 
 //You can see the secondary approach to Rebelle in the Ex-Mansion designs. There I switched again and introduced back some of the digital approaches.
 
----
 
 ```
 thought of a day
