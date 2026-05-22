@@ -24,7 +24,7 @@ That journey was separated on 'Idk, let's try', starting with Ramlethal (Guilty 
 
 And it already felt decent, but I wanted to explore. So welcome to 'Krita Wireframe age'... 
 
-![img](blog/2026-05/img/wireframe Age.jpg)
+![img](blog/2026-05/img/wireframe_age.jpg)
 
 This is such a banger that I had to move on from it. It was too powerful for my own good. [Btw ideas of 'Concept Brute' are following this exact style, but packed into a software itself]
 
