@@ -53,6 +53,8 @@ These 2 pieces of Beidou >_
 
 ![baal](blog/2026-05/img/baal.jpg)
 
+[Full Baal Image](blog/2026-05/img/Baal4.jpg)
+
 were the final exploration line of the 'Krita ark' and start of 'Rebelle' discovery that led my style into a spiral once again. So the pieces in the collage on the top are from the time when I was able to stabilize and bring the style to its glory and have some bangers along the way.
 
 [Genshin Image](https://2bells.github.io/seelnon/Content/Images/genshin_2023.jpg)
