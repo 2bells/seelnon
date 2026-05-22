@@ -32,11 +32,11 @@ This is such a banger that I had to move on from it. It was too powerful for my 
 
 Before -> After. And you might think this is like a 'year after'... no, it is me just switching the technique. Of course the piece on the left wasn't fully done yet and I was just figuring things out, but the technique allowed me to use a lot of my strong suits of ink sketching and shape design from my concept art experience, opening up gateways to greatness.
 
-But the problem of 'finding an artstyle' that you want to find more... so I went on adventure once again with new brushes and new ideas of hue shifting:
+But the problem of 'finding an artstyle' that you want to find more... so I went on adventure once again with new brushes and new ideas:
 
 ![img](blog/2026-05/img/art_dev_style.jpg)
 
-This lead to age of 'custom stuff' + hue shifts.
+This lead to the age of 'custom stuff' + hue shifts.
 
 ![i-no](blog/2026-05/img/i-no.jpg)
 
@@ -53,7 +53,7 @@ These 2 pieces of Beidou >_
 
 ![baal](blog/2026-05/img/baal.jpg)
 
-were the final exploration line of the 'Krita ark' and start of 'Rebelle' discovery that led my style into a spiral once again. So the pieces in the collage on the top are from the time when I was able to stabilize and bring the style to its glody and have some bangers along the way.
+were the final exploration line of the 'Krita ark' and start of 'Rebelle' discovery that led my style into a spiral once again. So the pieces in the collage on the top are from the time when I was able to stabilize and bring the style to its glory and have some bangers along the way.
 
 [Genshin Image](https://2bells.github.io/seelnon/Content/Images/genshin_2023.jpg)
 
