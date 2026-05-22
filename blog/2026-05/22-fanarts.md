@@ -2,6 +2,8 @@
 
 ![img](blog/2026-05/img/thumb_1.jpg)
 
+[Full Image](https://2bells.github.io/seelnon/Content/Images/genshin_2023.jpg)
+
 Crabbing through some of my Genshin stuff... Those at least were in 1 folder the rest will take me ages to compile.
 
 Those, I do think, are from my 'golden age' of fanarts. A lot of bangers.
@@ -57,7 +59,7 @@ These 2 pieces of Beidou >_
 
 were the final exploration line of the 'Krita ark' and start of 'Rebelle' discovery that led my style into a spiral once again. So the pieces in the collage on the top are from the time when I was able to stabilize and bring the style to its glory and have some bangers along the way.
 
-[Genshin Image](https://2bells.github.io/seelnon/Content/Images/genshin_2023.jpg)
+
 
 //You can see the secondary approach to Rebelle in the Ex-Mansion designs. There I switched again and introduced back some of the digital approaches.
 

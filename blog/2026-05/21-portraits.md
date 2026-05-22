@@ -2,6 +2,8 @@
 
 ![img](blog/2026-05/img/thumb_faces.jpg)
 
+[full image](https://2bells.github.io/seelnon/Content/Images/streamers_portraits.jpg)
+
 Added a collage of things I've been painting as portraits for... mostly streamers. Includes a lot of fun pieces. One of them is relatively 'sentimental' as I wanted to comfort a Vtuber after they found out they have cancer. [they are doing great now, so YAAY!]
 
 A lot of them have fun history, such as Baker's piece (guy who makes fun 'tutorials' on how to draw) I made the whole portrait breaking every single rule he said 'YOU HAVE TO FOLLOW'.
@@ -20,7 +22,7 @@ Of course a few of BeastyQT during his subathons as he is my fav from Age of Emp
 
 Fun times.
 
-[full image](https://2bells.github.io/seelnon/Content/Images/streamers_portraits.jpg)
+
 
 ```
 thought of a day
