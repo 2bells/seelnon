@@ -1,6 +1,6 @@
 # Genshin Arts
 
-![img](Content/Images/genshin_2023.jpg)
+![img](blog/2026-05/img/thumb_1.jpg)
 
 Crabbing through some of my Genshin stuff... Those at least were in 1 folder the rest will take me ages to compile.
 
