@@ -23,4 +23,4 @@ lol.
 
 For now video to watch, it is fun, trust.
 
-![video](BbzBIHxdlFM)
+[video: BbzBIHxdlFM]
