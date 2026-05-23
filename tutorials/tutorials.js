@@ -224,7 +224,17 @@ export async function openTutorialsWindow(title, openWindowFn) {
             return;
         }
 
-        const html = marked.parse(md);
+        // Image resizing support: ![alt width height](url)
+        const processedMd = md.replace(/!\[(.*?)(?:\s+(\d+))?(?:\s+(\d+))?\]\((.*?)\)/g, (match, alt, w, h, url) => {
+            const width = w ? `${w}px` : 'auto';
+            const height = h ? `${h}px` : 'auto';
+            const u = url.trim();
+            const a = alt ? alt.trim() : '';
+            // Return img tag with custom styles matching tutorials theme
+            return `<img src="${u}" alt="${a}" style="max-width:100%; width: ${width}; height: ${height}; margin: 30px auto; display: block; border: 2px solid #4a3e34; filter: sepia(0.2) contrast(1.1);">`;
+        });
+
+        const html = marked.parse(processedMd);
         contentEl.innerHTML = html;
 
         // Resolve images relative to the markdown file
@@ -395,7 +405,7 @@ export async function openTutorialsWindow(title, openWindowFn) {
     const firstItem = listEl.querySelector('.tutorial-item');
     if (firstItem) firstItem.click();
 
-    openWindowFn({
+    return openWindowFn({
         title: title,
         content: wrap,
         width: 900,

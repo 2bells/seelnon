@@ -369,6 +369,97 @@ function makeDraggable(el, handle = el, onSingleClick = null, snapToGrid = false
 }
 
 /* Desktop and Explorer */
+let currentContextMenu = null;
+
+function closeContextMenu() {
+  if (currentContextMenu) {
+    currentContextMenu.remove();
+    currentContextMenu = null;
+  }
+}
+
+// Global click/mousedown list to dismiss context menu
+document.addEventListener('mousedown', (e) => {
+  if (currentContextMenu && !currentContextMenu.contains(e.target)) {
+    closeContextMenu();
+  }
+});
+
+// Also dismiss on resize
+window.addEventListener('resize', closeContextMenu);
+
+function showDesktopContextMenu(e, entry) {
+  closeContextMenu();
+
+  const menu = document.createElement('div');
+  menu.className = 'win95-context-menu';
+
+  // Open item
+  const openItem = document.createElement('button');
+  openItem.className = 'menu-item default-action'; // Bold
+  openItem.textContent = 'Open';
+  openItem.addEventListener('click', () => {
+    openEntry(entry.path);
+    closeContextMenu();
+  });
+  menu.appendChild(openItem);
+
+  // Open Full Screen item
+  const fullScreenItem = document.createElement('button');
+  fullScreenItem.className = 'menu-item';
+  fullScreenItem.textContent = 'Open Full Screen';
+  fullScreenItem.addEventListener('click', async () => {
+    closeContextMenu();
+    const winId = await openEntry(entry.path);
+    if (winId) {
+      const w = windows.get(winId);
+      if (w && !w.maximized) {
+        maximizeWindow(winId);
+      }
+    }
+  });
+  menu.appendChild(fullScreenItem);
+
+  // Separator
+  const sep = document.createElement('hr');
+  menu.appendChild(sep);
+
+  // Open in New Window item
+  const newWindowItem = document.createElement('button');
+  newWindowItem.className = 'menu-item';
+  newWindowItem.textContent = 'Open in New Window';
+  newWindowItem.addEventListener('click', () => {
+    closeContextMenu();
+    if (entry.url) {
+      window.open(entry.url, '_blank');
+    } else {
+      window.open(window.location.href, '_blank');
+    }
+  });
+  menu.appendChild(newWindowItem);
+
+  // Positioning
+  document.body.appendChild(menu);
+  
+  // Guard so it doesn't render off-screen (viewport constraints)
+  let x = e.clientX;
+  let y = e.clientY;
+  const menuWidth = menu.offsetWidth || 170;
+  const menuHeight = menu.offsetHeight || 100;
+
+  if (x + menuWidth > window.innerWidth) {
+    x = window.innerWidth - menuWidth - 5;
+  }
+  if (y + menuHeight > window.innerHeight) {
+    y = window.innerHeight - menuHeight - 5;
+  }
+
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+
+  currentContextMenu = menu;
+}
+
 function makeIcon(entry) {
   const tpl = document.getElementById('icon-template');
   const el = tpl.content.firstElementChild.cloneNode(true);
@@ -389,6 +480,13 @@ function makeIcon(entry) {
   // Keyboard activation remains
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') openEntry(entry.path);
+  });
+
+  // Right-click context menu support
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showDesktopContextMenu(e, entry);
   });
 
   return el;
@@ -551,7 +649,7 @@ function openFolder(path) {
     item.addEventListener('keydown', (e) => { if (e.key === 'Enter') openEntry(ch.path); });
     list.appendChild(item);
   });
-  openWindow({ title: folder.name, content: wrap, width: 560, height: 380, x: 80, y: 80 });
+  return openWindow({ title: folder.name, content: wrap, width: 560, height: 380, x: 80, y: 80 });
 }
 
 function openImage(currentPath) {

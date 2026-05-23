@@ -92,7 +92,7 @@ export async function openWonderlandWindow(entry, openWindowFn) {
     `;
 
     // Open Window Immediately
-    openWindowFn({
+    const winId = openWindowFn({
         title: `${entry.name} - Dev Journal`,
         content: container,
         width: 1100,
@@ -370,4 +370,6 @@ export async function openWonderlandWindow(entry, openWindowFn) {
 
     // Begin background load
     loadResources();
+
+    return winId;
 }

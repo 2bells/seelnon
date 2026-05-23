@@ -498,7 +498,7 @@ export async function openBlogWindow(title, openWindowFn) {
   // Start background metadata loading
   loadMetadata();
 
-  openWindowFn({
+  return openWindowFn({
     title: title,
     content: blogContainer,
     width: 900,

@@ -156,7 +156,7 @@ export function openAboutMeWindow(title, openWindowFn) {
   updateContent('overview');
 
   // Open the window with the constructed content
-  openWindowFn({
+  return openWindowFn({
     title: title,
     content: aboutMeContainer,
     width: 800,

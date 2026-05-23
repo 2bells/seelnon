@@ -1085,13 +1085,21 @@ html {
 
 .blog-post-content p:first-of-type::first-letter {
   float: left;
-  font-size: 60px;
-  line-height: 50px;
-  padding-top: 4px;
-  padding-right: 8px;
-  padding-left: 3px;
+  font-size: 52px;
+  line-height: 56px;
+  width: 64px;
+  height: 64px;
+  text-align: center;
+  margin: 8px 16px 4px 0;
+  background: transparent;
+  color: #2d241e;
+  border: 4px double #2d241e;
+  padding: 0;
   font-family: 'Playfair Display', serif;
   font-weight: 900;
+  text-transform: uppercase;
+  display: block;
+  box-sizing: border-box;
 }
 
 .blog-sidebar {
@@ -1889,4 +1897,57 @@ body.ai-terminal-active .window {
   );
   background-size: 8px 100%; /* Classic blocky look */
   transition: width 0.1s linear;
+}
+
+/* Custom Windows 95 Context Menu */
+.win95-context-menu {
+  position: absolute;
+  background: var(--win95-face);
+  border: 2px solid;
+  border-top-color: var(--win95-light);
+  border-left-color: var(--win95-light);
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+  box-shadow: 2px 2px 0 #000;
+  padding: 2px;
+  z-index: 10000; /* On top of everything */
+  width: 170px;
+  font-family: 'VT323', 'Pixelated MS Sans Serif', 'MS Sans Serif', 'Noto Sans', system-ui, sans-serif;
+  font-size: 16px;
+  user-select: none;
+}
+
+.win95-context-menu .menu-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: block;
+  font-family: inherit;
+  font-size: inherit;
+  color: #000;
+  outline: none;
+}
+
+/* Let's respect night mode color text */
+body.night-mode .win95-context-menu .menu-item {
+  color: #f5f5dc;
+}
+
+.win95-context-menu .menu-item.default-action {
+  font-weight: bold;
+}
+
+.win95-context-menu .menu-item:hover {
+  background: var(--win95-title-active-start);
+  color: white !important;
+}
+
+.win95-context-menu hr {
+  border: none;
+  border-top: 1px solid var(--win95-dark);
+  border-bottom: 1px solid var(--win95-light);
+  margin: 3px 0;
 }
