@@ -492,12 +492,30 @@ function makeIcon(entry, isShortcut = false) {
   // Original double-click listener remains
   el.addEventListener('dblclick', (e) => {
     e.preventDefault(); // Prevent text selection on double-click
-    openEntry(entry.path, entry.type === 'html' || entry.isShortcut)
+    if (entry.isShortcut) {
+      if (entry.url) {
+        window.open(entry.url, '_blank');
+      } else {
+        window.open(window.location.href, '_blank');
+      }
+    } else {
+      openEntry(entry.path, entry.type === 'html');
+    }
   });
 
   // Keyboard activation remains
   el.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') openEntry(entry.path, entry.type === 'html' || entry.isShortcut);
+    if (e.key === 'Enter') {
+      if (entry.isShortcut) {
+        if (entry.url) {
+          window.open(entry.url, '_blank');
+        } else {
+          window.open(window.location.href, '_blank');
+        }
+      } else {
+        openEntry(entry.path, entry.type === 'html');
+      }
+    }
   });
 
   // Right-click context menu support
@@ -632,9 +650,8 @@ function renderDesktop() {
     iconEl.style.left = `${finalLeft}px`;
     iconEl.style.top = `${finalTop}px`;
 
-    // Make draggable after positioning. For shortcuts, a single click opens the link maximized.
-    const onSingleClick = entry.isShortcut ? () => openEntry(entry.path, true) : null;
-    makeDraggable(iconEl, iconEl, onSingleClick, true, iconSpacingX, iconSpacingY, initialDesktopIconOffsetX, initialDesktopIconOffsetY);
+    // Make draggable after positioning. Shortcuts open via double click.
+    makeDraggable(iconEl, iconEl, null, true, iconSpacingX, iconSpacingY, initialDesktopIconOffsetX, initialDesktopIconOffsetY);
   });
 }
 
@@ -1499,7 +1516,7 @@ async function openEntry(path, forceMaximize = false) {
 
   if (windowId) {
     if (forceMaximize) {
-      setTimeout(() => maximizeWindow(windowId, true), 20);
+      setTimeout(() => maximizeWindow(windowId, true), 50);
     }
   }
 
