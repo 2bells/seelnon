@@ -508,7 +508,7 @@ function makeIcon(entry, isShortcut = false) {
   // entry.icon is now relative (e.g., 'pictures_icon.png' or 'Content/Videos/thumbnail.jpg')
   icon.style.backgroundImage = `url(${entry.icon || iconForType(entry.type)})`;
 
-  if (entry.icon) {
+  if (entry.icon && isShortcut) {
     icon.classList.add('has-custom-icon');
   }
 
