@@ -478,6 +478,10 @@ function makeIcon(entry, isShortcut = false) {
   // entry.icon is now relative (e.g., 'pictures_icon.png' or 'Content/Videos/thumbnail.jpg')
   icon.style.backgroundImage = `url(${entry.icon || iconForType(entry.type)})`;
 
+  if (entry.icon) {
+    icon.classList.add('has-custom-icon');
+  }
+
   if (isShortcut) {
     el.classList.add('shortcut-icon');
     const arrow = document.createElement('div');
@@ -488,12 +492,12 @@ function makeIcon(entry, isShortcut = false) {
   // Original double-click listener remains
   el.addEventListener('dblclick', (e) => {
     e.preventDefault(); // Prevent text selection on double-click
-    openEntry(entry.path)
+    openEntry(entry.path, entry.type === 'html' || entry.isShortcut)
   });
 
   // Keyboard activation remains
   el.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') openEntry(entry.path);
+    if (e.key === 'Enter') openEntry(entry.path, entry.type === 'html' || entry.isShortcut);
   });
 
   // Right-click context menu support
@@ -628,8 +632,9 @@ function renderDesktop() {
     iconEl.style.left = `${finalLeft}px`;
     iconEl.style.top = `${finalTop}px`;
 
-    // Make draggable after positioning
-    makeDraggable(iconEl, iconEl, null, true, iconSpacingX, iconSpacingY, initialDesktopIconOffsetX, initialDesktopIconOffsetY);
+    // Make draggable after positioning. For shortcuts, a single click opens the link maximized.
+    const onSingleClick = entry.isShortcut ? () => openEntry(entry.path, true) : null;
+    makeDraggable(iconEl, iconEl, onSingleClick, true, iconSpacingX, iconSpacingY, initialDesktopIconOffsetX, initialDesktopIconOffsetY);
   });
 }
 
@@ -689,10 +694,10 @@ function openFolder(path) {
     `;
     item.addEventListener('dblclick', (e) => {
       e.preventDefault(); // Prevent text selection on double-click
-      openEntry(ch.path)
+      openEntry(ch.path, ch.type === 'html')
     });
     item.tabIndex = 0; // Make file item focusable
-    item.addEventListener('keydown', (e) => { if (e.key === 'Enter') openEntry(ch.path); });
+    item.addEventListener('keydown', (e) => { if (e.key === 'Enter') openEntry(ch.path, ch.type === 'html'); });
     list.appendChild(item);
   });
   return openWindow({ title: folder.name, content: wrap, width: 560, height: 380, x: 80, y: 80 });
@@ -1493,8 +1498,8 @@ async function openEntry(path, forceMaximize = false) {
   }
 
   if (windowId) {
-    if (forceMaximize || entry.type === 'html') {
-      setTimeout(() => maximizeWindow(windowId, true), 50);
+    if (forceMaximize) {
+      setTimeout(() => maximizeWindow(windowId, true), 20);
     }
   }
 
@@ -1656,7 +1661,7 @@ function initializeApp() {
       const name = btn.dataset.open;
       // Use openEntry for all start menu items, including 'About Me'
       const node = FS.findByName(name);
-      if (node) openEntry(node.path);
+      if (node) openEntry(node.path, node.type === 'html');
       toggleStart(false);
     });
 
@@ -1741,14 +1746,19 @@ function addSticker({ title, note, path, x_percent, y_percent, imageUrl, sticker
 
   el.addEventListener('dblclick', (e) => {
     e.preventDefault(); // Prevent text selection on double-click
-    openEntry(path)
+    const fNode = FS.get(path);
+    openEntry(path, fNode ? fNode.type === 'html' : false);
   });
   el.querySelector('.open').addEventListener('click', (e) => {
     e.preventDefault(); // Prevent text selection on button click
-    openEntry(path)
+    const fNode = FS.get(path);
+    openEntry(path, fNode ? fNode.type === 'html' : false);
   });
   el.tabIndex = 0;
-  el.addEventListener('keydown', (e)=>{ if(e.key==='Enter') openEntry(path); });
+  el.addEventListener('keydown', (e)=>{ if(e.key==='Enter') {
+    const fNode = FS.get(path);
+    openEntry(path, fNode ? fNode.type === 'html' : false);
+  }});
 }
 
 // Kick off the process
