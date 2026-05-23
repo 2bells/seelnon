@@ -248,23 +248,29 @@ function restoreWindow(id) {
   focusWindow(id);
 }
 
-function maximizeWindow(id) {
+function maximizeWindow(id, forceState) {
   const w = windows.get(id);
   if (!w) return;
   const el = w.el;
   const maxBtn = el.querySelector('.btn-max'); // Get the maximize button
-  if (!w.maximized) {
-    w.prev = { left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height };
-    el.style.left = '0px';
-    el.style.top = '0px';
-    el.style.width = desktop.clientWidth + 'px';
-    el.style.height = desktop.clientHeight + 'px';
-    w.maximized = true;
-    maxBtn.setAttribute('aria-label', 'Restore'); // Update label
+  const shouldMaximize = (forceState !== undefined) ? forceState : !w.maximized;
+
+  if (shouldMaximize) {
+    if (!w.maximized) {
+      w.prev = { left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height };
+      el.style.left = '0px';
+      el.style.top = '0px';
+      el.style.width = desktop.clientWidth + 'px';
+      el.style.height = desktop.clientHeight + 'px';
+      w.maximized = true;
+      if (maxBtn) maxBtn.setAttribute('aria-label', 'Restore'); // Update label
+    }
   } else {
-    Object.assign(el.style, w.prev);
-    w.maximized = false;
-    maxBtn.setAttribute('aria-label', 'Maximize'); // Update label
+    if (w.maximized) {
+      Object.assign(el.style, w.prev);
+      w.maximized = false;
+      if (maxBtn) maxBtn.setAttribute('aria-label', 'Maximize'); // Update label
+    }
   }
   focusWindow(id);
 }
@@ -383,7 +389,7 @@ document.addEventListener('mousedown', (e) => {
   if (currentContextMenu && !currentContextMenu.contains(e.target)) {
     closeContextMenu();
   }
-});
+}, true); // Use capture phase to ensure it's handled even if stopPropagation is called on drag handlers
 
 // Also dismiss on resize
 window.addEventListener('resize', closeContextMenu);
@@ -410,13 +416,7 @@ function showDesktopContextMenu(e, entry) {
   fullScreenItem.textContent = 'Open Full Screen';
   fullScreenItem.addEventListener('click', async () => {
     closeContextMenu();
-    const winId = await openEntry(entry.path);
-    if (winId) {
-      const w = windows.get(winId);
-      if (w && !w.maximized) {
-        maximizeWindow(winId);
-      }
-    }
+    await openEntry(entry.path, true); // Pass true to forceMaximize
   });
   menu.appendChild(fullScreenItem);
 
@@ -1416,7 +1416,7 @@ function closeGilArchive() {
   }
 }
 
-async function openEntry(path) {
+async function openEntry(path, forceMaximize = false) {
   const entry = FS.get(path);
   if (!entry) return;
   let windowId = null;
@@ -1438,17 +1438,18 @@ async function openEntry(path) {
   else if (entry.type === 'video') windowId = openVideo(entry);
   else if (entry.type === 'html') {
     windowId = openHtml(entry);
-    // Maximize HTML windows (projects)
-    if (windowId) {
-      // Defer maximizing slightly to allow the window to render fully first
-      setTimeout(() => maximizeWindow(windowId), 50);
-    }
   }
   else if (entry.type === 'about') windowId = openAboutMeWindow(entry.name, openWindow); // Handle 'about' type
   else if (entry.type === 'blog') windowId = await openBlogWindow(entry.name, openWindow); // Handle 'blog' type
   else if (entry.type === 'tutorials') windowId = await openTutorialsWindow(entry.name, openWindow); // Handle 'tutorials' type
   else if (entry.type === 'wonderland') {
     windowId = await openWonderlandWindow(entry, openWindow);
+  }
+
+  if (windowId) {
+    if (forceMaximize || entry.type === 'html') {
+      setTimeout(() => maximizeWindow(windowId, true), 50);
+    }
   }
 
   return windowId;
