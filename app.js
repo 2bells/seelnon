@@ -54,8 +54,13 @@ function createTaskButton(title, id) {
   btn.addEventListener('click', () => {
     const w = windows.get(id);
     if (!w) return;
-    if (w.minimized) restoreWindow(id);
-    focusWindow(id);
+    if (w.minimized) {
+      restoreWindow(id);
+    } else if (btn.classList.contains('active')) {
+      minimizeWindow(id);
+    } else {
+      focusWindow(id);
+    }
   });
   taskbarTasks.appendChild(btn);
   return btn;
@@ -233,12 +238,32 @@ function focusWindow(id) {
   });
 }
 
+function findNextActiveWindow() {
+  let highestZ = -1;
+  let highestId = null;
+  windows.forEach(({el, minimized}, id) => {
+    if (!minimized) {
+      const z = parseInt(el.style.zIndex || 0);
+      if (z > highestZ) {
+        highestZ = z;
+        highestId = id;
+      }
+    }
+  });
+  return highestId;
+}
+
 function minimizeWindow(id) {
   const w = windows.get(id);
   if (!w || w.minimized) return;
   w.el.style.display = 'none';
   w.minimized = true;
-  w.taskBtn.classList.add('active');
+  w.taskBtn.classList.remove('active');
+
+  const nextId = findNextActiveWindow();
+  if (nextId) {
+    focusWindow(nextId);
+  }
 }
 
 function restoreWindow(id) {
@@ -283,6 +308,11 @@ function closeWindow(id) {
   w.el.remove();
   w.taskBtn.remove();
   windows.delete(id);
+
+  const nextId = findNextActiveWindow();
+  if (nextId) {
+    focusWindow(nextId);
+  }
 }
 
 // Helper function for making elements draggable
@@ -1516,7 +1546,7 @@ async function openEntry(path, forceMaximize = false) {
 
   if (windowId) {
     if (forceMaximize) {
-      setTimeout(() => maximizeWindow(windowId, true), 50);
+      setTimeout(() => maximizeWindow(windowId, true), 15);
     }
   }
 
@@ -1524,11 +1554,12 @@ async function openEntry(path, forceMaximize = false) {
 }
 
 // Night Mode & Particles
-let nightModeEnabled = false;
+let nightModeEnabled = localStorage.getItem('nightModeEnabled') === 'true';
 let particleInterval = null;
 
-function toggleNightMode() {
-    nightModeEnabled = !nightModeEnabled;
+function applyNightMode(state) {
+    nightModeEnabled = state;
+    localStorage.setItem('nightModeEnabled', nightModeEnabled ? 'true' : 'false');
     document.body.classList.toggle('night-mode', nightModeEnabled);
     
     const themeToggle = document.getElementById('theme-toggle');
@@ -1541,6 +1572,10 @@ function toggleNightMode() {
     } else {
         stopParticles();
     }
+}
+
+function toggleNightMode() {
+    applyNightMode(!nightModeEnabled);
 }
 
 function startParticles() {
@@ -1650,6 +1685,9 @@ function initializeApp() {
     startBtn = document.getElementById('start-button');
     startMenu = document.getElementById('start-menu');
     const themeToggle = document.getElementById('theme-toggle');
+
+    // Apply cached night mode
+    applyNightMode(nightModeEnabled);
 
     // Attach event listeners
     nowClock();
