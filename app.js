@@ -4,6 +4,7 @@ import { openBlogWindow, preloadBlogPosts } from "./blog.js"; // Import the new 
 import { openTutorialsWindow, preloadTutorials } from "./tutorials/tutorials.js"; // Import the new tutorials module
 import { openWonderlandWindow } from "./wonderlands.js"; // Import the new wonderlands module
 import { initMascot, cleanupMascot } from "./mascot.js"; // NEW: Import initMascot and cleanupMascot
+import { desktopShortcuts } from "./shortcuts.js"; // NEW: Import desktopShortcuts
 
 const desktop = document.getElementById('desktop');
 const taskbarTasks = document.getElementById('taskbar-tasks');
@@ -297,6 +298,9 @@ function makeDraggable(el, handle = el, onSingleClick = null, snapToGrid = false
     // Explicitly disallow touch events for dragging.
     if (e.type === 'mousedown' && e.button !== 0) return;
     if (e.type === 'touchstart') return; 
+
+    // Dismiss any open context menu when a drag start occurs on ANY draggable element!
+    closeContextMenu();
     
     e.preventDefault();
     e.stopPropagation();
@@ -391,8 +395,11 @@ document.addEventListener('mousedown', (e) => {
   }
 }, true); // Use capture phase to ensure it's handled even if stopPropagation is called on drag handlers
 
-// Also dismiss on resize
-window.addEventListener('resize', closeContextMenu);
+// Also dismiss and re-align desktop on resize
+window.addEventListener('resize', () => {
+  closeContextMenu();
+  renderDesktop();
+});
 
 function showDesktopContextMenu(e, entry) {
   closeContextMenu();
@@ -460,7 +467,7 @@ function showDesktopContextMenu(e, entry) {
   currentContextMenu = menu;
 }
 
-function makeIcon(entry) {
+function makeIcon(entry, isShortcut = false) {
   const tpl = document.getElementById('icon-template');
   const el = tpl.content.firstElementChild.cloneNode(true);
   el.querySelector('.icon-label').textContent = entry.name;
@@ -470,6 +477,13 @@ function makeIcon(entry) {
   const icon = el.querySelector('.icon-img');
   // entry.icon is now relative (e.g., 'pictures_icon.png' or 'Content/Videos/thumbnail.jpg')
   icon.style.backgroundImage = `url(${entry.icon || iconForType(entry.type)})`;
+
+  if (isShortcut) {
+    el.classList.add('shortcut-icon');
+    const arrow = document.createElement('div');
+    arrow.className = 'shortcut-arrow';
+    icon.appendChild(arrow);
+  }
 
   // Original double-click listener remains
   el.addEventListener('dblclick', (e) => {
@@ -538,6 +552,21 @@ function renderDesktop() {
     iconsToRender.push({ entry, iconEl, type });
   });
 
+  // Now, create elements for shortcut entries!
+  desktopShortcuts.forEach(shortcut => {
+    const fsEntry = FS.get(shortcut.targetPath);
+    const virtualEntry = {
+      name: shortcut.name,
+      path: shortcut.targetPath,
+      icon: shortcut.icon,
+      isShortcut: true,
+      type: fsEntry ? fsEntry.type : 'html',
+      url: fsEntry ? fsEntry.url : null
+    };
+    const iconEl = makeIcon(virtualEntry, true);
+    iconsToRender.push({ entry: virtualEntry, iconEl, type: 'shortcut', shortcut });
+  });
+
   // Append all icons to the DOM. This allows their offsetWidth/offsetHeight to be calculated.
   iconsToRender.forEach(({ iconEl }) => desktop.appendChild(iconEl));
 
@@ -545,7 +574,7 @@ function renderDesktop() {
   let currentIconX = initialDesktopIconOffsetX;
   let currentIconY = initialDesktopIconOffsetY;
 
-  iconsToRender.forEach(({ entry, iconEl, type }) => {
+  iconsToRender.forEach(({ entry, iconEl, type, shortcut }) => {
     let finalLeft, finalTop;
 
     if (type === 'left-column') {
@@ -576,6 +605,23 @@ function renderDesktop() {
     } else if (type === 'tutorials') {
       finalLeft = desktop.clientWidth - iconEl.offsetWidth - rightMargin;
       finalTop = topMargin + 2 * iconSpacingY;
+    } else if (type === 'shortcut') {
+      const alignment = shortcut.align || 'center-top';
+      const offsetX = shortcut.offsetX !== undefined ? shortcut.offsetX : 0;
+      const offsetY = shortcut.offsetY !== undefined ? shortcut.offsetY : 10;
+      
+      const width = iconEl.offsetWidth || 74;
+
+      if (alignment === 'center-top') {
+        finalLeft = Math.round((desktop.clientWidth / 2) - (width / 2) + offsetX);
+        finalTop = offsetY;
+      } else if (alignment === 'absolute') {
+        finalLeft = shortcut.x !== undefined ? shortcut.x : 0;
+        finalTop = shortcut.y !== undefined ? shortcut.y : 0;
+      } else {
+        finalLeft = shortcut.x !== undefined ? shortcut.x : 100;
+        finalTop = shortcut.y !== undefined ? shortcut.y : 100;
+      }
     }
     
     // Apply calculated positions
