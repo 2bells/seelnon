@@ -15,7 +15,7 @@ And trauma is something that got damaged in that union and if it is 'damaged eno
 
 Why it matters? Because in trauma work we usually have to find 'the target', separate it from 'self' to work on it. Meaning your 'greater self' is safe, while the separated one is 'hurt', but as it is still a part of the union: 'greater self' could calm the 'smaller self' down...
 
-Here comes also an idea that 'others can help you', because they can act as 'greater self' that is safe, while helping the 'smaller one'. Which is also act of quantization: be that from 1 entity or from many. I don't think there is any trauma larger than the whole system. (we are still there after all)
+Here comes also an idea that 'others can help you', because they can act as 'greater self' that is safe, while helping the 'smaller one'. Which is also act of quantization: be that from 1 entity or from many. I don't think there is any trauma larger than the whole system. (we are still here after all)
 
 Similar works with meditation and detachment. We put 'self' in a safe 'place' and work from there with 'hurt self'. Same goes for help of God and 'Jesus take the wheel', because we have 'greater safety' to rely on.
 
