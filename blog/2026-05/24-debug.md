@@ -9,9 +9,9 @@ the whole 'need to debug and to debug you have to quantize thing', but why?
 
 Mainly if my proposal has foundation, it should work with fractal ideas [as above, so below] meaning they should reflect micro and macro things. [Hermetic teachings got greatly butchered over the years, but the idea of 'as above, so below' is to reflect scale... kind of like 'gods have same problems, just on a different scale.]
 
-So I started to think about work on trauma as a human being and in order to work on yourself you have to quantize your own self. Because 'self' is combination of 'multiple' rather than a singleton, so it is a union.
+So I started to think about work on trauma as a human being and in order to work on yourself you have to quantize your own self. Because 'self' is a combination of 'multiple' rather than a singleton, so it is a union.
 
-And trauma is something that got damaged in that union and if it is 'damaged enough' it alters the whole system. But because people think of themselves as 1 single entity, rather than a combinations of many (ex. if you reading this you are a pilot of 7 trillion living cells that you have 0 control over) it causes a lot of 'self loathing, self protection' when it becomes an overreaction of 1 thing inside of a union that tries to defend itself, because it got hurt in 201 AD... (say 'hi' to trauma from DNA inheritance / evolution)
+And 'trauma' is something that got damaged in that union and if it is 'damaged enough' it alters the whole system. But, because people think of themselves as 1 single entity, rather than a combinations of many (ex. if you reading this you are a pilot of 7 trillion living cells that you have 0 control over) it causes a lot of 'self loathing, self protection' when it becomes an overreaction of 1 thing inside of a union that tries to defend itself, because it got hurt in 201 AD... (say 'hi' to trauma from DNA inheritance / evolution)
 
 Why it matters? Because in trauma work we usually have to find 'the target', separate it from 'self' to work on it. Meaning your 'greater self' is safe, while the separated one is 'hurt', but as it is still a part of the union: 'greater self' could calm the 'smaller self' down...
 
