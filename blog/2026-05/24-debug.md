@@ -13,7 +13,7 @@ So I started to think about work on trauma as a human being and in order to work
 
 And trauma is something that got damaged in that union and if it is 'damaged enough' it alters the whole system. But because people think of themselves as 1 single entity, rather than a combinations of many (ex. if you reading this you are a pilot of 7 trillion living cells that you have 0 control over) it causes a lot of 'self loathing, self protection' when it becomes an overreaction of 1 thing inside of a union that tries to defend itself, because it got hurt in 201 AD... (say 'hi' to trauma from DNA inheritance / evolution)
 
-Why it matters? Because in trauma work we usually have to find 'the target', separate it from 'self' to work on it. Meaning your 'greater self' is safe, while the separated one is 'hurt', but as it still part of the union 'greater self' could calm the 'smaller self down'...
+Why it matters? Because in trauma work we usually have to find 'the target', separate it from 'self' to work on it. Meaning your 'greater self' is safe, while the separated one is 'hurt', but as it is still a part of the union: 'greater self' could calm the 'smaller self' down...
 
 Here comes also an idea that 'others can help you', because they can act as 'greater self' that is safe, while helping the 'smaller one'. Which is also act of quantization: be that from 1 entity or from many. I don't think there is any trauma larger than the whole system. (we are still there after all)
 
