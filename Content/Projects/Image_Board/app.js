@@ -53,6 +53,7 @@ class App {
         this.exportAspectRatio = 1; // Aspect ratio of the board or selected item for export
         this.currentExportScale = 1; // Current multiplier for export
         this.exportWithAlpha = false; // New: track transparency option for export
+        this.activeAlignmentGuides = []; // Store lines to draw for snapping alignments
 
         this.imageBoard.onSelectionChange = (selectedId) => {
             this.layerManager.updateLayersList(selectedId);
@@ -895,8 +896,14 @@ class App {
                 const dx = worldX - this.dragStart.x;
                 const dy = worldY - this.dragStart.y;
                 
-                selectedItem.x = this.dragStart.itemX + dx;
-                selectedItem.y = this.dragStart.itemY + dy;
+                const targetX = this.dragStart.itemX + dx;
+                const targetY = this.dragStart.itemY + dy;
+                
+                const snapping = this.calculateSnapping(selectedItem, targetX, targetY);
+                selectedItem.x = snapping.x;
+                selectedItem.y = snapping.y;
+                this.activeAlignmentGuides = snapping.guides;
+
                 this.render();
                 cursor = 'move';
             } else if (this.isResizingItem && selectedItem && selectedItem.type === 'image') {
@@ -1037,6 +1044,8 @@ class App {
             this.imageBoard.saveState(); // Save state after move/resize operation
             this.isMovingItem = false;
             this.isResizingItem = false;
+            this.activeAlignmentGuides = [];
+            this.render();
         }
 
         if (this.isMovingCutRegion) {
@@ -1543,6 +1552,168 @@ class App {
         tempCanvas.remove();
     }
 
+    getBoundsAt(item, px, py) {
+        if (item.type === 'image') {
+            return {
+                left: px,
+                right: px + item.width,
+                centerX: px + item.width / 2,
+                top: py,
+                bottom: py + item.height,
+                centerY: py + item.height / 2,
+                width: item.width,
+                height: item.height
+            };
+        } else if (item.type === 'text') {
+            const ctx = this.canvas.getContext('2d');
+            ctx.save();
+            ctx.font = `${item.fontSize}px ${item.fontFamily}`;
+            const width = ctx.measureText(item.content).width;
+            ctx.restore();
+            const height = item.fontSize * 1.2;
+            const top = py - item.fontSize;
+            return {
+                left: px,
+                right: px + width,
+                centerX: px + width / 2,
+                top: top,
+                bottom: top + height,
+                centerY: top + height / 2,
+                width: width,
+                height: height
+            };
+        }
+        return null;
+    }
+
+    calculateSnapping(selectedItem, targetX, targetY) {
+        const threshold = 6; // screen pixels threshold
+        const worldThreshold = threshold / this.imageBoard.zoom;
+        
+        // 1. Get initial un-snapped bounds
+        const sBoundsOriginal = this.getBoundsAt(selectedItem, targetX, targetY);
+        if (!sBoundsOriginal) {
+            return { x: targetX, y: targetY, guides: [] };
+        }
+        
+        const otherItems = this.imageBoard.getAllItems().filter(
+            item => item.id !== selectedItem.id && item.visible !== false
+        );
+        
+        const itemWidth = sBoundsOriginal.width;
+        const itemHeight = sBoundsOriginal.height;
+        
+        let bestSnapX = null;
+        let minDistanceX = worldThreshold;
+        
+        for (const other of otherItems) {
+            const oBounds = this.getBoundsAt(other, other.x, other.y);
+            if (!oBounds) continue;
+            
+            const checkXSnaps = [
+                { dragEdge: 'left', otherEdge: 'left', otherVal: oBounds.left, snapDelta: 0 },
+                { dragEdge: 'left', otherEdge: 'centerX', otherVal: oBounds.centerX, snapDelta: 0 },
+                { dragEdge: 'left', otherEdge: 'right', otherVal: oBounds.right, snapDelta: 0 },
+                
+                { dragEdge: 'right', otherEdge: 'left', otherVal: oBounds.left, snapDelta: -itemWidth },
+                { dragEdge: 'right', otherEdge: 'centerX', otherVal: oBounds.centerX, snapDelta: -itemWidth },
+                { dragEdge: 'right', otherEdge: 'right', otherVal: oBounds.right, snapDelta: -itemWidth },
+                
+                { dragEdge: 'centerX', otherEdge: 'left', otherVal: oBounds.left, snapDelta: -itemWidth / 2 },
+                { dragEdge: 'centerX', otherEdge: 'centerX', otherVal: oBounds.centerX, snapDelta: -itemWidth / 2 },
+                { dragEdge: 'centerX', otherEdge: 'right', otherVal: oBounds.right, snapDelta: -itemWidth / 2 }
+            ];
+            
+            for (const snap of checkXSnaps) {
+                let dragVal;
+                if (snap.dragEdge === 'left') dragVal = sBoundsOriginal.left;
+                else if (snap.dragEdge === 'right') dragVal = sBoundsOriginal.right;
+                else if (snap.dragEdge === 'centerX') dragVal = sBoundsOriginal.centerX;
+                
+                const distance = Math.abs(dragVal - snap.otherVal);
+                if (distance < minDistanceX) {
+                    minDistanceX = distance;
+                    bestSnapX = {
+                        snapX: snap.otherVal + snap.snapDelta,
+                        lineX: snap.otherVal,
+                        otherBounds: oBounds,
+                        dragEdge: snap.dragEdge,
+                        otherEdge: snap.otherEdge
+                    };
+                }
+            }
+        }
+        
+        let bestSnapY = null;
+        let minDistanceY = worldThreshold;
+        
+        for (const other of otherItems) {
+            const oBounds = this.getBoundsAt(other, other.x, other.y);
+            if (!oBounds) continue;
+            
+            const checkYSnaps = [
+                { dragEdge: 'top', otherEdge: 'top', otherVal: oBounds.top, snapDelta: 0 },
+                { dragEdge: 'top', otherEdge: 'centerY', otherVal: oBounds.centerY, snapDelta: 0 },
+                { dragEdge: 'top', otherEdge: 'bottom', otherVal: oBounds.bottom, snapDelta: 0 },
+                
+                { dragEdge: 'bottom', otherEdge: 'top', otherVal: oBounds.top, snapDelta: -itemHeight },
+                { dragEdge: 'bottom', otherEdge: 'centerY', otherVal: oBounds.centerY, snapDelta: -itemHeight },
+                { dragEdge: 'bottom', otherEdge: 'bottom', otherVal: oBounds.bottom, snapDelta: -itemHeight },
+                
+                { dragEdge: 'centerY', otherEdge: 'top', otherVal: oBounds.top, snapDelta: -itemHeight / 2 },
+                { dragEdge: 'centerY', otherEdge: 'centerY', otherVal: oBounds.centerY, snapDelta: -itemHeight / 2 },
+                { dragEdge: 'centerY', otherEdge: 'bottom', otherVal: oBounds.bottom, snapDelta: -itemHeight / 2 }
+            ];
+            
+            for (const snap of checkYSnaps) {
+                let dragVal;
+                if (snap.dragEdge === 'top') dragVal = sBoundsOriginal.top;
+                else if (snap.dragEdge === 'bottom') dragVal = sBoundsOriginal.bottom;
+                else if (snap.dragEdge === 'centerY') dragVal = sBoundsOriginal.centerY;
+                
+                const distance = Math.abs(dragVal - snap.otherVal);
+                if (distance < minDistanceY) {
+                    minDistanceY = distance;
+                    bestSnapY = {
+                        snapY: snap.otherVal + snap.snapDelta,
+                        lineY: snap.otherVal,
+                        otherBounds: oBounds,
+                        dragEdge: snap.dragEdge,
+                        otherEdge: snap.otherEdge
+                    };
+                }
+            }
+        }
+        
+        // Final position coordinates to apply to item
+        const finalX = bestSnapX ? bestSnapX.snapX : targetX;
+        const finalTop = bestSnapY ? bestSnapY.snapY : sBoundsOriginal.top;
+        const finalY = selectedItem.type === 'text' ? finalTop + selectedItem.fontSize : finalTop;
+        
+        const sBoundsSnapped = this.getBoundsAt(selectedItem, finalX, finalY);
+        const guides = [];
+        
+        if (bestSnapX) {
+            guides.push({
+                type: 'vertical',
+                x: bestSnapX.lineX,
+                y1: Math.min(sBoundsSnapped.top, bestSnapX.otherBounds.top),
+                y2: Math.max(sBoundsSnapped.bottom, bestSnapX.otherBounds.bottom)
+            });
+        }
+        
+        if (bestSnapY) {
+            guides.push({
+                type: 'horizontal',
+                y: bestSnapY.lineY,
+                x1: Math.min(sBoundsSnapped.left, bestSnapY.otherBounds.left),
+                x2: Math.max(sBoundsSnapped.right, bestSnapY.otherBounds.right)
+            });
+        }
+        
+        return { x: finalX, y: finalY, guides: guides };
+    }
+
     // Helper to check if an item is currently visible in the canvas viewport
     checkIfItemIsVisible(item, ctx) {
         let itemWorldX = item.x;
@@ -1631,6 +1802,39 @@ class App {
             // but the overlay mask needs to be drawn *after* we undo it.
             this.renderLassoShapes(ctx);
             this.renderCutModeOverlay(ctx); // This function handles restoring/saving context for overlay drawing
+        }
+
+        // Draw alignment guides if active
+        if (this.activeAlignmentGuides && this.activeAlignmentGuides.length > 0) {
+            ctx.save();
+            ctx.strokeStyle = '#ff2d55'; // Vibrant magenta/pink
+            ctx.lineWidth = 1.5 / this.imageBoard.zoom; // Keep 1.5px constant visual width
+            ctx.setLineDash([4, 4]); // Clean dashes for guidelines
+            
+            for (const guide of this.activeAlignmentGuides) {
+                ctx.beginPath();
+                if (guide.type === 'vertical') {
+                    ctx.moveTo(guide.x, guide.y1);
+                    ctx.lineTo(guide.x, guide.y2);
+                } else if (guide.type === 'horizontal') {
+                    ctx.moveTo(guide.x1, guide.y);
+                    ctx.lineTo(guide.x2, guide.y);
+                }
+                ctx.stroke();
+                
+                // Draw small dots at the aligned item boundaries
+                ctx.fillStyle = '#ff2d55';
+                ctx.beginPath();
+                if (guide.type === 'vertical') {
+                    ctx.arc(guide.x, guide.y1, 3.5 / this.imageBoard.zoom, 0, 2 * Math.PI);
+                    ctx.arc(guide.x, guide.y2, 3.5 / this.imageBoard.zoom, 0, 2 * Math.PI);
+                } else if (guide.type === 'horizontal') {
+                    ctx.arc(guide.x1, guide.y, 3.5 / this.imageBoard.zoom, 0, 2 * Math.PI);
+                    ctx.arc(guide.x2, guide.y, 3.5 / this.imageBoard.zoom, 0, 2 * Math.PI);
+                }
+                ctx.fill();
+            }
+            ctx.restore();
         }
 
         ctx.restore();
