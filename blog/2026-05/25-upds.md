@@ -18,6 +18,8 @@ Also there are shortcuts on the Desktop, those should lead you immediately to th
 
 Maybe I can just download the libraries and have them locally as well, so it doesn't brick offline. But I never tested it offline.
 
+//upd: actually just did that, should be working 'off the grid' completely.
+
 [Noted](https://2bells.github.io/seelnon/Content/Projects/Fri-ren_Notes/)
 
 ```
