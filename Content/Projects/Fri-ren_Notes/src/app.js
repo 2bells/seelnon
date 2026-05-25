@@ -455,8 +455,8 @@ class CavemanApp {
     const prismTheme = document.getElementById('prism-theme');
     if (prismTheme) {
       prismTheme.href = isNight 
-        ? 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css'
-        : 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css';
+        ? './lib/prism-tomorrow.min.css'
+        : './lib/prism.min.css';
     }
   }
 
