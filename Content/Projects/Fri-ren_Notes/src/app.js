@@ -1755,71 +1755,88 @@ class CavemanApp {
       this.editorEl.focus();
     }
     
-    const lineHeight = parseFloat(getComputedStyle(this.editorEl).lineHeight);
-    const beforeText = this.editorEl.value.substring(0, match.start);
-    const lines = beforeText.split('\n');
-    const lineIndex = lines.length - 1;
+    // Render search highlights synchronously so they exist in the DOM right now
+    this.renderHighlightsImmediate();
     
-    const targetScroll = lineIndex * lineHeight - (this.editorEl.clientHeight / 2);
-    
-    this.editorEl.scrollTop = targetScroll;
-    this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
-    this.editorHighlightsEl.scrollTop = this.editorEl.scrollTop;
-    
-    this.renderHighlights();
+    const currentMark = this.searchMarksEl.querySelector('mark.current');
+    if (currentMark) {
+      // Find the relative offsetTop of the current mark element which reflects the actual layout positioning
+      // (accounting for line-wrap, zooming, margins, custom widths etc.)
+      const targetScroll = currentMark.offsetTop - (this.editorEl.clientHeight / 2);
+      
+      this.editorEl.scrollTop = targetScroll;
+      this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
+      this.editorHighlightsEl.scrollTop = this.editorEl.scrollTop;
+      this.searchMarksEl.scrollTop = this.editorEl.scrollTop;
+    } else {
+      // Fallback in case mark.current was not found
+      const lineHeight = parseFloat(getComputedStyle(this.editorEl).lineHeight);
+      const beforeText = this.editorEl.value.substring(0, match.start);
+      const lines = beforeText.split('\n');
+      const lineIndex = lines.length - 1;
+      
+      const targetScroll = lineIndex * lineHeight - (this.editorEl.clientHeight / 2);
+      
+      this.editorEl.scrollTop = targetScroll;
+      this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
+      this.editorHighlightsEl.scrollTop = this.editorEl.scrollTop;
+      this.searchMarksEl.scrollTop = this.editorEl.scrollTop;
+    }
   }
 
   renderHighlights() {
+    requestAnimationFrame(() => this.renderHighlightsImmediate());
+  }
+
+  renderHighlightsImmediate() {
     if (!this.currentNote || this.viewMode !== 'editor') return;
 
-    requestAnimationFrame(() => {
-      const text = this.editorEl.value;
-      const query = this.editorSearchInput.value;
-      
-      try {
-        // 1. Syntax Highlighting
-        if (typeof Prism !== 'undefined' && Prism.languages.markdown) {
-          // Custom Wikilink Support for Prism Editor
-          if (!Prism.languages.markdown.wikilink) {
-            Prism.languages.markdown.wikilink = {
-              pattern: /\[\[.*?\]\]/,
-              alias: 'wikilink'
-            };
-          }
-          
-          this.editorHighlightsEl.innerHTML = Prism.highlight(text, Prism.languages.markdown, 'markdown') + '\n';
-        } else {
-          this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+    const text = this.editorEl.value;
+    const query = this.editorSearchInput.value;
+    
+    try {
+      // 1. Syntax Highlighting
+      if (typeof Prism !== 'undefined' && Prism.languages.markdown) {
+        // Custom Wikilink Support for Prism Editor
+        if (!Prism.languages.markdown.wikilink) {
+          Prism.languages.markdown.wikilink = {
+            pattern: /\[\[.*?\]\]/,
+            alias: 'wikilink'
+          };
         }
-
-        // 2. Search Highlights
-        if (!query || this.editorSearchWidget.classList.contains('hidden')) {
-          this.searchMarksEl.innerHTML = this.escapeHtml(text) + '\n';
-          return;
-        }
-
-        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedQuery, 'gi');
         
-        let lastIndex = 0;
-        let html = '';
-        let match;
-        let count = 0;
-
-        while ((match = regex.exec(text)) !== null) {
-          html += this.escapeHtml(text.substring(lastIndex, match.index));
-          const isCurrent = (count === this.currentSearchMatchIndex);
-          html += `<mark class="${isCurrent ? 'current' : ''}">${this.escapeHtml(match[0])}</mark>`;
-          lastIndex = regex.lastIndex;
-          count++;
-        }
-        html += this.escapeHtml(text.substring(lastIndex));
-        this.searchMarksEl.innerHTML = html + '\n';
-      } catch (e) {
-        console.warn("Highlighter failed:", e);
-        if (this.editorHighlightsEl) this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+        this.editorHighlightsEl.innerHTML = Prism.highlight(text, Prism.languages.markdown, 'markdown') + '\n';
+      } else {
+        this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
       }
-    });
+
+      // 2. Search Highlights
+      if (!query || this.editorSearchWidget.classList.contains('hidden')) {
+        this.searchMarksEl.innerHTML = this.escapeHtml(text) + '\n';
+        return;
+      }
+
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedQuery, 'gi');
+      
+      let lastIndex = 0;
+      let html = '';
+      let match;
+      let count = 0;
+
+      while ((match = regex.exec(text)) !== null) {
+        html += this.escapeHtml(text.substring(lastIndex, match.index));
+        const isCurrent = (count === this.currentSearchMatchIndex);
+        html += `<mark class="${isCurrent ? 'current' : ''}">${this.escapeHtml(match[0])}</mark>`;
+        lastIndex = regex.lastIndex;
+        count++;
+      }
+      html += this.escapeHtml(text.substring(lastIndex));
+      this.searchMarksEl.innerHTML = html + '\n';
+    } catch (e) {
+      console.warn("Highlighter failed:", e);
+      if (this.editorHighlightsEl) this.editorHighlightsEl.innerHTML = this.escapeHtml(text) + '\n';
+    }
   }
 
   escapeHtml(str) {
