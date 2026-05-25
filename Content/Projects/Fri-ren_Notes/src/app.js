@@ -383,21 +383,36 @@ class CavemanApp {
 
     // Shortcuts
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && (e.key === 'p' || e.key === ']')) {
+      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+      const keyLower = e.key ? e.key.toLowerCase() : '';
+
+      if (isCtrlOrMeta && (keyLower === 'p' || e.key === ']')) {
         e.preventDefault();
         this.toggleEditorMode();
       }
-      if (e.ctrlKey && e.key === 'k') {
+      if (isCtrlOrMeta && keyLower === 'k') {
         e.preventDefault();
         this.toggleCanvasMode();
       }
-      if (e.ctrlKey && e.key === '[') {
+      if (isCtrlOrMeta && e.key === '[') {
         e.preventDefault();
         this.toggleSidebar();
       }
-      if (e.ctrlKey && e.key === 'f') {
+      if (isCtrlOrMeta && keyLower === 'f') {
         e.preventDefault();
         this.showSearch();
+      }
+      if (e.key === 'F3') {
+        e.preventDefault();
+        if (this.editorSearchWidget.classList.contains('hidden')) {
+          this.showSearch();
+        } else {
+          if (e.shiftKey) {
+            this.goToPrevMatch();
+          } else {
+            this.goToNextMatch();
+          }
+        }
       }
       if (e.key === 'Escape') {
         this.closeOverlays();
@@ -406,7 +421,7 @@ class CavemanApp {
       }
       
       // Undo/Redo
-      if (e.ctrlKey && e.key === 'z') {
+      if (isCtrlOrMeta && keyLower === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
           this.redo();
@@ -414,7 +429,7 @@ class CavemanApp {
           this.undo();
         }
       }
-      if (e.ctrlKey && e.key === 'y') {
+      if (isCtrlOrMeta && keyLower === 'y') {
         e.preventDefault();
         this.redo();
       }
@@ -1691,6 +1706,17 @@ class CavemanApp {
 
   showSearch() {
     this.editorSearchWidget.classList.remove('hidden');
+    
+    // Auto-populate search with active text selection if not empty and on one line
+    const selStart = this.editorEl.selectionStart;
+    const selEnd = this.editorEl.selectionEnd;
+    if (typeof selStart === 'number' && typeof selEnd === 'number' && selStart !== selEnd) {
+      const selectedText = this.editorEl.value.substring(selStart, selEnd);
+      if (selectedText && selectedText.trim().length > 0 && !selectedText.includes('\n')) {
+        this.editorSearchInput.value = selectedText;
+      }
+    }
+
     this.editorSearchInput.focus();
     this.editorSearchInput.select();
     this.performSearch();
