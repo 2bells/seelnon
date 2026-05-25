@@ -503,17 +503,6 @@ class App {
             return;
         }
 
-        // If currently in crop mode and this image has a crop, second trigger resets
-        if (this.isCropping && selectedItem.crop) {
-            this.imageBoard.cropItem(selectedItem.id, null); // Reset crop to full
-            // Recalculate cropRect for the UI to represent the full image
-            this.cropRect = { x: 0, y: 0, width: selectedItem.originalWidth, height: selectedItem.originalHeight };
-            this.isCropping = false;
-            document.getElementById('viewport').style.cursor = 'default';
-            this.render();
-            return;
-        }
-
         this.isCropping = !this.isCropping;
 
         if (this.isCropping) {
@@ -530,10 +519,49 @@ class App {
             document.getElementById('viewport').style.cursor = 'crosshair';
         } else {
             // If exiting crop mode, apply the current cropRect
-            if (this.cropRect.width > 0 && this.cropRect.height > 0) {
-                this.imageBoard.cropItem(selectedItem.id, this.cropRect);
+            if (this.cropRect.width > 5 && this.cropRect.height > 5) {
+                const item = selectedItem;
+                let unitScaleX, unitScaleY;
+                let fullX, fullY;
+                if (item.crop) {
+                    unitScaleX = item.width / item.crop.width;
+                    unitScaleY = item.height / item.crop.height;
+                    fullX = item.x - item.crop.x * unitScaleX;
+                    fullY = item.y - item.crop.y * unitScaleY;
+                } else {
+                    unitScaleX = item.width / item.originalWidth;
+                    unitScaleY = item.height / item.originalHeight;
+                    fullX = item.x;
+                    fullY = item.y;
+                }
+
+                const newX = fullX + this.cropRect.x * unitScaleX;
+                const newY = fullY + this.cropRect.y * unitScaleY;
+                const newWidth = this.cropRect.width * unitScaleX;
+                const newHeight = this.cropRect.height * unitScaleY;
+
+                item.x = newX;
+                item.y = newY;
+                item.width = newWidth;
+                item.height = newHeight;
+
+                this.imageBoard.cropItem(selectedItem.id, { ...this.cropRect });
             } else {
-                // If crop area is invalid/zero, reset crop
+                // If crop area is invalid/zero, reset crop to fully visible size
+                const item = selectedItem;
+                if (item.crop) {
+                    const unitScaleX = item.width / item.crop.width;
+                    const unitScaleY = item.height / item.crop.height;
+                    const fullX = item.x - item.crop.x * unitScaleX;
+                    const fullY = item.y - item.crop.y * unitScaleY;
+                    const fullWidth = item.originalWidth * unitScaleX;
+                    const fullHeight = item.originalHeight * unitScaleY;
+
+                    item.x = fullX;
+                    item.y = fullY;
+                    item.width = fullWidth;
+                    item.height = fullHeight;
+                }
                 this.imageBoard.cropItem(selectedItem.id, null);
             }
             this.cropDragMode = null; // Clear any active drag
@@ -589,43 +617,32 @@ class App {
         const selectedItem = this.imageBoard.getSelected();
 
         if (this.isCropping && selectedItem && selectedItem.type === 'image') {
-            const imageXOnBoard = selectedItem.x;
-            const imageYOnBoard = selectedItem.y;
-            // The item's width/height might have been adjusted for its initial aspect ratio
-            // when it was first added to the board (e.g., to fit 512px width).
-            // We need to use the current displayed width/height of the image element on the board.
-            // When a crop is applied, the displayed dimensions change.
-            let displayWidth = selectedItem.width;
-            let displayHeight = selectedItem.height;
-
+            // Compute unified coordinate mapping elements
+            let unitScaleX, unitScaleY;
+            let fullX, fullY;
             if (selectedItem.crop) {
-                const aspectRatio = selectedItem.crop.width / selectedItem.crop.height;
-                if (selectedItem.crop.width > selectedItem.crop.height) {
-                    displayWidth = selectedItem.width;
-                    displayHeight = displayWidth / aspectRatio;
-                } else {
-                    displayHeight = selectedItem.height;
-                    displayWidth = displayHeight * aspectRatio;
-                }
+                unitScaleX = selectedItem.width / selectedItem.crop.width;
+                unitScaleY = selectedItem.height / selectedItem.crop.height;
+                fullX = selectedItem.x - selectedItem.crop.x * unitScaleX;
+                fullY = selectedItem.y - selectedItem.crop.y * unitScaleY;
+            } else {
+                unitScaleX = selectedItem.width / selectedItem.originalWidth;
+                unitScaleY = selectedItem.height / selectedItem.originalHeight;
+                fullX = selectedItem.x;
+                fullY = selectedItem.y;
             }
 
-            const mouseXInImageBoardSpace = worldX - imageXOnBoard;
-            const mouseYInImageBoardSpace = worldY - imageYOnBoard;
-            
-            // Scale factors from original image dimensions to current displayed dimensions on board
-            const scaleX = selectedItem.originalWidth / displayWidth;
-            const scaleY = selectedItem.originalHeight / displayHeight;
-            const mouseXInOriginalImage = mouseXInImageBoardSpace * scaleX;
-            const mouseYInOriginalImage = mouseYInImageBoardSpace * scaleY;
+            const mouseXInOriginalImage = (worldX - fullX) / unitScaleX;
+            const mouseYInOriginalImage = (worldY - fullY) / unitScaleY;
 
             const handleDetectionSize = 10;
-            const handleRadiusOnBoard = handleDetectionSize / this.imageBoard.zoom; // Use imageBoard's zoom
+            const handleRadiusOnBoard = handleDetectionSize / this.imageBoard.zoom;
             
-            // Crop rectangle's coordinates on the board (relative to its image)
-            const cropXOnBoard = imageXOnBoard + this.cropRect.x / scaleX;
-            const cropYOnBoard = imageYOnBoard + this.cropRect.y / scaleY;
-            const cropWidthOnBoard = this.cropRect.width / scaleX;
-            const cropHeightOnBoard = this.cropRect.height / scaleY;
+            // Crop rectangle's coordinates on the board
+            const cropXOnBoard = fullX + this.cropRect.x * unitScaleX;
+            const cropYOnBoard = fullY + this.cropRect.y * unitScaleY;
+            const cropWidthOnBoard = this.cropRect.width * unitScaleX;
+            const cropHeightOnBoard = this.cropRect.height * unitScaleY;
 
             const handles = {
                 nw: { x: cropXOnBoard, y: cropYOnBoard, cursor: 'nwse-resize' },
@@ -658,8 +675,11 @@ class App {
                 return;
             }
 
-            // If click outside of crop area, exit crop mode
-            this.toggleCropMode();
+            // If click completely outside of the full image space, exit crop mode
+            if (mouseXInOriginalImage < 0 || mouseXInOriginalImage > selectedItem.originalWidth ||
+                mouseYInOriginalImage < 0 || mouseYInOriginalImage > selectedItem.originalHeight) {
+                this.toggleCropMode();
+            }
             return;
         }
         
@@ -667,20 +687,8 @@ class App {
         this.isResizingItem = false;
         
         if (selectedItem && selectedItem.type === 'image') {
-            let displayWidth = selectedItem.width;
-            let displayHeight = selectedItem.height;
-            
-            // Use actual dimensions for interaction (accounting for crop)
-            if (selectedItem.crop) {
-                const aspectRatio = selectedItem.crop.width / selectedItem.crop.height;
-                if (selectedItem.crop.width > selectedItem.crop.height) {
-                    displayWidth = selectedItem.width;
-                    displayHeight = displayWidth / aspectRatio;
-                } else {
-                    displayHeight = selectedItem.height;
-                    displayWidth = displayHeight * aspectRatio;
-                }
-            }
+            const displayWidth = selectedItem.width;
+            const displayHeight = selectedItem.height;
 
             // Transformed handle position for click detection
             const transformedHandleX = (selectedItem.x + displayWidth + this.imageBoard.panX) * this.imageBoard.zoom; // Use imageBoard's zoom
@@ -716,16 +724,7 @@ class App {
             let itemHeightForHit = item.height;
             
             // Use actual dimensions for interaction (accounting for crop for images, and actual text bounds for text)
-            if (item.type === 'image' && item.crop) {
-                const aspectRatio = item.crop.width / item.crop.height;
-                if (item.crop.width > item.crop.height) {
-                    itemWidthForHit = item.width;
-                    itemHeightForHit = itemWidthForHit / aspectRatio;
-                } else {
-                    itemHeightForHit = item.height;
-                    itemWidthForHit = itemHeightForHit * aspectRatio;
-                }
-            } else if (item.type === 'text') {
+            if (item.type === 'text') {
                  // For text, measure actual width for selection
                 const canvas = document.getElementById('viewport');
                 const ctx = canvas.getContext('2d');
@@ -814,30 +813,23 @@ class App {
 
         // CROP TOOL LOGIC
         if (this.isCropping && selectedItem && selectedItem.type === 'image' && this.cropDragMode) {
-            // Calculate current mouse position in original image pixel space
-            const imageXOnBoard = selectedItem.x;
-            const imageYOnBoard = selectedItem.y;
-            let displayWidth = selectedItem.width;
-            let displayHeight = selectedItem.height;
-
-            if (selectedItem.crop) { // If there's an existing crop influencing display size
-                const aspectRatio = selectedItem.crop.width / selectedItem.crop.height;
-                if (selectedItem.crop.width > selectedItem.crop.height) {
-                    displayWidth = selectedItem.width;
-                    displayHeight = displayWidth / aspectRatio;
-                } else {
-                    displayHeight = selectedItem.height;
-                    displayWidth = displayHeight * aspectRatio;
-                }
+            // Compute unified coordinate mapping elements
+            let unitScaleX, unitScaleY;
+            let fullX, fullY;
+            if (selectedItem.crop) {
+                unitScaleX = selectedItem.width / selectedItem.crop.width;
+                unitScaleY = selectedItem.height / selectedItem.crop.height;
+                fullX = selectedItem.x - selectedItem.crop.x * unitScaleX;
+                fullY = selectedItem.y - selectedItem.crop.y * unitScaleY;
+            } else {
+                unitScaleX = selectedItem.width / selectedItem.originalWidth;
+                unitScaleY = selectedItem.height / selectedItem.originalHeight;
+                fullX = selectedItem.x;
+                fullY = selectedItem.y;
             }
 
-            const mouseXInImageBoardSpace = worldX - imageXOnBoard;
-            const mouseYInImageBoardSpace = worldY - imageYOnBoard;
-            
-            const scaleX = selectedItem.originalWidth / displayWidth;
-            const scaleY = selectedItem.originalHeight / displayHeight;
-            const currentMouseXInOriginalImage = mouseXInImageBoardSpace * scaleX;
-            const currentMouseYInOriginalImage = mouseYInImageBoardSpace * scaleY;
+            const currentMouseXInOriginalImage = (worldX - fullX) / unitScaleX;
+            const currentMouseYInOriginalImage = (worldY - fullY) / unitScaleY;
 
             const dx = currentMouseXInOriginalImage - this.cropStartMouse.x;
             const dy = currentMouseYInOriginalImage - this.cropStartMouse.y;
@@ -884,7 +876,6 @@ class App {
             newHeight = Math.max(minCropSize, newHeight);
 
             // Clamp newX and newY to prevent going outside original image bounds
-            // Also clamp newWidth/newHeight to not exceed image bounds
             newX = Math.max(0, Math.min(newX, originalImgWidth - newWidth));
             newY = Math.max(0, Math.min(newY, originalImgHeight - newHeight));
             
@@ -939,18 +930,8 @@ class App {
             } else { // Not dragging an item, check hover for cursor change
                 // Check if hovering over resize handle of selected item
                 if (selectedItem && selectedItem.type === 'image') {
-                    let displayWidth = selectedItem.width;
-                    let displayHeight = selectedItem.height;
-                    if (selectedItem.crop) {
-                        const aspectRatio = selectedItem.crop.width / selectedItem.crop.height;
-                        if (selectedItem.crop.width > selectedItem.crop.height) {
-                            displayWidth = selectedItem.width;
-                            displayHeight = displayWidth / aspectRatio;
-                        } else {
-                            displayHeight = selectedItem.height;
-                            displayWidth = displayHeight * aspectRatio;
-                        }
-                    }
+                    const displayWidth = selectedItem.width;
+                    const displayHeight = selectedItem.height;
 
                     const transformedHandleX = (selectedItem.x + displayWidth + this.imageBoard.panX) * this.imageBoard.zoom; // Use imageBoard's zoom
                     const transformedHandleY = (selectedItem.y + displayHeight + this.imageBoard.panY) * this.imageBoard.zoom; // Use imageBoard's zoom
@@ -982,15 +963,6 @@ class App {
                             itemWidthForHover = ctx.measureText(item.content).width; 
                             itemHeightForHover = item.fontSize * 1.2; 
                             itemYForHover = item.y - item.fontSize; // Adjust item.y for hover detection (top of text)
-                        } else if (item.type === 'image' && item.crop) {
-                             const aspectRatio = item.crop.width / item.crop.height;
-                             if (item.crop.width > item.crop.height) {
-                                itemWidthForHover = item.width;
-                                itemHeightForHover = itemWidthForHover / aspectRatio;
-                            } else {
-                                itemHeightForHover = item.height;
-                                itemWidthForHover = itemHeightForHover * aspectRatio;
-                            }
                         }
 
                         if (worldX >= itemXForHover && worldX <= itemXForHover + itemWidthForHover &&
@@ -1003,34 +975,32 @@ class App {
             }
             document.getElementById('viewport').style.cursor = cursor;
         } else if (this.isCropping && selectedItem && selectedItem.type === 'image') {
-            // When in cropping mode, if not dragging, determine hover cursor for handles
-            const imageXOnBoard = selectedItem.x;
-            const imageYOnBoard = selectedItem.y;
-            
-            let displayWidth = selectedItem.width;
-            let displayHeight = selectedItem.height;
+            // When in cropping mode, determine hover cursor for handles
+            let unitScaleX, unitScaleY;
+            let fullX, fullY;
             if (selectedItem.crop) {
-                const aspectRatio = selectedItem.crop.width / selectedItem.crop.height;
-                if (selectedItem.crop.width > selectedItem.crop.height) {
-                    displayWidth = selectedItem.width;
-                    displayHeight = displayWidth / aspectRatio;
-                } else {
-                    displayHeight = selectedItem.height;
-                    displayWidth = displayHeight * aspectRatio;
-                }
+                unitScaleX = selectedItem.width / selectedItem.crop.width;
+                unitScaleY = selectedItem.height / selectedItem.crop.height;
+                fullX = selectedItem.x - selectedItem.crop.x * unitScaleX;
+                fullY = selectedItem.y - selectedItem.crop.y * unitScaleY;
+            } else {
+                unitScaleX = selectedItem.width / selectedItem.originalWidth;
+                unitScaleY = selectedItem.height / selectedItem.originalHeight;
+                fullX = selectedItem.x;
+                fullY = selectedItem.y;
             }
 
+            const mouseXInOriginalImage = (worldX - fullX) / unitScaleX;
+            const mouseYInOriginalImage = (worldY - fullY) / unitScaleY;
+
             const handleDetectionSize = 10;
-            const handleRadiusOnBoard = handleDetectionSize / this.imageBoard.zoom; // Use imageBoard's zoom
+            const handleRadiusOnBoard = handleDetectionSize / this.imageBoard.zoom;
             
             // Current crop rect in board coordinates
-            const scaleX = displayWidth / selectedItem.originalWidth; // Scale from original to displayed
-            const scaleY = displayHeight / selectedItem.originalHeight; // Scale from original to displayed
-
-            const cropXOnBoard = imageXOnBoard + this.cropRect.x * scaleX;
-            const cropYOnBoard = imageYOnBoard + this.cropRect.y * scaleY;
-            const cropWidthOnBoard = this.cropRect.width * scaleX;
-            const cropHeightOnBoard = this.cropRect.height * scaleY;
+            const cropXOnBoard = fullX + this.cropRect.x * unitScaleX;
+            const cropYOnBoard = fullY + this.cropRect.y * unitScaleY;
+            const cropWidthOnBoard = this.cropRect.width * unitScaleX;
+            const cropHeightOnBoard = this.cropRect.height * unitScaleY;
             
             const handles = {
                 nw: { x: cropXOnBoard, y: cropYOnBoard, cursor: 'nwse-resize' },
@@ -1052,14 +1022,6 @@ class App {
             
             if (!handleHovered) {
                 // Check if hovering inside the crop rectangle to show 'move' cursor
-                const mouseXInImageBoardSpace = worldX - imageXOnBoard;
-                const mouseYInImageBoardSpace = worldY - imageYOnBoard;
-                
-                const scaleXOriginalToDisplay = selectedItem.originalWidth / displayWidth;
-                const scaleYOriginalToDisplay = selectedItem.originalHeight / displayHeight;
-                const mouseXInOriginalImage = mouseXInImageBoardSpace * scaleXOriginalToDisplay;
-                const mouseYInOriginalImage = mouseYInImageBoardSpace * scaleYOriginalToDisplay;
-
                 if (mouseXInOriginalImage >= this.cropRect.x && mouseXInOriginalImage <= this.cropRect.x + this.cropRect.width &&
                     mouseYInOriginalImage >= this.cropRect.y && mouseYInOriginalImage <= this.cropRect.y + this.cropRect.height) {
                     document.getElementById('viewport').style.cursor = 'grab';
@@ -1756,89 +1718,66 @@ class App {
             sy = image.crop.y;
             sWidth = image.crop.width;
             sHeight = image.crop.height;
-
-            // Calculate new display dimensions based on the cropped size
-            const aspectRatio = sWidth / sHeight;
-            if (sWidth > sHeight) {
-                dWidth = image.width; // Use original display width as reference
-                dHeight = dWidth / aspectRatio;
-            } else {
-                dHeight = image.height; // Use original display height as reference
-                dWidth = dHeight * aspectRatio;
-            }
         }
         
-        ctx.drawImage(image.element, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
-        
-        // Draw selection border and resize handle if item is selected AND not in crop mode
-        if (image.id === this.imageBoard.selectedId && !this.isCropping) {
-            ctx.strokeStyle = '#667eea'; // Solid border for selected
-            ctx.lineWidth = 2;
-            ctx.setLineDash([]); // No dashes
-            ctx.strokeRect(dx, dy, dWidth, dHeight);
-            
-            // Draw resize handle (bottom-right)
-            ctx.fillStyle = '#667eea';
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(dx + dWidth, dy + dHeight, 6, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.stroke();
-        }
-
-        // Draw crop overlay if in cropping mode AND this image is selected
+        // When in cropping mode for this selected image, we draw the full underlying image dimmed instead of standard cropped image
         if (this.isCropping && image.id === this.imageBoard.selectedId) {
-            // Calculate scale factors from original image to displayed board size
-            const imageDisplayWidth = image.width;
-            const imageDisplayHeight = image.height;
-
-            // If a crop is applied, the displayed dimensions change
-            let currentDisplayWidth = imageDisplayWidth;
-            let currentDisplayHeight = imageDisplayHeight;
+            // Compute unified coordinate mapping elements based on the BEFORE state of standard rendering
+            let unitScaleX, unitScaleY;
+            let fullX, fullY;
             if (image.crop) {
-                const aspectRatio = image.crop.width / image.crop.height;
-                if (image.crop.width > image.crop.height) {
-                    currentDisplayWidth = imageDisplayWidth;
-                    currentDisplayHeight = currentDisplayWidth / aspectRatio;
-                } else {
-                    currentDisplayHeight = image.height;
-                    currentDisplayWidth = currentDisplayHeight * aspectRatio;
-                }
+                unitScaleX = image.width / image.crop.width;
+                unitScaleY = image.height / image.crop.height;
+                fullX = image.x - image.crop.x * unitScaleX;
+                fullY = image.y - image.crop.y * unitScaleY;
+            } else {
+                unitScaleX = image.width / image.originalWidth;
+                unitScaleY = image.height / image.originalHeight;
+                fullX = image.x;
+                fullY = image.y;
             }
+            const fullWidth = image.originalWidth * unitScaleX;
+            const fullHeight = image.originalHeight * unitScaleY;
 
-            const scaleX = currentDisplayWidth / image.originalWidth;
-            const scaleY = currentDisplayHeight / image.originalHeight;
+            // 1. Draw full underlying image dimmed
+            ctx.save();
+            ctx.globalAlpha = 0.4;
+            ctx.drawImage(image.element, 0, 0, image.originalWidth, image.originalHeight, fullX, fullY, fullWidth, fullHeight);
+            ctx.restore();
 
-            // Calculate the crop rectangle's position and size in board coordinates
-            const cropXOnBoard = dx + this.cropRect.x * scaleX;
-            const cropYOnBoard = dy + this.cropRect.y * scaleY;
-            const cropWidthOnBoard = this.cropRect.width * scaleX;
-            const cropHeightOnBoard = this.cropRect.height * scaleY;
-            
-            // Draw a semi-transparent overlay outside the cropRect
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            // 2. Draw current cropRect portion as fully opaque
+            const cropXOnBoard = fullX + this.cropRect.x * unitScaleX;
+            const cropYOnBoard = fullY + this.cropRect.y * unitScaleY;
+            const cropWidthOnBoard = this.cropRect.width * unitScaleX;
+            const cropHeightOnBoard = this.cropRect.height * unitScaleY;
+
+            ctx.save();
+            ctx.drawImage(image.element, this.cropRect.x, this.cropRect.y, this.cropRect.width, this.cropRect.height, cropXOnBoard, cropYOnBoard, cropWidthOnBoard, cropHeightOnBoard);
+            ctx.restore();
+
+            // 3. Draw a semi-transparent black overlay outside the crop rect but inside the full image bounds
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
             // Top rect
-            ctx.fillRect(dx, dy, currentDisplayWidth, cropYOnBoard - dy);
+            ctx.fillRect(fullX, fullY, fullWidth, Math.max(0, cropYOnBoard - fullY));
             // Bottom rect
-            ctx.fillRect(dx, cropYOnBoard + cropHeightOnBoard, currentDisplayWidth, (dy + currentDisplayHeight) - (cropYOnBoard + cropHeightOnBoard));
+            ctx.fillRect(fullX, cropYOnBoard + cropHeightOnBoard, fullWidth, Math.max(0, (fullY + fullHeight) - (cropYOnBoard + cropHeightOnBoard)));
             // Left rect
-            ctx.fillRect(dx, cropYOnBoard, cropXOnBoard - dx, cropHeightOnBoard);
+            ctx.fillRect(fullX, cropYOnBoard, Math.max(0, cropXOnBoard - fullX), cropHeightOnBoard);
             // Right rect
-            ctx.fillRect(cropXOnBoard + cropWidthOnBoard, cropYOnBoard, (dx + currentDisplayWidth) - (cropXOnBoard + cropWidthOnBoard), cropHeightOnBoard);
-            
-            // Draw the crop rectangle border
+            ctx.fillRect(cropXOnBoard + cropWidthOnBoard, cropYOnBoard, Math.max(0, (fullX + fullWidth) - (cropXOnBoard + cropWidthOnBoard)), cropHeightOnBoard);
+
+            // 4. Draw the crop rectangle border
             ctx.strokeStyle = '#667eea';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]); // Dashed line
             ctx.strokeRect(cropXOnBoard, cropYOnBoard, cropWidthOnBoard, cropHeightOnBoard);
+            ctx.setLineDash([]);
 
-            // Draw handles
+            // 5. Draw handles
             const handleSize = 6;
             ctx.fillStyle = '#667eea';
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.lineWidth = 2;
-            ctx.setLineDash([]); // Ensure no dashes for handles
             
             const handles = [
                 { x: cropXOnBoard, y: cropYOnBoard }, // NW
@@ -1853,6 +1792,26 @@ class App {
                 ctx.fill();
                 ctx.stroke();
             });
+        } else {
+            // Draw standard cropped or uncropped image
+            ctx.drawImage(image.element, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+
+            // Draw selection border and resize handle if item is selected AND not in crop mode
+            if (image.id === this.imageBoard.selectedId && !this.isCropping) {
+                ctx.strokeStyle = '#667eea'; // Solid border for selected
+                ctx.lineWidth = 2;
+                ctx.setLineDash([]); // No dashes
+                ctx.strokeRect(dx, dy, dWidth, dHeight);
+                
+                // Draw resize handle (bottom-right)
+                ctx.fillStyle = '#667eea';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(dx + dWidth, dy + dHeight, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            }
         }
     }
     
