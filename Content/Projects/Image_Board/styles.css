@@ -212,16 +212,13 @@ body {
 
 .cut-mode-panel {
     top: 80px;
-    left: 50%;
-    transform: translateX(-50%); /* Center horizontally */
+    left: 20px;
     width: 280px;
     height: auto; /* Auto height based on content */
     min-height: 100px;
     z-index: 550; /* Slightly above other panels */
     /* Make the panel undockable by removing fixed center properties */
     transform: none; 
-    left: 50%; /* Default starting position */
-    top: 80px;
 }
 
 /* Add default hidden state for floating panels to ensure they start off hidden if they have the 'hidden' class */
@@ -645,4 +642,127 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
+}
+
+/* Brutalist Custom Text Editor Popup */
+.text-editor-popup {
+    position: absolute;
+    background: #151516;
+    border: 2px solid #667eea; /* Clean visual accent matching theme */
+    border-radius: 8px;
+    padding: 14px;
+    width: 280px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: fadeInScale 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.text-editor-popup h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a3a3a3;
+}
+
+.text-editor-popup input[type="text"] {
+    width: 100%;
+    background: #1e1e20;
+    border: 1px solid #2e2e30;
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.text-editor-popup input[type="text"]:focus {
+    border-color: #667eea;
+}
+
+.text-editor-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.text-editor-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.text-editor-field label {
+    font-size: 11px;
+    color: #9e9e9e;
+}
+
+.text-editor-popup input[type="number"],
+.text-editor-popup input[type="color"] {
+    background: #1e1e20;
+    border: 1px solid #2e2e30;
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 6px;
+    font-size: 13px;
+    outline: none;
+    width: 100%;
+    height: 34px;
+}
+
+.text-editor-colors {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.1s, border-color 0.1s;
+}
+
+.color-dot:hover {
+    transform: scale(1.15);
+    border-color: #ffffff;
+}
+
+.color-dot.active {
+    box-shadow: 0 0 0 2px #667eea;
+    border-color: #ffffff;
+}
+
+.text-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.text-editor-actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
 }

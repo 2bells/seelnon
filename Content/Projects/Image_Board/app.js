@@ -32,6 +32,9 @@ class App {
         // Cut region defined in Canvas coordinates (relative to canvas top-left, independent of pan/zoom)
         // Set initial values, these will be recalculated on canvas setup/resize
         this.cutRegion = { x: 0, y: 0, width: 256, height: 256 }; 
+        this.isResizingCutRegion = false;
+        this.cutRegionResizeHandle = null;
+        this.cutRegionResizeStart = null;
         // Lasso tool state
         this.isLassoDrawing = false; // If the lasso tool is active (button pressed)
         this.isLassoDrawingShape = false; // If the mouse button is currently held down to draw a shape
@@ -98,6 +101,7 @@ class App {
         viewport.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         viewport.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         viewport.addEventListener('mouseup', () => this.handleMouseUp());
+        viewport.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
         viewport.addEventListener('wheel', (e) => this.handleWheel(e)); // Added wheel event for zoom
         
         // Keyboard events for spacebar
@@ -298,10 +302,9 @@ class App {
         this.layersPanel.style.width = '280px';
         this.layersPanel.style.height = '400px';
 
-        // Set default position for Cut Mode panel if it wasn't hidden by CSS transform
-        // We'll rely on the default position set in CSS, but ensure it's hidden initially.
-        this.cutModePanel.style.left = '50%';
-        this.cutModePanel.style.transform = 'translateX(-50%)'; // Retain centering for default start
+        // Set default position for Cut Mode panel to the left
+        this.cutModePanel.style.left = '20px';
+        this.cutModePanel.style.transform = 'none';
         this.cutModePanel.style.top = '80px'; 
         
         // Ensure cutModePanel starts hidden by CSS class if not explicitly positioned
@@ -586,6 +589,50 @@ class App {
         
         // Handle Cut Mode interactions first
         if (this.isCutMode) {
+            // Check if clicking on custom resize handles of the cutRegion
+            if (!this.isLassoDrawing) {
+                const cutX = this.cutRegion.x;
+                const cutY = this.cutRegion.y;
+                const cutWidth = this.cutRegion.width;
+                const cutHeight = this.cutRegion.height;
+                const hitRadius = 10; // Screen-pixel hit detection threshold
+
+                const handlesList = {
+                    nw: { x: cutX, y: cutY, cursor: 'nwse-resize' },
+                    ne: { x: cutX + cutWidth, y: cutY, cursor: 'nesw-resize' },
+                    sw: { x: cutX, y: cutY + cutHeight, cursor: 'nesw-resize' },
+                    se: { x: cutX + cutWidth, y: cutY + cutHeight, cursor: 'nwse-resize' },
+                    n: { x: cutX + cutWidth / 2, y: cutY, cursor: 'ns-resize' },
+                    s: { x: cutX + cutWidth / 2, y: cutY + cutHeight, cursor: 'ns-resize' },
+                    w: { x: cutX, y: cutY + cutHeight / 2, cursor: 'ew-resize' },
+                    e: { x: cutX + cutWidth, y: cutY + cutHeight / 2, cursor: 'ew-resize' }
+                };
+
+                let clickedHandle = null;
+                for (const key in handlesList) {
+                    const handle = handlesList[key];
+                    const dist = Math.sqrt(Math.pow(mouseCanvasX - handle.x, 2) + Math.pow(mouseCanvasY - handle.y, 2));
+                    if (dist <= hitRadius) {
+                        clickedHandle = key;
+                        break;
+                    }
+                }
+
+                if (clickedHandle) {
+                    this.isResizingCutRegion = true;
+                    this.cutRegionResizeHandle = clickedHandle;
+                    this.cutRegionResizeStart = {
+                        x: mouseCanvasX,
+                        y: mouseCanvasY,
+                        width: cutWidth,
+                        height: cutHeight
+                    };
+                    document.getElementById('viewport').style.cursor = handlesList[clickedHandle].cursor;
+                    e.preventDefault();
+                    return;
+                }
+            }
+
             // Priority 1: Lasso drawing (if enabled)
             if (this.isLassoDrawing) {
                 // If the lasso tool is active, start drawing a shape on mousedown
@@ -780,6 +827,60 @@ class App {
         
         // CUT MODE LOGIC
         if (this.isCutMode) {
+            // Priority 0: Resizing Cut Region
+            if (this.isResizingCutRegion) {
+                const startX = this.cutRegionResizeStart.x;
+                const startY = this.cutRegionResizeStart.y;
+                const startWidth = this.cutRegionResizeStart.width;
+                const startHeight = this.cutRegionResizeStart.height;
+
+                const dx = mouseCanvasX - startX;
+                const dy = mouseCanvasY - startY;
+
+                let newWidth = startWidth;
+                let newHeight = startHeight;
+
+                const handle = this.cutRegionResizeHandle;
+                
+                // Symmetrical resizing keeps it perfectly centered
+                if (handle === 'e') {
+                    newWidth = startWidth + dx * 2;
+                } else if (handle === 'w') {
+                    newWidth = startWidth - dx * 2;
+                } else if (handle === 's') {
+                    newHeight = startHeight + dy * 2;
+                } else if (handle === 'n') {
+                    newHeight = startHeight - dy * 2;
+                } else if (handle === 'se') {
+                    newWidth = startWidth + dx * 2;
+                    newHeight = startHeight + dy * 2;
+                } else if (handle === 'nw') {
+                    newWidth = startWidth - dx * 2;
+                    newHeight = startHeight - dy * 2;
+                } else if (handle === 'ne') {
+                    newWidth = startWidth + dx * 2;
+                    newHeight = startHeight - dy * 2;
+                } else if (handle === 'sw') {
+                    newWidth = startWidth - dx * 2;
+                    newHeight = startHeight + dy * 2;
+                }
+
+                // Protect min and max limits
+                newWidth = Math.max(10, Math.min(newWidth, this.canvas.width - 20));
+                newHeight = Math.max(10, Math.min(newHeight, this.canvas.height - 20));
+
+                this.cutRegion.width = Math.round(newWidth);
+                this.cutRegion.height = Math.round(newHeight);
+                this.setupCutRegionPosition();
+                
+                // Sync to panel inputs
+                document.getElementById('cutSizeWidth').value = this.cutRegion.width;
+                document.getElementById('cutSizeHeight').value = this.cutRegion.height;
+
+                this.render();
+                return;
+            }
+
             // Lasso Drawing
             if (this.isLassoDrawing && this.isLassoDrawingShape) {
                 const { x, y } = this.getTransformedCoords(e);
@@ -798,6 +899,41 @@ class App {
                 this.render();
                 document.getElementById('viewport').style.cursor = 'grabbing'; // Change to grabbing while moving
                 return;
+            }
+
+            // Hover checks for cursor on resize handles if not drawing using lasso
+            if (!this.isLassoDrawing) {
+                const cutX = this.cutRegion.x;
+                const cutY = this.cutRegion.y;
+                const cutWidth = this.cutRegion.width;
+                const cutHeight = this.cutRegion.height;
+                const hitRadius = 10;
+
+                const handlesList = {
+                    nw: { x: cutX, y: cutY, cursor: 'nwse-resize' },
+                    ne: { x: cutX + cutWidth, y: cutY, cursor: 'nesw-resize' },
+                    sw: { x: cutX, y: cutY + cutHeight, cursor: 'nesw-resize' },
+                    se: { x: cutX + cutWidth, y: cutY + cutHeight, cursor: 'nwse-resize' },
+                    n: { x: cutX + cutWidth / 2, y: cutY, cursor: 'ns-resize' },
+                    s: { x: cutX + cutWidth / 2, y: cutY + cutHeight, cursor: 'ns-resize' },
+                    w: { x: cutX, y: cutY + cutHeight / 2, cursor: 'ew-resize' },
+                    e: { x: cutX + cutWidth, y: cutY + cutHeight / 2, cursor: 'ew-resize' }
+                };
+
+                let hoveredHandle = null;
+                for (const key in handlesList) {
+                    const handle = handlesList[key];
+                    const dist = Math.sqrt(Math.pow(mouseCanvasX - handle.x, 2) + Math.pow(mouseCanvasY - handle.y, 2));
+                    if (dist <= hitRadius) {
+                        hoveredHandle = key;
+                        document.getElementById('viewport').style.cursor = handle.cursor;
+                        break;
+                    }
+                }
+
+                if (hoveredHandle) {
+                    return;
+                }
             }
 
             // If cut mode is active but not drawing/moving/panning, the cursor should reflect the active tool or pan availability
@@ -1048,6 +1184,12 @@ class App {
             this.render();
         }
 
+        if (this.isResizingCutRegion) {
+            this.isResizingCutRegion = false;
+            this.cutRegionResizeHandle = null;
+            this.imageBoard.saveState();
+        }
+
         if (this.isMovingCutRegion) {
             // This is no longer used, cut region is fixed
             this.isMovingCutRegion = false;
@@ -1102,13 +1244,272 @@ class App {
     }
     
     addText() {
-        const text = prompt('Enter text:');
-        if (text) {
-            const textItem = this.textTool.createText(text, 100, 100);
-            const id = this.imageBoard.addText(textItem);
-            this.layerManager.addLayer(this.imageBoard.getItem(id)); // Get the full item with ID
-            this.imageBoard.selectItem(id); // Select the newly added text
+        // Find current center of canvas in world coordinates
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        const worldX = (centerX / this.imageBoard.zoom) - this.imageBoard.panX;
+        const worldY = (centerY / this.imageBoard.zoom) - this.imageBoard.panY;
+
+        this.showTextEditor(null, true, worldX, worldY);
+    }
+
+    showTextEditor(item, isNew, x, y) {
+        // Remove existing custom text editor if any
+        const existing = document.getElementById('customTextEditor');
+        if (existing) {
+            existing.remove();
+        }
+
+        // Create the editor element
+        const popup = document.createElement('div');
+        popup.id = 'customTextEditor';
+        popup.className = 'text-editor-popup';
+
+        // Get container rect to constrain editor inside the visible area
+        const canvasContainer = document.querySelector('.canvas-container');
+        const rect = canvasContainer.getBoundingClientRect();
+        
+        let screenX, screenY;
+        if (isNew) {
+            screenX = (x + this.imageBoard.panX) * this.imageBoard.zoom;
+            screenY = (y + this.imageBoard.panY) * this.imageBoard.zoom;
+        } else {
+            screenX = (item.x + this.imageBoard.panX) * this.imageBoard.zoom;
+            screenY = (item.y + this.imageBoard.panY) * this.imageBoard.zoom;
+        }
+
+        // Adjust for popup bounds
+        const popupWidth = 280;
+        const popupHeight = 220;
+        
+        // Position below the text trigger line
+        let left = screenX - (popupWidth / 2);
+        let top = screenY + 15; 
+
+        if (left < 10) left = 10;
+        if (left + popupWidth > rect.width - 10) left = rect.width - popupWidth - 10;
+        if (top < 10) top = 10;
+        if (top + popupHeight > rect.height - 10) top = rect.height - popupHeight - 10;
+
+        popup.style.left = `${left}px`;
+        popup.style.top = `${top}px`;
+
+        const titleText = isNew ? 'Add New Text' : 'Edit Text';
+        const initialText = isNew ? '' : item.content;
+        const initialSize = isNew ? 24 : item.fontSize;
+        const initialColor = isNew ? '#ffffff' : item.color;
+
+        const presetColors = ['#ffffff', '#ff4757', '#2ed573', '#1e90ff', '#eccc68', '#f368e0', '#00d2d3'];
+
+        popup.innerHTML = `
+            <h4>${titleText}</h4>
+            <input type="text" id="editorTextInput" placeholder="Type something..." value="${initialText.replace(/"/g, '&quot;')}">
+            <div class="text-editor-row">
+                <div class="text-editor-field" style="flex: 2;">
+                    <label>Size (px)</label>
+                    <input type="number" id="editorSizeInput" min="6" max="300" value="${initialSize}">
+                </div>
+                <div class="text-editor-field" style="flex: 1;">
+                    <label>Color</label>
+                    <input type="color" id="editorColorInput" value="${initialColor.startsWith('#') ? initialColor : '#ffffff'}">
+                </div>
+            </div>
+            <div class="text-editor-field">
+                <label>Quick Colors</label>
+                <div class="text-editor-colors">
+                    ${presetColors.map(c => `
+                        <div class="color-dot ${c === initialColor.toLowerCase() ? 'active' : ''}" style="background-color: ${c};" data-color="${c}"></div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="text-editor-actions">
+                <button id="editorCancelBtn" class="btn">Cancel</button>
+                <button id="editorSaveBtn" class="btn primary">Save</button>
+            </div>
+        `;
+
+        canvasContainer.appendChild(popup);
+
+        // Make popup draggable by clicking and holding on the h4 header container
+        const titleHeader = popup.querySelector('h4');
+        titleHeader.style.cursor = 'move';
+        titleHeader.style.userSelect = 'none';
+
+        let isDraggingPopup = false;
+        let startPopupX = 0;
+        let startPopupY = 0;
+        let initialPopupLeft = 0;
+        let initialPopupTop = 0;
+
+        const onPopupMouseDown = (e) => {
+            if (e.button !== 0) return;
+            isDraggingPopup = true;
+            startPopupX = e.clientX;
+            startPopupY = e.clientY;
+            initialPopupLeft = parseFloat(popup.style.left) || 0;
+            initialPopupTop = parseFloat(popup.style.top) || 0;
+            e.preventDefault();
+        };
+
+        const onMouseMovePopup = (e) => {
+            if (!isDraggingPopup) return;
+            const dx = e.clientX - startPopupX;
+            const dy = e.clientY - startPopupY;
+            
+            const containerRect = canvasContainer.getBoundingClientRect();
+            let nextLeft = initialPopupLeft + dx;
+            let nextTop = initialPopupTop + dy;
+
+            nextLeft = Math.max(10, Math.min(nextLeft, containerRect.width - popupWidth - 10));
+            nextTop = Math.max(10, Math.min(nextTop, containerRect.height - popupHeight - 10));
+
+            popup.style.left = `${nextLeft}px`;
+            popup.style.top = `${nextTop}px`;
+        };
+
+        const onMouseUpPopup = () => {
+            isDraggingPopup = false;
+        };
+
+        titleHeader.addEventListener('mousedown', onPopupMouseDown);
+        window.addEventListener('mousemove', onMouseMovePopup);
+        window.addEventListener('mouseup', onMouseUpPopup);
+
+        const input = popup.querySelector('#editorTextInput');
+        const sizeInput = popup.querySelector('#editorSizeInput');
+        const colorInput = popup.querySelector('#editorColorInput');
+        const colorDots = popup.querySelectorAll('.color-dot');
+        const saveBtn = popup.querySelector('#editorSaveBtn');
+        const cancelBtn = popup.querySelector('#editorCancelBtn');
+
+        // Autofocus & select text
+        input.focus();
+        if (initialText) {
+            input.select();
+        }
+
+        // Color dot selectors
+        colorDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                colorDots.forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                colorInput.value = dot.dataset.color;
+            });
+        });
+
+        colorInput.addEventListener('input', () => {
+            colorDots.forEach(d => d.classList.remove('active'));
+        });
+
+        let isClosed = false;
+        const closePopup = () => {
+            if (isClosed) return;
+            isClosed = true;
+            popup.remove();
+            document.removeEventListener('mousedown', checkClickOutside);
+            titleHeader.removeEventListener('mousedown', onPopupMouseDown);
+            window.removeEventListener('mousemove', onMouseMovePopup);
+            window.removeEventListener('mouseup', onMouseUpPopup);
+        };
+
+        const saveText = () => {
+            const textVal = input.value.trim();
+            if (!textVal) {
+                closePopup();
+                return;
+            }
+
+            const fontSize = parseInt(sizeInput.value) || 24;
+            const color = colorInput.value;
+
+            if (isNew) {
+                const textItem = this.textTool.createText(textVal, x, y, { fontSize, color });
+                const id = this.imageBoard.addText(textItem);
+                this.layerManager.addLayer(this.imageBoard.getItem(id));
+                this.imageBoard.selectItem(id);
+            } else {
+                item.content = textVal;
+                item.fontSize = fontSize;
+                item.color = color;
+                this.textTool.updateText(item, textVal);
+                
+                // Update layers list
+                const layer = this.layerManager.layers.find(l => l.id === item.id);
+                if (layer) {
+                    layer.name = textVal.substring(0, 20) || 'Text';
+                }
+                this.layerManager.updateLayersList();
+            }
+
+            this.imageBoard.saveState();
             this.render();
+            closePopup();
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                saveText();
+            } else if (e.key === 'Escape') {
+                closePopup();
+            }
+        });
+
+        saveBtn.addEventListener('click', saveText);
+        cancelBtn.addEventListener('click', closePopup);
+
+        // Close on clicking outside
+        const checkClickOutside = (e) => {
+            if (!popup.contains(e.target) && e.target.id !== 'addTextBtn') {
+                saveText();
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('mousedown', checkClickOutside);
+        }, 50);
+    }
+
+    handleDoubleClick(e) {
+        if (this.isCutMode) return;
+        const rect = e.target.getBoundingClientRect();
+        const mouseCanvasX = e.clientX - rect.left;
+        const mouseCanvasY = e.clientY - rect.top;
+        const worldX = (mouseCanvasX / this.imageBoard.zoom) - this.imageBoard.panX;
+        const worldY = (mouseCanvasY / this.imageBoard.zoom) - this.imageBoard.panY;
+
+        // Check if double-clicked on an item
+        let clickedItem = null;
+        const items = this.imageBoard.getAllItems().sort((a,b) => (a.zIndex || 0) - (b.zIndex || 0));
+        for (let i = items.length - 1; i >= 0; i--) {
+            const item = items[i];
+            if (!item.visible) continue;
+
+            let itemXForHit = item.x;
+            let itemYForHit = item.y;
+            let itemWidthForHit = item.width;
+            let itemHeightForHit = item.height;
+            
+            if (item.type === 'text') {
+                const canvas = document.getElementById('viewport');
+                const ctx = canvas.getContext('2d');
+                ctx.font = `${item.fontSize}px ${item.fontFamily}`;
+                itemWidthForHit = ctx.measureText(item.content).width; 
+                itemHeightForHit = item.fontSize * 1.2; 
+                itemYForHit = item.y - item.fontSize;
+            }
+            
+            if (worldX >= itemXForHit && worldX <= itemXForHit + itemWidthForHit &&
+                worldY >= itemYForHit && worldY <= itemYForHit + itemHeightForHit) {
+                clickedItem = item;
+                break;
+            }
+        }
+
+        if (clickedItem && clickedItem.type === 'text') {
+            this.showTextEditor(clickedItem, false);
+        } else if (!clickedItem) {
+            // Double click on empty space: Add text!
+            this.showTextEditor(null, true, worldX, worldY);
         }
     }
     
@@ -1898,6 +2299,30 @@ class App {
         ctx.setLineDash([5, 5]);
         ctx.strokeRect(cutX, cutY, cutWidth, cutHeight);
         ctx.setLineDash([]);
+        
+        // Draw 8 resize handles for the cutRegion
+        const handleSize = 8;
+        ctx.fillStyle = '#667eea';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        
+        const handles = [
+            { x: cutX, y: cutY }, // NW
+            { x: cutX + cutWidth, y: cutY }, // NE
+            { x: cutX, y: cutY + cutHeight }, // SW
+            { x: cutX + cutWidth, y: cutY + cutHeight }, // SE
+            { x: cutX + cutWidth / 2, y: cutY }, // N
+            { x: cutX + cutWidth / 2, y: cutY + cutHeight }, // S
+            { x: cutX, y: cutY + cutHeight / 2 }, // W
+            { x: cutX + cutWidth, y: cutY + cutHeight / 2 }  // E
+        ];
+        
+        for (const handle of handles) {
+            ctx.beginPath();
+            ctx.arc(handle.x, handle.y, handleSize / 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        }
         
         // 3. Prepare for the original ctx.restore() caller
         ctx.save();
