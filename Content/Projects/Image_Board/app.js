@@ -143,6 +143,13 @@ class App {
             });
         });
 
+        // Export modal area selection (Viewport vs Active Board)
+        document.querySelectorAll('input[name="exportArea"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.updateExportAreaDimensions();
+            });
+        });
+
         // Export modal aspect ratio lock checkbox
         document.getElementById('lockAspectRatio').addEventListener('change', () => {
             this.adjustExportDimensions('exportWidth'); // Re-evaluate dimensions based on current width
@@ -1707,6 +1714,7 @@ class App {
         const exportHeightInput = document.getElementById('exportHeight');
         const lockAspectRatioCheckbox = document.getElementById('lockAspectRatio');
         const scaleRadios = document.querySelectorAll('input[name="exportScale"]');
+        const areaRadios = document.querySelectorAll('input[name="exportArea"]');
         const exportWithAlphaCheckbox = document.getElementById('exportWithAlpha'); // New: get checkbox
 
         // Reset to default scale
@@ -1718,6 +1726,15 @@ class App {
             }
         });
         this.currentExportScale = 1;
+
+        // Reset to default area
+        areaRadios.forEach(radio => {
+            if (radio.value === 'viewport') {
+                radio.checked = true;
+            } else {
+                radio.checked = false;
+            }
+        });
 
         // Set default values to current canvas dimensions
         this.initialExportWidth = this.canvas.width;
@@ -1736,6 +1753,68 @@ class App {
         document.getElementById('exportBgColor').value = '#0a0a0a'; // Default to dark background
 
         modal.classList.remove('hidden');
+    }
+
+    updateExportAreaDimensions() {
+        const areaMode = document.querySelector('input[name="exportArea"]:checked').value;
+        if (areaMode === 'viewport') {
+            this.initialExportWidth = this.canvas.width;
+            this.initialExportHeight = this.canvas.height;
+        } else {
+            const bounds = this.getActiveBoardBounds();
+            this.initialExportWidth = Math.round(bounds.width);
+            this.initialExportHeight = Math.round(bounds.height);
+        }
+        this.exportAspectRatio = this.initialExportWidth / this.initialExportHeight;
+        this.applyExportScale();
+    }
+
+    getActiveBoardBounds() {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        const items = this.imageBoard.getAllItems();
+        const visibleItems = items.filter(item => item.visible);
+
+        if (visibleItems.length === 0) {
+            // Default fallback if there are no items
+            return { x: 0, y: 0, width: 800, height: 600 };
+        }
+
+        const ctx = this.canvas.getContext('2d');
+
+        for (const item of visibleItems) {
+            if (item.type === 'image') {
+                minX = Math.min(minX, item.x);
+                minY = Math.min(minY, item.y);
+                maxX = Math.max(maxX, item.x + item.width);
+                maxY = Math.max(maxY, item.y + item.height);
+            } else if (item.type === 'text') {
+                ctx.save();
+                ctx.font = `${item.fontSize}px ${item.fontFamily}`;
+                const textWidth = ctx.measureText(item.content).width;
+                ctx.restore();
+                minX = Math.min(minX, item.x);
+                minY = Math.min(minY, item.y - item.fontSize);
+                maxX = Math.max(maxX, item.x + textWidth);
+                maxY = Math.max(maxY, item.y + item.fontSize * 0.2);
+            }
+        }
+
+        const padding = 20; // 20px padding on each side
+        let width = (maxX - minX) + padding * 2;
+        let height = (maxY - minY) + padding * 2;
+        if (width < 10) width = 100;
+        if (height < 10) height = 100;
+
+        return {
+            x: minX - padding,
+            y: minY - padding,
+            width,
+            height
+        };
     }
 
     hideExportModal() {
@@ -1830,15 +1909,28 @@ class App {
             tempCtx.clearRect(0, 0, outputWidth, outputHeight);
         }
         
-        // Calculate the overall scaling factor required to fit the current viewport
-        // onto the new export canvas dimensions.
-        const scaleX = outputWidth / this.canvas.width;
-        const scaleY = outputHeight / this.canvas.height;
+        const areaMode = document.querySelector('input[name="exportArea"]:checked').value;
         
-        // Apply the combined transformations: current board zoom/pan, scaled by export factor
         tempCtx.save();
-        tempCtx.scale(this.imageBoard.zoom * scaleX, this.imageBoard.zoom * scaleY);
-        tempCtx.translate(this.imageBoard.panX, this.imageBoard.panY);
+        if (areaMode === 'viewport') {
+            // Calculate the overall scaling factor required to fit the current viewport
+            // onto the new export canvas dimensions.
+            const scaleX = outputWidth / this.canvas.width;
+            const scaleY = outputHeight / this.canvas.height;
+            
+            // Apply the combined transformations: current board zoom/pan, scaled by export factor
+            tempCtx.scale(this.imageBoard.zoom * scaleX, this.imageBoard.zoom * scaleY);
+            tempCtx.translate(this.imageBoard.panX, this.imageBoard.panY);
+        } else {
+            // Active Board Area mode: crop to items plus 20px padding
+            const bounds = this.getActiveBoardBounds();
+            const scaleX = outputWidth / bounds.width;
+            const scaleY = outputHeight / bounds.height;
+            
+            // Direct transform from world coordinates to export coordinates
+            tempCtx.scale(scaleX, scaleY);
+            tempCtx.translate(-bounds.x, -bounds.y);
+        }
 
         // Render all visible items to the temporary canvas
         const items = this.imageBoard.getAllItems();
