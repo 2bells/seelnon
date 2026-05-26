@@ -123,6 +123,13 @@ body.night-mode #preview h2 {
   color: #bdab84;
 }
 
+body.night-mode #preview blockquote {
+  border-left-color: #d4af37;
+  background: #2a241e;
+  color: #bdab84;
+  box-shadow: inset -2px 2px 8px rgba(0, 0, 0, 0.25);
+}
+
 body.night-mode #preview img {
   border-color: #5a4b3a;
   filter: sepia(0.2) brightness(0.9);
