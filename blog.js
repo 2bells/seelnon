@@ -511,9 +511,8 @@ export async function openBlogWindow(title, openWindowFn) {
 
   // Load metadata for items in list sequentially to not block
   async function loadMetadata() {
-    // Only preload the latest 15 posts in the background to extract custom thumbnails/italics.
-    // The rest of the older entries are loaded 100% on-demand when clicked to prevent massive network overhead on 500+ posts!
-    const queue = blogPosts.slice(0, 15);
+    // Process top 10 first for immediate results, then the rest
+    const queue = [...blogPosts];
     for (const post of queue) {
       if (!post.isLoaded) {
         // Fetch only enough to get title and icon - for simplicity we fetch the whole small .md
