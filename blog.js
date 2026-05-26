@@ -259,67 +259,87 @@ export async function openBlogWindow(title, openWindowFn) {
 
     tempDiv.querySelectorAll('img').forEach(img => {
       const alt = (img.getAttribute('alt') || '').trim();
-      const match = alt.match(/^img\s+(.+)$/i);
-      if (match) {
-        const params = match[1].trim();
-        const tokens = params.split(/\s+/);
-        if (tokens.length > 0) {
-          let align = null;
-          const lastToken = tokens[tokens.length - 1].toLowerCase();
-          if (lastToken === 'r' || lastToken === 'right') {
-            align = 'right';
-            tokens.pop();
-          } else if (lastToken === 'c' || lastToken === 'center') {
-            align = 'center';
-            tokens.pop();
-          } else if (lastToken === 'l' || lastToken === 'left') {
-            align = 'left';
-            tokens.pop();
-          }
+      if (!alt) return;
 
-          if (tokens.length === 1) {
-            const sizeToken = tokens[0];
-            if (sizeToken.endsWith('%')) {
-              img.style.setProperty('width', sizeToken, 'important');
-              img.style.setProperty('height', 'auto', 'important');
-            } else {
-              const pxVal = parseInt(sizeToken, 10);
-              if (!isNaN(pxVal)) {
-                img.style.setProperty('width', `${pxVal}px`, 'important');
-                img.style.setProperty('height', 'auto', 'important');
-              }
-            }
-          } else if (tokens.length >= 2) {
-            const widthToken = tokens[0];
-            const heightToken = tokens[1];
-            
-            let wVal = widthToken;
-            if (/^\d+$/.test(widthToken)) {
-              wVal = `${widthToken}px`;
-            }
-            let hVal = heightToken;
-            if (/^\d+$/.test(heightToken)) {
-              hVal = `${heightToken}px`;
-            }
+      const tokens = alt.split(/\s+/);
+      const alignMap = {
+        r: 'right', right: 'right',
+        c: 'center', center: 'center',
+        l: 'left', left: 'left'
+      };
 
-            img.style.setProperty('width', wVal, 'important');
-            img.style.setProperty('height', hVal, 'important');
-            img.style.setProperty('object-fit', 'contain', 'important');
-          }
+      let align = null;
+      let width = null;
+      let height = null;
+      let usedTokensCount = 0;
 
-          if (align === 'center') {
-            img.style.setProperty('margin-left', 'auto', 'important');
-            img.style.setProperty('margin-right', 'auto', 'important');
-            img.style.setProperty('display', 'block', 'important');
-          } else if (align === 'left') {
-            img.style.setProperty('margin-left', '0', 'important');
-            img.style.setProperty('margin-right', 'auto', 'important');
-            img.style.setProperty('display', 'block', 'important');
-          } else if (align === 'right') {
-            img.style.setProperty('margin-left', 'auto', 'important');
-            img.style.setProperty('margin-right', '0', 'important');
-            img.style.setProperty('display', 'block', 'important');
+      // Check alignment at the very end
+      const lastToken = tokens[tokens.length - 1 - usedTokensCount];
+      if (lastToken && alignMap[lastToken.toLowerCase()]) {
+        align = alignMap[lastToken.toLowerCase()];
+        usedTokensCount++;
+      }
+
+      // Check for size parameters
+      const verifySize = (str) => {
+        return /^\d+(%|px)?$/.test(str);
+      };
+
+      const possibleSize1 = tokens[tokens.length - 1 - usedTokensCount];
+      if (possibleSize1 && verifySize(possibleSize1)) {
+        const possibleSize2 = tokens[tokens.length - 2 - usedTokensCount];
+        if (possibleSize2 && verifySize(possibleSize2)) {
+          width = possibleSize2;
+          height = possibleSize1;
+          usedTokensCount += 2;
+        } else {
+          width = possibleSize1;
+          usedTokensCount += 1;
+        }
+      }
+
+      // If we parsed at least one formatting parameter, apply styles and clean alt
+      if (usedTokensCount > 0) {
+        const remainingTokens = tokens.slice(0, tokens.length - usedTokensCount);
+        const cleanAlt = remainingTokens.join(' ').trim();
+        img.setAttribute('alt', cleanAlt);
+
+        if (width) {
+          if (width.endsWith('%')) {
+            img.style.setProperty('width', width, 'important');
+          } else {
+            const pxVal = parseInt(width, 10);
+            if (!isNaN(pxVal)) {
+              img.style.setProperty('width', `${pxVal}px`, 'important');
+            }
           }
+        }
+        if (height) {
+          if (height.endsWith('%')) {
+            img.style.setProperty('height', height, 'important');
+          } else {
+            const pxVal = parseInt(height, 10);
+            if (!isNaN(pxVal)) {
+              img.style.setProperty('height', `${pxVal}px`, 'important');
+            }
+          }
+          img.style.setProperty('object-fit', 'contain', 'important');
+        } else if (width) {
+          img.style.setProperty('height', 'auto', 'important');
+        }
+
+        if (align === 'center') {
+          img.style.setProperty('margin-left', 'auto', 'important');
+          img.style.setProperty('margin-right', 'auto', 'important');
+          img.style.setProperty('display', 'block', 'important');
+        } else if (align === 'left') {
+          img.style.setProperty('margin-left', '0', 'important');
+          img.style.setProperty('margin-right', 'auto', 'important');
+          img.style.setProperty('display', 'block', 'important');
+        } else if (align === 'right') {
+          img.style.setProperty('margin-left', 'auto', 'important');
+          img.style.setProperty('margin-right', '0', 'important');
+          img.style.setProperty('display', 'block', 'important');
         }
       }
     });
