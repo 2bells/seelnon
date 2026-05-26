@@ -230,7 +230,9 @@ export async function openBlogWindow(title, openWindowFn) {
       if (text && !text.startsWith('<')) {
         const firstChar = text.charAt(0);
         if (/[A-Z0-9a-z]/i.test(firstChar)) {
-          firstP.innerHTML = `<span class="blog-drop-cap">${firstChar}</span>` + text.substring(1);
+          const isW = firstChar.toUpperCase() === 'W';
+          const className = isW ? 'blog-drop-cap blog-drop-cap-w' : 'blog-drop-cap';
+          firstP.innerHTML = `<span class="${className}">${firstChar}</span>` + text.substring(1);
         }
       }
     }

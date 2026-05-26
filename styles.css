@@ -1137,6 +1137,11 @@ html {
   box-sizing: border-box;
 }
 
+.blog-drop-cap-w {
+  font-size: 38px;
+  padding-bottom: 4px;
+}
+
 .blog-sidebar {
   width: 280px;
   background: var(--win95-face);
