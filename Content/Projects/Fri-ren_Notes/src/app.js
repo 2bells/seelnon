@@ -169,6 +169,12 @@ class CavemanApp {
   }
 
   attachEventListeners() {
+    window.addEventListener('beforeunload', () => {
+      if (this.currentNote && this.saveTimeout) {
+        this.vault.saveNote(this.currentNote);
+      }
+    });
+
     window.addEventListener('mousedown', (e) => {
       if (this.activePopover && !this.activePopover.contains(e.target)) {
         this.activePopover.remove();
@@ -966,7 +972,7 @@ class CavemanApp {
   }
 
   async createCustodesNote() {
-    await this.handleInput();
+    await this.handleInput(false, false, true);
     const content = `<div class="imperial-records-container">
   <div class="imperial-header">
     <img src="./server/adeptus_custodes_icon_330x192.png" class="imperial-seal" alt="Adeptus Custodes Seal" />
@@ -1038,7 +1044,7 @@ class CavemanApp {
   }
 
   async createNewNote() {
-    await this.handleInput();
+    await this.handleInput(false, false, true);
     const note = {
       title: '',
       folder: '',
@@ -1060,8 +1066,12 @@ class CavemanApp {
     this.hideSearch();
     if (this.currentNote && !this.currentNote.isPublic) {
       // Ensure we await the save before switching context to avoid clobbering data
-      await this.handleInput(true); 
+      await this.handleInput(true, false, true); 
     }
+    this.lastRenderedText = null;
+    this.lastRenderedQuery = null;
+    this.lastSearchWidgetHidden = null;
+    this.lastRenderedMatchIndex = null;
     this.currentNote = note;
     this.titleInput.value = note.title;
     this.folderInput.value = note.folder || '';
@@ -1164,13 +1174,13 @@ class CavemanApp {
 
       if (newContent !== content) {
         this.editorEl.value = newContent;
-        await this.handleInput(true); // Persists but skips re-render to avoid flashing
+        await this.handleInput(true, false, true); // Persists but skips re-render to avoid flashing
         this.renderHighlights();
       }
     }
   }
 
-  async handleInput(skipPreview = false, skipHistory = false) {
+  async handleInput(skipPreview = false, skipHistory = false, forceSave = false) {
     if (!this.currentNote) return;
 
     // Check if anything actually changed before saving
@@ -1224,11 +1234,26 @@ class CavemanApp {
     this.currentNote.updatedAt = Date.now();
     this.currentNote._searchIndex = `${this.currentNote.folder || ''} ${this.currentNote.title} ${this.currentNote.content}`.toLowerCase();
     
-    await this.vault.saveNote(this.currentNote);
-    this.renderNoteList();
     if (this.viewMode === 'preview' && skipPreview !== true) this.updatePreview();
-    this.updateStats();
-    this.lastSavedEl.textContent = `Saved: ${new Date().toLocaleTimeString()}`;
+
+    if (forceSave) {
+      clearTimeout(this.saveTimeout);
+      await this.vault.saveNote(this.currentNote);
+      this.renderNoteList();
+      this.updateStats();
+      this.lastSavedEl.textContent = `Saved: ${new Date().toLocaleTimeString()}`;
+    } else {
+      clearTimeout(this.saveTimeout);
+      this.lastSavedEl.textContent = 'Saving...';
+      this.saveTimeout = setTimeout(async () => {
+        if (this.currentNote) {
+          await this.vault.saveNote(this.currentNote);
+          this.renderNoteList();
+          this.updateStats();
+          this.lastSavedEl.textContent = `Saved: ${new Date().toLocaleTimeString()}`;
+        }
+      }, 800);
+    }
   }
 
   pushHistory() {
@@ -1819,6 +1844,20 @@ class CavemanApp {
 
     const text = this.editorEl.value;
     const query = this.editorSearchInput.value;
+    const isSearchHidden = this.editorSearchWidget.classList.contains('hidden');
+    const matchIndex = this.currentSearchMatchIndex;
+
+    if (text === this.lastRenderedText && 
+        query === this.lastRenderedQuery && 
+        isSearchHidden === this.lastSearchWidgetHidden &&
+        matchIndex === this.lastRenderedMatchIndex) {
+      return; // Skip rendering if no relevant state changed
+    }
+
+    this.lastRenderedText = text;
+    this.lastRenderedQuery = query;
+    this.lastSearchWidgetHidden = isSearchHidden;
+    this.lastRenderedMatchIndex = matchIndex;
     
     try {
       // 1. Syntax Highlighting
@@ -2168,6 +2207,13 @@ class CavemanApp {
       document.body.appendChild(this.measureEl);
     }
 
+    if (!this.measureCache) {
+      this.measureCache = new Map();
+    }
+    if (this.measureCache.size > 20000) {
+      this.measureCache.clear();
+    }
+
     // 2. Sync styles with editor
     const style = window.getComputedStyle(this.editorEl);
     this.measureEl.style.fontFamily = style.fontFamily;
@@ -2185,7 +2231,6 @@ class CavemanApp {
     this.measureEl.style.boxSizing = style.boxSizing;
     
     // Width must be exact to match textarea wrapping behavior
-    // We use clientWidth but account for potential scrollbar flicker
     const editorWidth = this.editorEl.clientWidth;
     this.measureEl.style.width = editorWidth + 'px';
     
@@ -2194,16 +2239,58 @@ class CavemanApp {
     if (this.searchMarksEl) this.searchMarksEl.style.width = editorWidth + 'px';
 
     const lines = this.editorEl.value.split('\n');
-    let lineNumbersContent = '';
+    const cacheKeyPrefix = editorWidth + '_';
+    
+    // Filter out rows that are already in our layout cache
+    const linesToMeasure = [];
+    const lineMeasureIndexMap = []; // Maps raw line index i -> position in newlyMeasuredHeights, or -1 if cached
     
     for (let i = 0; i < lines.length; i++) {
-      const lineText = lines[i] || ' '; 
-      this.measureEl.textContent = lineText;
-      const height = this.measureEl.getBoundingClientRect().height;
+      const lineText = lines[i];
+      const cacheKey = cacheKeyPrefix + lineText;
+      if (this.measureCache.has(cacheKey)) {
+        lineMeasureIndexMap[i] = -1;
+      } else {
+        lineMeasureIndexMap[i] = linesToMeasure.length;
+        linesToMeasure.push(lineText);
+      }
+    }
+    
+    const newlyMeasuredHeights = [];
+    if (linesToMeasure.length > 0) {
+      this.measureEl.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      const children = [];
+      for (let i = 0; i < linesToMeasure.length; i++) {
+        const div = document.createElement('div');
+        div.textContent = linesToMeasure[i] || ' ';
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.wordWrap = 'break-word';
+        div.style.overflowWrap = 'break-word';
+        fragment.appendChild(div);
+        children.push(div);
+      }
+      this.measureEl.appendChild(fragment);
       
-      // Calculate visual lines by dividing total height by line height
-      // We use a small epsilon to avoid floating point rounding issues
-      const visualLines = Math.max(1, Math.round((height + 0.1) / lineHeight));
+      // Perform block-layout reads together in one single phase
+      for (let i = 0; i < linesToMeasure.length; i++) {
+        const height = children[i].getBoundingClientRect().height;
+        const visualLines = Math.max(1, Math.round((height + 0.1) / lineHeight));
+        newlyMeasuredHeights.push(visualLines);
+        this.measureCache.set(cacheKeyPrefix + linesToMeasure[i], visualLines);
+      }
+    }
+
+    let lineNumbersContent = '';
+    
+    // Generate line indicators using cached visual heights
+    for (let i = 0; i < lines.length; i++) {
+      let visualLines;
+      if (lineMeasureIndexMap[i] === -1) {
+        visualLines = this.measureCache.get(cacheKeyPrefix + lines[i]);
+      } else {
+        visualLines = newlyMeasuredHeights[lineMeasureIndexMap[i]];
+      }
       
       // Line number for the FIRST visual line
       lineNumbersContent += `<div style="height:${lineHeight}px; line-height:${lineHeight}px;">${i + 1}</div>`;
