@@ -38,6 +38,8 @@ Tiring.
 
 //Wake up Samurai, time to collapse the function.
 
+[Part 2](blog/2026-05/24-debug.md)
+
 ![img](blog/2026-05/img/endless_test.jpg)
 
 
