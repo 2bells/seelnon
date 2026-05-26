@@ -256,6 +256,73 @@ export async function openBlogWindow(title, openWindowFn) {
       cursor.textContent = ' _';
       a.appendChild(cursor);
     });
+
+    tempDiv.querySelectorAll('img').forEach(img => {
+      const alt = (img.getAttribute('alt') || '').trim();
+      const match = alt.match(/^img\s+(.+)$/i);
+      if (match) {
+        const params = match[1].trim();
+        const tokens = params.split(/\s+/);
+        if (tokens.length > 0) {
+          let align = null;
+          const lastToken = tokens[tokens.length - 1].toLowerCase();
+          if (lastToken === 'r' || lastToken === 'right') {
+            align = 'right';
+            tokens.pop();
+          } else if (lastToken === 'c' || lastToken === 'center') {
+            align = 'center';
+            tokens.pop();
+          } else if (lastToken === 'l' || lastToken === 'left') {
+            align = 'left';
+            tokens.pop();
+          }
+
+          if (tokens.length === 1) {
+            const sizeToken = tokens[0];
+            if (sizeToken.endsWith('%')) {
+              img.style.setProperty('width', sizeToken, 'important');
+              img.style.setProperty('height', 'auto', 'important');
+            } else {
+              const pxVal = parseInt(sizeToken, 10);
+              if (!isNaN(pxVal)) {
+                img.style.setProperty('width', `${pxVal}px`, 'important');
+                img.style.setProperty('height', 'auto', 'important');
+              }
+            }
+          } else if (tokens.length >= 2) {
+            const widthToken = tokens[0];
+            const heightToken = tokens[1];
+            
+            let wVal = widthToken;
+            if (/^\d+$/.test(widthToken)) {
+              wVal = `${widthToken}px`;
+            }
+            let hVal = heightToken;
+            if (/^\d+$/.test(heightToken)) {
+              hVal = `${heightToken}px`;
+            }
+
+            img.style.setProperty('width', wVal, 'important');
+            img.style.setProperty('height', hVal, 'important');
+            img.style.setProperty('object-fit', 'contain', 'important');
+          }
+
+          if (align === 'center') {
+            img.style.setProperty('margin-left', 'auto', 'important');
+            img.style.setProperty('margin-right', 'auto', 'important');
+            img.style.setProperty('display', 'block', 'important');
+          } else if (align === 'left') {
+            img.style.setProperty('margin-left', '0', 'important');
+            img.style.setProperty('margin-right', 'auto', 'important');
+            img.style.setProperty('display', 'block', 'important');
+          } else if (align === 'right') {
+            img.style.setProperty('margin-left', 'auto', 'important');
+            img.style.setProperty('margin-right', '0', 'important');
+            img.style.setProperty('display', 'block', 'important');
+          }
+        }
+      }
+    });
     
     const firstImgMatch = text.match(/!\[.*\]\((.*)\)/);
     const customIcon = iconMatch ? iconMatch[1] : (firstImgMatch ? firstImgMatch[1] : null);
