@@ -122,6 +122,22 @@ body.night-mode .blog-post-content {
   color: #e0d0c0;
 }
 
+body.night-mode .blog-post-content blockquote {
+  border-left-color: #d4af37; /* golden highlight! */
+  background: #251710; /* rich dark wooden inset background */
+  color: #bfae9e; /* cozy soft cream/beige */
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+}
+
+body.night-mode .blog-drop-cap {
+  color: #f5f5dc;
+  background-color: var(--win95-face);
+  border-top-color: #4a2f1f;
+  border-left-color: #4a2f1f;
+  border-right-color: var(--win95-dark);
+  border-bottom-color: var(--win95-dark);
+}
+
 body.night-mode .blog-sidebar {
   background: #2a1a12;
   border-left-color: #4a2f1f;

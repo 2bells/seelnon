@@ -223,6 +223,17 @@ export async function openBlogWindow(title, openWindowFn) {
     tempDiv.querySelectorAll('p').forEach(p => {
       if (p.textContent.trim().startsWith('//')) p.classList.add('blog-comment-line');
     });
+
+    const firstP = Array.from(tempDiv.querySelectorAll('p')).find(p => !p.classList.contains('blog-comment-line'));
+    if (firstP) {
+      const text = firstP.innerHTML.trim();
+      if (text && !text.startsWith('<')) {
+        const firstChar = text.charAt(0);
+        if (/[A-Z0-9a-z]/i.test(firstChar)) {
+          firstP.innerHTML = `<span class="blog-drop-cap">${firstChar}</span>` + text.substring(1);
+        }
+      }
+    }
     tempDiv.querySelectorAll('a').forEach(a => {
       a.classList.add('blog-link-btn');
       
@@ -500,8 +511,9 @@ export async function openBlogWindow(title, openWindowFn) {
 
   // Load metadata for items in list sequentially to not block
   async function loadMetadata() {
-    // Process top 10 first for immediate results, then the rest
-    const queue = [...blogPosts];
+    // Only preload the latest 15 posts in the background to extract custom thumbnails/italics.
+    // The rest of the older entries are loaded 100% on-demand when clicked to prevent massive network overhead on 500+ posts!
+    const queue = blogPosts.slice(0, 15);
     for (const post of queue) {
       if (!post.isLoaded) {
         // Fetch only enough to get title and icon - for simplicity we fetch the whole small .md
