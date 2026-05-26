@@ -1448,6 +1448,15 @@ class CavemanApp {
 
     this.previewEl.innerHTML = html;
     
+    // Detect all-caps headers to apply brutalist mono/sans style as requested
+    this.previewEl.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+      const text = h.textContent.trim();
+      const letters = text.replace(/[^a-zA-Z]/g, '');
+      if (letters.length > 0 && letters === letters.toUpperCase()) {
+        h.classList.add('header-allcaps');
+      }
+    });
+    
     // Attach lazy loader to images
     this.previewEl.querySelectorAll('.lazy-vault-img').forEach(img => {
       this.imageObserver.observe(img);

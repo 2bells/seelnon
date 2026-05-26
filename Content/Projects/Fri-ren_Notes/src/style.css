@@ -10,7 +10,41 @@
   --font-serif: 'Playfair Display', serif;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono&family=Playfair+Display:ital,wght@1,700&display=swap');
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/Inter-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/Inter-700.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('./fonts/Inter-800.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/JetBrainsMono-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/PlayfairDisplay-Italic700.ttf') format('truetype');
+}
 
 * {
   box-sizing: border-box;
@@ -982,6 +1016,16 @@ button.btn-danger:hover {
   line-height: 1;
 }
 
+#preview h1.header-allcaps {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 2.5em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+  margin-bottom: 24px;
+}
+
 #preview h2 {
   font-size: 1.3em;
   font-weight: 800;
@@ -990,6 +1034,22 @@ button.btn-danger:hover {
   margin-top: 32px;
   margin-bottom: 16px;
   padding-bottom: 4px;
+}
+
+#preview h3 {
+  font-family: var(--font-mono);
+  font-size: 1.15em;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 14px; /* Ensure strong space down as requested! */
+}
+
+#preview h4, #preview h5, #preview h6 {
+  font-family: var(--font-mono);
+  font-size: 1em;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 12px;
 }
 
 #preview p {
@@ -2086,7 +2146,7 @@ input[type="checkbox"]:checked::after, #preview input[type="checkbox"]:checked::
     url('../server/90-907655_coffee-stain.png'),
     radial-gradient(circle at 50% 50%, transparent 40%, rgba(0,0,0,0.15) 100%),
     linear-gradient(rgba(209, 184, 138, 0.7), rgba(209, 184, 138, 0.7)), /* Simulates texture opacity */
-    url('https://www.transparenttextures.com/patterns/dark-leather.png') !important;
+    url('./dark-leather.png') !important;
   background-attachment: local, local, local, local, local, local !important;
   background-position: 
     90% 30px,
