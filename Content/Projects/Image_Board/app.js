@@ -264,10 +264,9 @@ class App {
     }
 
     clearLassoShapes() {
-        if (confirm('Are you sure you want to clear all drawn black shapes?')) {
-            this.lassoShapes = [];
-            this.render();
-        }
+        this.lassoShapes = [];
+        this.imageBoard.saveState();
+        this.render();
     }
 
     setupPanelEvents() {
