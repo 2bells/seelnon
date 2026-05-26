@@ -1980,9 +1980,9 @@ class CavemanApp {
     const images = await this.vault.getAllImages();
     const usedImageIds = new Set();
     
-    // Updated regex to correctly identify IDs even with sizing arguments
-    // ![[img-id]] or ![[img-id 100 100]]
-    const imgPattern = /!\[\[(img-[a-zA-Z0-9_-]*)(?:\s+\d+)?(?:\s+\d+)?\]\]/g;
+     // Updated regex to correctly identify IDs even with sizing, scale and alignment arguments
+    // ![[img-id]] or ![[img-id 100 100]] or ![[img-id 40% c]]
+    const imgPattern = /!\[\[(img-[a-zA-Z0-9_-]*)(?:\s+[^\]]+)?\]\]/g;
     
     allNotes.forEach(note => {
       let match;

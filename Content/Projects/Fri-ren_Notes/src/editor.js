@@ -26,13 +26,77 @@ export class Editor {
     // so marked can parse them as proper list items for the task list logic.
     md = md.replace(/^[ \t]*•/gm, (match) => match.replace('•', '*'));
 
-    // Replace Obsidian-style [[img-id]] with placeholders for lazy loading, adding support for sizing: ![[id width height]]
-    md = md.replace(/!\[\[(.*?)(?:\s+(\d+))?(?:\s+(\d+))?\]\]/g, (match, rawId, w, h) => {
-      const id = rawId.trim();
-      const width = w ? `${w}px` : 'auto';
-      const height = h ? `${h}px` : 'auto';
-      const style = `style="max-width:100%; width: ${width}; height: ${height}; margin: 10px 5px; vertical-align: top;"`;
-      return `<span><img data-img-id="${id}" class="lazy-vault-img" loading="lazy" ${style} src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"></span>`;
+    // Replace Obsidian-style [[img-id]] with placeholders for lazy loading, adding support for sizing and alignment: ![[id width height]] or ![[id scale% align]]
+    const parseImageParams = (tokensStr) => {
+      if (!tokensStr) return { width: null, height: null, scale: null, align: null, altText: '' };
+      
+      const tokens = tokensStr.trim().split(/\s+/);
+      let width = null;
+      let height = null;
+      let scale = null;
+      let align = null;
+      let remainingTokens = [];
+
+      for (const token of tokens) {
+        const tLower = token.toLowerCase();
+        
+        if (['r', 'c', 'l', 'right', 'center', 'left'].includes(tLower)) {
+          if (tLower === 'r' || tLower === 'right') align = 'right';
+          else if (tLower === 'c' || tLower === 'center') align = 'center';
+          else if (tLower === 'l' || tLower === 'left') align = 'left';
+        } else if (/^\d+%$/.test(token)) {
+          scale = token;
+        } else if (/^\d+$/.test(token)) {
+          if (width === null) {
+            width = token + 'px';
+          } else if (height === null) {
+            height = token + 'px';
+          }
+        } else {
+          remainingTokens.push(token);
+        }
+      }
+
+      return { width, height, scale, align, altText: remainingTokens.join(' ') };
+    };
+
+    const renderImageHtml = ({ id, url, alt, width, height, scale, align, isVaultImg }) => {
+      let imgStyle = `max-width: 100%; vertical-align: top; margin: 10px 5px;`;
+      if (scale) {
+        imgStyle += ` width: ${scale}; height: auto;`;
+      } else {
+        imgStyle += ` width: ${width || 'auto'}; height: ${height || 'auto'};`;
+      }
+
+      if (align) {
+        imgStyle += ` display: block; margin: 0;`;
+        let justify = 'flex-start';
+        if (align === 'center') justify = 'center';
+        else if (align === 'right') justify = 'flex-end';
+        
+        const containerStyle = `display: flex; justify-content: ${justify}; width: 100%; margin: 10px 0; clear: both;`;
+        
+        if (isVaultImg) {
+          return `<div style="${containerStyle}"><img data-img-id="${id}" class="lazy-vault-img" loading="lazy" style="${imgStyle}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"></div>`;
+        } else {
+          return `<div style="${containerStyle}"><img src="${url}" alt="${alt}" style="${imgStyle}" loading="eager" decoding="sync" referrerpolicy="no-referrer"></div>`;
+        }
+      } else {
+        if (isVaultImg) {
+          return `<span><img data-img-id="${id}" class="lazy-vault-img" loading="lazy" style="${imgStyle}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"></span>`;
+        } else {
+          return `<span><img src="${url}" alt="${alt}" style="${imgStyle}" loading="eager" decoding="sync" referrerpolicy="no-referrer"></span>`;
+        }
+      }
+    };
+
+    md = md.replace(/!\[\[(img-[a-zA-Z0-9_-]*)(?:\s+([^\]]+))?\]\]/g, (match, id, paramStr) => {
+      const params = parseImageParams(paramStr);
+      return renderImageHtml({
+        id,
+        isVaultImg: true,
+        ...params
+      });
     });
 
     // Video & YouTube support: ![video](link) or ![video 500 300](link)
@@ -45,7 +109,7 @@ export class Editor {
       // YouTube Detector
       const ytMatch = u.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
       if (ytMatch) {
-        return `<span><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" 
+         return `<span><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" 
           style="${style} aspect-ratio: 16/9;" 
           frameborder="0" 
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -59,17 +123,18 @@ export class Editor {
 </video></span>`;
     });
 
-    // Image resizing support: ![alt width height](url)
-    md = md.replace(/!\[(.*?)(?:\s+(\d+))?(?:\s+(\d+))?\]\((.*?)\)/g, (match, alt, w, h, url) => {
+    // Image resizing support: ![alt width height alignment](url)
+    md = md.replace(/!\[([^\]\n]*)\]\(([^)\n]+)\)/g, (match, bracketContent, url) => {
       // Skip if it was already processed as video placeholder or something else
-      if (alt.startsWith('video')) return match; 
+      if (bracketContent.trim().startsWith('video')) return match; 
       
-      const width = w ? `${w}px` : 'auto';
-      const height = h ? `${h}px` : 'auto';
-      const u = url.trim();
-      const a = alt ? alt.trim() : '';
-
-      return `<span><img src="${u}" alt="${a}" style="max-width:100%; width: ${width}; height: ${height}; margin: 10px 5px; vertical-align: top;" loading="eager" decoding="sync" referrerpolicy="no-referrer"></span>`;
+      const params = parseImageParams(bracketContent);
+      return renderImageHtml({
+        url: url.trim(),
+        alt: params.altText,
+        isVaultImg: false,
+        ...params
+      });
     });
     
     // Ensure marked is configured for GFM
