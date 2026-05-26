@@ -425,10 +425,34 @@ document.addEventListener('mousedown', (e) => {
   }
 }, true); // Use capture phase to ensure it's handled even if stopPropagation is called on drag handlers
 
-// Also dismiss and re-align desktop on resize
+// Also dismiss, re-align desktop, and keep windows in-bounds on resize
 window.addEventListener('resize', () => {
   closeContextMenu();
   renderDesktop();
+
+  // Re-fit any maximized windows and keep normal windows within bounds on screen resize
+  windows.forEach((w, id) => {
+    const el = w.el;
+    if (w.maximized) {
+      el.style.width = desktop.clientWidth + 'px';
+      el.style.height = desktop.clientHeight + 'px';
+    } else {
+      let left = parseFloat(el.style.left) || 0;
+      let top = parseFloat(el.style.top) || 0;
+      const width = parseFloat(el.style.width) || 400;
+      const height = parseFloat(el.style.height) || 300;
+
+      const maxLeft = Math.max(0, desktop.clientWidth - width);
+      const maxTop = Math.max(0, desktop.clientHeight - height);
+
+      if (left > maxLeft) {
+        el.style.left = maxLeft + 'px';
+      }
+      if (top > maxTop) {
+        el.style.top = maxTop + 'px';
+      }
+    }
+  });
 });
 
 function showDesktopContextMenu(e, entry) {
@@ -572,7 +596,9 @@ function iconForType(type) {
 }
 
 function renderDesktop() {
-  desktop.innerHTML = ''; // Clear existing icons
+  // Clear only existing icons, keeping open windows intact
+  const existingIcons = desktop.querySelectorAll(':scope > .icon');
+  existingIcons.forEach(el => el.remove());
 
   const iconSpacingX = 84; // 74px icon width + 10px margin
   const iconSpacingY = 90; // Approx 32px img + 6px label margin + 11px font + padding
