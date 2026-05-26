@@ -134,8 +134,8 @@ body.night-mode .blog-drop-cap {
   background-color: #453124;
   border-top-color: #6a4a37;
   border-left-color: #6a4a37;
-  border-right-color: #2b1b13;
-  border-bottom-color: #2b1b13;
+  border-right-color: #6a4a37;
+  border-bottom-color: #6a4a37;
 }
 
 body.night-mode .blog-sidebar {

@@ -214,6 +214,8 @@ body {
 
 .note-item {
   padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-weight: 400;
   font-size: 0.9em;
   cursor: pointer;
   display: flex;
@@ -790,6 +792,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: 0.65em;
   text-transform: uppercase;
   letter-spacing: 0.1em;
