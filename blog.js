@@ -89,6 +89,22 @@ export async function preloadBlogPosts() {
 }
 
 export async function openBlogWindow(title, openWindowFn) {
+  let blogPosts = [];
+
+  function getPostIdFromHref(href) {
+    let decoded = decodeURIComponent(href);
+    decoded = decoded.split('?')[0].split('#')[0].trim();
+    
+    // Try to find "blog/" and take everything after it
+    const blogIndex = decoded.indexOf('blog/');
+    if (blogIndex !== -1) {
+      return decoded.substring(blogIndex + 5).replace(/^\/+/, ''); 
+    }
+    
+    // If "blog/" is not found, let's clean up leading ./ or /
+    return decoded.replace(/^\.?\/+/, '');
+  }
+
   // Function to load dynamic posts from the blog/ folder
   async function fetchDynamicPostsList() {
     try {
@@ -209,8 +225,19 @@ export async function openBlogWindow(title, openWindowFn) {
     });
     tempDiv.querySelectorAll('a').forEach(a => {
       a.classList.add('blog-link-btn');
-      if (!a.target) a.target = "_blank";
-      if (!a.rel) a.rel = "noopener noreferrer";
+      
+      const href = a.getAttribute('href') || '';
+      const normalizedPath = getPostIdFromHref(href);
+      const isInternal = blogPosts && blogPosts.some(p => p.id === normalizedPath);
+      
+      if (isInternal) {
+        a.removeAttribute('target');
+        a.removeAttribute('rel');
+      } else {
+        if (!a.target) a.target = "_blank";
+        if (!a.rel) a.rel = "noopener noreferrer";
+      }
+      
       const cursor = document.createElement('span');
       cursor.className = 'blinking-cursor';
       cursor.textContent = ' _';
@@ -231,7 +258,7 @@ export async function openBlogWindow(title, openWindowFn) {
     };
   }
 
-  const blogPosts = (await fetchDynamicPostsList()).sort((a, b) => new Date(b.date) - new Date(a.date));
+  blogPosts = (await fetchDynamicPostsList()).sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const blogContainer = document.createElement('div');
   blogContainer.className = 'blog-container';
@@ -447,6 +474,19 @@ export async function openBlogWindow(title, openWindowFn) {
       `;
     }
     postContentEl.innerHTML = contentHtml;
+
+    // Attach click handlers for internal blog links
+    postContentEl.querySelectorAll('a').forEach(a => {
+      const href = a.getAttribute('href') || '';
+      const normalizedPath = getPostIdFromHref(href);
+      const matchedPost = blogPosts && blogPosts.find(p => p.id === normalizedPath);
+      if (matchedPost) {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          loadPost(matchedPost.id);
+        });
+      }
+    });
 
     // Update active state in list
     blogContainer.querySelectorAll('.post-list-item').forEach(el => {

@@ -3,7 +3,7 @@
 ![img](https://i.pinimg.com/1200x/ec/0e/2c/ec0e2cdcb6e81525a9395c85e7ee11df.jpg)
 
 so... ahh... yeah...
-the whole 'need to debug and to debug you have to quantize thing', but why?
+the whole 'need to debug and to debug you have to quantize thing', but why? [Read Debug Rant](blog/2026-05/12-health.md)
 
 ## Trauma!
 
