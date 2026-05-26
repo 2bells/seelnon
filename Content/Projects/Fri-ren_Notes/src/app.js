@@ -1068,6 +1068,7 @@ class CavemanApp {
       // Ensure we await the save before switching context to avoid clobbering data
       await this.handleInput(true, false, true); 
     }
+    this.editorScrollResetNeeded = true;
     this.lastRenderedText = null;
     this.lastRenderedQuery = null;
     this.lastSearchWidgetHidden = null;
@@ -1474,6 +1475,11 @@ class CavemanApp {
     if (mode === 'editor') {
       this.editorWrapper.classList.remove('hidden');
       this.togglePreviewBtn.textContent = 'View';
+      
+      // Force sync scroll elements now that they are visible in the DOM
+      this.syncAllEditorScrolls(this.editorScrollResetNeeded);
+      this.editorScrollResetNeeded = false;
+
       this.updateLineNumbers();
       setTimeout(() => this.renderHighlights(), 0);
     } else if (mode === 'preview') {
@@ -2302,7 +2308,27 @@ class CavemanApp {
     }
     
     this.lineNumbersEl.innerHTML = lineNumbersContent;
-    this.lineNumbersEl.scrollTop = this.editorEl.scrollTop;
+    this.syncAllEditorScrolls();
+  }
+
+  syncAllEditorScrolls(forceReset = false) {
+    if (!this.editorEl) return;
+    if (forceReset) {
+      this.editorEl.scrollTop = 0;
+      this.editorEl.scrollLeft = 0;
+    }
+    const scrollTop = this.editorEl.scrollTop;
+    const scrollLeft = this.editorEl.scrollLeft;
+    
+    if (this.lineNumbersEl) this.lineNumbersEl.scrollTop = scrollTop;
+    if (this.editorHighlightsEl) {
+      this.editorHighlightsEl.scrollTop = scrollTop;
+      this.editorHighlightsEl.scrollLeft = scrollLeft;
+    }
+    if (this.searchMarksEl) {
+      this.searchMarksEl.scrollTop = scrollTop;
+      this.searchMarksEl.scrollLeft = scrollLeft;
+    }
   }
 
   scopeStyles(html) {
