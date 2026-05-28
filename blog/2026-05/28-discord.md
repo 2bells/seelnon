@@ -4,6 +4,12 @@
 
 I mean... reality, please work...
 
+Person adds me to friends, it says no mutual server or friends.
+
+Mutual server immideatly pops up. (previous person said that it is because they are from China and it is my fault not understanding concept 'ping')
+
+But... well:
+
 ![img c](blog/2026-05/img/discord.jpg)
 
 ```
