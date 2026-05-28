@@ -65,6 +65,7 @@ Mia's chatbot talks about Miqo,
 >_
 I mean there is no mention of Miqo
 inside of any Mia's files / descriptions
+There is a mention of Miqo'te as a race tho.
 ///
 interesting.
 ```
