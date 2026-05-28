@@ -1,0 +1,447 @@
+/* ==========================================================================
+   BRUTALIST ARCADE GAME ENGINE BRAND STANDARD STYLESHEET (PURE CSS)
+   ========================================================================== */
+
+/* Color Configuration */
+:root {
+  --bg-primary: #0a0b0d;
+  --bg-secondary: #12141a;
+  --bg-panel: #1b1e26;
+  --border-color: #2e3543;
+  --text-primary: #ededf0;
+  --text-secondary: #8c96ab;
+  --text-muted: #535d70;
+  --accent-color: #00ff66; /* Vibrant neon terminal green */
+  --accent-secondary: #00ddff; /* Neon cyan */
+  --accent-danger: #ff0055; /* Arcade red */
+  --btn-shadow: #000000;
+  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Fira Code', 'Courier New', Courier, monospace;
+}
+
+/* Reset basics */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border: 1px solid var(--bg-secondary);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* App Container Layout */
+#app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Header bar */
+#console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  background-color: var(--bg-secondary);
+  border-bottom: 3px solid var(--border-color);
+  padding: 0 20px;
+  z-index: 10;
+}
+
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Green pulsing hardware indicator dot */
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  background-color: var(--accent-color);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-color);
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; box-shadow: 0 0 12px var(--accent-color); }
+}
+
+#engine-title {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.header-readout {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-readout .label {
+  color: var(--text-secondary);
+}
+
+.header-readout .value {
+  color: var(--accent-color);
+  font-weight: bold;
+}
+
+.header-readout .monitor {
+  background-color: #000;
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.header-readout .divider {
+  color: var(--border-color);
+  margin: 0 4px;
+}
+
+/* Workspace Frame split */
+#workspace {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 52px);
+  overflow: hidden;
+}
+
+@media(max-width: 900px) {
+  #workspace {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+}
+
+/* Canvas viewport panel */
+#canvas-container {
+  position: relative;
+  flex: 1;
+  background-color: #020304;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media(max-width: 900px) {
+  #canvas-container {
+    height: 60%;
+    width: 100%;
+    flex: none;
+  }
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* Canvas HUD Overlay HUD */
+#hud-overlay {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  right: 15px;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-shadow: 1px 1px 2px #000;
+}
+
+#hud-time, #hud-events {
+  background: rgba(10, 11, 13, 0.75);
+  border: 1px solid rgba(46, 53, 67, 0.5);
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+#hud-events {
+  color: var(--accent-secondary);
+  animation: slide-glow 3s infinite ease-in-out;
+}
+
+@keyframes slide-glow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; text-shadow: 0 0 5px var(--accent-secondary); }
+}
+
+/* Controls sidebar controller */
+#controls-sidebar {
+  width: 340px;
+  background-color: var(--bg-secondary);
+  border-left: 3px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 20px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+@media(max-width: 900px) {
+  #controls-sidebar {
+    width: 100%;
+    height: auto;
+    border-left: none;
+    border-top: 3px solid var(--border-color);
+    overflow-y: visible;
+  }
+}
+
+/* Structural sidebar container splits */
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.panel-section:last-of-type {
+  border-bottom: none;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.section-desc {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.panel-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Input Row adjustments */
+.control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Brutalist beautiful sliders */
+.slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-wrapper input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #000;
+  height: 8px;
+  border: 1px solid var(--border-color);
+  outline: none;
+  border-radius: 4px;
+}
+
+.slider-wrapper input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  background-color: var(--text-primary);
+  border: 2px solid #000;
+  cursor: ew-resize;
+  border-radius: 2px;
+  transition: background-color 0.1s;
+}
+
+.slider-wrapper input[type="range"]::-webkit-slider-thumb:hover {
+  background-color: var(--accent-color);
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: #000;
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  min-width: 42px;
+  text-align: center;
+  color: var(--accent-secondary);
+  border-radius: 3px;
+}
+
+/* Selection list drop-downs */
+.custom-select {
+  background: #000;
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  outline: none;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.custom-select:focus {
+  border-color: var(--accent-color);
+}
+
+/* Chunky brutalist retro buttons */
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.retro-btn {
+  background-color: var(--bg-panel);
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  border-radius: 4px;
+  outline: none;
+  box-shadow: 3px 3px 0px var(--btn-shadow);
+  transition: transform 0.05s, box-shadow 0.05s, background-color 0.15s;
+}
+
+.retro-btn:hover {
+  background-color: var(--border-color);
+  border-color: var(--text-primary);
+}
+
+.retro-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--btn-shadow);
+}
+
+/* Toggle mode specific visual button classes */
+.retro-btn.btn-active {
+  background-color: rgba(0, 255, 102, 0.08);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  box-shadow: 3px 3px 0px rgba(0, 255, 102, 0.2);
+}
+
+.retro-btn.btn-active:hover {
+  background-color: rgba(0, 255, 102, 0.18);
+}
+
+/* Retro virtual output readout container */
+.console-output {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+}
+
+#cmd-terminal {
+  flex: 1;
+  background-color: #000;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+}
+
+.terminal-line {
+  word-break: break-all;
+}
+
+.terminal-line.text-muted {
+  color: var(--text-muted);
+}
+
+.terminal-line.text-accent {
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.terminal-line.text-warn {
+  color: var(--accent-secondary);
+}
+
+.side-footer {
+  margin-top: auto;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.side-footer .monospace-note {
+  color: var(--accent-secondary);
+  font-weight: 600;
+  margin-top: 4px;
+}

@@ -1,0 +1,83 @@
+body {
+    background-color: #3B322C; /* Dark coffee bean */
+    color: #D4C8A0; /* Creamy beige text */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    text-align: center;
+    /* Default styles for the container */
+}
+
+/* Style for the container when the game is active */
+body.game-active .container {
+    position: absolute; /* Position absolutely */
+    bottom: 10px; /* Move to the bottom */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%);
+    padding: 5px 10px; /* Reduce padding */
+    border-radius: 8px; /* Slightly smaller border-radius */
+    box-shadow: none; /* Remove shadow */
+    background-color: rgba(90, 75, 62, 0.7); /* Slightly transparent background */
+    z-index: 30000; /* Ensure it's below the modal but visible */
+}
+
+body.game-active .container h1 {
+    font-size: 1em; /* Reduce heading size */
+    margin-bottom: 5px;
+    color: #D4C8A0; /* Change color to match body text */
+}
+
+body.game-active .container p {
+    display: none; /* Hide the descriptive paragraph */
+}
+
+body.game-active .container button {
+    padding: 5px 10px; /* Reduce button padding */
+    font-size: 0.8em; /* Reduce button font size */
+    box-shadow: none; /* Remove button shadow */
+}
+
+.container {
+    background-color: #5A4B3E; /* Medium coffee brown */
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+    color: #EFEBE0; /* Light cream for headings */
+    margin-bottom: 20px;
+    font-size: 2em;
+}
+
+p {
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 30px;
+}
+
+button {
+    background-color: #8C6D56; /* Lighter, caramel coffee */
+    color: #FFFFFF;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1.1em;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+button:hover {
+    background-color: #A07D65; /* Slightly lighter for hover */
+}
+
+button:active {
+    background-color: #785C4A; /* Darker when pressed */
+    transform: translateY(1px);
+}
+
+/* Styles for the modal are in scripts/extensions/tavern-mmorpg/style.css */

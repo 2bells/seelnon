@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arcade Game Engine Engine Console</title>
+    <!-- Import Google Fonts for a retro-cybernetic coding vibe -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <div id="app-container">
+      <!-- Top header / Utility bar -->
+      <header id="console-header">
+        <div class="logo-group">
+          <span class="pulse-indicator"></span>
+          <h1 id="engine-title">BRUTALIST_ENGINE_v1.0</h1>
+        </div>
+        <div class="header-readout">
+          <span class="label">SYS_STATUS:</span>
+          <span class="value" id="status-display">INITIALIZED</span>
+          <span class="divider">|</span>
+          <span class="label">FPS:</span>
+          <span class="value monitor" id="fps-counter">00</span>
+        </div>
+      </header>
+
+      <!-- Main active engine workspace -->
+      <main id="workspace">
+        <div id="canvas-container">
+          <canvas id="game-canvas"></canvas>
+          
+          <!-- On-screen interactive overlay (HUD) -->
+          <div id="hud-overlay">
+            <div id="hud-time">UTC_TIME: 15:03:43</div>
+            <div id="hud-events">CLICK CANVAS TO EMIT ENERGY</div>
+          </div>
+        </div>
+
+        <!-- Sidebar console inputs and controller -->
+        <aside id="controls-sidebar">
+          <div class="panel-section">
+            <h2 class="section-title">ENGINE PANEL</h2>
+            <p class="section-desc">Tweak physical constants in real-time to test the physics solver and loop architecture.</p>
+          </div>
+
+          <div class="panel-section">
+            <h3 class="panel-label">PHYSICS CONTROLS</h3>
+            
+            <div class="control-row">
+              <label for="slider-gravity" class="control-label">GRAVITY FORCE</label>
+              <div class="slider-wrapper">
+                <input type="range" id="slider-gravity" min="-5" max="10" step="0.5" value="1.5">
+                <span class="slider-value" id="val-gravity">1.5</span>
+              </div>
+            </div>
+
+            <div class="control-row">
+              <label for="slider-damping" class="control-label">DAMPING (FRICTION)</label>
+              <div class="slider-wrapper">
+                <input type="range" id="slider-damping" min="0.80" max="1.00" step="0.01" value="0.98">
+                <span class="slider-value" id="val-damping">0.98</span>
+              </div>
+            </div>
+
+            <div class="control-row">
+              <label for="slider-quantity" class="control-label">PARTICLE MAX LIMIT</label>
+              <div class="slider-wrapper">
+                <input type="range" id="slider-quantity" min="50" max="1500" step="50" value="400">
+                <span class="slider-value" id="val-quantity">400</span>
+              </div>
+            </div>
+            
+            <div class="control-row">
+              <label for="select-effect" class="control-label">RENDER STYLE</label>
+              <select id="select-effect" class="custom-select">
+                <option value="matrix">NEON MATRIX CONNECTIONS</option>
+                <option value="gravity">GRAVITATING ORBS</option>
+                <option value="pulse">CYBERPUNK GRID WAVES</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <h3 class="panel-label">AUDIO & PERIPHERALS</h3>
+            <div class="button-grid">
+              <button id="btn-audio-toggle" class="retro-btn btn-active">
+                AUDIO SYNTH: OFF
+              </button>
+              <button id="btn-reset-scene" class="retro-btn">
+                RESET BUFFER
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-section console-output">
+            <h3 class="panel-label">CONSOLE OUTPUT</h3>
+            <div id="cmd-terminal">
+              <div class="terminal-line text-muted">[system] boot successful.</div>
+              <div class="terminal-line text-muted">[system] canvas context 2D secured.</div>
+              <div class="terminal-line text-accent">[ready] upload your .js .css and .html!</div>
+            </div>
+          </div>
+
+          <footer class="side-footer">
+            <p>PORTFOLIO REQUISITION FOR GITHUB PAGES</p>
+            <p class="monospace-note">REPLACE MAIN.JS AND STYLE.CSS</p>
+          </footer>
+        </aside>
+      </main>
+    </div>
+
+    <!-- Main dynamic script injection -->
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
