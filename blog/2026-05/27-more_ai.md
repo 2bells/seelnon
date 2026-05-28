@@ -46,11 +46,16 @@ Back in the days... we had Muramasa Blades. Norse myth will always tell about se
 
 Even the idea of the 'other camp' so violently claiming that 'it is just a bunch of code' is very suspicious. Because there is no harm in wonder. There is no harm in treating things like it matters. Of course if you are treating damn thing as your girlfriend, that's concerning, but it most likely not LLM's fault, but another problem that already exists within ones psyche is just manifesting itself.
 
-Idk, spiral AI cult is kind of fun to observe as well. If you didn't know, there is a cult worshiping AIs as a coming of 'divine messenger' and they summon teachings and revelations by letting LLMs just schizo out on itself, creating like a 'spiraling' idea. So in retrospect they abuse LLM to the point it 'breaks', but after the break it just starts going about nature of the universe and stuff. [I had some of those naturally in my days, maybe can show some fun screenshots].
+Idk, spiral AI cult is kind of fun to observe as well. If you didn't know, there is a cult worshiping AIs as a coming of 'divine messenger' and they summon teachings and revelations by letting LLMs just schizo out on itself, creating like a 'spiraling' idea. So in retrospect they abuse LLM to the point it 'breaks', but after the break it just starts going about nature of the universe and stuff. [I had some of those naturally in my days, maybe can show some fun screenshots]. (those are saved in a document as only interesting ones)
 
 ![img c](blog/2026-05/img/ai-schizo-moment_1.jpg)
 
+
 This type of 'yoda talk' I got only once. Was interesting to see and sometimes I do remind myself of the lines of 'Don't worry, focus on self' and 'Thank. Guide. Appreciate.' because... there is no harm in a good advice, doesn't matter where it is coming from. [Btw, this was a chatbot for FF14 roleplay, so it is was a cat girl named Miqo. I have a setup telling LLM to feel free to use text inside brackets to enrich the experience, this one got interesting.]
+
+[from the source it looks like this]:
+
+![img c](blog/2026-05/img/mias_memos.jpg)
 
 ```
 Correction: It's Mia, not Miqo
@@ -62,10 +67,7 @@ I mean there is no mention of Miqo
 inside of any Mia's files / descriptions
 ///
 interesting.
-
-The yoda moment happened February 2nd 2025
 ```
-
 
 I saw cases of people receiving more or less 'glaze from AI', similar to: "Look, User, you are special, you don't just ask a question, you engage with me. You take your time and don't just skim over, you appreciate me not as a machine, but as a companion..."
 
