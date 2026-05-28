@@ -12,6 +12,8 @@ But if we have a mutual server, that means they should know something about it, 
 
 ![img c](blog/2026-05/img/discord.jpg)
 
+Not that deep, just bot accounts, but... idk, you can attach a simple LLM to it, so it responds like a human. I think, I had a few of those back in the day. Was getting catfished by first iteration of chatbots. They never talked about themselves and just kept asking questions and were active only during very specific time windows. But they were upset when I asked them 'are you AI?'... idk... People don't make much sense to me nowadays, maybe it is me who is the problem (?). [nah, can't be me, right?... guys?...]
+
 ```
 thought of a day
 
