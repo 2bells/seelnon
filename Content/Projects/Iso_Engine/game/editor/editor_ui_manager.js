@@ -140,16 +140,22 @@ class EditorUIManager {
         downloadMapButton.onclick = this.mapOperations.downloadMapFile;
         this.operationsPanelContent.appendChild(downloadMapButton);
 
+        const mapUploadId = 'rpg-map-file-upload-input';
         this.fileInput = document.createElement('input');
         this.fileInput.type = 'file';
+        this.fileInput.id = mapUploadId;
         this.fileInput.accept = '.json';
         this.fileInput.style.display = 'none';
         this.fileInput.onchange = this.mapOperations.handleFileUpload; // Event handled by mapOperations
         this.operationsPanelContent.appendChild(this.fileInput); 
 
-        const uploadMapButton = document.createElement('button');
+        const uploadMapButton = document.createElement('label');
+        uploadMapButton.htmlFor = mapUploadId;
+        uploadMapButton.className = 'rpg-file-label';
+        uploadMapButton.style.display = 'block';
+        uploadMapButton.style.width = '100%';
+        uploadMapButton.style.marginBottom = '6px';
         uploadMapButton.textContent = 'Upload Map (.json)';
-        uploadMapButton.onclick = this.mapOperations.triggerFileUpload; // Action triggered by mapOperations
         this.operationsPanelContent.appendChild(uploadMapButton);
         
         this.operationsPanel.appendChild(this.operationsPanelContent);
@@ -205,25 +211,35 @@ class EditorUIManager {
         this.prevSpritesheetButton.onclick = () => this.editor.prevSpritesheet();
         this.prevSpritesheetButton.title = 'Previous Spritesheet';
         
-        this.uploadSpritesheetButton = document.createElement('button');
+        const sheetUploadId = 'rpg-sheet-file-upload-input';
+        this.spritesheetFileInput = document.createElement('input');
+        this.spritesheetFileInput.id = sheetUploadId;
+        this.spritesheetFileInput.type = 'file';
+        this.spritesheetFileInput.accept = 'image/png, image/jpeg';
+        this.spritesheetFileInput.style.display = 'none';
+        this.spritesheetFileInput.onchange = (event) => this.editor.handleSpritesheetUpload(event);
+        
+        this.uploadSpritesheetButton = document.createElement('label');
+        this.uploadSpritesheetButton.htmlFor = sheetUploadId;
+        this.uploadSpritesheetButton.className = 'rpg-file-label';
+        this.uploadSpritesheetButton.style.display = 'inline-flex';
+        this.uploadSpritesheetButton.style.justifyContent = 'center';
+        this.uploadSpritesheetButton.style.alignItems = 'center';
+        this.uploadSpritesheetButton.style.width = '24px';
+        this.uploadSpritesheetButton.style.height = '18px';
+        this.uploadSpritesheetButton.style.margin = '0 5px';
+        this.uploadSpritesheetButton.style.padding = '5px 8px';
         this.uploadSpritesheetButton.innerHTML = '&#11014;'; // Up arrow emoji
-        this.uploadSpritesheetButton.onclick = () => this.spritesheetFileInput.click();
         this.uploadSpritesheetButton.title = 'Upload Spritesheet';
 
         this.nextSpritesheetButton = document.createElement('button');
         this.nextSpritesheetButton.textContent = '→';
         this.nextSpritesheetButton.onclick = () => this.editor.nextSpritesheet();
         this.nextSpritesheetButton.title = 'Next Spritesheet';
-        
+
         this.spritesheetControlsContainer.appendChild(this.prevSpritesheetButton);
         this.spritesheetControlsContainer.appendChild(this.uploadSpritesheetButton);
         this.spritesheetControlsContainer.appendChild(this.nextSpritesheetButton);
-        
-        this.spritesheetFileInput = document.createElement('input');
-        this.spritesheetFileInput.type = 'file';
-        this.spritesheetFileInput.accept = 'image/png, image/jpeg';
-        this.spritesheetFileInput.style.display = 'none';
-        this.spritesheetFileInput.onchange = (event) => this.editor.handleSpritesheetUpload(event);
         this.spritesheetControlsContainer.appendChild(this.spritesheetFileInput);
 
         this.toolsPanel.appendChild(this.spritesheetControlsContainer);
@@ -347,15 +363,21 @@ class EditorUIManager {
         this.spawnPermanentNpcContainer.id = 'rpg-editor-spawn-permanent-npc-controls';
         this.spawnPermanentNpcContainer.style.marginTop = '10px';
 
+        const npcBrushUploadId = 'rpg-npc-brush-file-upload-input';
         this.npcJsonInput = document.createElement('input');
+        this.npcJsonInput.id = npcBrushUploadId;
         this.npcJsonInput.type = 'file';
         this.npcJsonInput.accept = '.json';
         this.npcJsonInput.style.display = 'none';
         this.npcJsonInput.onchange = (event) => this.editor.handleNpcJsonUpload(event);
 
-        const uploadNpcButton = document.createElement('button');
+        const uploadNpcButton = document.createElement('label');
+        uploadNpcButton.htmlFor = npcBrushUploadId;
+        uploadNpcButton.className = 'rpg-file-label';
+        uploadNpcButton.style.display = 'block';
+        uploadNpcButton.style.width = '100%';
+        uploadNpcButton.style.marginBottom = '6px';
         uploadNpcButton.textContent = 'Upload NPC (.json)';
-        uploadNpcButton.onclick = () => this.npcJsonInput.click();
 
         this.spawnNpcBrushInfo = document.createElement('p');
         this.spawnNpcBrushInfo.className = 'rpg-editor-info';

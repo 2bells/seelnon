@@ -7,6 +7,7 @@ import LightEditor from './editor_lights.js';
 import QuestEditor from './quest_editor.js';
 import AbilitiesEditor from './abilities_editor.js';
 import ItemEditor from './item_editor.js';
+import BankEditor from './bank_editor.js';
 
 class EditorManager {
     constructor(engine, modalContentElement) {
@@ -26,6 +27,7 @@ class EditorManager {
         this.editors.quest = new QuestEditor(this.engine, this.modalContentElement);
         this.editors.abilities = new AbilitiesEditor(this.engine, this.modalContentElement);
         this.editors.item = new ItemEditor(this.engine, this.modalContentElement);
+        this.editors.bank = new BankEditor(this.engine, this.modalContentElement);
     }
 
     toggle(editorName) {

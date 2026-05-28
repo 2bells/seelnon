@@ -843,6 +843,26 @@ class DialogueUI {
         content.appendChild(layout);
     }
 
+    _getItemEmoji(item) {
+        if (!item) return '❓';
+        if (item.emoji) return item.emoji;
+        const name = item.name.toLowerCase();
+        if (item.type === 'weapon') {
+            if (name.includes('axe')) return '🪓';
+            if (name.includes('bow')) return '🏹';
+            if (name.includes('wand') || name.includes('staff')) return '🔮';
+            return '🗡️';
+        }
+        if (item.type === 'shield') return '🛡️';
+        if (item.type === 'armor') return '👕';
+        if (item.type === 'consumable') {
+            if (name.includes('potion')) return '❤️';
+            if (name.includes('herb') || name.includes('leaf')) return '🌿';
+            return '🍎';
+        }
+        return '📦';
+    }
+
     // ------------------ RENDER DIALOGUE SHOP PANEL (SLIDE-UP) ------------------
     renderShopWindow() {
         const content = this.shopWindow.querySelector('#rpg-shop-content');
@@ -853,7 +873,24 @@ class DialogueUI {
         const npc = this.participants[0];
         if (!npc) return;
 
-        // Two-column grid structure
+        // Initialize display indices
+        if (this.selectedShopVendorIndex === undefined) this.selectedShopVendorIndex = 0;
+        if (this.selectedShopPlayerIndex === undefined) this.selectedShopPlayerIndex = 0;
+
+        // Check bounds
+        const npcInv = npc.inventory || [];
+        if (this.selectedShopVendorIndex >= npcInv.length) {
+            this.selectedShopVendorIndex = npcInv.length - 1;
+        }
+        if (npcInv.length === 0) this.selectedShopVendorIndex = -1;
+
+        const playerInv = player.inventory || [];
+        if (this.selectedShopPlayerIndex >= playerInv.length) {
+            this.selectedShopPlayerIndex = playerInv.length - 1;
+        }
+        if (playerInv.length === 0) this.selectedShopPlayerIndex = -1;
+
+        // Two-column structure
         const layout = document.createElement('div');
         layout.className = 'rpg-two-column-layout';
 
@@ -866,94 +903,167 @@ class DialogueUI {
         leftTitle.innerHTML = `<span>🏪 ${npc.name}'s Catalog Stock</span> <span>Vendor Stock</span>`;
         leftCol.appendChild(leftTitle);
 
-        if (!npc.inventory || npc.inventory.length === 0) {
-            const empty = document.createElement('div');
-            empty.textContent = "Out of stock!";
-            empty.style.color = '#A07D65';
-            empty.style.textAlign = 'center';
-            leftCol.appendChild(empty);
-        } else {
-            npc.inventory.forEach(it => {
-                const row = document.createElement('div');
-                row.className = 'rpg-item-row';
+        const vendorGrid = document.createElement('div');
+        vendorGrid.className = 'inventory-grid-container';
+        vendorGrid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+        vendorGrid.style.gap = '6px';
+        vendorGrid.style.padding = '6px';
+        vendorGrid.style.minHeight = '120px';
+        vendorGrid.style.marginBottom = '8px';
 
-                const meta = document.createElement('div');
-                meta.style.display = 'flex';
-                meta.style.flexDirection = 'column';
+        const gridSlotsCount = 18; // 6 cols * 3 rows
+        for (let i = 0; i < gridSlotsCount; i++) {
+            const it = npcInv[i] || null;
+            const slot = document.createElement('div');
+            slot.className = 'inventory-item-slot';
+            if (it) {
+                slot.className += ' filled';
+                if (this.selectedShopVendorIndex === i) slot.className += ' selected';
 
-                const name = document.createElement('strong');
-                name.style.fontSize = '0.85em';
-                name.textContent = `${it.name} (x${it.count})`;
+                const emoji = document.createElement('span');
+                emoji.className = 'item-slot-emoji';
+                emoji.style.fontSize = '1.4em';
+                emoji.textContent = this._getItemEmoji(it);
+                slot.appendChild(emoji);
 
-                const desc = document.createElement('span');
-                desc.style.fontSize = '0.7em';
-                desc.style.color = '#D4C8A0';
-                desc.textContent = it.description;
+                const countBadge = document.createElement('span');
+                countBadge.className = 'item-slot-count';
+                countBadge.textContent = it.count > 1 ? `x${it.count}` : '';
+                slot.appendChild(countBadge);
 
-                meta.appendChild(name);
-                meta.appendChild(desc);
+                const priceBadge = document.createElement('span');
+                priceBadge.className = 'item-slot-price-badge';
+                priceBadge.textContent = `${it.cost}G`;
+                slot.appendChild(priceBadge);
 
-                const buySection = document.createElement('div');
-                buySection.style.display = 'flex';
-                buySection.style.alignItems = 'center';
-                buySection.style.gap = '8px';
+                slot.title = `${it.name}\n${it.description}\nCost: ${it.cost}G`;
 
-                const price = document.createElement('span');
-                price.style.color = '#FFD700';
-                price.style.fontWeight = 'bold';
-                price.style.fontSize = '0.8em';
-                price.textContent = `${it.cost}G`;
-
-                const btn = document.createElement('button');
-                btn.className = 'rpg-btn-buy';
-                btn.textContent = 'Buy';
-                btn.onclick = () => {
-                    if (player.gold < it.cost) {
-                        CustomDialog.alert("Not enough gold!", "Empty Pockets");
-                        return;
-                    }
-                    
-                    // Subtract Gold
-                    player.gold -= it.cost;
-
-                    // Remove/decrement from merchant's active array
-                    it.count--;
-                    if (it.count <= 0) {
-                        npc.inventory = npc.inventory.filter(obj => obj.name !== it.name);
-                    }
-
-                    // Deliver to player bag
-                    if (!player.inventory) player.inventory = [];
-                    const playerExisting = player.inventory.find(invIt => invIt.name === it.name);
-                    if (playerExisting) {
-                        playerExisting.count++;
-                    } else {
-                        player.inventory.push({
-                            id: `item_${Date.now()}_bought`,
-                            name: it.name,
-                            type: it.type,
-                            heal: it.heal || 0,
-                            bonusAtk: it.bonusAtk || 0,
-                            bonusDef: it.bonusDef || 0,
-                            description: it.description,
-                            value: it.value || Math.floor(it.cost * 0.7),
-                            count: 1,
-                            equipped: false
-                        });
-                    }
-
-                    this._appendSystemMessage(`Purchased 1x ${it.name} for ${it.cost} G.`);
-                    this.renderShopWindow(); // Refresh
+                slot.onclick = () => {
+                    this.selectedShopVendorIndex = i;
+                    this.selectedShopPlayerIndex = -1; // Deselect player item
+                    this.renderShopWindow();
                 };
-
-                buySection.appendChild(price);
-                buySection.appendChild(btn);
-
-                row.appendChild(meta);
-                row.appendChild(buySection);
-                leftCol.appendChild(row);
-            });
+            } else {
+                slot.className += ' empty';
+                slot.innerHTML = '<span class="item-slot-dots">·</span>';
+            }
+            vendorGrid.appendChild(slot);
         }
+        leftCol.appendChild(vendorGrid);
+
+        // VENDOR ITEM DETAILS CARD BELOW GRID
+        const vendorDetails = document.createElement('div');
+        vendorDetails.className = 'rpg-item-row';
+        vendorDetails.style.flexDirection = 'column';
+        vendorDetails.style.alignItems = 'stretch';
+        vendorDetails.style.marginTop = 'auto';
+        vendorDetails.style.padding = '8px 10px';
+        vendorDetails.style.gap = '4px';
+        vendorDetails.style.minHeight = '64px';
+
+        const selVendorItem = npcInv[this.selectedShopVendorIndex];
+        if (selVendorItem) {
+            const dNameRow = document.createElement('div');
+            dNameRow.style.display = 'flex';
+            dNameRow.style.justifyContent = 'space-between';
+            dNameRow.style.alignItems = 'center';
+            dNameRow.style.fontWeight = 'bold';
+            dNameRow.style.fontSize = '0.85em';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.style.color = '#FFD700';
+            nameSpan.textContent = `${this._getItemEmoji(selVendorItem)} ${selVendorItem.name} (x${selVendorItem.count})`;
+
+            const statSpan = document.createElement('span');
+            statSpan.style.fontSize = '0.9em';
+            statSpan.style.color = '#2ecc71';
+            let statText = '';
+            if (selVendorItem.bonusAtk) statText = `+${selVendorItem.bonusAtk} ATK`;
+            else if (selVendorItem.bonusDef) statText = `+${selVendorItem.bonusDef} DEF`;
+            else if (selVendorItem.heal) statText = `+${selVendorItem.heal} HP`;
+            statSpan.textContent = statText;
+
+            dNameRow.appendChild(nameSpan);
+            dNameRow.appendChild(statSpan);
+
+            const dDesc = document.createElement('div');
+            dDesc.style.fontSize = '0.75em';
+            dDesc.style.color = '#D4C8A0';
+            dDesc.style.lineHeight = '1.2';
+            dDesc.textContent = selVendorItem.description || 'No description.';
+
+            const dActionRow = document.createElement('div');
+            dActionRow.style.display = 'flex';
+            dActionRow.style.justifyContent = 'space-between';
+            dActionRow.style.alignItems = 'center';
+            dActionRow.style.marginTop = '4px';
+
+            const dPrice = document.createElement('span');
+            dPrice.style.fontSize = '0.85em';
+            dPrice.style.color = '#FFD700';
+            dPrice.style.fontWeight = 'bold';
+            dPrice.textContent = `${selVendorItem.cost}G`;
+
+            const dBuyBtn = document.createElement('button');
+            dBuyBtn.className = 'rpg-btn-buy';
+            dBuyBtn.style.padding = '3px 12px';
+            dBuyBtn.textContent = 'Buy';
+            dBuyBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (player.gold < selVendorItem.cost) {
+                    CustomDialog.alert("Not enough gold!", "Empty Pockets");
+                    return;
+                }
+
+                player.gold -= selVendorItem.cost;
+                selVendorItem.count--;
+
+                // Deliver to player bag
+                if (!player.inventory) player.inventory = [];
+                const playerExisting = player.inventory.find(invIt => invIt.name === selVendorItem.name);
+                if (playerExisting) {
+                    playerExisting.count++;
+                } else {
+                    player.inventory.push({
+                         id: `item_${Date.now()}_bought`,
+                         name: selVendorItem.name,
+                         type: selVendorItem.type,
+                         heal: selVendorItem.heal || 0,
+                         bonusAtk: selVendorItem.bonusAtk || 0,
+                         bonusDef: selVendorItem.bonusDef || 0,
+                         description: selVendorItem.description,
+                         value: selVendorItem.value || Math.floor(selVendorItem.cost * 0.7),
+                         count: 1,
+                         equipped: false
+                    });
+                }
+
+                if (selVendorItem.count <= 0) {
+                     npc.inventory = npc.inventory.filter(obj => obj.name !== selVendorItem.name);
+                     this.selectedShopVendorIndex = 0;
+                }
+
+                this._appendSystemMessage(`Purchased 1x ${selVendorItem.name} for ${selVendorItem.cost} G.`);
+                this.renderShopWindow();
+            };
+
+            dActionRow.appendChild(dPrice);
+            dActionRow.appendChild(dBuyBtn);
+
+            vendorDetails.appendChild(dNameRow);
+            vendorDetails.appendChild(dDesc);
+            vendorDetails.appendChild(dActionRow);
+        } else {
+            const dHint = document.createElement('div');
+            dHint.style.color = '#A07D65';
+            dHint.style.fontSize = '0.75em';
+            dHint.style.textAlign = 'center';
+            dHint.style.padding = '15px 0';
+            dHint.style.fontStyle = 'italic';
+            dHint.textContent = "Select a vendor item to buy.";
+            vendorDetails.appendChild(dHint);
+        }
+        leftCol.appendChild(vendorDetails);
 
         // RIGHT COLUMN: PLAYER BACKPACK (TO SELL)
         const rightCol = document.createElement('div');
@@ -964,88 +1074,170 @@ class DialogueUI {
         rightTitle.innerHTML = `<span>🎒 Your Backpack</span> <span style="color:#FFD700">💰 Gold: ${player.gold} G</span>`;
         rightCol.appendChild(rightTitle);
 
-        if (!player.inventory || player.inventory.length === 0) {
-            const empty = document.createElement('div');
-            empty.textContent = "Your backpack is empty.";
-            empty.style.color = '#A07D65';
-            empty.style.textAlign = 'center';
-            rightCol.appendChild(empty);
-        } else {
-            player.inventory.forEach(it => {
-                const row = document.createElement('div');
-                row.className = 'rpg-item-row';
+        const playerGrid = document.createElement('div');
+        playerGrid.className = 'inventory-grid-container';
+        playerGrid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+        playerGrid.style.gap = '6px';
+        playerGrid.style.padding = '6px';
+        playerGrid.style.minHeight = '120px';
+        playerGrid.style.marginBottom = '8px';
 
-                const meta = document.createElement('div');
-                meta.style.display = 'flex';
-                meta.style.flexDirection = 'column';
+        for (let i = 0; i < gridSlotsCount; i++) {
+            const it = playerInv[i] || null;
+            const slot = document.createElement('div');
+            slot.className = 'inventory-item-slot';
+            if (it) {
+                slot.className += ' filled';
+                if (it.equipped) slot.className += ' equipped';
+                if (this.selectedShopPlayerIndex === i) slot.className += ' selected';
 
-                const name = document.createElement('strong');
-                name.style.fontSize = '0.85em';
-                name.textContent = `${it.name} (x${it.count})${it.equipped ? ' [E]' : ''}`;
+                const emoji = document.createElement('span');
+                emoji.className = 'item-slot-emoji';
+                emoji.style.fontSize = '1.4em';
+                emoji.textContent = this._getItemEmoji(it);
+                slot.appendChild(emoji);
 
-                const desc = document.createElement('span');
-                desc.style.fontSize = '0.70em';
-                desc.style.color = '#D4C8A0';
-                desc.textContent = it.description || 'No description.';
+                const countBadge = document.createElement('span');
+                countBadge.className = 'item-slot-count';
+                countBadge.textContent = it.count > 1 ? `x${it.count}` : '';
+                slot.appendChild(countBadge);
 
-                meta.appendChild(name);
-                meta.appendChild(desc);
+                if (it.equipped) {
+                    const eqBadge = document.createElement('span');
+                    eqBadge.className = 'item-equipped-indicator';
+                    eqBadge.textContent = 'E';
+                    slot.appendChild(eqBadge);
+                }
 
-                const sellSection = document.createElement('div');
-                sellSection.style.display = 'flex';
-                sellSection.style.alignItems = 'center';
-                sellSection.style.gap = '8px';
-
-                const price = document.createElement('span');
-                price.style.color = '#FFD700';
-                price.style.fontWeight = 'bold';
-                price.style.fontSize = '0.8em';
+                const priceBadge = document.createElement('span');
+                priceBadge.className = 'item-slot-price-badge';
                 const sellValue = it.value || Math.floor((it.cost || 20) * 0.7);
-                price.textContent = `${sellValue}G`;
+                priceBadge.textContent = `${sellValue}G`;
+                slot.appendChild(priceBadge);
 
-                const btn = document.createElement('button');
-                btn.className = 'rpg-btn-sell';
-                btn.textContent = 'Sell';
-                btn.onclick = () => {
-                    // Pay cash
-                    player.gold += sellValue;
+                slot.title = `${it.name}\n${it.description}`;
 
-                    // Remove from player
-                    it.count--;
-                    if (it.count <= 0) {
-                        player.inventory = player.inventory.filter(pi => pi.id !== it.id);
-                    }
-
-                    // Deliver stock back to shopkeeper
-                    const shopExisting = npc.inventory.find(i => i.name === it.name);
-                    if (shopExisting) {
-                        shopExisting.count++;
-                    } else {
-                        npc.inventory.push({
-                            name: it.name,
-                            type: it.type,
-                            heal: it.heal || 0,
-                            bonusAtk: it.bonusAtk || 0,
-                            bonusDef: it.bonusDef || 0,
-                            description: it.description || '',
-                            cost: it.cost || Math.floor(sellValue / 0.7),
-                            value: sellValue,
-                            count: 1
-                        });
-                    }
-
-                    this._appendSystemMessage(`Sold 1x ${it.name} for ${sellValue} G.`);
-                    this.renderShopWindow(); // Refresh
+                slot.onclick = () => {
+                    this.selectedShopPlayerIndex = i;
+                    this.selectedShopVendorIndex = -1; // Deselect vendor item
+                    this.renderShopWindow();
                 };
-
-                sellSection.appendChild(price);
-                sellSection.appendChild(btn);
-
-                row.appendChild(meta);
-                row.appendChild(sellSection);
-                rightCol.appendChild(row);
-            });
+            } else {
+                slot.className += ' empty';
+                slot.innerHTML = '<span class="item-slot-dots">·</span>';
+            }
+            playerGrid.appendChild(slot);
         }
+        rightCol.appendChild(playerGrid);
+
+        // PLAYER BACKPACK ITEM DETAILS CARD BELOW GRID
+        const playerDetails = document.createElement('div');
+        playerDetails.className = 'rpg-item-row';
+        playerDetails.style.flexDirection = 'column';
+        playerDetails.style.alignItems = 'stretch';
+        playerDetails.style.marginTop = 'auto';
+        playerDetails.style.padding = '8px 10px';
+        playerDetails.style.gap = '4px';
+        playerDetails.style.minHeight = '64px';
+
+        const selPlayerItem = playerInv[this.selectedShopPlayerIndex];
+        if (selPlayerItem) {
+            const dNameRow = document.createElement('div');
+            dNameRow.style.display = 'flex';
+            dNameRow.style.justifyContent = 'space-between';
+            dNameRow.style.alignItems = 'center';
+            dNameRow.style.fontWeight = 'bold';
+            dNameRow.style.fontSize = '0.85em';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.style.color = '#FFF';
+            nameSpan.textContent = `${this._getItemEmoji(selPlayerItem)} ${selPlayerItem.name} (x${selPlayerItem.count})${selPlayerItem.equipped ? ' [E]' : ''}`;
+
+            const statSpan = document.createElement('span');
+            statSpan.style.fontSize = '0.9em';
+            statSpan.style.color = '#2ecc71';
+            let statText = '';
+            if (selPlayerItem.bonusAtk) statText = `+${selPlayerItem.bonusAtk} ATK`;
+            else if (selPlayerItem.bonusDef) statText = `+${selPlayerItem.bonusDef} DEF`;
+            else if (selPlayerItem.heal) statText = `+${selPlayerItem.heal} HP`;
+            statSpan.textContent = statText;
+
+            dNameRow.appendChild(nameSpan);
+            dNameRow.appendChild(statSpan);
+
+            const dDesc = document.createElement('div');
+            dDesc.style.fontSize = '0.75em';
+            dDesc.style.color = '#D4C8A0';
+            dDesc.style.lineHeight = '1.2';
+            dDesc.textContent = selPlayerItem.description || 'No description.';
+
+            const dActionRow = document.createElement('div');
+            dActionRow.style.display = 'flex';
+            dActionRow.style.justifyContent = 'space-between';
+            dActionRow.style.alignItems = 'center';
+            dActionRow.style.marginTop = '4px';
+
+            const sellValue = selPlayerItem.value || Math.floor((selPlayerItem.cost || 20) * 0.7);
+
+            const dPrice = document.createElement('span');
+            dPrice.style.fontSize = '0.85em';
+            dPrice.style.color = '#FFD700';
+            dPrice.style.fontWeight = 'bold';
+            dPrice.textContent = `${sellValue}G`;
+
+            const dSellBtn = document.createElement('button');
+            dSellBtn.className = 'rpg-btn-sell';
+            dSellBtn.style.padding = '3px 12px';
+            dSellBtn.textContent = 'Sell';
+            dSellBtn.onclick = (e) => {
+                e.stopPropagation();
+                player.gold += sellValue;
+                selPlayerItem.count--;
+
+                // Deliver stock back to shopkeeper
+                const shopExisting = npc.inventory.find(i => i.name === selPlayerItem.name);
+                if (shopExisting) {
+                    shopExisting.count++;
+                } else {
+                    npc.inventory.push({
+                        name: selPlayerItem.name,
+                        type: selPlayerItem.type,
+                        heal: selPlayerItem.heal || 0,
+                        bonusAtk: selPlayerItem.bonusAtk || 0,
+                        bonusDef: selPlayerItem.bonusDef || 0,
+                        description: selPlayerItem.description || '',
+                        cost: selPlayerItem.cost || Math.floor(sellValue / 0.7),
+                        value: sellValue,
+                        count: 1
+                    });
+                }
+
+                if (selPlayerItem.count <= 0) {
+                    player.inventory = player.inventory.filter(pi => pi.id !== selPlayerItem.id);
+                    this.selectedShopPlayerIndex = 0;
+                }
+
+                this._appendSystemMessage(`Sold 1x ${selPlayerItem.name} for ${sellValue} G.`);
+                this.renderShopWindow();
+            };
+
+            dActionRow.appendChild(dPrice);
+            dActionRow.appendChild(dSellBtn);
+
+            playerDetails.appendChild(dNameRow);
+            playerDetails.appendChild(dDesc);
+            playerDetails.appendChild(dActionRow);
+        } else {
+            const dHint = document.createElement('div');
+            dHint.style.color = '#A07D65';
+            dHint.style.fontSize = '0.75em';
+            dHint.style.textAlign = 'center';
+            dHint.style.padding = '15px 0';
+            dHint.style.fontStyle = 'italic';
+            dHint.textContent = "Select backpack item to sell.";
+            playerDetails.appendChild(dHint);
+        }
+        rightCol.appendChild(playerDetails);
 
         layout.appendChild(leftCol);
         layout.appendChild(rightCol);
@@ -1062,15 +1254,11 @@ class DialogueUI {
         const npc = this.participants[0];
         if (!npc) return;
 
-        // Two-column comparative inspect grid
-        const layout = document.createElement('div');
-        layout.className = 'rpg-two-column-layout';
+        // Initialize display indices
+        if (this.selectedInspectPlayerIndex === undefined) this.selectedInspectPlayerIndex = 0;
+        if (this.selectedInspectNpcIndex === undefined) this.selectedInspectNpcIndex = 0;
 
-        // LEFT COLUMN: PLAYER STATUS & WEAPONS
-        const leftCol = document.createElement('div');
-        leftCol.className = 'rpg-scroll-section';
-
-        // Calculate actual combat power stats
+        // Calculate combat power stats
         const activeWeapon = player.inventory.find(i => i.type === 'weapon' && i.equipped);
         const activeShield = player.inventory.find(i => i.type === 'shield' && i.equipped);
 
@@ -1079,6 +1267,26 @@ class DialogueUI {
 
         player.stats.atk = currentAtk;
         player.stats.def = currentDef;
+
+        const playerInv = player.inventory || [];
+        if (this.selectedInspectPlayerIndex >= playerInv.length) {
+            this.selectedInspectPlayerIndex = playerInv.length - 1;
+        }
+        if (playerInv.length === 0) this.selectedInspectPlayerIndex = -1;
+
+        const npcInv = npc.inventory || [];
+        if (this.selectedInspectNpcIndex >= npcInv.length) {
+            this.selectedInspectNpcIndex = npcInv.length - 1;
+        }
+        if (npcInv.length === 0) this.selectedInspectNpcIndex = -1;
+
+        // Two-column comparative inspect grid
+        const layout = document.createElement('div');
+        layout.className = 'rpg-two-column-layout';
+
+        // LEFT COLUMN: PLAYER STATUS & WEAPONS
+        const leftCol = document.createElement('div');
+        leftCol.className = 'rpg-scroll-section';
 
         const leftTitle = document.createElement('div');
         leftTitle.className = 'rpg-section-title';
@@ -1092,85 +1300,163 @@ class DialogueUI {
         statsRow.innerHTML = `⚔️ ATK: <span style="color:#f39c12">${currentAtk}</span> | 🛡️ DEF: <span style="color:#2ecc71">${currentDef}</span>`;
         leftCol.appendChild(statsRow);
 
-        if (!player.inventory || player.inventory.length === 0) {
-            const empty = document.createElement('div');
-            empty.textContent = "Your backpack is empty.";
-            empty.style.color = '#A07D65';
-            empty.style.textAlign = 'center';
-            leftCol.appendChild(empty);
-        } else {
-            player.inventory.forEach(it => {
-                const row = document.createElement('div');
-                row.className = 'rpg-item-row';
+        const playerGrid = document.createElement('div');
+        playerGrid.className = 'inventory-grid-container';
+        playerGrid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+        playerGrid.style.gap = '6px';
+        playerGrid.style.padding = '6px';
+        playerGrid.style.minHeight = '120px';
+        playerGrid.style.marginBottom = '8px';
+
+        const gridSlotsCount = 18;
+        for (let i = 0; i < gridSlotsCount; i++) {
+            const it = playerInv[i] || null;
+            const slot = document.createElement('div');
+            slot.className = 'inventory-item-slot';
+            if (it) {
+                slot.className += ' filled';
+                if (it.equipped) slot.className += ' equipped';
+                if (this.selectedInspectPlayerIndex === i) slot.className += ' selected';
+
+                const emoji = document.createElement('span');
+                emoji.className = 'item-slot-emoji';
+                emoji.style.fontSize = '1.4em';
+                emoji.textContent = this._getItemEmoji(it);
+                slot.appendChild(emoji);
+
+                const countBadge = document.createElement('span');
+                countBadge.className = 'item-slot-count';
+                countBadge.textContent = it.count > 1 ? `x${it.count}` : '';
+                slot.appendChild(countBadge);
+
                 if (it.equipped) {
-                    row.style.border = '1px solid #2ecc71';
-                    row.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
+                    const eqBadge = document.createElement('span');
+                    eqBadge.className = 'item-equipped-indicator';
+                    eqBadge.textContent = 'E';
+                    slot.appendChild(eqBadge);
                 }
 
-                const meta = document.createElement('div');
-                meta.style.display = 'flex';
-                meta.style.flexDirection = 'column';
+                slot.title = `${it.name}\n${it.description}`;
 
-                const name = document.createElement('strong');
-                name.style.fontSize = '0.85em';
-                name.textContent = `${it.name} (x${it.count})${it.equipped ? ' [Equipped]' : ''}`;
-                if (it.equipped) name.style.color = '#2ecc71';
-
-                const desc = document.createElement('span');
-                desc.style.fontSize = '0.7em';
-                desc.style.color = '#D4C8A0';
-                desc.textContent = it.description;
-
-                meta.appendChild(name);
-                meta.appendChild(desc);
-
-                const btn = document.createElement('button');
-                btn.style.fontSize = '0.75em';
-                btn.style.padding = '2px 8px';
-
-                if (it.type === 'consumable') {
-                    btn.className = 'rpg-btn-use';
-                    btn.textContent = 'Use';
-                    btn.onclick = () => {
-                        if (player.stats.hp >= player.stats.maxHp) {
-                            CustomDialog.alert("Your HP is fully topped!", "Full Vitality");
-                            return;
-                        }
-                        const hpHealed = Math.min(player.stats.maxHp - player.stats.hp, it.heal || 15);
-                        player.stats.hp += hpHealed;
-                        it.count--;
-                        if (it.count <= 0) {
-                            player.inventory = player.inventory.filter(obj => obj.id !== it.id);
-                        }
-                        this._appendSystemMessage(`Consumed ${it.name}. Restored +${hpHealed} HP.`);
-                        this.renderInventoryWindow();
-                    };
-                } else {
-                    btn.className = it.equipped ? 'rpg-btn-sell' : 'rpg-btn-equip';
-                    btn.textContent = it.equipped ? 'Unequip' : 'Equip';
-                    btn.onclick = () => {
-                        if (it.equipped) {
-                            it.equipped = false;
-                            this._appendSystemMessage(`Unequipped ${it.name}.`);
-                        } else {
-                            // Slot locking checks
-                            if (it.type === 'weapon') {
-                                player.inventory.forEach(other => { if (other.type === 'weapon') other.equipped = false; });
-                            } else if (it.type === 'shield' || it.type === 'armor') {
-                                player.inventory.forEach(other => { if (other.type === 'shield') other.equipped = false; });
-                            }
-                            it.equipped = true;
-                            this._appendSystemMessage(`Equipped ${it.name}!`);
-                        }
-                        this.renderInventoryWindow();
-                    };
-                }
-
-                row.appendChild(meta);
-                row.appendChild(btn);
-                leftCol.appendChild(row);
-            });
+                slot.onclick = () => {
+                    this.selectedInspectPlayerIndex = i;
+                    this.selectedInspectNpcIndex = -1; // Deselect NPC item
+                    this.renderInventoryWindow();
+                };
+            } else {
+                slot.className += ' empty';
+                slot.innerHTML = '<span class="item-slot-dots">·</span>';
+            }
+            playerGrid.appendChild(slot);
         }
+        leftCol.appendChild(playerGrid);
+
+        // PLAYER INSPECT DETAILS SHEET BELOW GRID
+        const playerDetails = document.createElement('div');
+        playerDetails.className = 'rpg-item-row';
+        playerDetails.style.flexDirection = 'column';
+        playerDetails.style.alignItems = 'stretch';
+        playerDetails.style.marginTop = 'auto';
+        playerDetails.style.padding = '8px 10px';
+        playerDetails.style.gap = '4px';
+        playerDetails.style.minHeight = '64px';
+
+        const selInspectItem = playerInv[this.selectedInspectPlayerIndex];
+        if (selInspectItem) {
+            const dNameRow = document.createElement('div');
+            dNameRow.style.display = 'flex';
+            dNameRow.style.justifyContent = 'space-between';
+            dNameRow.style.alignItems = 'center';
+            dNameRow.style.fontWeight = 'bold';
+            dNameRow.style.fontSize = '0.85em';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.style.color = selInspectItem.equipped ? '#2ecc71' : '#FFF';
+            nameSpan.textContent = `${this._getItemEmoji(selInspectItem)} ${selInspectItem.name} (x${selInspectItem.count})${selInspectItem.equipped ? ' [E]' : ''}`;
+
+            const statSpan = document.createElement('span');
+            statSpan.style.fontSize = '0.9em';
+            statSpan.style.color = '#2ecc71';
+            let statText = '';
+            if (selInspectItem.bonusAtk) statText = `+${selInspectItem.bonusAtk} ATK`;
+            else if (selInspectItem.bonusDef) statText = `+${selInspectItem.bonusDef} DEF`;
+            else if (selInspectItem.heal) statText = `+${selInspectItem.heal} HP`;
+            statSpan.textContent = statText;
+
+            dNameRow.appendChild(nameSpan);
+            dNameRow.appendChild(statSpan);
+
+            const dDesc = document.createElement('div');
+            dDesc.style.fontSize = '0.75em';
+            dDesc.style.color = '#D4C8A0';
+            dDesc.style.lineHeight = '1.2';
+            dDesc.textContent = selInspectItem.description || 'No description.';
+
+            const dActionRow = document.createElement('div');
+            dActionRow.style.display = 'flex';
+            dActionRow.style.justifyContent = 'flex-end';
+            dActionRow.style.marginTop = '4px';
+
+            const btn = document.createElement('button');
+            btn.style.fontSize = '0.75em';
+            btn.style.padding = '3px 12px';
+
+            if (selInspectItem.type === 'consumable') {
+                btn.className = 'rpg-btn-use';
+                btn.textContent = 'Use';
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (player.stats.hp >= player.stats.maxHp) {
+                        CustomDialog.alert("Your HP is fully topped!", "Full Vitality");
+                        return;
+                    }
+                    const hpHealed = Math.min(player.stats.maxHp - player.stats.hp, selInspectItem.heal || 15);
+                    player.stats.hp += hpHealed;
+                    selInspectItem.count--;
+                    if (selInspectItem.count <= 0) {
+                        player.inventory = player.inventory.filter(obj => obj.id !== selInspectItem.id);
+                        this.selectedInspectPlayerIndex = 0;
+                    }
+                    this._appendSystemMessage(`Consumed ${selInspectItem.name}. Restored +${hpHealed} HP.`);
+                    this.renderInventoryWindow();
+                };
+            } else {
+                btn.className = selInspectItem.equipped ? 'rpg-btn-sell' : 'rpg-btn-equip';
+                btn.textContent = selInspectItem.equipped ? 'Unequip' : 'Equip';
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (selInspectItem.equipped) {
+                        selInspectItem.equipped = false;
+                        this._appendSystemMessage(`Unequipped ${selInspectItem.name}.`);
+                    } else {
+                        // Slot locking checks
+                        if (selInspectItem.type === 'weapon') {
+                            player.inventory.forEach(other => { if (other.type === 'weapon') other.equipped = false; });
+                        } else if (selInspectItem.type === 'shield' || selInspectItem.type === 'armor') {
+                            player.inventory.forEach(other => { if (other.type === 'shield' || other.type === 'armor') other.equipped = false; });
+                        }
+                        selInspectItem.equipped = true;
+                        this._appendSystemMessage(`Equipped ${selInspectItem.name}!`);
+                    }
+                    this.renderInventoryWindow();
+                };
+            }
+            dActionRow.appendChild(btn);
+
+            playerDetails.appendChild(dNameRow);
+            playerDetails.appendChild(dDesc);
+            playerDetails.appendChild(dActionRow);
+        } else {
+            const dHint = document.createElement('div');
+            dHint.style.color = '#A07D65';
+            dHint.style.fontSize = '0.75em';
+            dHint.style.textAlign = 'center';
+            dHint.style.padding = '15px 0';
+            dHint.style.fontStyle = 'italic';
+            dHint.textContent = "Select backpack item to inspect.";
+            playerDetails.appendChild(dHint);
+        }
+        leftCol.appendChild(playerDetails);
 
         // RIGHT COLUMN: NPC INVENTORY & EQUIPMENT (SOCIALLY INTERACTIVE)
         const rightCol = document.createElement('div');
@@ -1194,56 +1480,129 @@ class DialogueUI {
         eqDiv.innerHTML = `⚔️ Weapon: <span style="color:#FFF">${eqWeaponStr}</span> | 🛡️ Offhand: <span style="color:#FFF">${eqShieldStr}</span>`;
         rightCol.appendChild(eqDiv);
 
-        if (!npc.inventory || npc.inventory.length === 0) {
-            const empty = document.createElement('div');
-            empty.textContent = "Their bag is empty.";
-            empty.style.color = '#A07D65';
-            empty.style.textAlign = 'center';
-            rightCol.appendChild(empty);
-        } else {
-            npc.inventory.forEach(it => {
-                const row = document.createElement('div');
-                row.className = 'rpg-item-row';
+        const npcGrid = document.createElement('div');
+        npcGrid.className = 'inventory-grid-container';
+        npcGrid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+        npcGrid.style.gap = '6px';
+        npcGrid.style.padding = '6px';
+        npcGrid.style.minHeight = '120px';
+        npcGrid.style.marginBottom = '8px';
 
-                const meta = document.createElement('div');
-                meta.style.display = 'flex';
-                meta.style.flexDirection = 'column';
+        for (let i = 0; i < gridSlotsCount; i++) {
+            const it = npcInv[i] || null;
+            const slot = document.createElement('div');
+            slot.className = 'inventory-item-slot';
+            if (it) {
+                slot.className += ' filled';
+                if (this.selectedInspectNpcIndex === i) slot.className += ' selected';
 
-                const name = document.createElement('strong');
-                name.style.fontSize = '0.85em';
-                name.textContent = `${it.name} (x${it.count})`;
+                const emoji = document.createElement('span');
+                emoji.className = 'item-slot-emoji';
+                emoji.style.fontSize = '1.4em';
+                emoji.textContent = this._getItemEmoji(it);
+                slot.appendChild(emoji);
 
-                const desc = document.createElement('span');
-                desc.style.fontSize = '0.7em';
-                desc.style.color = '#D4C8A0';
-                desc.textContent = it.description || 'Stock gear.';
+                const countBadge = document.createElement('span');
+                countBadge.className = 'item-slot-count';
+                countBadge.textContent = it.count > 1 ? `x${it.count}` : '';
+                slot.appendChild(countBadge);
 
-                meta.appendChild(name);
-                meta.appendChild(desc);
+                slot.title = `${it.name}\n${it.description}`;
 
-                const btn = document.createElement('button');
-                btn.className = 'rpg-btn-quest';
-                btn.style.fontSize = '0.75em';
-                btn.textContent = 'Ask For Item';
-                btn.title = `Ask ${npc.name} to grant you this item in exchange for a local task.`;
-                btn.onclick = () => {
-                    this._appendPlayerChoice(`Could I have your "${it.name}"?`);
-                    
-                    if (this.engine.questSystem) {
-                        const customQuest = this.engine.questSystem.generateItemQuest(npc, it);
-                        this._triggerNpcResponse(`Well, I can't just part with my ${it.name} for free. But if you helper me with "${customQuest.title}", I'll give it to you! Will you help?`, () => {
-                            this.renderQuestOfferDialogue(customQuest);
-                        });
-                    } else {
-                        this._triggerNpcResponse(`I am sorry, my quest trackers appear offline. Try again later!`);
-                    }
+                slot.onclick = () => {
+                    this.selectedInspectNpcIndex = i;
+                    this.selectedInspectPlayerIndex = -1; // Deselect Player item
+                    this.renderInventoryWindow();
                 };
-
-                row.appendChild(meta);
-                row.appendChild(btn);
-                rightCol.appendChild(row);
-            });
+            } else {
+                slot.className += ' empty';
+                slot.innerHTML = '<span class="item-slot-dots">·</span>';
+            }
+            npcGrid.appendChild(slot);
         }
+        rightCol.appendChild(npcGrid);
+
+        // NPC INSPECT DETAILS SHEET BELOW GRID
+        const npcDetails = document.createElement('div');
+        npcDetails.className = 'rpg-item-row';
+        npcDetails.style.flexDirection = 'column';
+        npcDetails.style.alignItems = 'stretch';
+        npcDetails.style.marginTop = 'auto';
+        npcDetails.style.padding = '8px 10px';
+        npcDetails.style.gap = '4px';
+        npcDetails.style.minHeight = '64px';
+
+        const selNpcItem = npcInv[this.selectedInspectNpcIndex];
+        if (selNpcItem) {
+            const dNameRow = document.createElement('div');
+            dNameRow.style.display = 'flex';
+            dNameRow.style.justifyContent = 'space-between';
+            dNameRow.style.alignItems = 'center';
+            dNameRow.style.fontWeight = 'bold';
+            dNameRow.style.fontSize = '0.85em';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.style.color = '#FFF';
+            nameSpan.textContent = `${this._getItemEmoji(selNpcItem)} ${selNpcItem.name} (x${selNpcItem.count})`;
+
+            const statSpan = document.createElement('span');
+            statSpan.style.fontSize = '0.9em';
+            statSpan.style.color = '#2ecc71';
+            let statText = '';
+            if (selNpcItem.bonusAtk) statText = `+${selNpcItem.bonusAtk} ATK`;
+            else if (selNpcItem.bonusDef) statText = `+${selNpcItem.bonusDef} DEF`;
+            else if (selNpcItem.heal) statText = `+${selNpcItem.heal} HP`;
+            statSpan.textContent = statText;
+
+            dNameRow.appendChild(nameSpan);
+            dNameRow.appendChild(statSpan);
+
+            const dDesc = document.createElement('div');
+            dDesc.style.fontSize = '0.75em';
+            dDesc.style.color = '#D4C8A0';
+            dDesc.style.lineHeight = '1.2';
+            dDesc.textContent = selNpcItem.description || 'No description.';
+
+            const dActionRow = document.createElement('div');
+            dActionRow.style.display = 'flex';
+            dActionRow.style.justifyContent = 'flex-end';
+            dActionRow.style.marginTop = '4px';
+
+            const btn = document.createElement('button');
+            btn.className = 'rpg-btn-quest';
+            btn.style.fontSize = '0.75em';
+            btn.style.padding = '3px 12px';
+            btn.textContent = 'Ask For Item';
+            btn.title = `Ask ${npc.name} to grant you this item in exchange for a local task.`;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                this._appendPlayerChoice(`Could I have your "${selNpcItem.name}"?`);
+
+                if (this.engine.questSystem) {
+                    const customQuest = this.engine.questSystem.generateItemQuest(npc, selNpcItem);
+                    this._triggerNpcResponse(`Well, I can't just part with my ${selNpcItem.name} for free. But if you helper me with "${customQuest.title}", I'll give it to you! Will you help?`, () => {
+                        this.renderQuestOfferDialogue(customQuest);
+                    });
+                } else {
+                    this._triggerNpcResponse(`I am sorry, my quest trackers appear offline. Try again later!`);
+                }
+            };
+            dActionRow.appendChild(btn);
+
+            npcDetails.appendChild(dNameRow);
+            npcDetails.appendChild(dDesc);
+            npcDetails.appendChild(dActionRow);
+        } else {
+            const dHint = document.createElement('div');
+            dHint.style.color = '#A07D65';
+            dHint.style.fontSize = '0.75em';
+            dHint.style.textAlign = 'center';
+            dHint.style.padding = '15px 0';
+            dHint.style.fontStyle = 'italic';
+            dHint.textContent = "Select their backpack item to ask for.";
+            npcDetails.appendChild(dHint);
+        }
+        rightCol.appendChild(npcDetails);
 
         layout.appendChild(leftCol);
         layout.appendChild(rightCol);

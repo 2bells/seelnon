@@ -52,16 +52,20 @@ class NpcCreatorUI {
         saveButton.onclick = () => this.creator.save();
         opsButtons.appendChild(saveButton);
         
+        const npcLoadId = 'rpg-npc-load-file-upload-input';
         const loadInput = document.createElement('input');
+        loadInput.id = npcLoadId;
         loadInput.type = 'file';
         loadInput.accept = '.json';
         loadInput.style.display = 'none';
         loadInput.onchange = (e) => this.creator.load(e);
         this.fields.loadInput = loadInput;
+        opsButtons.appendChild(loadInput);
         
-        const loadButton = document.createElement('button');
+        const loadButton = document.createElement('label');
+        loadButton.htmlFor = npcLoadId;
+        loadButton.className = 'rpg-file-label';
         loadButton.textContent = 'Load (.json)';
-        loadButton.onclick = () => loadInput.click();
         opsButtons.appendChild(loadButton);
         opsSection.appendChild(opsButtons);
 
@@ -322,15 +326,18 @@ class NpcCreatorUI {
         uploadDiv.style.justifyContent = 'center';
         uploadDiv.style.gap = '5px';
         
+        const npcMapSpriteId = 'rpg-npc-map-sprite-file-upload-input';
         const uploadInput = document.createElement('input');
+        uploadInput.id = npcMapSpriteId;
         uploadInput.type = 'file';
         uploadInput.accept = 'image/png';
         uploadInput.style.display = 'none';
         uploadInput.onchange = (e) => this.creator.handleImageUpload(e, 'map_sprite');
         
-        const uploadButton = document.createElement('button');
+        const uploadButton = document.createElement('label');
+        uploadButton.htmlFor = npcMapSpriteId;
+        uploadButton.className = 'rpg-file-label';
         uploadButton.textContent = 'Upload Custom';
-        uploadButton.onclick = () => uploadInput.click();
         uploadDiv.appendChild(uploadInput);
         uploadDiv.appendChild(uploadButton);
 
@@ -412,15 +419,18 @@ class NpcCreatorUI {
         previewDiv.appendChild(img);
         this.fields.mainAvatarPreview = img;
         
+        const npcMainAvatarId = 'rpg-npc-main-avatar-file-upload-input';
         const uploadInput = document.createElement('input');
+        uploadInput.id = npcMainAvatarId;
         uploadInput.type = 'file';
         uploadInput.accept = 'image/png, image/jpeg, image/webp';
         uploadInput.style.display = 'none';
         uploadInput.onchange = (e) => this.creator.handleImageUpload(e, 'main_avatar');
 
-        const uploadButton = document.createElement('button');
+        const uploadButton = document.createElement('label');
+        uploadButton.htmlFor = npcMainAvatarId;
+        uploadButton.className = 'rpg-file-label';
         uploadButton.textContent = 'Upload Main Avatar';
-        uploadButton.onclick = () => uploadInput.click();
 
         container.appendChild(previewDiv);
         container.appendChild(uploadButton);
@@ -454,23 +464,24 @@ class NpcCreatorUI {
         const entryDiv = document.createElement('div');
         entryDiv.className = 'npc-reactive-avatar-entry';
         
-        const previewDiv = document.createElement('div');
+        const npcReactiveId = `rpg-npc-reactive-avatar-file-upload-input-${index}-${Date.now()}`;
+        const previewDiv = document.createElement('label');
+        previewDiv.htmlFor = npcReactiveId;
         previewDiv.className = 'npc-avatar-preview-container';
         previewDiv.style.width = '32px';
         previewDiv.style.height = '32px';
+        previewDiv.style.cursor = 'pointer';
+        previewDiv.title = "Click to upload avatar";
         const img = document.createElement('img');
         if (data.dataUrl) img.src = data.dataUrl;
         previewDiv.appendChild(img);
         
         const uploadInput = document.createElement('input');
+        uploadInput.id = npcReactiveId;
         uploadInput.type = 'file';
         uploadInput.accept = 'image/png, image/jpeg, image/webp';
         uploadInput.style.display = 'none';
         uploadInput.onchange = (e) => this.creator.handleImageUpload(e, 'reactive_avatar', index);
-        
-        previewDiv.onclick = () => uploadInput.click();
-        previewDiv.title = "Click to upload avatar";
-        previewDiv.style.cursor = 'pointer';
 
         const keywordInput = document.createElement('input');
         keywordInput.type = 'text';

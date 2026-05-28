@@ -3,6 +3,7 @@
 console.log("rpg/game/entities/player.js loaded");
 
 import Enemy from './enemy.js';
+import NPC from './npc.js';
 import { GLOBAL_COLLISION_Y_OFFSET } from './gameObject.js'; // Import the constant
 import { FloatingTextEffect } from '../combat/effects.js';
 import { updateAbilityCycle } from '../combat/ability_system.js';
@@ -175,6 +176,65 @@ class Player {
         }
     }
 
+    resolveStaticCollisions() {
+        if (!this.map) return;
+        
+        let center = { x: this.currentPixelX, y: this.currentPixelY - GLOBAL_COLLISION_Y_OFFSET };
+        let push = this.map.getStaticPushVector(center, this.collisionRadius, this.engine.gameObjects);
+        
+        if (push.count > 0) {
+            const pushLength = Math.sqrt(push.x * push.x + push.y * push.y);
+            if (pushLength > 0) {
+                // Scale the push slightly with a safety buffer (+3px) to guarantee clearing the collidable boundary
+                const multiplier = (pushLength + 3.0) / pushLength;
+                this.currentPixelX += push.x * multiplier;
+                this.currentPixelY += push.y * multiplier;
+            } else {
+                this.currentPixelX += push.x;
+                this.currentPixelY += push.y;
+            }
+            this.updateMapCoordsFromPixels();
+        }
+
+        // Check if player is on empty tile (abyss) or out of bounds, and nudge them back to safe terrain
+        const mapCoords = this.map.screenToMap(this.currentPixelX, this.currentPixelY);
+        const tileX = Math.floor(mapCoords.x);
+        const tileY = Math.floor(mapCoords.y);
+        
+        if (tileX < 0 || tileX >= this.map.width || tileY < 0 || tileY >= this.map.height || this.map.tiles[tileY][tileX] === 0) {
+            let bestTile = null;
+            let minDistSq = Infinity;
+            
+            // Search a small neighborhood for the nearest non-empty tile
+            for (let dy = -4; dy <= 4; dy++) {
+                for (let dx = -4; dx <= 4; dx++) {
+                    const tx = tileX + dx;
+                    const ty = tileY + dy;
+                    if (tx >= 0 && tx < this.map.width && ty >= 0 && ty < this.map.height) {
+                        if (this.map.tiles[ty][tx] !== 0) {
+                            const tileCenterScreen = this.map.mapToScreen(tx + 0.5, ty + 0.5);
+                            const dSq = (tileCenterScreen.x - this.currentPixelX)**2 + (tileCenterScreen.y - this.currentPixelY)**2;
+                            if (dSq < minDistSq) {
+                                minDistSq = dSq;
+                                bestTile = tileCenterScreen;
+                            }
+                        }
+                    }
+                }
+            }
+            if (bestTile) {
+                const dx = bestTile.x - this.currentPixelX;
+                const dy = bestTile.y - this.currentPixelY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    this.currentPixelX += (dx / dist) * Math.min(dist, 15);
+                    this.currentPixelY += (dy / dist) * Math.min(dist, 15);
+                    this.updateMapCoordsFromPixels();
+                }
+            }
+        }
+    }
+
     // This method might be obsolete or need to return points on the circle if used for general visualization
     getCollisionPolygonVertices(baseX, baseY) {
         // For a circle, we don't have vertices in the same way.
@@ -324,6 +384,7 @@ class Player {
             }
         }
         
+        this.resolveStaticCollisions();
         this.updateMapCoordsFromPixels();
 
         // --- Combat Logic ---
@@ -364,7 +425,9 @@ class Player {
         let closestDistSq = this.attackRange * this.attackRange;
 
         for (const obj of this.engine.gameObjects) {
-            const isTargetable = (obj instanceof Enemy) || (obj.type === 'tower_enemy');
+            const isTargetable = (obj instanceof Enemy && obj.friendly !== true) || 
+                                 (obj.type === 'tower_enemy') || 
+                                 (obj instanceof NPC && obj.name.toLowerCase().includes('scruffy'));
             if (isTargetable && obj.stats && obj.stats.hp > 0) {
                 const dx = obj.currentPixelX - this.currentPixelX;
                 const dy = obj.currentPixelY - this.currentPixelY;
@@ -432,11 +495,28 @@ class Player {
         }
 
         if (this.characterData) {
-            ctx.fillStyle = '#EFEBE0'; 
-            ctx.font = '10px Arial';
+            ctx.fillStyle = '#3498db'; // Faction Blue
+            ctx.font = 'bold 10px Arial';
             ctx.textAlign = 'center';
             // Name tag above the visual sprite
             ctx.fillText(this.characterData.name || "Player", drawX, drawY - this.playerVisualHeight - 5);
+        }
+
+        // Render sleek over-the-head player HP bar
+        if (this.stats && this.stats.hp !== undefined) {
+            const barWidth = 40;
+            const barHeight = 5;
+            const barY = drawY - this.playerVisualHeight - 20;
+            const barX = drawX - barWidth / 2;
+            
+            // Background
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+            
+            // Health
+            const hpRatio = Math.max(0, this.stats.hp / this.stats.maxHp);
+            ctx.fillStyle = '#3498db'; // Royal Blue for player
+            ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
         }
 
         // Debug: Draw player's circular collision shape

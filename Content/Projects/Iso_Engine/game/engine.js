@@ -168,6 +168,21 @@ class GameEngine {
         window.addEventListener('keydown', this._handleKeyDown);
         window.addEventListener('keyup', this._handleKeyUp);
         
+        this._boundWindowBlur = () => {
+            // Reset input state when the window/iframe loses focus to prevent stuck keys
+            this.inputState.left = false;
+            this.inputState.right = false;
+            this.inputState.up = false;
+            this.inputState.down = false;
+            this.inputState.action = false;
+        };
+        window.addEventListener('blur', this._boundWindowBlur);
+
+        this._boundCanvasClick = () => {
+            window.focus();
+        };
+        this.canvas.addEventListener('mousedown', this._boundCanvasClick);
+
         this._boundHandleMouseMove = (event) => {
             const canvasRect = this.canvas.getBoundingClientRect();
             this.mousePos.x = event.clientX - canvasRect.left;
@@ -179,6 +194,12 @@ class GameEngine {
     _removeInputHandlers() {
         window.removeEventListener('keydown', this._handleKeyDown);
         window.removeEventListener('keyup', this._handleKeyUp);
+        if (this._boundWindowBlur) {
+            window.removeEventListener('blur', this._boundWindowBlur);
+        }
+        if (this._boundCanvasClick) {
+            this.canvas.removeEventListener('mousedown', this._boundCanvasClick);
+        }
         if (this._boundHandleMouseMove) {
             this.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
         }
@@ -400,6 +421,14 @@ class GameEngine {
 
     isItemEditorActive() {
         return this.editorManager ? this.editorManager.isEditorActive('item') : false;
+    }
+
+    toggleBankEditor() {
+        this.editorManager.toggle('bank');
+    }
+
+    isBankEditorActive() {
+        return this.editorManager ? this.editorManager.isEditorActive('bank') : false;
     }
 
     showTopBannerAnnouncement(text, type) {
@@ -687,42 +716,86 @@ class GameEngine {
         }
         this.waveSpawnTimer -= deltaTime;
 
-        // Check if the Enemy Tower is still functional (alive)
-        let enemyTowerAlive = false;
-        for (const obj of this.gameObjects) {
-            if (obj.type === 'tower_enemy' && obj.stats && !obj.stats.isDestroyed) {
-                enemyTowerAlive = true;
-                break;
-            }
-        }
-
         if (this.waveSpawnTimer <= 0) {
             this.waveSpawnTimer = 22.0; // Wave cooldown (seconds)
-            
-            // Only spawn if enemy tower stands
-            if (enemyTowerAlive && this.map) {
-                const enemySpawn = this.map.spawnPointsData.find(sp => sp.id === 'spawn_pt_enemy_base');
-                if (enemySpawn) {
-                    const mapCoords = this.map.screenToMap(enemySpawn.x, enemySpawn.y);
-                    import('../data/enemy-list.js').then((module) => {
-                        const enemyTypes = module.enemy_types || {};
-                        const slimeData = enemyTypes['slime'];
-                        if (slimeData) {
-                            for (let i = 0; i < 3; i++) {
-                                setTimeout(() => {
-                                    // Gate checks if player or game has ended
-                                    if (!this.player || this.player.stats.hp <= 0) return;
-                                    const enemyInstanceData = JSON.parse(JSON.stringify(slimeData));
-                                    enemyInstanceData.stats.speed = 65; // Nice paced minion speed
-                                    enemyInstanceData.stats.maxHp = 40; // Balanced HP
-                                    enemyInstanceData.stats.hp = 40;
-                                    
-                                    const enemy = new Enemy(this, this.map, mapCoords.x, mapCoords.y, enemyInstanceData);
-                                    this.gameObjects.push(enemy);
-                                }, i * 1500); // Stagger by 1.5s
+
+            // Faction survival checks
+            let scruffyAlive = false;
+            let doranAlive = false;
+            for (const obj of this.gameObjects) {
+                if (obj instanceof NPC) {
+                    const nameLower = obj.name.toLowerCase();
+                    if (nameLower.includes('scruffy') && obj.stats && obj.stats.hp > 0) {
+                        scruffyAlive = true;
+                    }
+                    if (nameLower.includes('doran') && obj.stats && obj.stats.hp > 0) {
+                        doranAlive = true;
+                    }
+                }
+            }
+
+            if (this.map) {
+                // 1. Spawn Hostile red slimes (staggered)
+                if (scruffyAlive) {
+                    const enemySpawn = this.map.spawnPointsData.find(sp => sp.id === 'spawn_pt_enemy_base');
+                    if (enemySpawn) {
+                        const mapCoords = this.map.screenToMap(enemySpawn.x, enemySpawn.y);
+                        mapCoords.x = 13.2; // Move spawn 1 tile below turret line
+                        import('../data/enemy-list.js').then((module) => {
+                            const enemyTypes = module.enemy_types || {};
+                            const slimeData = enemyTypes['slime'];
+                            if (slimeData) {
+                                for (let i = 0; i < 3; i++) {
+                                    setTimeout(() => {
+                                        if (!this.player || this.player.stats.hp <= 0) return;
+                                        // Ensure Scruffy is still alive upon spawn
+                                        if (!this.gameObjects.some(o => o.name && o.name.toLowerCase().includes('scruffy') && o.stats && o.stats.hp > 0)) return;
+
+                                        const enemyInstanceData = JSON.parse(JSON.stringify(slimeData));
+                                        enemyInstanceData.stats.speed = 65;
+                                        enemyInstanceData.stats.maxHp = 40;
+                                        enemyInstanceData.stats.hp = 40;
+                                        
+                                        const enemy = new Enemy(this, this.map, mapCoords.x, mapCoords.y, enemyInstanceData);
+                                        enemy.friendly = false;
+                                        this.gameObjects.push(enemy);
+                                    }, i * 1500); // Stagger by 1.5s
+                                }
                             }
-                        }
-                    }).catch(err => console.error("Error importing enemies during wave spawn:", err));
+                        }).catch(err => console.error("Error spawning red minions:", err));
+                    }
+                }
+
+                // 2. Spawn Friendly blue slimes (staggered)
+                if (doranAlive) {
+                    const playerSpawn = this.map.spawnPointsData.find(sp => sp.type === 'player_entry');
+                    if (playerSpawn) {
+                        const mapCoords = this.map.screenToMap(playerSpawn.x, playerSpawn.y);
+                        mapCoords.x = 13.2; // Move spawn 1 tile below turret line
+                        import('../data/enemy-list.js').then((module) => {
+                            const enemyTypes = module.enemy_types || {};
+                            const slimeData = enemyTypes['slime'];
+                            if (slimeData) {
+                                for (let i = 0; i < 3; i++) {
+                                    setTimeout(() => {
+                                        if (!this.player || this.player.stats.hp <= 0) return;
+                                        // Ensure Doran is still alive upon spawn
+                                        if (!this.gameObjects.some(o => o.name && o.name.toLowerCase().includes('doran') && o.stats && o.stats.hp > 0)) return;
+
+                                        const friendlyInstanceData = JSON.parse(JSON.stringify(slimeData));
+                                        friendlyInstanceData.stats.speed = 65;
+                                        friendlyInstanceData.stats.maxHp = 40;
+                                        friendlyInstanceData.stats.hp = 40;
+                                        friendlyInstanceData.name = "Allied Slime"; // Rename to Allied Slime
+                                        
+                                        const alliedSlime = new Enemy(this, this.map, mapCoords.x, mapCoords.y, friendlyInstanceData);
+                                        alliedSlime.friendly = true;
+                                        this.gameObjects.push(alliedSlime);
+                                    }, i * 1500); // Stagger by 1.5s
+                                }
+                            }
+                        }).catch(err => console.error("Error spawning friendly minions:", err));
+                    }
                 }
             }
         }
@@ -742,6 +815,37 @@ class GameEngine {
                         attackRange: 160,
                         attackCooldown: 1.0, 
                         isDestroyed: false
+                    };
+                    obj.currentTargetLock = null;
+
+                    // Range Rendering Override
+                    const originalRender = obj.render ? obj.render.bind(obj) : null;
+                    obj.render = (ctx, viewOriginX, viewOriginY) => {
+                        if (!obj.stats.isDestroyed) {
+                            const anchorCanvasX = obj.currentPixelX - viewOriginX;
+                            const anchorCanvasY = obj.currentPixelY - viewOriginY;
+                            const radius = obj.stats.attackRange;
+
+                            ctx.save();
+                            // Ground visual fill
+                            ctx.beginPath();
+                            ctx.fillStyle = isTowerBlue ? 'rgba(52, 152, 219, 0.05)' : 'rgba(231, 76, 60, 0.05)';
+                            ctx.ellipse(anchorCanvasX, anchorCanvasY, radius, radius * 0.5, 0, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            // Ground visual border
+                            ctx.strokeStyle = isTowerBlue ? 'rgba(52, 152, 219, 0.45)' : 'rgba(231, 76, 60, 0.45)';
+                            ctx.lineWidth = 1.5;
+                            ctx.setLineDash([8, 4]);
+                            ctx.beginPath();
+                            ctx.ellipse(anchorCanvasX, anchorCanvasY, radius, radius * 0.5, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.restore();
+                        }
+
+                        if (originalRender) {
+                            originalRender(ctx, viewOriginX, viewOriginY);
+                        }
                     };
 
                     // Health Bar rendering support decoration
@@ -765,6 +869,47 @@ class GameEngine {
                         ctx.strokeStyle = '#ffffff';
                         ctx.lineWidth = 1;
                         ctx.strokeRect(drawX, drawY, barWidth, barHeight);
+
+                        // Draw warning laser and exclamation mark if locked on actively
+                        if (obj.currentTargetLock && obj.currentTargetLock.target && obj.currentTargetLock.target.stats.hp > 0) {
+                            const currentTarget = obj.currentTargetLock.target;
+                            const tx = currentTarget.currentPixelX - viewOriginX;
+                            const ty = currentTarget.currentPixelY - viewOriginY - 16;
+                            const hx = obj.currentPixelX - viewOriginX;
+                            const hy = obj.currentPixelY - viewOriginY - 48;
+
+                            ctx.save();
+                            // 1. Draw elegant warning laser
+                            ctx.strokeStyle = isTowerBlue ? 'rgba(52, 152, 219, 0.6)' : 'rgba(231, 76, 60, 0.7)';
+                            ctx.lineWidth = 1.5;
+                            ctx.setLineDash([4, 4]);
+                            ctx.beginPath();
+                            ctx.moveTo(hx, hy);
+                            ctx.lineTo(tx, ty);
+                            ctx.stroke();
+
+                            // 2. Draw warning exclamation mark over the tower
+                            const warningX = obj.currentPixelX - viewOriginX;
+                            const warningY = drawY - 18; // 18px above the health bar
+                            
+                            // Pulse warning icon vertically
+                            const pulse = Math.sin(Date.now() / 70) * 2;
+                            ctx.beginPath();
+                            ctx.arc(warningX, warningY + pulse, 10, 0, Math.PI * 2);
+                            ctx.fillStyle = '#e67e22'; // Bold Orange
+                            ctx.shadowColor = '#e67e22';
+                            ctx.shadowBlur = 8;
+                            ctx.fill();
+
+                            ctx.shadowBlur = 0; // Turn off shadow for text sharpness
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = 'bold 13px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('!', warningX, warningY + pulse);
+
+                            ctx.restore();
+                        }
                     };
 
                     // Implement customized takeDamage on the Tower Game Object dynamically
@@ -814,50 +959,79 @@ class GameEngine {
                     };
                 }
 
-                // If tower is alive, cool down and focus fire
+                // If tower is alive, cool down and target enemies
                 if (!obj.stats.isDestroyed) {
-                    obj.stats.attackCooldown = Math.max(0, obj.stats.attackCooldown - deltaTime);
-
-                    if (obj.stats.attackCooldown <= 0) {
-                        let potentialTarget = null;
+                    if (obj.stats.attackCooldown > 0) {
+                        obj.stats.attackCooldown = Math.max(0, obj.stats.attackCooldown - deltaTime);
+                        // Clear active lock while strictly warming down/recharging internal weapon capacity
+                        obj.currentTargetLock = null;
+                    } else {
+                        let currentTarget = null;
                         let bestDist = obj.stats.attackRange;
 
                         if (isTowerBlue) {
-                            // Target closest aggressive slime minion in range
+                            // Target closest hostile slime minion in range
                             for (const targetObj of this.gameObjects) {
-                                if (targetObj instanceof Enemy && targetObj.stats && targetObj.stats.hp > 0) {
+                                if (targetObj instanceof Enemy && targetObj.friendly !== true && targetObj.stats && targetObj.stats.hp > 0) {
                                     const dx = targetObj.currentPixelX - obj.currentPixelX;
                                     const dy = targetObj.currentPixelY - obj.currentPixelY;
                                     const dist = Math.sqrt(dx * dx + dy * dy);
                                     if (dist < bestDist) {
                                         bestDist = dist;
-                                        potentialTarget = targetObj;
+                                        currentTarget = targetObj;
                                     }
                                 }
                             }
                         } else if (isTowerRed) {
-                            // Target player if in range
+                            // Target player or allied friendly slime
                             if (this.player && this.player.stats.hp > 0) {
                                 const dx = this.player.currentPixelX - obj.currentPixelX;
                                 const dy = this.player.currentPixelY - obj.currentPixelY;
                                 const dist = Math.sqrt(dx * dx + dy * dy);
                                 if (dist < bestDist) {
-                                    potentialTarget = this.player;
+                                    bestDist = dist;
+                                    currentTarget = this.player;
+                                }
+                            }
+                            for (const targetObj of this.gameObjects) {
+                                if (targetObj instanceof Enemy && targetObj.friendly === true && targetObj.stats && targetObj.stats.hp > 0) {
+                                    const dx = targetObj.currentPixelX - obj.currentPixelX;
+                                    const dy = targetObj.currentPixelY - obj.currentPixelY;
+                                    const dist = Math.sqrt(dx * dx + dy * dy);
+                                    if (dist < bestDist) {
+                                        bestDist = dist;
+                                        currentTarget = targetObj;
+                                    }
                                 }
                             }
                         }
 
-                        // Fire glowing target-seeking homing missile!
-                        if (potentialTarget) {
-                            obj.stats.attackCooldown = 1.6; // Rate of combat fire
-                            const projectileColor = isTowerBlue ? '#3498db' : '#e74c3c';
-                            this.addEffect(new TowerOrbEffect(this, {
-                                position: { x: obj.currentPixelX, y: obj.currentPixelY - 48 },
-                                target: potentialTarget,
-                                color: projectileColor,
-                                damage: obj.stats.atk,
-                                owner: obj
-                            }));
+                        // Locked target loading/discharge delay logic
+                        if (currentTarget) {
+                            if (!obj.currentTargetLock || obj.currentTargetLock.target !== currentTarget) {
+                                obj.currentTargetLock = {
+                                    target: currentTarget,
+                                    timer: 1.0 // 1.0 seconds targeting delay before fire discharge
+                                };
+                            } else {
+                                obj.currentTargetLock.timer -= deltaTime;
+                                if (obj.currentTargetLock.timer <= 0) {
+                                    // Lock fully charged! Discharge!
+                                    obj.stats.attackCooldown = 1.6; // Fire rate speed
+                                    obj.currentTargetLock = null;
+
+                                    const projectileColor = isTowerBlue ? '#3498db' : '#e74c3c';
+                                    this.addEffect(new TowerOrbEffect(this, {
+                                        position: { x: obj.currentPixelX, y: obj.currentPixelY - 48 },
+                                        target: currentTarget,
+                                        color: projectileColor,
+                                        damage: obj.stats.atk,
+                                        owner: obj
+                                    }));
+                                }
+                            }
+                        } else {
+                            obj.currentTargetLock = null;
                         }
                     }
                 }
@@ -1402,6 +1576,50 @@ class GameEngine {
             npc.loadCharacterData(characterData);
             this.gameObjects.push(npc);
             console.log(`Spawned permanent NPC '${npc.name}' at map coords (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}).`);
+        }
+
+        // Programmatically spawn Merchant Scruffy if not loaded (representing the Red Faction Nexus / boss objective)
+        const hasScruffy = this.gameObjects.some(obj => obj instanceof NPC && obj.name.toLowerCase().includes('scruffy'));
+        if (!hasScruffy) {
+            const scruffyMapCoords = { x: 8.5, y: 3.5 }; // Perfectly offsetted symmetrically at Red Nexus (opposite Doran at 8.5, 20.5)
+            const scruffyOptions = {
+                id: 'npc_permanent_scruffy',
+                name: "Merchant Scruffy",
+                assetName: 'npcSpritesheet',
+                spriteSourceRect: { x: 128, y: 0, width: 64, height: 64 } // Frame 2 in spritesheet (nice wizard/merchant visual)
+            };
+            const scruffyData = {
+                name: "Merchant Scruffy",
+                description: "Scurrilous rival merchant and guardian of the Red Faction Nexus.",
+                personality: "Calls Blue Faction peasants trash, boasts about his ultimate defensive elixirs.",
+                first_mes: "Aha! You think you can conquer the Red Faction?! Beat my Red Sentry and my loyal slimes first, or buy my Infinity Edge!",
+                mes_example: "",
+                scenario: "Sells elite battle gear, weapons and shields to player for coin.",
+                map_sprite: { type: "spritesheet", source: 2 },
+                stats: { level: 12, hp: 550, maxHp: 550, atk: 45, def: 12, speed: 120 },
+                inventory: [
+                    {
+                        name: "Infinity Edge",
+                        type: "weapon",
+                        bonusAtk: 45,
+                        cost: 400,
+                        description: "+45 Attack. Guaranteed critical blow multiplier.",
+                        count: 1
+                    },
+                    {
+                        name: "Warmog's Armor",
+                        type: "shield",
+                        bonusDef: 30,
+                        cost: 350,
+                        description: "+30 Defense. Scurrilous ultimate protection barrier.",
+                        count: 1
+                    }
+                ]
+            };
+            const scruffyNpc = new NPC(this, this.map, scruffyMapCoords.x, scruffyMapCoords.y, scruffyOptions);
+            scruffyNpc.loadCharacterData(scruffyData);
+            this.gameObjects.push(scruffyNpc);
+            console.log(`Spawned Merchant Scruffy programmatically at map coords (${scruffyMapCoords.x}, ${scruffyMapCoords.y}).`);
         }
 
         // 3. Spawn random NPCs at generic NPC spawn points

@@ -383,6 +383,32 @@ class ItemEditor {
 
         makeField(spellBox, 'Select Spell', 'select', 'attachedAbility');
         form.appendChild(spellBox);
+
+        // 9. Initial Owner/Spawn Allocation
+        const allocationBox = document.createElement('div');
+        allocationBox.style.display = 'flex';
+        allocationBox.style.flexDirection = 'column';
+        allocationBox.style.backgroundColor = '#251E1A';
+        allocationBox.style.padding = '8px';
+        allocationBox.style.borderRadius = '5px';
+        allocationBox.style.border = '1px solid #3B322C';
+        
+        const grpTitleAlloc = document.createElement('div');
+        grpTitleAlloc.style.fontSize = '0.8em';
+        grpTitleAlloc.style.fontWeight = 'bold';
+        grpTitleAlloc.style.color = '#ffd700';
+        grpTitleAlloc.style.marginBottom = '4px';
+        grpTitleAlloc.textContent = '👑 Initial Owner Assignment';
+        allocationBox.appendChild(grpTitleAlloc);
+
+        makeField(allocationBox, 'Where to Spawn upon Save:', 'select', 'spawn_target', {
+            options: [
+                { val: 'database_only', label: '💾 Database Library Only (No spawn)' },
+                { val: 'spawn_bag', label: '🎒 Spawn 1x copy directly to Hero Bag' },
+                { val: 'spawn_shop', label: '🏪 Spawn 5x copies to Doran Shop' }
+            ]
+        });
+        form.appendChild(allocationBox);
         
         formSection.appendChild(form);
         content.appendChild(formSection);
@@ -498,23 +524,26 @@ class ItemEditor {
         btnExport.onclick = () => this.exportSelectedBlueprints();
         row1.appendChild(btnExport);
 
-        const btnImport = document.createElement('button');
-        btnImport.textContent = '📥 Import Bulk (.json)';
-        btnImport.className = 'item-btn-action';
-        btnImport.style.flex = '1';
-        btnImport.style.backgroundColor = '#8c765c';
-        btnImport.style.color = 'white';
-        btnImport.onclick = () => this.bankImportInput.click();
-        row1.appendChild(btnImport);
-
+        const itemBulkImportId = 'rpg-item-bulk-file-upload-input';
         // Hidden file input
         const fileInput = document.createElement('input');
+        fileInput.id = itemBulkImportId;
         fileInput.type = 'file';
         fileInput.accept = '.json';
         fileInput.style.display = 'none';
         fileInput.onchange = (e) => this.importBulkBlueprints(e);
         this.bankImportInput = fileInput;
         row1.appendChild(fileInput);
+
+        const btnImport = document.createElement('label');
+        btnImport.htmlFor = itemBulkImportId;
+        btnImport.textContent = '📥 Import Bulk (.json)';
+        btnImport.className = 'item-btn-action rpg-file-label';
+        btnImport.style.flex = '1';
+        btnImport.style.display = 'inline-block';
+        btnImport.style.backgroundColor = '#8c765c';
+        btnImport.style.color = 'white';
+        row1.appendChild(btnImport);
 
         bankSection.appendChild(row1);
 
@@ -878,17 +907,37 @@ class ItemEditor {
         defOpt.textContent = '-- Choose Item --';
         this.itemSelectDropdown.appendChild(defOpt);
 
-        // Read Custom Library items
+        // 1. Gather all default presets
+        const STANDARD_PRESETS_MUTABLE = [
+            { id: "std_red_potion", name: "Red Potion", emoji: "❤️" },
+            { id: "std_gold_elixir", name: "Gold Elixir", emoji: "🍵" },
+            { id: "std_green_herb", name: "Green Herb", emoji: "🌿" },
+            { id: "std_iron_sword", name: "Iron Sword", emoji: "🗡️" },
+            { id: "std_steel_shield", name: "Steel Shield", emoji: "🛡️" },
+            { id: "std_lucky_ring", name: "Lucky Charm Ring", emoji: "💍" }
+        ];
+
+        // Unique map of ID -> display properties
+        const dbItems = {};
+        STANDARD_PRESETS_MUTABLE.forEach(it => {
+            dbItems[it.id] = it;
+        });
+
+        // 2. Gather custom items
         const customItems = getAllCustomItems();
         Object.keys(customItems).forEach(id => {
-            const it = customItems[id];
+            dbItems[id] = customItems[id];
+        });
+
+        Object.keys(dbItems).forEach(id => {
+            const it = dbItems[id];
             const opt = document.createElement('option');
-            opt.value = it.id;
-            opt.textContent = `${it.emoji || '🎁'} ${it.name}`;
+            opt.value = id;
+            opt.textContent = `${it.emoji || '🎁'} ${it.name} [ID: ${id}]`;
             this.itemSelectDropdown.appendChild(opt);
         });
 
-        if (customItems[currentSelectedVal]) {
+        if (dbItems[currentSelectedVal]) {
             this.itemSelectDropdown.value = currentSelectedVal;
         } else {
             this.itemSelectDropdown.value = '';
@@ -917,6 +966,10 @@ class ItemEditor {
         this.fields.heal.value = '0';
         this.fields.curseHp.value = '0';
         this.fields.attachedAbility.value = '';
+        
+        if (this.fields.spawn_target) {
+            this.fields.spawn_target.value = 'database_only';
+        }
 
         this.selectedItemId = '';
         this.refreshItemDropdown();
@@ -930,7 +983,21 @@ class ItemEditor {
         if (!this.selectedItemId) return;
 
         const customItems = getAllCustomItems();
-        const item = customItems[this.selectedItemId];
+        let item = customItems[this.selectedItemId];
+        
+        if (!item) {
+            // Find in starting standard presets
+            const STANDARD_PRESETS_FULL = [
+                { id: "std_red_potion", name: "Red Potion", type: "consumable", emoji: "❤️", heal: 40, cost: 20, value: 14, description: "Restores 40 Health Points." },
+                { id: "std_gold_elixir", name: "Gold Elixir", type: "consumable", emoji: "🍵", heal: 100, cost: 60, value: 42, description: "A golden elixir that fully restores health and vitality." },
+                { id: "std_green_herb", name: "Green Herb", type: "consumable", emoji: "🌿", heal: 15, cost: 8, value: 5, description: "Restores 15 Health Points." },
+                { id: "std_iron_sword", name: "Iron Sword", type: "weapon", emoji: "🗡️", bonusAtk: 5, cost: 120, value: 84, description: "+5 Weapon attack power." },
+                { id: "std_steel_shield", name: "Steel Shield", type: "shield", emoji: "🛡️", bonusDef: 4, cost: 100, value: 70, description: "+4 Defense combat gear." },
+                { id: "std_lucky_ring", name: "Lucky Charm Ring", type: "passive", emoji: "💍", passiveAtk: 2, passiveDef: 2, passiveHp: 20, cost: 300, value: 150, description: "Grants +2 ATK, +2 DEF, and +20 HP passively while resting in inventory." }
+            ];
+            item = STANDARD_PRESETS_FULL.find(it => it.id === this.selectedItemId);
+        }
+
         if (!item) return;
 
         this.fields.id_slug.value = item.id || '';
@@ -989,8 +1056,26 @@ class ItemEditor {
         this.refreshItemDropdown();
         this.refreshBankList();
         this.loadItemIntoForm();
+
+        // Refresh sibling Bank & Vault Editor view if active!
+        const bankEditor = this.engine.editorManager ? this.engine.editorManager.editors.bank : null;
+        if (bankEditor) {
+            bankEditor.renderDatabaseView();
+        }
+
+        // Process spawn allocation targets
+        const spawnTarget = this.fields.spawn_target.value;
+        if (spawnTarget === 'spawn_bag') {
+            this.spawnItemInPlayerInventory(true);
+        } else if (spawnTarget === 'spawn_shop') {
+            this.addItemToShopkeeper(true);
+        }
         
-        CustomDialog.alert(`Item blueprint "${config.name}" saved to library successfully!`, "Save Success");
+        let allocDesc = "Saved to Library blueprints database.";
+        if (spawnTarget === 'spawn_bag') allocDesc = "Saved to Library and gave 1x copy to Hero bag.";
+        if (spawnTarget === 'spawn_shop') allocDesc = "Saved to Library and stocked 5x copies in Doran's Shop.";
+
+        CustomDialog.alert(`Item blueprint "${config.name}" saved successfully!\n\nAllocation: ${allocDesc}`, "Save Success");
     }
 
     deleteSelectedItem() {
@@ -1012,10 +1097,10 @@ class ItemEditor {
         });
     }
 
-    spawnItemInPlayerInventory() {
+    spawnItemInPlayerInventory(silent = false) {
         const player = this.engine.player;
         if (!player) {
-            CustomDialog.alert("Hero actor is not spawned on map yet.", "Spawn Failed");
+            if (!silent) CustomDialog.alert("Hero actor is not spawned on map yet.", "Spawn Failed");
             return;
         }
 
@@ -1057,10 +1142,12 @@ class ItemEditor {
             this.engine.inventoryUI.addLocalFloatText(`Added ${newItem.emoji} ${newItem.name} to adventure bag!`, '#3498db');
         }
 
-        CustomDialog.alert(`Spawned a copy of "${newItem.name}" directly inside the player bag! Press [I] to review stat bonuses.`, "Item Spawned");
+        if (!silent) {
+            CustomDialog.alert(`Spawned a copy of "${newItem.name}" directly inside the player bag! Press [I] to review stat bonuses.`, "Item Spawned");
+        }
     }
 
-    addItemToShopkeeper() {
+    addItemToShopkeeper(silent = false) {
         // Try to scan active NPCs spawned on map for Shopkeeper/Doran
         let shopkeeperNpc = null;
         for (const obj of this.engine.gameObjects) {
@@ -1071,7 +1158,7 @@ class ItemEditor {
         }
 
         if (!shopkeeperNpc) {
-            CustomDialog.alert("Could not locate active Shopkeeper Doran on the current map.", "Shopkeeper Not Found");
+            if (!silent) CustomDialog.alert("Could not locate active Shopkeeper Doran on the current map.", "Shopkeeper Not Found");
             return;
         }
 
@@ -1108,7 +1195,9 @@ class ItemEditor {
             shopkeeperNpc.inventory.push(catalogItem);
         }
 
-        CustomDialog.alert(`Successfully delivered 5 copies of "${config.name}" to Shopkeeper Doran's Merchant Catalog! Open his shop to trade.`, "Stock Delivered");
+        if (!silent) {
+            CustomDialog.alert(`Successfully delivered 5 copies of "${config.name}" to Shopkeeper Doran's Merchant Catalog! Open his shop to trade.`, "Stock Delivered");
+        }
     }
 }
 

@@ -578,6 +578,311 @@ class GameMap {
         }
         return false;
     }
+
+    getStaticPushVector(circleCenter, radius, gameObjects) {
+        let pushX = 0;
+        let pushY = 0;
+        let collisionCount = 0;
+
+        const circle = { center: { ...circleCenter }, radius };
+
+        // 1. Check against custom collision layer polygons
+        if (this.collisionLayerData) {
+            for (const customShape of this.collisionLayerData) {
+                const poly = customShape.vertices;
+                if (this._circleIntersectsPolygon(circle, poly)) {
+                    let closestPt = null;
+                    let minDistSq = Infinity;
+                    for (let i = 0; i < poly.length; i++) {
+                        const p1 = poly[i];
+                        const p2 = poly[(i + 1) % poly.length];
+                        const pt = this._closestPointOnSegment(circleCenter, p1, p2);
+                        const dSq = this._distSq(circleCenter, pt);
+                        if (dSq < minDistSq) {
+                            minDistSq = dSq;
+                            closestPt = pt;
+                        }
+                    }
+                    if (closestPt) {
+                        const dist = Math.sqrt(minDistSq);
+                        let dx = circleCenter.x - closestPt.x;
+                        let dy = circleCenter.y - closestPt.y;
+                        
+                        let dirX = dx;
+                        let dirY = dy;
+                        if (dist > 0.1) {
+                            dirX /= dist;
+                            dirY /= dist;
+                        } else {
+                            // Point is directly on or extremely close to edge
+                            dirX = 0;
+                            dirY = -1;
+                        }
+                        if (this.pointInPolygon(circleCenter, poly)) {
+                            // If inside, push away from closest boundary point means we go opposite of pointing back inside
+                            dirX = -dirX;
+                            dirY = -dirY;
+                        }
+                        
+                        const overlap = radius - dist;
+                        const pushAmount = this.pointInPolygon(circleCenter, poly) ? (radius + dist + 1) : (overlap + 1);
+                        pushX += dirX * pushAmount;
+                        pushY += dirY * pushAmount;
+                        collisionCount++;
+                    }
+                }
+            }
+        }
+
+        // 2. Check against collidable gameObjects (excluding dynamic ones like player/enemies)
+        if (gameObjects) {
+            for (const obj of gameObjects) {
+                if (obj.collidable && obj.type !== 'player' && obj.type !== 'enemy' && obj.constructor.name !== 'Player' && obj.constructor.name !== 'Enemy') {
+                    const shape = obj.getCollisionBounds();
+                    if (shape) {
+                        if (shape.type === 'rectangle') {
+                            const rect = shape.data;
+                            if (this._circleIntersectsRectangle(circle, rect)) {
+                                const closestX = Math.max(rect.x, Math.min(circleCenter.x, rect.x + rect.width));
+                                const closestY = Math.max(rect.y, Math.min(circleCenter.y, rect.y + rect.height));
+                                const dSq = this._distSq(circleCenter, { x: closestX, y: closestY });
+                                const dist = Math.sqrt(dSq);
+                                
+                                let dx = circleCenter.x - closestX;
+                                let dy = circleCenter.y - closestY;
+                                let dirX = dx;
+                                let dirY = dy;
+                                if (dist > 0.1) {
+                                    dirX /= dist;
+                                    dirY /= dist;
+                                } else {
+                                    dirX = 0;
+                                    dirY = -1;
+                                }
+
+                                const isInsideX = circleCenter.x > rect.x && circleCenter.x < rect.x + rect.width;
+                                const isInsideY = circleCenter.y > rect.y && circleCenter.y < rect.y + rect.height;
+                                if (isInsideX && isInsideY) {
+                                    const distL = circleCenter.x - rect.x;
+                                    const distR = (rect.x + rect.width) - circleCenter.x;
+                                    const distT = circleCenter.y - rect.y;
+                                    const distB = (rect.y + rect.height) - circleCenter.y;
+                                    const minDist = Math.min(distL, distR, distT, distB);
+                                    if (minDist === distL) { dirX = -1; dirY = 0; }
+                                    else if (minDist === distR) { dirX = 1; dirY = 0; }
+                                    else if (minDist === distT) { dirX = 0; dirY = -1; }
+                                    else { dirX = 0; dirY = 1; }
+                                    
+                                    const pushAmount = radius + minDist + 1;
+                                    pushX += dirX * pushAmount;
+                                    pushY += dirY * pushAmount;
+                                } else {
+                                    const overlap = radius - dist;
+                                    pushX += dirX * (overlap + 1);
+                                    pushY += dirY * (overlap + 1);
+                                }
+                                collisionCount++;
+                            }
+                        } else if (shape.type === 'polygon') {
+                            const poly = shape.data;
+                            if (this._circleIntersectsPolygon(circle, poly)) {
+                                let closestPt = null;
+                                let minDistSq = Infinity;
+                                for (let i = 0; i < poly.length; i++) {
+                                    const p1 = poly[i];
+                                    const p2 = poly[(i + 1) % poly.length];
+                                    const pt = this._closestPointOnSegment(circleCenter, p1, p2);
+                                    const dSq = this._distSq(circleCenter, pt);
+                                    if (dSq < minDistSq) {
+                                        minDistSq = dSq;
+                                        closestPt = pt;
+                                    }
+                                }
+                                if (closestPt) {
+                                    const dist = Math.sqrt(minDistSq);
+                                    let dx = circleCenter.x - closestPt.x;
+                                    let dy = circleCenter.y - closestPt.y;
+                                    let dirX = dx;
+                                    let dirY = dy;
+                                    if (dist > 0.1) {
+                                        dirX /= dist;
+                                        dirY /= dist;
+                                    } else {
+                                        dirX = 0;
+                                        dirY = -1;
+                                    }
+                                    if (this.pointInPolygon(circleCenter, poly)) {
+                                        dirX = -dirX;
+                                        dirY = -dirY;
+                                    }
+                                    const overlap = radius - dist;
+                                    const pushAmount = this.pointInPolygon(circleCenter, poly) ? (radius + dist + 1) : (overlap + 1);
+                                    pushX += dirX * pushAmount;
+                                    pushY += dirY * pushAmount;
+                                    collisionCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return { x: pushX, y: pushY, count: collisionCount };
+    }
+
+    isValTile(tx, ty) {
+        if (tx < 0 || tx >= this.width || ty < 0 || ty >= this.height) return false;
+        if (this.tiles[ty] === undefined || this.tiles[ty][tx] === undefined) return false;
+        if (this.tiles[ty][tx] === 0) return false;
+
+        // Block static collidables standing on this exact tile (like Towers)
+        if (this.engine && this.engine.gameObjects) {
+            for (const obj of this.engine.gameObjects) {
+                if (obj.collidable && obj.type !== 'player' && obj.type !== 'enemy' && obj.constructor.name !== 'Player' && obj.constructor.name !== 'Enemy') {
+                    if (Math.round(obj.mapX) === tx && Math.round(obj.mapY) === ty) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        const centerScreen = this.mapToScreen(tx + 0.5, ty + 0.5);
+        const circle = {
+            center: { x: centerScreen.x, y: centerScreen.y - 12 },
+            radius: 4 // Responsive, smaller checking radius prevents lane blocking
+        };
+
+        if (this.collisionLayerData) {
+            for (const customShape of this.collisionLayerData) {
+                if (this._circleIntersectsPolygon(circle, customShape.vertices)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    findTilePath(startTX, startTY, endTX, endTY) {
+        startTX = Math.max(0, Math.min(this.width - 1, Math.floor(startTX)));
+        startTY = Math.max(0, Math.min(this.height - 1, Math.floor(startTY)));
+        endTX = Math.max(0, Math.min(this.width - 1, Math.floor(endTX)));
+        endTY = Math.max(0, Math.min(this.height - 1, Math.floor(endTY)));
+
+        if (startTX === endTX && startTY === endTY) return [{ x: startTX, y: startTY }];
+
+        const openSet = [];
+        const closedSet = new Set();
+        const getKey = (x, y) => `${x},${y}`;
+
+        // Heuristic: Euclidean distance
+        const h = (x1, y1) => Math.sqrt((x1 - endTX)**2 + (y1 - endTY)**2);
+
+        const openMap = new Map();
+        
+        const startNode = {
+            x: startTX,
+            y: startTY,
+            g: 0,
+            f: h(startTX, startTY),
+            parent: null
+        };
+        openSet.push(startNode);
+        openMap.set(getKey(startTX, startTY), 0);
+
+        let closestNode = startNode;
+        let minH = startNode.f;
+
+        let iterations = 0;
+        const maxIterations = 500;
+
+        while (openSet.length > 0 && iterations < maxIterations) {
+            iterations++;
+            // Find lowest f
+            openSet.sort((a, b) => a.f - b.f);
+            const current = openSet.shift();
+            const currKey = getKey(current.x, current.y);
+            closedSet.add(currKey);
+
+            if (current.x === endTX && current.y === endTY) {
+                closestNode = current;
+                break;
+            }
+
+            const currentH = h(current.x, current.y);
+            if (currentH < minH) {
+                minH = currentH;
+                closestNode = current;
+            }
+
+            // 8-directional neighbors
+            const dirs = [
+                { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 },
+                { x: -1, y: 0, cost: 1 }, { x: 1, y: 0, cost: 1 },
+                { x: -1, y: -1, cost: 1.41 }, { x: 1, y: -1, cost: 1.41 },
+                { x: -1, y: 1, cost: 1.41 }, { x: 1, y: 1, cost: 1.41 }
+            ];
+
+            for (const dir of dirs) {
+                const nx = current.x + dir.x;
+                const ny = current.y + dir.y;
+
+                if (nx < 0 || nx >= this.width || ny < 0 || ny >= this.height) continue;
+
+                const isEnd = (nx === endTX && ny === endTY);
+                if (!isEnd && !this.isValTile(nx, ny)) continue;
+
+                const neighborKey = getKey(nx, ny);
+                if (closedSet.has(neighborKey)) continue;
+
+                const tentativeG = current.g + dir.cost;
+                const existingG = openMap.has(neighborKey) ? openMap.get(neighborKey) : Infinity;
+
+                if (tentativeG < existingG) {
+                    openMap.set(neighborKey, tentativeG);
+                    const nNode = {
+                        x: nx,
+                        y: ny,
+                        g: tentativeG,
+                        f: tentativeG + h(nx, ny),
+                        parent: current
+                    };
+
+                    const idx = openSet.findIndex(n => n.x === nx && n.y === ny);
+                    if (idx !== -1) {
+                         openSet.splice(idx, 1);
+                    }
+                    openSet.push(nNode);
+                }
+            }
+        }
+
+        const path = [];
+        let curr = closestNode;
+        while (curr) {
+            path.unshift({ x: curr.x, y: curr.y });
+            curr = curr.parent;
+        }
+
+        return path;
+    }
+
+    findPixelPath(startPx, startPy, endPx, endPy) {
+        const startCoords = this.screenToMap(startPx, startPy);
+        const endCoords = this.screenToMap(endPx, endPy);
+
+        const tilePath = this.findTilePath(startCoords.x, startCoords.y, endCoords.x, endCoords.y);
+        const pixelPath = [];
+
+        for (let i = 1; i < tilePath.length; i++) {
+            const center = this.mapToScreen(tilePath[i].x + 0.5, tilePath[i].y + 0.5);
+            pixelPath.push({ x: center.x, y: center.y });
+        }
+
+        pixelPath.push({ x: endPx, y: endPy });
+        return pixelPath;
+    }
     // --- End Circle Collision Helper Methods ---
 
 

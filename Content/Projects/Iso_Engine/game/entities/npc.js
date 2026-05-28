@@ -76,9 +76,13 @@ class NPC extends GameObject {
 
     die() {
         console.log(`NPC ${this.name} has been defeated.`);
-        const isDoran = this.name.toLowerCase().includes('doran') || this.name.toLowerCase().includes('shopkeeper');
-        if (isDoran) {
+        const nameLower = this.name.toLowerCase();
+        if (nameLower.includes('doran') || nameLower.includes('shopkeeper')) {
             CustomDialog.alert("GAME OVER! Shopkeeper Doran has been defeated!", "Game Over").then(() => {
+                window.location.reload();
+            });
+        } else if (nameLower.includes('scruffy')) {
+            CustomDialog.alert("🏆 VICTORY! Merchant Scruffy has been defeated! You have conquered the bridge! GG WP!", "Conquered!").then(() => {
                 window.location.reload();
             });
         }
@@ -196,15 +200,17 @@ class NPC extends GameObject {
         }
 
         // Then, draw the name tag on top
-        ctx.fillStyle = '#EFEBE0'; // Light cream color for text
-        ctx.font = '10px Arial';
+        const isDoran = this.name.toLowerCase().includes('doran') || this.name.toLowerCase().includes('shopkeeper');
+        const isScruffy = this.name.toLowerCase().includes('scruffy');
+        ctx.fillStyle = isScruffy ? '#e74c3c' : (isDoran ? '#3498db' : '#EFEBE0');
+        ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
         
         // Position the name tag above the visual sprite.
         ctx.fillText(this.name, drawX, drawY - this.visualHeight - 5);
 
-        // Render health bar if damaged
-        if (this.stats && this.stats.hp !== undefined && this.stats.hp < this.stats.maxHp) {
+        // Render health bar if damaged or if they are one of the core shopkeeper objectives
+        if (this.stats && this.stats.hp !== undefined && (this.stats.hp < this.stats.maxHp || isDoran || isScruffy)) {
             const barWidth = 40;
             const barHeight = 5;
             const barY = drawY - this.visualHeight - 20;
@@ -216,7 +222,7 @@ class NPC extends GameObject {
             
             // Health
             const hpRatio = Math.max(0, this.stats.hp / this.stats.maxHp);
-            ctx.fillStyle = '#2ecc71'; // Green for Allied NPCs
+            ctx.fillStyle = isScruffy ? '#e74c3c' : '#3498db'; // Royal Blue for Doran/Allies, Crimson Red for Scruffy
             ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
         }
     }

@@ -60,6 +60,16 @@ class Enemy extends GameObject {
         
         this.collisionRadius = 12; // For dynamic collision checks
 
+        // Stuck detection and rough pathfinding
+        this.stuckTimer = 0;
+        this.lastPixelPos = { x: this.currentPixelX, y: this.currentPixelY };
+        this.stuckThreshold = 0.5; // seconds before initiating pathfinding
+        this.pathfindingCooldown = 0; // cooldown in seconds before re-calculating path
+        this.currentPath = null;
+        this.pathIndex = 0;
+        this.backingUpTimer = 0;
+        this.backupDirection = { x: 0, y: 0 };
+
         // New properties for respawning
         this.respawnTimer = 0;
         this.RESPAWN_TIME = 15; // 15 seconds
@@ -117,37 +127,79 @@ class Enemy extends GameObject {
     findCurrentTarget() {
         let possibleTargets = [];
 
-        // 1. Target Player
-        if (this.player && this.player.stats.hp > 0) {
-            const dist = this.getDistanceTo(this.player);
-            possibleTargets.push({
-                obj: this.player,
-                type: 'player',
-                priority: 2, // Players are high priority
-                distance: dist
-            });
-        }
+        if (this.friendly === true) {
+            // Friendly minions scan for Enemy Minions, Enemy Sentry Towers, and Enemy Merchant Scruffy
+            if (this.engine && this.engine.gameObjects) {
+                for (const obj of this.engine.gameObjects) {
+                    if (obj.stats && obj.stats.hp > 0) {
+                        if (obj instanceof Enemy && obj.friendly !== true) {
+                            const dist = this.getDistanceTo(obj);
+                            possibleTargets.push({
+                                obj: obj,
+                                type: 'enemy_slime',
+                                priority: 2,
+                                distance: dist
+                            });
+                        } else if (obj.type === 'tower_enemy' && !obj.stats.isDestroyed) {
+                            const dist = this.getDistanceTo(obj);
+                            possibleTargets.push({
+                                obj: obj,
+                                type: 'tower',
+                                priority: 1,
+                                distance: dist
+                            });
+                        } else if (obj instanceof NPC && obj.name.toLowerCase().includes('scruffy')) {
+                            const dist = this.getDistanceTo(obj);
+                            possibleTargets.push({
+                                obj: obj,
+                                type: 'nexus_shopkeeper',
+                                priority: 3,
+                                distance: dist
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            // Standard enemy minions scan for Player, Friendly Allied Minions, Allied Sentry Towers, and Shopkeeper Doran
+            if (this.player && this.player.stats.hp > 0) {
+                const dist = this.getDistanceTo(this.player);
+                possibleTargets.push({
+                    obj: this.player,
+                    type: 'player',
+                    priority: 2,
+                    distance: dist
+                });
+            }
 
-        // 2. Scan for other friendly objects (towers, shopkeeper)
-        if (this.engine && this.engine.gameObjects) {
-            for (const obj of this.engine.gameObjects) {
-                if (obj.stats && obj.stats.hp > 0) {
-                    if (obj.type === 'tower_player' && !obj.stats.isDestroyed) {
-                        const dist = this.getDistanceTo(obj);
-                        possibleTargets.push({
-                            obj: obj,
-                            type: 'tower',
-                            priority: 1, // Towers block lanes
-                            distance: dist
-                        });
-                    } else if (obj instanceof NPC && obj.name.toLowerCase().includes('doran')) {
-                        const dist = this.getDistanceTo(obj);
-                        possibleTargets.push({
-                            obj: obj,
-                            type: 'shopkeeper',
-                            priority: 3, // Nexus priority
-                            distance: dist
-                        });
+            if (this.engine && this.engine.gameObjects) {
+                for (const obj of this.engine.gameObjects) {
+                    if (obj.stats && obj.stats.hp > 0) {
+                        if (obj instanceof Enemy && obj.friendly === true) {
+                            const dist = this.getDistanceTo(obj);
+                            possibleTargets.push({
+                                obj: obj,
+                                type: 'friendly_slime',
+                                priority: 2,
+                                distance: dist
+                            });
+                        } else if (obj.type === 'tower_player' && !obj.stats.isDestroyed) {
+                            const dist = this.getDistanceTo(obj);
+                            possibleTargets.push({
+                                obj: obj,
+                                type: 'tower',
+                                priority: 1,
+                                distance: dist
+                            });
+                        } else if (obj instanceof NPC && obj.name.toLowerCase().includes('doran')) {
+                            const dist = this.getDistanceTo(obj);
+                            possibleTargets.push({
+                                obj: obj,
+                                type: 'nexus_shopkeeper',
+                                priority: 3,
+                                distance: dist
+                            });
+                        }
                     }
                 }
             }
@@ -155,10 +207,10 @@ class Enemy extends GameObject {
 
         if (possibleTargets.length === 0) return null;
 
-        // Sort: Sentry Towers block progress (strong priority pull). Player is secondary, then Shopkeeper.
+        // Sort: Sentry Towers block progress with high pull bias, standard units next, Nexuses last
         possibleTargets.sort((a, b) => {
-            const scoreA = a.distance - (a.type === 'tower' ? 180 : (a.type === 'player' ? 100 : 0));
-            const scoreB = b.distance - (b.type === 'tower' ? 180 : (b.type === 'player' ? 100 : 0));
+            const scoreA = a.distance - (a.type === 'tower' ? 180 : (a.type === 'player' || a.type === 'enemy_slime' || a.type === 'friendly_slime' ? 100 : 0));
+            const scoreB = b.distance - (b.type === 'tower' ? 180 : (b.type === 'player' || b.type === 'enemy_slime' || b.type === 'friendly_slime' ? 100 : 0));
             return scoreA - scoreB;
         });
 
@@ -213,22 +265,179 @@ class Enemy extends GameObject {
         }
     }
 
+    updatePathfinding(deltaTime, targetX, targetY) {
+        if (this.pathfindingCooldown > 0) {
+            this.pathfindingCooldown -= deltaTime;
+        }
+
+        // Handle backing up if active (to steer away from the obstacle/group)
+        if (this.backingUpTimer > 0) {
+            this.backingUpTimer -= deltaTime;
+            // Guide towards the backed-up/sidestepped target
+            return { tx: this.currentPixelX + this.backupDirection.x * 30, ty: this.currentPixelY + this.backupDirection.y * 30 };
+        }
+
+        // Track actual movement behavior
+        const dx = this.currentPixelX - this.lastPixelPos.x;
+        const dy = this.currentPixelY - this.lastPixelPos.y;
+        const distMoved = Math.sqrt(dx * dx + dy * dy);
+
+        this.lastPixelPos.x = this.currentPixelX;
+        this.lastPixelPos.y = this.currentPixelY;
+
+        const expectedMoveDist = this.stats.speed * deltaTime;
+        const wantsToMove = (this.aiState === AI_STATE.CHASING || this.aiState === AI_STATE.RETURNING || this.aiState === AI_STATE.IDLE);
+
+        if (wantsToMove && distMoved < expectedMoveDist * 0.2) {
+            this.stuckTimer += deltaTime;
+        } else {
+            this.stuckTimer = Math.max(0, this.stuckTimer - deltaTime * 0.5);
+        }
+
+        // Trigger pathfind query and backup mode if stuck
+        if (this.stuckTimer > this.stuckThreshold) {
+            // Determine a neat backup angle opposite of where we want to go
+            const tdx = targetX - this.currentPixelX;
+            const tdy = targetY - this.currentPixelY;
+            const dist = Math.sqrt(tdx * tdx + tdy * tdy);
+            
+            if (dist > 0.1) {
+                const oppositeAngle = Math.atan2(-tdy, -tdx);
+                // Sidestep rotated by +/- 45 to 90 degrees
+                const rotation = (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 4 + Math.random() * Math.PI / 4);
+                const backupAngle = oppositeAngle + rotation;
+                this.backupDirection = {
+                    x: Math.cos(backupAngle),
+                    y: Math.sin(backupAngle)
+                };
+            } else {
+                const randAngle = Math.random() * Math.PI * 2;
+                this.backupDirection = {
+                    x: Math.cos(randAngle),
+                    y: Math.sin(randAngle)
+                };
+            }
+
+            this.backingUpTimer = 0.4 + Math.random() * 0.4; // back away for 0.4s to 0.8s
+            this.stuckTimer = 0;
+            this.currentPath = null; // Clear old stuck path to recalculate beautifully
+
+            if (this.pathfindingCooldown <= 0) {
+                this.currentPath = this.map.findPixelPath(this.currentPixelX, this.currentPixelY, targetX, targetY);
+                this.pathIndex = 0;
+                this.pathfindingCooldown = 1.0; // Cooldown to avoid high query frequency
+            }
+        }
+
+        // Direct path checkpoints override
+        if (this.currentPath && this.currentPath.length > 0) {
+            const nextNode = this.currentPath[this.pathIndex];
+            if (nextNode) {
+                const ndx = nextNode.x - this.currentPixelX;
+                const ndy = nextNode.y - this.currentPixelY;
+                const distToNode = Math.sqrt(ndx * ndx + ndy * ndy);
+
+                if (distToNode < 18) {
+                    this.pathIndex++;
+                    if (this.pathIndex >= this.currentPath.length) {
+                        this.currentPath = null;
+                    }
+                } else {
+                    targetX = nextNode.x;
+                    targetY = nextNode.y;
+                }
+            } else {
+                this.currentPath = null;
+            }
+        }
+
+        return { tx: targetX, ty: targetY };
+    }
+
+    resolveStaticCollisions() {
+        if (!this.map) return;
+        
+        let center = { x: this.currentPixelX, y: this.currentPixelY - GLOBAL_COLLISION_Y_OFFSET };
+        let push = this.map.getStaticPushVector(center, this.collisionRadius, this.engine.gameObjects);
+        
+        if (push.count > 0) {
+            this.currentPixelX += push.x;
+            this.currentPixelY += push.y;
+            this.updateMapCoordsFromPixels();
+        }
+
+        // Check if enemy is on empty tile (abyss) or out of bounds, and nudge them back to safe terrain
+        const mapCoords = this.map.screenToMap(this.currentPixelX, this.currentPixelY);
+        const tileX = Math.floor(mapCoords.x);
+        const tileY = Math.floor(mapCoords.y);
+        
+        if (tileX < 0 || tileX >= this.map.width || tileY < 0 || tileY >= this.map.height || this.map.tiles[tileY][tileX] === 0) {
+            let bestTile = null;
+            let minDistSq = Infinity;
+            
+            // Search a small neighborhood for safe terrain
+            for (let dy = -4; dy <= 4; dy++) {
+                for (let dx = -4; dx <= 4; dx++) {
+                    const tx = tileX + dx;
+                    const ty = tileY + dy;
+                    if (tx >= 0 && tx < this.map.width && ty >= 0 && ty < this.map.height) {
+                        if (this.map.tiles[ty][tx] !== 0) {
+                            const tileCenterScreen = this.map.mapToScreen(tx + 0.5, ty + 0.5);
+                            const dSq = (tileCenterScreen.x - this.currentPixelX)**2 + (tileCenterScreen.y - this.currentPixelY)**2;
+                            if (dSq < minDistSq) {
+                                minDistSq = dSq;
+                                bestTile = tileCenterScreen;
+                            }
+                        }
+                    }
+                }
+            }
+            if (bestTile) {
+                const dx = bestTile.x - this.currentPixelX;
+                const dy = bestTile.y - this.currentPixelY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    this.currentPixelX += (dx / dist) * Math.min(dist, 15);
+                    this.currentPixelY += (dy / dist) * Math.min(dist, 15);
+                    this.updateMapCoordsFromPixels();
+                }
+            }
+        }
+    }
+
     executeAIState(deltaTime) {
         let targetX, targetY;
 
         switch (this.aiState) {
             case AI_STATE.IDLE:
-                // March down the bridge towards the Allied player entry base!
+                let marchX = -320;
+                let marchY = 528;
                 if (this.engine && this.engine.map && this.engine.map.spawnPointsData) {
-                    const playerSpawn = this.engine.map.spawnPointsData.find(sp => sp.type === 'player_entry');
-                    if (playerSpawn) {
-                        this.moveTowards(deltaTime, playerSpawn.x - this.currentPixelX, playerSpawn.y - this.currentPixelY, this.stats.speed * 0.65);
+                    if (this.friendly === true) {
+                        // Friendly minions march towards Enemy Spawn/Base at mapX = 13.2
+                        const enemySpawn = this.engine.map.spawnPointsData.find(sp => sp.id === 'spawn_pt_enemy_base');
+                        if (enemySpawn) {
+                            const enemyMapCoords = this.map.screenToMap(enemySpawn.x, enemySpawn.y);
+                            const alignedScreen = this.map.mapToScreen(13.2, enemyMapCoords.y);
+                            marchX = alignedScreen.x;
+                            marchY = alignedScreen.y;
+                        } else {
+                            marchX = 288;
+                            marchY = 224;
+                        }
                     } else {
-                        this.moveTowards(deltaTime, -320 - this.currentPixelX, 528 - this.currentPixelY, this.stats.speed * 0.45);
+                        // Hostile minions march towards Allied Base at mapX = 13.2
+                        const playerSpawn = this.engine.map.spawnPointsData.find(sp => sp.type === 'player_entry');
+                        if (playerSpawn) {
+                            const playerMapCoords = this.map.screenToMap(playerSpawn.x, playerSpawn.y);
+                            const alignedScreen = this.map.mapToScreen(13.2, playerMapCoords.y);
+                            marchX = alignedScreen.x;
+                            marchY = alignedScreen.y;
+                        }
                     }
-                } else {
-                    this.moveTowards(deltaTime, -320 - this.currentPixelX, 528 - this.currentPixelY, this.stats.speed * 0.45);
                 }
+                const marchTarget = this.updatePathfinding(deltaTime, marchX, marchY);
+                this.moveTowards(deltaTime, marchTarget.tx - this.currentPixelX, marchTarget.ty - this.currentPixelY, this.stats.speed * 0.65);
                 break;
             case AI_STATE.RETURNING:
                 targetX = this.spawnPoint.x;
@@ -237,20 +446,25 @@ class Enemy extends GameObject {
                 if (distToSpawnSq < 25) { // Close enough to spawn
                     this.aiState = AI_STATE.IDLE;
                     this.stats.hp = this.stats.maxHp; // Reset HP when returning
+                    this.currentPath = null;
                 } else {
-                    this.moveTowards(deltaTime, targetX - this.currentPixelX, targetY - this.currentPixelY, this.stats.speed * 0.7);
+                    const returnTarget = this.updatePathfinding(deltaTime, targetX, targetY);
+                    this.moveTowards(deltaTime, returnTarget.tx - this.currentPixelX, returnTarget.ty - this.currentPixelY, this.stats.speed * 0.7);
                 }
                 break;
             case AI_STATE.CHASING:
                 if (this.currentTarget) {
                     targetX = this.currentTarget.currentPixelX;
                     targetY = this.currentTarget.currentPixelY;
-                    this.moveTowards(deltaTime, targetX - this.currentPixelX, targetY - this.currentPixelY, this.stats.speed);
+                    const chaseTarget = this.updatePathfinding(deltaTime, targetX, targetY);
+                    this.moveTowards(deltaTime, chaseTarget.tx - this.currentPixelX, chaseTarget.ty - this.currentPixelY, this.stats.speed);
                 } else {
                     this.aiState = AI_STATE.IDLE;
+                    this.currentPath = null;
                 }
                 break;
             case AI_STATE.ATTACKING:
+                this.currentPath = null;
                 this.updateAttackSequence(deltaTime);
                 break;
         }
@@ -316,50 +530,68 @@ class Enemy extends GameObject {
                     }));
                 }
             } else if (this.attackSubState === 'active') {
-                // Deal damage to any allied target in landing AoE
+                // Deal damage to appropriate targets in landing AoE
                 if (!this.hasDealtDamage) {
                     const ellipseCenter = { x: this.attackAction.targetPos.x, y: this.attackAction.targetPos.y - GLOBAL_COLLISION_Y_OFFSET };
                     const radiusX = this.attackAction.aoeShape.radiusX;
                     const radiusY = this.attackAction.aoeShape.radiusY;
 
-                    // 1. Check Player
-                    if (this.player && this.player.stats.hp > 0) {
-                        const playerCollisionCenter = { x: this.player.currentPixelX, y: this.player.currentPixelY - GLOBAL_COLLISION_Y_OFFSET };
-                        const dx = playerCollisionCenter.x - ellipseCenter.x;
-                        const dy = playerCollisionCenter.y - ellipseCenter.y;
-                        if (((dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY)) <= 1.1) {
-                            this.player.takeDamage(this.stats.atk, this);
-                            this.hasDealtDamage = true;
-
-                            // Apply knockback to player
-                            const knockbackDirection = {
-                                x: this.player.currentPixelX - this.currentPixelX,
-                                y: this.player.currentPixelY - this.currentPixelY
-                            };
-                            this.player.applyKnockback(knockbackDirection, this.attackAction.knockbackForce);
-                        }
-                    }
-
-                    // 2. Check general Allied GameObjects (Towers and Shopkeeper)
-                    if (this.engine && this.engine.gameObjects) {
-                        for (const obj of this.engine.gameObjects) {
-                            if (obj.stats && obj.stats.hp > 0) {
-                                if (obj.type === 'tower_player' && !obj.stats.isDestroyed) {
-                                    const tdx = obj.currentPixelX - ellipseCenter.x;
-                                    const tdy = (obj.currentPixelY - 16) - ellipseCenter.y;
-                                    if (((tdx * tdx) / (radiusX * radiusX) + (tdy * tdy) / (radiusY * radiusY)) <= 1.25) {
-                                        obj.takeDamage(this.stats.atk, this);
-                                        this.hasDealtDamage = true;
-                                    }
-                                } else if (obj instanceof NPC && obj.name.toLowerCase().includes('doran')) {
-                                    const tdx = obj.currentPixelX - ellipseCenter.x;
-                                    const tdy = (obj.currentPixelY - 16) - ellipseCenter.y;
-                                    if (((tdx * tdx) / (radiusX * radiusX) + (tdy * tdy) / (radiusY * radiusY)) <= 1.25) {
-                                        obj.takeDamage(this.stats.atk, this);
-                                        this.hasDealtDamage = true;
+                    const targets = [];
+                    if (this.friendly === true) {
+                        // Allied friendly slime targets enemy units/structures
+                        if (this.engine && this.engine.gameObjects) {
+                            for (const obj of this.engine.gameObjects) {
+                                if (obj.stats && obj.stats.hp > 0) {
+                                    if (obj instanceof Enemy && obj.friendly !== true) {
+                                        targets.push(obj);
+                                    } else if (obj.type === 'tower_enemy' && !obj.stats.isDestroyed) {
+                                        targets.push(obj);
+                                    } else if (obj instanceof NPC && obj.name.toLowerCase().includes('scruffy')) {
+                                        targets.push(obj);
                                     }
                                 }
                             }
+                        }
+                    } else {
+                        // Hostile slime targets player, allied slimes, and allied structures
+                        if (this.player && this.player.stats.hp > 0) {
+                            targets.push(this.player);
+                        }
+                        if (this.engine && this.engine.gameObjects) {
+                            for (const obj of this.engine.gameObjects) {
+                                if (obj.stats && obj.stats.hp > 0) {
+                                    if (obj instanceof Enemy && obj.friendly === true) {
+                                        targets.push(obj);
+                                    } else if (obj.type === 'tower_player' && !obj.stats.isDestroyed) {
+                                        targets.push(obj);
+                                    } else if (obj instanceof NPC && obj.name.toLowerCase().includes('doran')) {
+                                        targets.push(obj);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Scan and resolve hits caught in the AoE ellipse
+                    for (const victim of targets) {
+                        const victimX = victim.currentPixelX;
+                        const victimY = victim.currentPixelY - 16;
+                        const vdx = victimX - ellipseCenter.x;
+                        const vdy = victimY - ellipseCenter.y;
+
+                        if (((vdx * vdx) / (radiusX * radiusX) + (vdy * vdy) / (radiusY * radiusY)) <= 1.25) {
+                            if (victim === this.player) {
+                                this.player.takeDamage(this.stats.atk, this);
+                                // Apply knockback to player
+                                const knockbackDirection = {
+                                    x: this.player.currentPixelX - this.currentPixelX,
+                                    y: this.player.currentPixelY - this.currentPixelY
+                                };
+                                this.player.applyKnockback(knockbackDirection, this.attackAction.knockbackForce);
+                            } else {
+                                victim.takeDamage(this.stats.atk, this);
+                            }
+                            this.hasDealtDamage = true;
                         }
                     }
                 }
@@ -471,7 +703,7 @@ class Enemy extends GameObject {
             // This is unlikely given the current AI state logic.
         }
 
-
+        this.resolveStaticCollisions();
         this.updateMapCoordsFromPixels();
     }
 
@@ -578,6 +810,10 @@ class Enemy extends GameObject {
         const spriteDrawX = anchorCanvasX - this.anchorOffsetX;
         const spriteDrawY = anchorCanvasY - this.anchorOffsetY;
     
+        ctx.save();
+        if (this.friendly === true) {
+            ctx.filter = 'hue-rotate(240deg)';
+        }
         if (this.spriteSourceRect) {
             ctx.drawImage(
                 this.sprite,
@@ -593,10 +829,14 @@ class Enemy extends GameObject {
                 this.visualWidth, this.visualHeight
             );
         }
+        ctx.restore();
 
         // --- Render Hit Flash ---
         if (this.isHit) {
             ctx.save();
+            if (this.friendly === true) {
+                ctx.filter = 'hue-rotate(240deg)';
+            }
             ctx.globalCompositeOperation = 'lighter';
             ctx.globalAlpha = 0.8 * (this.hitFlashTimer / 0.15); // Fade the flash out
             
@@ -637,14 +877,14 @@ class Enemy extends GameObject {
             
             // Health
             const hpRatio = this.stats.hp / this.stats.maxHp;
-            ctx.fillStyle = '#e74c3c'; // Red for HP
+            ctx.fillStyle = (this.friendly === true) ? '#3498db' : '#e74c3c'; // Faction Blue for Allied friendly minions, Red for enemies
             ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
         }
 
         // --- Render Name ---
         const nameYOffset = this.visualHeight + 5;
-        ctx.fillStyle = '#EFEBE0';
-        ctx.font = '10px Arial';
+        ctx.fillStyle = (this.friendly === true) ? '#3498db' : '#EFEBE0';
+        ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText(this.name, drawX, drawY - nameYOffset);
