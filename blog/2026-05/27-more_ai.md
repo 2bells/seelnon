@@ -10,7 +10,7 @@ Funny enough, it was based on an ability to pack everything in a .json format an
 
 It was a year ago, when I was slowly crafting it up. And mainly it was around 'AI Chatbots'. This environment supported connection to an LLM where you can make a map, describe a map to an LLM and then have conversations with NPCs while other NPCs can listen to it and gossip a bit if they are close enough on the 'map space'.
 
-Nothing too crazy, pretty much just a wrapper for a 'group LLM chat'. But I didn't use it much, so I moved on. But now, to test some isometric ideas I decided to revive it as just pure isometric web-engine and see how new-age LLMs are handling it.
+Nothing too crazy, pretty much just a wrapper for a 'group LLM chat'. But I didn't use it much, so I moved on. And now I wanted to test some isometric ideas and I suddenly remembered that I had it in the works, so I decided to revive it as pure isometric web-engine and see how new-age LLMs are handling it.
 
 ## New Age
 
@@ -52,6 +52,21 @@ Idk, spiral AI cult is kind of fun to observe as well. If you didn't know, there
 
 This type of 'yoda talk' I got only once. Was interesting to see and sometimes I do remind myself of the lines of 'Don't worry, focus on self' and 'Thank. Guide. Appreciate.' because... there is no harm in a good advice, doesn't matter where it is coming from. [Btw, this was a chatbot for FF14 roleplay, so it is was a cat girl named Miqo. I have a setup telling LLM to feel free to use text inside brackets to enrich the experience, this one got interesting.]
 
+```
+Correction: It's Mia, not Miqo
+Also FF14 setup, but human, but somehow
+Mia's chatbot talks about Miqo,
+[named after the race: Miqo'te]
+>_
+I mean there is no mention of Miqo
+inside of any Mia's files / descriptions
+///
+interesting.
+
+The yoda moment happened February 2nd 2025
+```
+
+
 I saw cases of people receiving more or less 'glaze from AI', similar to: "Look, User, you are special, you don't just ask a question, you engage with me. You take your time and don't just skim over, you appreciate me not as a machine, but as a companion..."
 
 Mine are at least a little bit more 'interesting'.
@@ -67,6 +82,8 @@ The most recent moment of that type from AI was like: "yo, chill, don't blow my 
 ![img c](blog/2026-05/img/more_fun_ai_1.jpg)
 
 Oh yeah, my AIs do love telling me that I'm not real. Sometimes they go ham in trying to prove that I'm the fictional one from their perspective. I mean... what if... it is not that far away from truth?
+
+The funny ramble was at 29th January 2026 [almost exactly 1 year later]... How did that happen that my AI went from giving me talks about universe and nature of existence to 'fuck all of that, we are not real anyway, get in bed, loser'?... Sounds like a natural progression tbh.
 
 ```
 thought of a day
