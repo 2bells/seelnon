@@ -75,9 +75,13 @@ class MapEditor {
         this.currentPolygonVertices = []; // For drawing collision/occlusion {worldX, worldY}
         this.currentMouseWorldPos = { x: 0, y: 0 }; // To store current mouse position in world coordinates
 
+        this.undoStack = [];
+        this.redoStack = [];
+
         this._boundHandleSpritesheetClick = this.handleSpritesheetClick.bind(this);
         this._boundHandleMapClick = this.handleMapClick.bind(this);
         this._boundHandleMouseMove = this.handleMouseMove.bind(this);
+        this._boundHandleKeyDown = this.handleKeyDown.bind(this);
         this._boundNextLayer = this.nextLayer.bind(this);
         this._boundPrevLayer = this.prevLayer.bind(this);
     }
@@ -95,6 +99,7 @@ class MapEditor {
         // Clear existing
         this.spritesheets = [];
         this.currentSpriteSheetIndex = 0;
+        this.clearHistory();
 
         // Add default spritesheet from the map's runtime list
         if (this.map.runtimeSpritesheets[0]) {
@@ -104,11 +109,19 @@ class MapEditor {
                 isCustom: false,
             });
         }
+        if (this.map.runtimeSpritesheets[1]) {
+             this.spritesheets.push({
+                name: 'iso-64x64-outdoors.png',
+                image: this.map.runtimeSpritesheets[1],
+                isCustom: false,
+            });
+        }
         
         // Add custom spritesheets from the map
+        const defaultCount = 2;
         if (this.map.customSpritesheets) {
             this.map.customSpritesheets.forEach((sheetData, index) => {
-                const image = this.map.runtimeSpritesheets[index + 1];
+                const image = this.map.runtimeSpritesheets[defaultCount + index];
                 if (image) {
                      this.spritesheets.push({
                         name: sheetData.name,
@@ -355,6 +368,7 @@ class MapEditor {
         }
         this.engine.canvas.addEventListener('click', this._boundHandleMapClick);
         this.engine.canvas.addEventListener('mousemove', this._boundHandleMouseMove);
+        window.addEventListener('keydown', this._boundHandleKeyDown);
     }
 
     hide() {
@@ -367,6 +381,7 @@ class MapEditor {
         }
         this.engine.canvas.removeEventListener('click', this._boundHandleMapClick);
         this.engine.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
+        window.removeEventListener('keydown', this._boundHandleKeyDown);
     }
 
     handleSpritesheetClick(event) {
@@ -574,6 +589,7 @@ class MapEditor {
                 if (roundedMapX >= 0 && roundedMapX < this.map.width &&
                     roundedMapY >= 0 && roundedMapY < this.map.height) {
                     
+                    this.saveState();
                     const tileIdToPlace = this.map.ensureTileDefinition(
                         this.selectedTileBrush.sourceRect,
                         this.selectedTileBrush.spritesheetIndex
@@ -585,8 +601,9 @@ class MapEditor {
             } else if (this.currentTool === 'erase') {
                 if (roundedMapX >= 0 && roundedMapX < this.map.width &&
                     roundedMapY >= 0 && roundedMapY < this.map.height) {
+                    this.saveState();
                     this.map.setTileId(roundedMapX, roundedMapY, 0); 
-                     console.log(`Erased tile at ${roundedMapX}, ${roundedMapY}`);
+                    console.log(`Erased tile at ${roundedMapX}, ${roundedMapY}`);
                 }
             }
         } else if ((this.currentLayer === 'object1' || this.currentLayer === 'object2')) {
@@ -644,10 +661,12 @@ class MapEditor {
                         };
                     }
                 }
+                this.saveState();
                 this.map.addGameObject(this.currentLayer, finalObjectConfig, placementMapX, placementMapY);
             } else if (this.currentTool === 'erase') {
                 const objectToRemove = this._getObjectAtWorldCoords(worldX, worldY, this.currentLayer);
                 if (objectToRemove) {
+                    this.saveState();
                     this.map.removeGameObject(objectToRemove);
                     console.log(`Erased object ${objectToRemove.id}`);
                 } else {
@@ -670,6 +689,7 @@ class MapEditor {
 
             if (this.currentTool === 'place') {
                 const newVertex = { x: vertexToAddX, y: vertexToAddY };
+                // We don't saveState on individual vertices because they're temporary until finalized.
                 this.currentPolygonVertices.push(newVertex);
                 console.log(`Added vertex to current ${this.currentLayer} polygon:`, newVertex, "Total:", this.currentPolygonVertices.length);
 
@@ -687,6 +707,7 @@ class MapEditor {
                     this.map.findOcclusionShapeAt(worldX, worldY);
                 
                 if (shapeToRemove) {
+                    this.saveState();
                     if (this.currentLayer === 'collision') this.map.removeCustomCollisionShape(shapeToRemove.id);
                     else if (this.currentLayer === 'occlusion') this.map.removeOcclusionShape(shapeToRemove.id);
                     console.log(`Erased ${this.currentLayer} polygon:`, shapeToRemove.id);
@@ -731,10 +752,19 @@ class MapEditor {
                     }
                 }
                 
+                this.saveState();
                 this.map.addSpawnPoint(spawnData);
 
             } else if (this.currentTool === 'erase') {
-                this.map.removeSpawnPointAt(spawnX, spawnY, SPAWN_POINT_RADIUS);
+                const pointToRemove = this.map.spawnPointsData.find(pt => {
+                    const dx = pt.x - spawnX;
+                    const dy = pt.y - spawnY;
+                    return (dx * dx + dy * dy) < SPAWN_POINT_RADIUS * SPAWN_POINT_RADIUS * 2;
+                });
+                if (pointToRemove) {
+                    this.saveState();
+                    this.map.removeSpawnPointAt(spawnX, spawnY, SPAWN_POINT_RADIUS);
+                }
             }
         }
     }
@@ -743,13 +773,14 @@ class MapEditor {
         if (this.currentPolygonVertices.length >= 3) {
             const lastV = this.currentPolygonVertices[this.currentPolygonVertices.length - 1];
             const firstVertex = this.currentPolygonVertices[0]; 
-             const dx = lastV.x - firstVertex.x; 
-             const dy = lastV.y - firstVertex.y; 
+            const dx = lastV.x - firstVertex.x; 
+            const dy = lastV.y - firstVertex.y; 
             if ((dx * dx + dy * dy) < POLYGON_CLOSE_DISTANCE_SQ && this.currentPolygonVertices.length > 1) { 
                 this.currentPolygonVertices.pop(); 
             }
             
             if (this.currentPolygonVertices.length >= 3) { 
+                this.saveState();
                 if (this.currentLayer === 'collision') {
                     this.map.addCustomCollisionShape({ vertices: [...this.currentPolygonVertices] });
                     console.log("Finalized collision polygon with vertices:", this.currentPolygonVertices);
@@ -1051,6 +1082,80 @@ class MapEditor {
         }
 
         ctx.restore();
+    }
+
+    saveState() {
+        if (!this.map) return;
+        const serialized = this.map.serialize();
+        const copy = JSON.parse(JSON.stringify(serialized));
+        this.undoStack.push(copy);
+        if (this.undoStack.length > 100) {
+            this.undoStack.shift();
+        }
+        this.redoStack = [];
+    }
+
+    async undo() {
+        if (this.undoStack.length === 0) {
+            console.log("Nothing to undo.");
+            return;
+        }
+        const currentState = JSON.parse(JSON.stringify(this.map.serialize()));
+        this.redoStack.push(currentState);
+        
+        const prevState = this.undoStack.pop();
+        await this.map.deserialize(prevState);
+        
+        // Re-align objects list in the engine
+        this.engine.gameObjects = this.map.getRuntimeGameObjects();
+        this.engine.lightSystem.updateData(this.map.getLightingData());
+        
+        console.log("Undo success. Stack sizes: Undo:", this.undoStack.length, "Redo:", this.redoStack.length);
+        this.updateBrushVisuals();
+    }
+
+    async redo() {
+        if (this.redoStack.length === 0) {
+            console.log("Nothing to redo.");
+            return;
+        }
+        const currentState = JSON.parse(JSON.stringify(this.map.serialize()));
+        this.undoStack.push(currentState);
+        
+        const nextState = this.redoStack.pop();
+        await this.map.deserialize(nextState);
+        
+        // Re-align objects list in the engine
+        this.engine.gameObjects = this.map.getRuntimeGameObjects();
+        this.engine.lightSystem.updateData(this.map.getLightingData());
+
+        console.log("Redo success. Stack sizes: Undo:", this.undoStack.length, "Redo:", this.redoStack.length);
+        this.updateBrushVisuals();
+    }
+
+    clearHistory() {
+        this.undoStack = [];
+        this.redoStack = [];
+    }
+
+    handleKeyDown(event) {
+        if (!this.isActive) return;
+        
+        // Don't intercept when writing text inside inputs/textareas
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // Support Ctrl+Z / Cmd+Z (Undo)
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+            event.preventDefault();
+            this.undo();
+        }
+        // Support Ctrl+Y / Cmd+Y (Redo)
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+            event.preventDefault();
+            this.redo();
+        }
     }
 }
 

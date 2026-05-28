@@ -83,6 +83,7 @@ class ItemEditor {
         const itemSelect = document.createElement('select');
         itemSelect.id = 'rpg-item-editor-select';
         itemSelect.style.flex = '1';
+        itemSelect.style.minWidth = '0';
         itemSelect.style.padding = '5px';
         itemSelect.style.backgroundColor = '#3B322C';
         itemSelect.style.color = '#EFEBE0';
@@ -105,6 +106,8 @@ class ItemEditor {
         btnNew.style.borderRadius = '4px';
         btnNew.style.cursor = 'pointer';
         btnNew.style.fontSize = '0.85em';
+        btnNew.style.flexShrink = '0';
+        btnNew.style.whiteSpace = 'nowrap';
         btnNew.onclick = () => this.createNewItemTemplate();
         selRow.appendChild(btnNew);
 
@@ -1147,32 +1150,29 @@ class ItemEditor {
         }
     }
 
+    getMapNPCs() {
+        return this.engine.gameObjects.filter(obj => 
+            obj && 
+            (obj.constructor.name === 'NPC' || 
+             obj.constructor.name === 'Npc' || 
+             obj.characterData || 
+             obj.type === 'npc_permanent' || 
+             obj.type === 'npc' ||
+             (obj.name && (obj.name.toLowerCase().includes('doran') || obj.name.toLowerCase().includes('shopkeeper'))))
+        );
+    }
+
     addItemToShopkeeper(silent = false) {
-        // Try to scan active NPCs spawned on map for Shopkeeper/Doran
-        let shopkeeperNpc = null;
-        for (const obj of this.engine.gameObjects) {
-            if (obj.constructor.name === 'Npc' && (obj.name.toLowerCase().includes('doran') || obj.name.toLowerCase().includes('shopkeeper'))) {
-                shopkeeperNpc = obj;
-                break;
-            }
-        }
-
-        if (!shopkeeperNpc) {
-            if (!silent) CustomDialog.alert("Could not locate active Shopkeeper Doran on the current map.", "Shopkeeper Not Found");
-            return;
-        }
-
         const config = this.getCurrentFormConfig();
-        
         const catalogItem = {
-            id: config.id, // Keep blueprint id for merchant stock reference!
+            id: config.id,
             name: config.name,
             type: config.type,
             cost: config.cost,
             value: config.value,
             emoji: config.emoji,
             description: config.description,
-            count: 5, // give vendor 5 initial copies!
+            count: 5,
             bonusAtk: config.bonusAtk,
             bonusDef: config.bonusDef,
             passiveAtk: config.passiveAtk,
@@ -1183,20 +1183,72 @@ class ItemEditor {
             attachedAbility: config.attachedAbility
         };
 
-        if (!Array.isArray(shopkeeperNpc.inventory)) {
-            shopkeeperNpc.inventory = [];
+        const npcs = this.getMapNPCs();
+        if (npcs.length === 0) {
+            if (!silent) {
+                CustomDialog.alert("Could not locate any active NPCs/Shopkeepers on the current map.", "Shopkeeper Not Found");
+            }
+            return;
         }
 
-        // Look if item with same name exists, otherwise append
-        const existing = shopkeeperNpc.inventory.find(i => i.name === catalogItem.name);
+        if (silent || npcs.length === 1) {
+            // Deliver to first vendor/NPC silently (either silent mode, or on map there's only 1 target)
+            const chosen = npcs[0];
+            this.deliverFormItemToNpc(chosen, catalogItem, silent);
+        } else {
+            let optionsHtml = npcs.map((npc, idx) => {
+                const role = npc.broadType || (npc.characterData && npc.characterData.broadType) || 'NPC';
+                return `<option value="${idx}">${npc.name} [Role: ${role}]</option>`;
+            }).join('');
+
+            const html = `
+                <div class="rpg-dialog-header">
+                    <span>🏪 Select NPC Merchant</span>
+                </div>
+                <div class="rpg-dialog-body">
+                    <p style="margin-bottom:12px;">Which NPC on the map should receive 5x copies of "${config.name}"?</p>
+                    <select id="rpg-dialog-npc-select" style="width:100%; background:#3B322C; color:#EFEBE0; padding:8px; border:1px solid #8C6D56; border-radius:4px; font-family:inherit;">
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div class="rpg-dialog-footer">
+                    <button class="rpg-dialog-btn rpg-dialog-btn-secondary" id="rpg-dialog-cancel-btn">Cancel</button>
+                    <button class="rpg-dialog-btn rpg-dialog-btn-primary" id="rpg-dialog-confirm-btn">Deliver Stock</button>
+                </div>
+            `;
+
+            CustomDialog.show(html, (overlay, close) => {
+                const select = overlay.querySelector('#rpg-dialog-npc-select');
+                const btnConfirm = overlay.querySelector('#rpg-dialog-confirm-btn');
+                const btnCancel = overlay.querySelector('#rpg-dialog-cancel-btn');
+
+                btnConfirm.onclick = () => {
+                    const selectedIdx = parseInt(select.value, 10);
+                    close(npcs[selectedIdx]);
+                };
+                btnCancel.onclick = () => close(null);
+            }).then(chosenNpc => {
+                if (chosenNpc) {
+                    this.deliverFormItemToNpc(chosenNpc, catalogItem, silent);
+                }
+            });
+        }
+    }
+
+    deliverFormItemToNpc(npcNpc, catalogItem, silent) {
+        if (!Array.isArray(npcNpc.inventory)) {
+            npcNpc.inventory = [];
+        }
+
+        const existing = npcNpc.inventory.find(i => i.name === catalogItem.name);
         if (existing) {
             existing.count += 5;
         } else {
-            shopkeeperNpc.inventory.push(catalogItem);
+            npcNpc.inventory.push(catalogItem);
         }
 
         if (!silent) {
-            CustomDialog.alert(`Successfully delivered 5 copies of "${config.name}" to Shopkeeper Doran's Merchant Catalog! Open his shop to trade.`, "Stock Delivered");
+            CustomDialog.alert(`Successfully delivered 5 copies of "${catalogItem.name}" to ${npcNpc.name}'s Merchant Catalog! Open dialogue to trade.`, "Stock Delivered");
         }
     }
 }

@@ -75,6 +75,8 @@ class EditorUIManager {
         // New UI elements for tools
         this.pencilToolButton = null;
         this.eraserToolButton = null;
+        this.undoToolButton = null;
+        this.redoToolButton = null;
         this.snapToGridCheckbox = null;
         this.snapToGridLabel = null;
 
@@ -183,7 +185,7 @@ class EditorUIManager {
         this.toolsPanel.appendChild(layerNavContainer); 
         this.editor.updateLayerDisplay(); // Initial display update
 
-        // --- Tool Selection (Pencil/Eraser) ---
+        // --- Tool Selection (Pencil/Eraser/Undo/Redo) ---
         const toolSelectionContainer = document.createElement('div');
         toolSelectionContainer.className = 'rpg-editor-tool-selection';
         
@@ -197,8 +199,24 @@ class EditorUIManager {
         this.eraserToolButton.onclick = () => this.editor.selectTool('erase');
         this.eraserToolButton.title = 'Erase Tile/Object';
 
+        this.undoToolButton = document.createElement('button');
+        this.undoToolButton.id = 'rpg-editor-undo-tool';
+        this.undoToolButton.onclick = () => this.editor.undo();
+        this.undoToolButton.title = 'Undo Action (Ctrl+Z)';
+        this.undoToolButton.innerHTML = '&#8630;'; // Unicode ↶ Undo
+        this.undoToolButton.style.fontSize = '1.2em';
+
+        this.redoToolButton = document.createElement('button');
+        this.redoToolButton.id = 'rpg-editor-redo-tool';
+        this.redoToolButton.onclick = () => this.editor.redo();
+        this.redoToolButton.title = 'Redo Action (Ctrl+Y)';
+        this.redoToolButton.innerHTML = '&#8631;'; // Unicode ↷ Redo
+        this.redoToolButton.style.fontSize = '1.2em';
+
         toolSelectionContainer.appendChild(this.pencilToolButton);
         toolSelectionContainer.appendChild(this.eraserToolButton);
+        toolSelectionContainer.appendChild(this.undoToolButton);
+        toolSelectionContainer.appendChild(this.redoToolButton);
         this.toolsPanel.appendChild(toolSelectionContainer); 
 
         // --- Spritesheet Controls ---

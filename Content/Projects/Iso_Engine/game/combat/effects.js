@@ -200,4 +200,102 @@ class TowerOrbEffect {
     }
 }
 
-export { TelegraphEffect, FloatingTextEffect, TowerOrbEffect };
+class ParticleSplatterEffect {
+    constructor(engine, options) {
+        this.engine = engine;
+        this.id = `splatter_${Date.now()}_${Math.random()}`;
+        this.position = { ...options.position };
+        this.particles = [];
+        this.duration = options.duration || 0.6; // short-lived explosive burst
+        this.lifeTimer = this.duration;
+        this.alpha = 1.0;
+
+        // Dynamic Level of Detail (LOD) & Particle Budget management
+        let targetCount = options.count || 12;
+        if (engine && Array.isArray(engine.effects)) {
+            let activeParticlesSum = 0;
+            for (const eff of engine.effects) {
+                if (eff.constructor && eff.constructor.name === 'ParticleSplatterEffect' && eff.particles) {
+                    activeParticlesSum += eff.particles.length;
+                }
+            }
+
+            // High load constraints to keep FPS locked stable
+            if (activeParticlesSum > 140) {
+                // Extreme particle load: reduce count by 85% to prioritize FPS stability
+                targetCount = Math.max(1, Math.floor(targetCount * 0.15));
+            } else if (activeParticlesSum > 70) {
+                // Moderate particle load: reduce count by 60%
+                targetCount = Math.max(2, Math.floor(targetCount * 0.40));
+            } else if (activeParticlesSum > 35) {
+                // Low load: reduce count by 30%
+                targetCount = Math.max(3, Math.floor(targetCount * 0.70));
+            }
+        }
+
+        const count = targetCount;
+        const baseColor = options.color || '#8bc34a'; // Green slime default
+
+        for (let i = 0; i < count; i++) {
+            // Explosive visual expansion angle focused precisely in the upper semicircle
+            // -Math.PI * 0.9 to -Math.PI * 0.1 generates beautiful upward-directed arcs (since negative Y is up)
+            const angle = -Math.PI * 0.9 + (Math.random() * Math.PI * 0.8);
+            const speed = (Math.random() * 110) + 50; // Pixels per second
+
+            this.particles.push({
+                x: 0,
+                y: -15, // Start slightly up from the ground center
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 20, // Solid initial upward burst
+                radius: (Math.random() * 3.5) + 1.5,
+                color: baseColor,
+                gravity: 220 // Gravitational pull down
+            });
+        }
+    }
+
+    update(deltaTime) {
+        this.lifeTimer -= deltaTime;
+        if (this.lifeTimer <= 0) {
+            this.engine.removeEffect(this);
+            return;
+        }
+
+        // Apply physical movement vectors (Fixed Y axis position accumulation)
+        for (const p of this.particles) {
+            p.x += p.vx * deltaTime;
+            p.y += p.vy * deltaTime;
+            p.vy += p.gravity * deltaTime; // Pull down by gravity
+        }
+
+        // Fade out perfectly
+        this.alpha = Math.max(0, this.lifeTimer / this.duration);
+    }
+
+    render(ctx, viewOriginX, viewOriginY) {
+        const drawX = this.position.x - viewOriginX;
+        const drawY = this.position.y - viewOriginY;
+
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+
+        for (const p of this.particles) {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(drawX + p.x, drawY + p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    getSortY() {
+        return this.position.y + 10; // Sort close to target floor sorting Y
+    }
+
+    getCollisionBounds() {
+        return null;
+    }
+}
+
+export { TelegraphEffect, FloatingTextEffect, TowerOrbEffect, ParticleSplatterEffect };

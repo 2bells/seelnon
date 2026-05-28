@@ -1,0 +1,564 @@
+/* 🎒 RPG BRUTALIST INVENTORY & CHARACTER DETAILS HUD STYLES */
+
+#rpg-bag-button {
+    position: absolute;
+    left: 10px;
+    bottom: 35px; /* Safely floating directly on top of HP bar */
+    width: 44px;
+    height: 44px;
+    background-color: #5A4B3E;
+    border: 2px solid #8C6D56;
+    border-radius: 6px;
+    color: #EFEBE0;
+    font-size: 1.6em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+#rpg-bag-button:hover {
+    background-color: #705D4D;
+    transform: scale(1.05);
+}
+
+#rpg-bag-button:active {
+    background-color: #3B322C;
+    transform: scale(0.95);
+}
+
+#rpg-inventory-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(28, 22, 18, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 49999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    animation: rpg-fade-in 0.15s ease-out;
+}
+
+#rpg-inventory-modal {
+    background-color: #2B231D;
+    border: 3px solid #8C6D56;
+    border-radius: 10px;
+    color: #EFEBE0;
+    width: 920px;
+    max-width: 98%;
+    height: 580px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: rpg-slide-up 0.2s cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+
+.inventory-header {
+    background-color: #4a3c30;
+    padding: 12px 16px;
+    border-bottom: 2px solid #3B322C;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.inventory-header h3 {
+    margin: 0;
+    font-size: 1.15em;
+    color: #D4C8A0;
+    letter-spacing: 0.5px;
+}
+
+.inventory-close-btn {
+    background: none;
+    border: none;
+    color: #EFEBE0;
+    font-size: 1.3em;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.inventory-close-btn:hover {
+    color: #e74c3c;
+}
+
+.inventory-columns-wrapper {
+    flex: 1;
+    display: flex;
+    background-color: #1F1915;
+    overflow: hidden;
+}
+
+/* Column 1: Stats & Gear */
+.inventory-col-stats {
+    width: 250px;
+    border-right: 2px solid #3B322C;
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(59, 50, 44, 0.15);
+}
+
+.inventory-col-stats h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #D4C8A0;
+    font-size: 0.95em;
+    border-bottom: 1px dashed #5A4B3E;
+    padding-bottom: 4px;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+}
+
+.attrib-label {
+    color: #A09580;
+}
+
+.attrib-value {
+    font-weight: bold;
+}
+
+.attrib-bonus {
+    color: #2ecc71;
+    font-size: 0.9em;
+}
+
+/* Equippable visual frames */
+.equip-gear-slot {
+    display: flex;
+    align-items: center;
+    background-color: #251E1A;
+    border: 1px solid #5A4B3E;
+    border-radius: 5px;
+    padding: 6px;
+    margin-bottom: 8px;
+    gap: 8px;
+    font-size: 0.8em;
+    position: relative;
+    transition: border-color 0.15s ease;
+}
+
+.equip-gear-slot.has-item {
+    border-color: #2ecc71;
+}
+
+.equip-gear-slot.empty {
+    border-style: dashed;
+    opacity: 0.65;
+}
+
+.gear-slot-icon {
+    font-size: 1.3em;
+    width: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.gear-slot-meta {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.gear-type-label {
+    font-size: 0.7em;
+    color: #A09580;
+}
+
+.gear-item-name {
+    font-weight: bold;
+    color: #EFEBE0;
+}
+
+.equip-gear-unequip-btn {
+    background-color: #3B322C;
+    color: #EFEBE0;
+    border: 1px solid #8C6D56;
+    border-radius: 3px;
+    font-size: 0.85em;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.equip-gear-unequip-btn:hover {
+    background-color: #c0392b;
+    border-color: #962d22;
+}
+
+/* Column 2: Grid view */
+.inventory-col-grid {
+    flex: 1;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: hidden; /* we scroll the grid-container itself! */
+}
+
+.inventory-grid-container {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-auto-rows: 52px; /* Tight, compact square height */
+    gap: 6px;
+    background-color: #1A1411; /* Warm dark wood center background */
+    border: 1.5px solid #3B322C; /* Original bronze frame */
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 485px; /* Perfect tight fit within modal column layout */
+    overflow-y: auto; /* Endless grid scrolling */
+    align-content: start; /* Prevents rows from stretching vertically! Keep it tight */
+    user-select: none;
+    -webkit-user-select: none;
+    scrollbar-width: thin;
+    scrollbar-color: #8C6D56 #1A1411;
+}
+
+.inventory-grid-container::-webkit-scrollbar {
+    width: 6px;
+}
+.inventory-grid-container::-webkit-scrollbar-track {
+    background: #1A1411;
+}
+.inventory-grid-container::-webkit-scrollbar-thumb {
+    background-color: #8C6D56;
+    border-radius: 3px;
+}
+
+.inventory-item-slot {
+    background-color: #2A211D; /* Original rich deep wood slot */
+    border: 1.5px solid #5A4B3E; /* Original brown border */
+    border-radius: 5px;
+    width: 100%;
+    max-width: 42px; /* Super compact slot size */
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    margin: 0 auto;
+    transition: all 0.1s ease-in-out;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.inventory-item-slot.empty {
+    cursor: default;
+    opacity: 0.35;
+    background-color: #1A1411;
+    border: 1.5px dashed #3B322C;
+}
+
+.inventory-item-slot.filled:hover {
+    background-color: #3D302A;
+    border-color: #8C6D56; /* Original warm highlight hover border */
+    transform: scale(1.05);
+}
+
+.inventory-item-slot.selected {
+    background-color: #4D3D35;
+    border-color: #D4C8A0; /* Original gorgeous cream gold border */
+    box-shadow: 0 0 8px rgba(212, 200, 160, 0.4);
+}
+
+.inventory-item-slot.equipped {
+    border-color: #2ecc71;
+    box-shadow: inset 0 0 5px rgba(46, 204, 113, 0.4);
+}
+
+.item-slot-emoji {
+    font-size: 1.15em; /* Proportional to 42px slot height */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.item-slot-count {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 0.55em;
+    font-weight: bold;
+    color: #D4C8A0; /* Match warm cream gold theme */
+    background-color: rgba(26, 20, 17, 0.85); /* Warm background card */
+    padding: 0px 2.5px;
+    border-radius: 2px;
+    text-shadow: 1px 1px 1px black;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.item-slot-price-badge {
+    position: absolute;
+    bottom: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.52em;
+    font-weight: bold;
+    color: #ffd700; /* Match precious gold brand color */
+    text-shadow: 1px 1px 1px black;
+    background-color: rgba(26, 20, 17, 0.85); /* Warm background card */
+    padding: 0px 3px;
+    border-radius: 2px;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.item-equipped-indicator {
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 0.55em;
+    font-weight: bold;
+    background-color: #2ecc71;
+    color: black;
+    border-radius: 2px;
+    padding: 0px 2.5px;
+    text-transform: uppercase;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.item-slot-dots {
+    color: #4A3C30;
+    font-size: 1.5em;
+}
+
+/* Column 3: Details */
+.inventory-col-details {
+    width: 255px;
+    border-left: 2px solid #3B322C;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(59, 50, 44, 0.15);
+}
+
+.empty-details-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #A09580;
+    font-size: 0.8em;
+    padding: 10px;
+    border: 1px dashed #3B322C;
+    border-radius: 6px;
+}
+
+.details-main-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.details-avatar-emoji {
+    font-size: 2.5em;
+}
+
+.details-name-label {
+    font-weight: bold;
+    font-size: 1em;
+    color: #D4C8A0;
+}
+
+.details-category-tag {
+    font-size: 0.65em;
+    background-color: #3B322C;
+    border: 1px solid #5A4B3E;
+    border-radius: 4px;
+    color: #A09580;
+    padding: 2px 6px;
+    letter-spacing: 0.5px;
+}
+
+.details-desc-box {
+    background-color: #1A1411;
+    border: 1px solid #3B322C;
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 0.8em;
+    line-height: 1.4;
+    color: #EFEBE0;
+    flex-grow: 1;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.details-text {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.details-stat-bullet {
+    border-top: 1px solid #3B322C;
+    padding-top: 6px;
+    color: #2ecc71;
+    font-weight: bold;
+}
+
+.details-shop-value {
+    font-size: 0.8em;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.details-actions-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.inventory-action-btn {
+    width: 100%;
+    border: none;
+    border-radius: 4px;
+    padding: 6px;
+    font-weight: bold;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+    box-sizing: border-box;
+}
+
+.inventory-action-btn.equip-btn {
+    background-color: #8C6D56;
+    color: white;
+}
+.inventory-action-btn.equip-btn:hover {
+    background-color: #A07D65;
+}
+
+.inventory-action-btn.consume-btn {
+    background-color: #27ae60;
+    color: white;
+}
+.inventory-action-btn.consume-btn:hover {
+    background-color: #2ecc71;
+}
+
+.inventory-action-btn.sell-btn {
+    background-color: #3b322c;
+    color: #EFEBE0;
+    border: 1px solid #8C6D56;
+}
+.inventory-action-btn.sell-btn:hover {
+    background-color: #8C6D56;
+    color: white;
+}
+
+/* 🎮 MMO-STYLE DYNAMIC FLOATING HOTBAR */
+#rpg-mmo-hotbar {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(18, 14, 13, 0.95);
+    border: 3px solid #8C6D56;
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    gap: 12px;
+    z-index: 10000;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
+    pointer-events: auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    image-rendering: auto;
+    user-select: none;
+    align-items: center;
+}
+
+.hotbar-slot {
+    width: 50px;
+    height: 50px;
+    background-color: #2B231D;
+    border: 2px solid #5A4B3E;
+    border-radius: 6px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.hotbar-slot:hover {
+    background-color: #3D302A;
+    border-color: #8C6D56;
+}
+
+.hotbar-key {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 0.65em;
+    font-weight: 800;
+    color: #FFD700;
+    text-shadow: 1px 1px 1px black;
+}
+
+.hotbar-icon {
+    font-size: 1.5em;
+    margin-top: 2px;
+}
+
+.hotbar-name {
+    font-size: 0.55em;
+    color: #A09580;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 44px;
+    margin-top: 1px;
+}
+
+.hotbar-cooldown {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #FF4D4D;
+    font-weight: bold;
+    font-size: 0.9em;
+    text-shadow: 1px 1px 2px black;
+}
+
+.hotbar-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 0.65em;
+    font-weight: bold;
+    color: #8C6D56;
+    letter-spacing: 1px;
+    border-right: 1px solid #3B322C;
+    padding-right: 6px;
+    margin-right: -4px;
+}

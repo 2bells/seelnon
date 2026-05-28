@@ -3,7 +3,7 @@ import Player from './player.js';
 import GameObject from './gameObject.js';
 import NPC from './npc.js';
 import { GLOBAL_COLLISION_Y_OFFSET } from './gameObject.js';
-import { TelegraphEffect, FloatingTextEffect } from '../combat/effects.js';
+import { TelegraphEffect, FloatingTextEffect, ParticleSplatterEffect } from '../combat/effects.js';
 
 const AI_STATE = {
     IDLE: 'idle',
@@ -47,6 +47,7 @@ class Enemy extends GameObject {
             knockbackForce: 150, // Force to push the player
         };
         this.visualYOffset = 0; // For jump animation
+        this.landingSquashTimer = 0; // Elastic squash & stretch rebound on landing
         this.hasDealtDamage = false; // Per-attack flag
 
         // Ensure stats have defaults
@@ -86,6 +87,9 @@ class Enemy extends GameObject {
 
         // Update timers
         this.attackTimer = Math.max(0, this.attackTimer - deltaTime);
+        if (this.landingSquashTimer > 0) {
+            this.landingSquashTimer = Math.max(0, this.landingSquashTimer - deltaTime);
+        }
         if (this.hitFlashTimer > 0) {
             this.hitFlashTimer -= deltaTime;
             if (this.hitFlashTimer <= 0) {
@@ -268,6 +272,20 @@ class Enemy extends GameObject {
     updatePathfinding(deltaTime, targetX, targetY) {
         if (this.pathfindingCooldown > 0) {
             this.pathfindingCooldown -= deltaTime;
+        }
+
+        // Performance & Combat Clustering Optimization:
+        // Skip pathfinding and wiggling/stuck-recalculations entirely when chasing and close to target.
+        // Slimes in combat have leaps and abilities to get out and can slide around each other cleanly.
+        if (this.aiState === AI_STATE.CHASING && this.currentTarget) {
+            const tdx = targetX - this.currentPixelX;
+            const tdy = targetY - this.currentPixelY;
+            const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
+            if (distToTarget < 180) {
+                this.stuckTimer = 0;
+                this.currentPath = null;
+                return { tx: targetX, ty: targetY };
+            }
         }
 
         // Handle backing up if active (to steer away from the obstacle/group)
@@ -515,6 +533,7 @@ class Enemy extends GameObject {
                     this.currentPixelY = this.attackAction.targetPos.y;
                     this.updateMapCoordsFromPixels();
                     this.visualYOffset = 0;
+                    this.landingSquashTimer = 0.35; // Trigger bounciness on landing
                     this.collidable = true; // Re-enable collision on landing
 
                     this.attackSubState = 'active';
@@ -722,6 +741,18 @@ class Enemy extends GameObject {
         this.isHit = true;
         this.hitFlashTimer = 0.15; // seconds
 
+        // Add physical splatter particle effect
+        const isPinkSlime = this.friendly === true || (this.name && this.name.toLowerCase().includes('allied'));
+        const pColor = isPinkSlime ? '#e91e63' : '#8bc34a';
+        if (typeof ParticleSplatterEffect !== 'undefined') {
+            this.engine.addEffect(new ParticleSplatterEffect(this.engine, {
+                position: { x: this.currentPixelX, y: this.currentPixelY },
+                color: pColor,
+                count: 8,
+                duration: 0.45
+            }));
+        }
+
         // Add floating damage text
         this.engine.addEffect(new FloatingTextEffect(this.engine, {
             text: amount.toString(),
@@ -743,6 +774,18 @@ class Enemy extends GameObject {
         this.attackAction.targetPos = null;
         this.visualYOffset = 0; // Reset visual offset
         this.isHit = false; // Turn off hit flash on death
+
+        // Add massive physical splatter particle explosion on death
+        const isPinkSlime = this.friendly === true || (this.name && this.name.toLowerCase().includes('allied'));
+        const pColor = isPinkSlime ? '#e91e63' : '#8bc34a';
+        if (typeof ParticleSplatterEffect !== 'undefined') {
+            this.engine.addEffect(new ParticleSplatterEffect(this.engine, {
+                position: { x: this.currentPixelX, y: this.currentPixelY },
+                color: pColor,
+                count: 24,
+                duration: 0.75
+            }));
+        }
 
         // If player is targeting this enemy, clear their target
         if (this.player && this.player.currentTarget === this) {
@@ -807,8 +850,43 @@ class Enemy extends GameObject {
         const anchorCanvasX = this.currentPixelX - viewOriginX;
         const anchorCanvasY = (this.currentPixelY + this.visualYOffset) - viewOriginY;
     
-        const spriteDrawX = anchorCanvasX - this.anchorOffsetX;
-        const spriteDrawY = anchorCanvasY - this.anchorOffsetY;
+        let scaleX = 1.0;
+        let scaleY = 1.0;
+        if (this.isHit && this.hitFlashTimer > 0) {
+            const ratio = this.hitFlashTimer / 0.15; // 1.0 down to 0.0
+            scaleX = 1.4 - 0.4 * (1.0 - ratio); // Wide hit impact (anticipation/recoil)
+            scaleY = 0.6 + 0.4 * (1.0 - ratio); // Flat hit impact
+        } else if (this.attackSubState === 'startup') {
+            const progress = 1.0 - (this.attackAction.timer / this.attackAction.startupDuration);
+            if (progress < 0.15) {
+                // 1. Anticipation squash (0.0 to 0.15): charging up the power
+                const norm = progress / 0.15;
+                scaleX = 1.0 + 0.3 * norm;
+                scaleY = 1.0 - 0.3 * norm;
+            } else if (progress < 0.85) {
+                // 2. Flight stretch (0.15 to 0.85): vertical elongation
+                const norm = (progress - 0.15) / 0.7;
+                const stretch = Math.sin(norm * Math.PI);
+                scaleX = 1.0 - 0.35 * stretch;
+                scaleY = 1.0 + 0.45 * stretch;
+            } else {
+                // 3. Ready to impact squash (0.85 to 1.0)
+                const norm = (progress - 0.85) / 0.15;
+                scaleX = 1.0 + 0.15 * norm;
+                scaleY = 1.0 - 0.15 * norm;
+            }
+        } else if (this.landingSquashTimer > 0) {
+            // Organic decay wave oscillation (ballooning / bouncy material simulation)
+            const ratio = this.landingSquashTimer / 0.35; // 1.0 down to 0.0
+            const wave = Math.sin(ratio * Math.PI * 3.5) * ratio; // dampening wave
+            scaleX = 1.0 + wave * 0.45;
+            scaleY = 1.0 - wave * 0.45;
+        }
+
+        const drawW = this.visualWidth * scaleX;
+        const drawH = this.visualHeight * scaleY;
+        const spriteDrawX = anchorCanvasX - (this.anchorOffsetX * scaleX);
+        const spriteDrawY = anchorCanvasY - (this.anchorOffsetY * scaleY);
     
         ctx.save();
         if (this.friendly === true) {
@@ -820,17 +898,17 @@ class Enemy extends GameObject {
                 this.spriteSourceRect.x, this.spriteSourceRect.y,
                 this.spriteSourceRect.width, this.spriteSourceRect.height,
                 spriteDrawX, spriteDrawY,
-                this.visualWidth, this.visualHeight
+                drawW, drawH
             );
         } else {
             ctx.drawImage(
                 this.sprite,
                 spriteDrawX, spriteDrawY,
-                this.visualWidth, this.visualHeight
+                drawW, drawH
             );
         }
         ctx.restore();
-
+ 
         // --- Render Hit Flash ---
         if (this.isHit) {
             ctx.save();
@@ -840,20 +918,20 @@ class Enemy extends GameObject {
             ctx.globalCompositeOperation = 'lighter';
             ctx.globalAlpha = 0.8 * (this.hitFlashTimer / 0.15); // Fade the flash out
             
-            // Re-draw the sprite with the effect
+            // Re-draw the sprite with the same squeeze effect
             if (this.spriteSourceRect) {
                 ctx.drawImage(
                     this.sprite,
                     this.spriteSourceRect.x, this.spriteSourceRect.y,
                     this.spriteSourceRect.width, this.spriteSourceRect.height,
                     spriteDrawX, spriteDrawY,
-                    this.visualWidth, this.visualHeight
+                    drawW, drawH
                 );
             } else {
                 ctx.drawImage(
                     this.sprite,
                     spriteDrawX, spriteDrawY,
-                    this.visualWidth, this.visualHeight
+                    drawW, drawH
                 );
             }
             ctx.restore();

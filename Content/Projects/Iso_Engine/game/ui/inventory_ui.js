@@ -111,32 +111,6 @@ class InventoryUI {
         gridContainer.className = 'inventory-grid-container';
         colGrid.appendChild(gridContainer);
         
-        // --- ADDED Spell Book container directly under Bag grid ---
-        const spellbookDiv = document.createElement('div');
-        spellbookDiv.className = 'spellbook-container';
-        spellbookDiv.innerHTML = `
-            <h4>🔮 Spell Book & Skill Mapping</h4>
-            <p style="font-size: 0.72em; color: #A09580; margin: 0 0 8px 0; line-height: 1.3;">
-              Items grant spells! Click an unlocked ability, then assign it to a Hotbar key slot.
-            </p>
-            <div class="spellbook-columns">
-                <div class="spellbook-list" id="spellbook-unlocked-list">
-                    <!-- Populated dynamically -->
-                </div>
-                <div class="spellbook-mapping">
-                    <span style="font-size: 0.7em; display: block; color: #D4C8A0; margin-bottom: 4px; text-align: center;">Assign Spell to Hotkey:</span>
-                    <div class="spellbook-hotkey-assign-row">
-                        <button class="spellbook-assign-btn" data-slot="0" title="Assign to key Q">Q</button>
-                        <button class="spellbook-assign-btn" data-slot="1" title="Assign to key E">E</button>
-                        <button class="spellbook-assign-btn" data-slot="2" title="Assign to key R">R</button>
-                        <button class="spellbook-assign-btn" data-slot="3" title="Assign to key F">F</button>
-                        <button class="spellbook-assign-btn" data-slot="4" title="Assign to key G">G</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        colGrid.appendChild(spellbookDiv);
-        
         container.appendChild(colGrid);
 
         // Column 3: Item Description Panel
@@ -150,15 +124,6 @@ class InventoryUI {
 
         document.body.appendChild(overlay);
         this.modal = overlay;
-
-        // Hook click on assign buttons
-        const assignBtns = spellbookDiv.querySelectorAll('.spellbook-assign-btn');
-        assignBtns.forEach(btn => {
-            btn.onclick = () => {
-                const slotIndex = parseInt(btn.dataset.slot, 10);
-                this.assignSelectedSpellToHotkey(slotIndex);
-            };
-        });
     }
 
     createMmoHotbarHUD() {
@@ -241,7 +206,6 @@ class InventoryUI {
 
         this.renderStatsPanel();
         this.renderInventoryGrid();
-        this.renderSpellBook();
         this.renderDetailsPanel();
     }
 
@@ -386,8 +350,8 @@ class InventoryUI {
         grid.innerHTML = '';
         const player = this.engine.player;
 
-        // Expanded slots to fit broader 6 columns layout
-        const totalSlotsCount = 30;
+        // Endless dynamic inventory slots (minimum 120 slots, grows dynamically as player gains items)
+        const totalSlotsCount = Math.max(120, Math.ceil((player.inventory.length + 6) / 6) * 6);
 
         for (let i = 0; i < totalSlotsCount; i++) {
             const item = player.inventory[i] || null;
@@ -414,7 +378,12 @@ class InventoryUI {
                 if (item.equipped) {
                     const eqBadge = document.createElement('span');
                     eqBadge.className = 'item-equipped-indicator';
-                    eqBadge.textContent = 'E';
+                    if (item.type === 'ability' && item.equippedSlot !== undefined) {
+                        eqBadge.textContent = ['Q','E','R','F','G'][item.equippedSlot] || 'E';
+                        eqBadge.style.backgroundColor = '#2980b9'; // Blue accent for slotted spells!
+                    } else {
+                        eqBadge.textContent = 'E';
+                    }
                     slot.appendChild(eqBadge);
                 }
 
@@ -434,75 +403,7 @@ class InventoryUI {
         }
     }
 
-    renderSpellBook() {
-        const listDiv = document.getElementById('spellbook-unlocked-list');
-        if (!listDiv) return;
 
-        listDiv.innerHTML = '';
-        const player = this.engine.player;
-
-        // 1. Compile ALL dynamically unlocked abilities
-        const unlockedSet = new Set(['slime_leap', 'dash_strike']); // default built-ins
-        
-        // Items in bag carry dynamic magical spells!
-        player.inventory.forEach(item => {
-            if (item.attachedAbility) {
-                unlockedSet.add(item.attachedAbility);
-            }
-        });
-
-        const allAbilities = getAllAbilities();
-
-        if (unlockedSet.size === 0) {
-            listDiv.innerHTML = '<span style="font-size:0.75em; color:#5A4B3E; padding:8px;">No spells unlocked yet. Found gear to unleash actions!</span>';
-            return;
-        }
-
-        // Render button for each unlocked spell
-        unlockedSet.forEach(abId => {
-            const metadata = allAbilities[abId];
-            if (!metadata) return;
-
-            const btn = document.createElement('button');
-            btn.className = 'spellbook-item-btn';
-            if (this.selectedAbilityId === abId) {
-                btn.className += ' selected-spell';
-            }
-            
-            btn.textContent = `${this.getAbilityEmoji(abId)} ${metadata.name}`;
-            btn.title = `Cooldown: ${metadata.cooldown || 3}s | Range: ${metadata.range || 120}px`;
-            
-            btn.onclick = () => {
-                this.selectedAbilityId = abId;
-                this.renderSpellBook(); // Repaint selectors outline
-            };
-
-            listDiv.appendChild(btn);
-        });
-    }
-
-    assignSelectedSpellToHotkey(slotIndex) {
-        if (!this.selectedAbilityId) {
-            this.addLocalFloatText("Select a spell in the book first!", "#c0392b");
-            return;
-        }
-
-        const player = this.engine.player;
-
-        // Equip onto the player array!
-        if (!Array.isArray(player.equippedAbilities)) {
-            player.equippedAbilities = [null, null, null, null, null];
-        }
-
-        player.equippedAbilities[slotIndex] = this.selectedAbilityId;
-        const allAb = getAllAbilities();
-        const info = allAb[this.selectedAbilityId] || { name: this.selectedAbilityId };
-
-        this.addLocalFloatText(`Mapped ${info.name} to Hotkey [${['Q','E','R','F','G'][slotIndex]} ]!`, '#61b1ff');
-        
-        this.selectedAbilityId = null; // Consume selection
-        this.render();
-    }
 
     renderDetailsPanel() {
         const detSub = document.getElementById('inventory-details-subpanel');
@@ -521,7 +422,7 @@ class InventoryUI {
             return;
         }
 
-        const isEquippable = ['weapon', 'shield', 'armor'].includes(item.type);
+        const isEquippable = ['weapon', 'shield', 'armor', 'ability'].includes(item.type);
         const emoji = this.getItemEmoji(item);
         
         let statsDescriptor = '';
@@ -529,6 +430,41 @@ class InventoryUI {
         else if (item.type === 'shield' && item.bonusDef) statsDescriptor = `🛡️ Boosts Defense Guard by +${item.bonusDef}`;
         else if (item.type === 'armor' && item.bonusDef) statsDescriptor = `👕 Boosts Defense Shield by +${item.bonusDef}`;
         else if (item.type === 'consumable' && item.heal) statsDescriptor = `❤️ Restores HP health by +${item.heal}`;
+        else if (item.type === 'ability' && item.attachedAbility) {
+            const allAb = getAllAbilities();
+            const ab = allAb[item.attachedAbility];
+            
+            // Build a gorgeous statistical description based on player's attributes!
+            const playerAtk = player.getAtk();
+            const playerDef = player.getDef();
+            let dmgVal = 0;
+            let scalingText = '';
+            
+            if (item.attachedAbility === 'slime_leap') {
+                dmgVal = Math.floor(12 + 1.2 * playerAtk);
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (12 Base + 120% ATK)`;
+            } else if (item.attachedAbility === 'dash_strike') {
+                dmgVal = Math.floor(15 + 1.5 * playerAtk);
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (15 Base + 150% ATK)`;
+            } else if (item.attachedAbility === 'blood_siphon') {
+                dmgVal = Math.floor(28 + 2.0 * playerAtk);
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (28 Base + 200% ATK).<br/>🧪 Costs 15 HP to cast, resolves ❤️ <b>+30 HP heal</b> on hit.`;
+            } else if (item.attachedAbility === 'earth_wall') {
+                dmgVal = Math.floor(6 + 0.5 * playerAtk + 0.8 * playerDef);
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (6 Base + 50% ATK + 80% DEF).<br/>⛰️ Summons temporary obstacle.`;
+            } else {
+                const baseDmg = (ab && ab.active && ab.active.damage) || 0;
+                dmgVal = Math.floor(baseDmg + 1.0 * playerAtk);
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (${baseDmg} Base + 100% ATK)`;
+            }
+            
+            const cooldown = (ab && ab.cooldown) || 3;
+            const range = (ab && ab.range) || 120;
+            
+            statsDescriptor = `🔮 <b>Grants Skill: ${ab ? ab.name : item.attachedAbility}</b><br/>` +
+                              `<span style="color:#e74c3c;">${scalingText}</span><br/>` +
+                              `<span style="color:#3498db; font-size:0.9em; display:block; margin-top:4px;">⏱️ Cooldown: ${cooldown}s &nbsp;|&nbsp; 📏 Range: ${range}px</span>`;
+        }
 
         // Addition details: passive or spell attachment descriptor
         let passiveDescriptor = '';
@@ -545,7 +481,10 @@ class InventoryUI {
             const allAb = getAllAbilities();
             const details = allAb[item.attachedAbility];
             if (details) {
-                attachDescriptor = `🔮 Spells: Unlocks casting spell "${details.name}"!`;
+                attachDescriptor = `🔮 Spell: Unlocks casting spell "${details.name}"!`;
+                if (item.equipped && item.equippedSlot !== undefined) {
+                    attachDescriptor += ` (Equipped to slot ${['Q','E','R','F','G'][item.equippedSlot]})`;
+                }
             }
         }
 
@@ -568,26 +507,49 @@ class InventoryUI {
             </div>
 
             <div class="details-actions-panel">
-                ${isEquippable ? `
-                    <button class="inventory-action-btn equip-btn" id="action-equip-toggle">
+                ${item.type === 'ability' ? `
+                    <div class="ability-slot-equip-container" style="display:flex; flex-direction:column; gap:6px; width:100%; background:rgba(0,0,0,0.22); padding:6px; border-radius:4px; border:1px solid #5A4B3E; box-sizing:border-box; margin-bottom:8px;">
+                        <span style="font-size:0.75em; color:#D4C8A0; margin-bottom:2px; display:block; text-align:center;">Equip into Hotbar Slot:</span>
+                        <div style="display:flex; gap:4px; justify-content:space-between; width:100%; box-sizing:border-box;">
+                            <button class="inventory-action-btn equip-btn" style="flex:1; padding:4px; font-weight:bold; cursor:pointer;" id="equip-slot-q">Q</button>
+                            <button class="inventory-action-btn equip-btn" style="flex:1; padding:4px; font-weight:bold; cursor:pointer;" id="equip-slot-e">E</button>
+                            <button class="inventory-action-btn equip-btn" style="flex:1; padding:4px; font-weight:bold; cursor:pointer;" id="equip-slot-r">R</button>
+                            <button class="inventory-action-btn equip-btn" style="flex:1; padding:4px; font-weight:bold; cursor:pointer;" id="equip-slot-f">F</button>
+                            <button class="inventory-action-btn equip-btn" style="flex:1; padding:4px; font-weight:bold; cursor:pointer;" id="equip-slot-g">G</button>
+                        </div>
+                        ${item.equipped ? `
+                            <button class="inventory-action-btn sell-btn" style="width:100%; margin-top:4px; cursor:pointer;" id="action-unequip-ability">Unequip from Hotbar</button>
+                        ` : ''}
+                    </div>
+                ` : (isEquippable ? `
+                    <button class="inventory-action-btn equip-btn" id="action-equip-toggle" style="cursor:pointer;">
                         ${item.equipped ? '📥 Unequip item' : '📤 Equip as item'}
                     </button>
-                ` : ''}
+                ` : '')}
 
                 ${item.type === 'consumable' ? `
-                    <button class="inventory-action-btn consume-btn" id="action-consume-apply">
+                    <button class="inventory-action-btn consume-btn" id="action-consume-apply" style="cursor:pointer;">
                         ❤️ Use / Eat Item
                     </button>
                 ` : ''}
 
-                <button class="inventory-action-btn sell-btn" id="action-sell-merchant">
+                <button class="inventory-action-btn sell-btn" id="action-sell-merchant" style="cursor:pointer;">
                     💰 Sell to Recycler (+${item.value}G)
                 </button>
             </div>
         `;
 
         // Direct actions binding
-        if (isEquippable) {
+        if (item.type === 'ability') {
+            document.getElementById('equip-slot-q').onclick = () => this.equipAbilityItemToSlot(item, 0);
+            document.getElementById('equip-slot-e').onclick = () => this.equipAbilityItemToSlot(item, 1);
+            document.getElementById('equip-slot-r').onclick = () => this.equipAbilityItemToSlot(item, 2);
+            document.getElementById('equip-slot-f').onclick = () => this.equipAbilityItemToSlot(item, 3);
+            document.getElementById('equip-slot-g').onclick = () => this.equipAbilityItemToSlot(item, 4);
+            if (item.equipped) {
+                document.getElementById('action-unequip-ability').onclick = () => this.unequipAbilityItem(item);
+            }
+        } else if (isEquippable) {
             document.getElementById('action-equip-toggle').onclick = () => {
                 if (item.equipped) {
                     this.unequipItem(item);
@@ -642,6 +604,64 @@ class InventoryUI {
 
         this.render();
         this.addLocalFloatText(`Unequipped: ${item.name}`, '#ffc107');
+    }
+
+    // Equip an ability item to a hotbar slot
+    equipAbilityItemToSlot(item, slotIndex) {
+        const player = this.engine.player;
+        if (!player) return;
+
+        // Ensure equippedAbilities is initialized
+        if (!Array.isArray(player.equippedAbilities)) {
+            player.equippedAbilities = [null, null, null, null, null];
+        }
+
+        // Unequip this specific ability from any hotbar slots it is already in
+        for (let i = 0; i < player.equippedAbilities.length; i++) {
+            if (player.equippedAbilities[i] === item.attachedAbility) {
+                player.equippedAbilities[i] = null;
+            }
+        }
+
+        // Search if other items are equipped on this slot, and mark them as unequipped
+        const existingAbilityId = player.equippedAbilities[slotIndex];
+        if (existingAbilityId) {
+            player.inventory.forEach(i => {
+                if (i.attachedAbility === existingAbilityId) {
+                    i.equipped = false;
+                    i.equippedSlot = undefined;
+                }
+            });
+        }
+
+        // Assign the ability to this slot
+        player.equippedAbilities[slotIndex] = item.attachedAbility;
+        item.equipped = true;
+        item.equippedSlot = slotIndex;
+        item.explicitlyUnequipped = false; // reset explicitly unequipped state!
+
+        this.render();
+        this.addLocalFloatText(`Equipped ${item.name} to Hotbar Slot ${['Q','E','R','F','G'][slotIndex]}!`, '#2ecc71');
+    }
+
+    // Unequip an ability item from any hotbar slots
+    unequipAbilityItem(item) {
+        const player = this.engine.player;
+        if (!player) return;
+
+        if (Array.isArray(player.equippedAbilities)) {
+            for (let i = 0; i < player.equippedAbilities.length; i++) {
+                if (player.equippedAbilities[i] === item.attachedAbility) {
+                    player.equippedAbilities[i] = null;
+                }
+            }
+        }
+        item.equipped = false;
+        item.equippedSlot = undefined;
+        item.explicitlyUnequipped = true; // explicitly unequipped to prevent automatic re-equipping
+
+        this.render();
+        this.addLocalFloatText(`Unequipped ${item.name} from Hotbar!`, '#ffc107');
     }
 
     // USE potions/herbs

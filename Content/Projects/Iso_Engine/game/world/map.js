@@ -57,6 +57,9 @@ class GameMap {
         } else {
             console.error("Default building spritesheet not found in engine assets!");
         }
+        if (this.engine.assets.outdoorsSpritesheet) {
+            this.runtimeSpritesheets.push(this.engine.assets.outdoorsSpritesheet);
+        }
         this.currentMapName = null; // To store the name of the currently loaded/saved map
 
         // Tile definitions: maps tile ID to { sourceRect }
@@ -171,7 +174,10 @@ class GameMap {
         this.objectLayersData = { 'object1': [], 'object2': [] };
         this.runtimeGameObjects = [];
         this.customSpritesheets = []; // Also clear custom spritesheets
-        this.runtimeSpritesheets = [this.engine.assets.buildingSpritesheet]; // Reset to default
+        this.runtimeSpritesheets = [
+            this.engine.assets.buildingSpritesheet,
+            this.engine.assets.outdoorsSpritesheet
+        ].filter(Boolean); // Reset to defaults
         this.collisionLayerData = []; 
         this.occlusionLayerData = [];
         this.spawnPointsData = [];
@@ -970,7 +976,10 @@ class GameMap {
             }
 
             // Before anything else, load custom spritesheets
-            this.runtimeSpritesheets = [this.engine.assets.buildingSpritesheet];
+            this.runtimeSpritesheets = [
+                this.engine.assets.buildingSpritesheet,
+                this.engine.assets.outdoorsSpritesheet
+            ].filter(Boolean);
             this.customSpritesheets = [];
             const loadingPromises = [];
 

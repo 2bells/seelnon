@@ -363,6 +363,9 @@ export function updateAbilityCycle(caster, deltaTime) {
             caster.currentPixelX = caster.abilityTargetPos.x;
             caster.currentPixelY = caster.abilityTargetPos.y;
             caster.visualYOffset = 0;
+            if (ability.startup && ability.startup.jumpHeight > 0) {
+                caster.landingSquashTimer = 0.35; // Trigger bounciness on landing
+            }
             caster.collidable = true; // guarantee solid landing
 
             if (typeof caster.updateMapCoordsFromPixels === 'function') {
@@ -441,7 +444,7 @@ function triggerHitboxScanAndResolve(caster, ability) {
         // Is it an enemy of the caster?
         const isEnemyVictim = (obj instanceof GameObject && obj.type && obj.type.includes('tower_player') === false);
         const shouldHit = isPlayerCaster 
-            ? (obj.constructor.name === 'Enemy' || obj.type === 'tower_enemy')
+            ? ((obj.constructor.name === 'Enemy' && obj.friendly !== true) || obj.type === 'tower_enemy' || (obj.name && obj.name.toLowerCase().includes('scruffy')))
             : (obj === caster.engine.player || obj.type === 'tower_player' || (obj.name && obj.name.toLowerCase().includes('doran')));
         
         if (shouldHit) {
@@ -471,8 +474,37 @@ function triggerHitboxScanAndResolve(caster, ability) {
     // Apply HP changes
     if (hitOpponents.length > 0) {
         for (const victim of hitOpponents) {
-            // Apply damage
-            const dmg = ability.active.damage || 0;
+            // Apply damage with character attribute scaling!
+            let dmg = ability.active.damage || 0;
+            
+            let casterAtk = 10;
+            let casterDef = 5;
+            if (caster) {
+                if (typeof caster.getAtk === 'function') {
+                    casterAtk = caster.getAtk();
+                } else if (caster.stats && caster.stats.atk !== undefined) {
+                    casterAtk = caster.stats.atk;
+                }
+                if (typeof caster.getDef === 'function') {
+                    casterDef = caster.getDef();
+                } else if (caster.stats && caster.stats.def !== undefined) {
+                    casterDef = caster.stats.def;
+                }
+            }
+
+            const abId = ability.id;
+            if (abId === 'slime_leap') {
+                dmg = Math.floor(12 + 1.2 * casterAtk);
+            } else if (abId === 'dash_strike') {
+                dmg = Math.floor(15 + 1.5 * casterAtk);
+            } else if (abId === 'blood_siphon') {
+                dmg = Math.floor(28 + 2.0 * casterAtk);
+            } else if (abId === 'earth_wall') {
+                dmg = Math.floor(6 + 0.5 * casterAtk + 0.8 * casterDef);
+            } else {
+                dmg = Math.floor(dmg + 1.0 * casterAtk);
+            }
+
             if (typeof victim.takeDamage === 'function') {
                 victim.takeDamage(dmg, caster);
             } else if (victim.stats) {

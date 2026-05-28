@@ -102,6 +102,13 @@ export function initStandaloneGame() {
         };
     }
 
+    const bankEditorBtn = document.getElementById('rpg-bank-editor-button');
+    if (bankEditorBtn) {
+        bankEditorBtn.onclick = () => {
+            if (gameEngineInstance) gameEngineInstance.toggleBankEditor();
+        };
+    }
+
     // Zoom Button Binds
     const zoomInBtn = document.getElementById('rpg-zoom-in');
     if (zoomInBtn) {

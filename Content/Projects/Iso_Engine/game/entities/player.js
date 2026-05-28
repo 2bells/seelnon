@@ -39,18 +39,23 @@ class Player {
         };
 
         this.gold = 150; // Starting player gold
-        this.inventory = [
+        this._inventory = [
             { id: 'item_potion_red', name: 'Red Potion', type: 'consumable', heal: 40, description: 'Heals 40 HP.', count: 3, value: 20 },
             { id: 'item_herb_green', name: 'Green Herb', type: 'consumable', heal: 15, description: 'Heals 15 HP.', count: 2, value: 8 },
-            { id: 'item_sword_iron', name: 'Iron Sword', type: 'weapon', bonusAtk: 5, description: '+5 ATK. Iron blade.', count: 1, value: 60, equipped: false }
+            { id: 'item_sword_iron', name: 'Iron Sword', type: 'weapon', bonusAtk: 5, description: '+5 ATK. Iron blade.', count: 1, value: 60, equipped: false },
+            { id: 'item_slime_leap', name: 'Tome of Slime Leap', emoji: '🐸', type: 'ability', attachedAbility: 'slime_leap', description: 'Imbued with bouncy momentum. Equips Slime Leap skill into a Hotbar slot.', count: 1, value: 50, equipped: false },
+            { id: 'item_dash_strike', name: 'Ring of Dash Strike', emoji: '⚔️', type: 'ability', attachedAbility: 'dash_strike', description: 'Imbued with swift wind. Equips Dash Strike skill into a Hotbar slot.', count: 1, value: 50, equipped: false },
+            { id: 'item_blood_siphon', name: 'Amulet of Blood Siphon', emoji: '❤️', type: 'ability', attachedAbility: 'blood_siphon', description: 'Imbued with dark blood magic. Equips Blood Siphon skill into a Hotbar slot.', count: 1, value: 50, equipped: false },
+            { id: 'item_earth_wall', name: 'Rune of Earth Wall', emoji: '⛰️', type: 'ability', attachedAbility: 'earth_wall', description: 'Imbued with earthen elements. Equips Earth Wall skill into a Hotbar slot.', count: 1, value: 50, equipped: false }
         ];
 
         // Ability System properties
         this.activeAbility = null;
         this.abilityState = 'none'; // 'none', 'startup', 'active', 'recovery'
         this.visualYOffset = 0;
+        this.landingSquashTimer = 0;
         this.abilityCooldowns = {};
-        this.equippedAbilities = ['slime_leap', 'dash_strike', 'blood_siphon', 'earth_wall', null];
+        this.equippedAbilities = [null, null, null, null, null];
 
         // Knockback properties
         this.knockbackVelocity = { x: 0, y: 0 };
@@ -71,6 +76,48 @@ class Player {
         
         // Circular collision
         this.collisionRadius = 10; // Radius of the player's circular collision
+
+        this.hookInventoryPush();
+    }
+
+    get inventory() {
+        return this._inventory;
+    }
+
+    set inventory(val) {
+        this._inventory = val;
+        this.hookInventoryPush();
+    }
+
+    hookInventoryPush() {
+        if (!Array.isArray(this._inventory)) return;
+        const originalPush = this._inventory.push;
+        if (originalPush && !this._inventory._isHooked) {
+            this._inventory._isHooked = true;
+            this._inventory.push = (...items) => {
+                const result = originalPush.apply(this._inventory, items);
+                this.autoEquipAbilities();
+                return result;
+            };
+        }
+        this.autoEquipAbilities();
+    }
+
+    autoEquipAbilities() {
+        if (!Array.isArray(this._inventory) || !Array.isArray(this.equippedAbilities)) return;
+        
+        this._inventory.forEach(item => {
+            if (item && item.type === 'ability' && item.attachedAbility && !item.equipped && !item.explicitlyUnequipped) {
+                // Find empty slot
+                const emptySlotIndex = this.equippedAbilities.indexOf(null);
+                if (emptySlotIndex !== -1) {
+                    // Equip it!
+                    this.equippedAbilities[emptySlotIndex] = item.attachedAbility;
+                    item.equipped = true;
+                    item.equippedSlot = emptySlotIndex;
+                }
+            }
+        });
     }
 
     loadCharacterData(data) {
@@ -260,6 +307,11 @@ class Player {
     update(deltaTime, input) {
         // Run ability ticks
         updateAbilityCycle(this, deltaTime);
+
+        // Update landing squash decay
+        if (this.landingSquashTimer > 0) {
+            this.landingSquashTimer = Math.max(0, this.landingSquashTimer - deltaTime);
+        }
 
         // Update hit flash timer
         if (this.hitFlashTimer > 0) {
@@ -462,21 +514,55 @@ class Player {
         const drawX = this.currentPixelX - viewOriginX; // This is the circle center on canvas
         const drawY = (this.currentPixelY + (this.visualYOffset || 0)) - viewOriginY; // This is the circle center on canvas
         
+        // Compute organic squash and stretch scaling
+        let scaleX = 1.0;
+        let scaleY = 1.0;
+        if (this.isHit && this.hitFlashTimer > 0) {
+            const ratio = this.hitFlashTimer / 0.15; // 1.0 down to 0.0
+            scaleX = 1.4 - 0.4 * (1.0 - ratio); // Wide recoil hit
+            scaleY = 0.6 + 0.4 * (1.0 - ratio); // Flat recoil hit
+        } else if (this.activeAbility && this.abilityState === 'startup' && this.activeAbility.startup && this.activeAbility.startup.jumpHeight > 0) {
+            const ability = this.activeAbility;
+            const duration = (ability.startup && ability.startup.duration) || 0.4;
+            const progress = Math.max(0, Math.min(1, 1 - (this.abilityTimer / duration)));
+            if (progress < 0.15) {
+                // Anticipation squash
+                const norm = progress / 0.15;
+                scaleX = 1.0 + 0.25 * norm;
+                scaleY = 1.0 - 0.25 * norm;
+            } else if (progress < 0.85) {
+                // In-air leap stretch
+                const norm = (progress - 0.15) / 0.7;
+                const stretch = Math.sin(norm * Math.PI);
+                scaleX = 1.0 - 0.3 * stretch;
+                scaleY = 1.0 + 0.4 * stretch;
+            } else {
+                // Landing pre-impact squash
+                const norm = (progress - 0.85) / 0.15;
+                scaleX = 1.0 + 0.15 * norm;
+                scaleY = 1.0 - 0.15 * norm;
+            }
+        } else if (this.landingSquashTimer > 0) {
+            const ratio = this.landingSquashTimer / 0.35;
+            const wave = Math.sin(ratio * Math.PI * 3.5) * ratio; // decaying impact bounce
+            scaleX = 1.0 + wave * 0.4;
+            scaleY = 1.0 - wave * 0.4;
+        }
+
+        const drawW = this.playerVisualWidth * scaleX;
+        const drawH = this.playerVisualHeight * scaleY;
+        const spriteDrawX = drawX - drawW / 2;
+        const spriteDrawY = drawY - drawH;
+
         if (this.sprite && this.sprite.complete) {
-            // Sprite's anchor is its base-center. currentPixelX/Y is this anchor.
-            // So, draw sprite relative to this.
-            const spriteDrawX = drawX - this.playerVisualWidth / 2;
-            const spriteDrawY = drawY - this.playerVisualHeight; 
-            ctx.drawImage(this.sprite, spriteDrawX, spriteDrawY, this.playerVisualWidth, this.playerVisualHeight);
+            ctx.drawImage(this.sprite, spriteDrawX, spriteDrawY, drawW, drawH);
         } else {
             // Placeholder drawing if sprite not loaded
             ctx.fillStyle = '#4A70D4';
             ctx.strokeStyle = '#304A8A';
             ctx.lineWidth = 2;
-            const playerRectX = drawX - this.playerVisualWidth / 2;
-            const playerRectY = drawY - this.playerVisualHeight;
             ctx.beginPath();
-            ctx.rect(playerRectX, playerRectY, this.playerVisualWidth, this.playerVisualHeight);
+            ctx.rect(spriteDrawX, spriteDrawY, drawW, drawH);
             ctx.fill();
             ctx.stroke();
         }
@@ -487,9 +573,7 @@ class Player {
             ctx.globalCompositeOperation = 'lighter';
             ctx.globalAlpha = 0.8 * (this.hitFlashTimer / 0.15); // Fade the flash
             if (this.sprite && this.sprite.complete) {
-                const spriteDrawX = drawX - this.playerVisualWidth / 2;
-                const spriteDrawY = drawY - this.playerVisualHeight;
-                ctx.drawImage(this.sprite, spriteDrawX, spriteDrawY, this.playerVisualWidth, this.playerVisualHeight);
+                ctx.drawImage(this.sprite, spriteDrawX, spriteDrawY, drawW, drawH);
             }
             ctx.restore();
         }

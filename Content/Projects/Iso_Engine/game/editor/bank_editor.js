@@ -83,7 +83,7 @@ export function getMapItems(engine) {
         });
     }
     engine.gameObjects.forEach(obj => {
-        if (obj && obj.constructor.name === 'Npc' && Array.isArray(obj.inventory)) {
+        if (obj && (obj.constructor.name === 'Npc' || obj.constructor.name === 'NPC' || obj.type === 'npc_permanent') && Array.isArray(obj.inventory)) {
             obj.inventory.forEach(it => {
                 if (it && it.name) items.push(it);
             });
@@ -167,7 +167,7 @@ class BankEditor {
         const splitLayout = document.createElement('div');
         splitLayout.id = 'rpg-bank-cols';
         splitLayout.style.display = 'grid';
-        splitLayout.style.gridTemplateColumns = '1.3fr 1fr';
+        splitLayout.style.gridTemplateColumns = '1.6fr 1fr';
         splitLayout.style.gap = '10px';
         splitLayout.style.height = '100%';
         splitLayout.style.boxSizing = 'border-box';
@@ -189,10 +189,10 @@ class BankEditor {
         const gridContainer = document.createElement('div');
         gridContainer.id = 'rpg-bank-grid-scroller';
         gridContainer.className = 'inventory-grid-container';
-        gridContainer.style.gridTemplateColumns = 'repeat(5, 1fr)';
+        gridContainer.style.gridTemplateColumns = 'repeat(7, 1fr)';
         gridContainer.style.gap = '5px';
         gridContainer.style.padding = '6px';
-        gridContainer.style.maxHeight = '210px';
+        gridContainer.style.maxHeight = '390px';
         gridContainer.style.overflowY = 'auto';
         leftBox.appendChild(gridContainer);
         this.gridContainer = gridContainer;
@@ -309,7 +309,7 @@ class BankEditor {
 
         if (keys.length === 0) {
             const emptyLabel = document.createElement('div');
-            emptyLabel.style.gridColumn = 'span 5';
+            emptyLabel.style.gridColumn = 'span 7';
             emptyLabel.style.fontSize = '0.75em';
             emptyLabel.style.color = '#A09580';
             emptyLabel.style.fontStyle = 'italic';
@@ -598,29 +598,77 @@ class BankEditor {
         this.engine.showTopBannerAnnouncement(`Added ${spawnedItem.emoji} ${spawnedItem.name} to Hero bag!`, 'success');
     }
 
-    stockSingleInShop(it) {
-        let shopkeeperNpc = null;
-        for (const obj of this.engine.gameObjects) {
-            if (obj && obj.constructor.name === 'Npc' && (obj.name.toLowerCase().includes('doran') || obj.name.toLowerCase().includes('shopkeeper'))) {
-                shopkeeperNpc = obj;
-                break;
-            }
-        }
+    getMapNPCs() {
+        return this.engine.gameObjects.filter(obj => 
+            obj && 
+            (obj.constructor.name === 'NPC' || 
+             obj.constructor.name === 'Npc' || 
+             obj.characterData || 
+             obj.type === 'npc_permanent' || 
+             obj.type === 'npc' ||
+             (obj.name && (obj.name.toLowerCase().includes('doran') || obj.name.toLowerCase().includes('shopkeeper'))))
+        );
+    }
 
-        if (!shopkeeperNpc) {
-            CustomDialog.alert("Could not locate active Shopkeeper Doran on the current map.", "Shopkeeper Not Found");
+    stockSingleInShop(it) {
+        const npcs = this.getMapNPCs();
+        if (npcs.length === 0) {
+            CustomDialog.alert("Could not locate any active NPCs/Shopkeepers on the current map.", "Shopkeeper Not Found");
             return;
         }
 
-        if (!Array.isArray(shopkeeperNpc.inventory)) {
-            shopkeeperNpc.inventory = [];
+        if (npcs.length === 1) {
+            this.deliverItemToNpc(npcs[0], it);
+        } else {
+            let optionsHtml = npcs.map((npc, idx) => {
+                const role = npc.broadType || (npc.characterData && npc.characterData.broadType) || 'NPC';
+                return `<option value="${idx}">${npc.name} [Role: ${role}]</option>`;
+            }).join('');
+
+            const html = `
+                <div class="rpg-dialog-header">
+                    <span>🏪 Select NPC Merchant</span>
+                </div>
+                <div class="rpg-dialog-body">
+                    <p style="margin-bottom:12px;">Which NPC on the map should receive 5x copies of "${it.name}"?</p>
+                    <select id="rpg-dialog-npc-select" style="width:100%; background:#3B322C; color:#EFEBE0; padding:8px; border:1px solid #8C6D56; border-radius:4px; font-family:inherit;">
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div class="rpg-dialog-footer">
+                    <button class="rpg-dialog-btn rpg-dialog-btn-secondary" id="rpg-dialog-cancel-btn">Cancel</button>
+                    <button class="rpg-dialog-btn rpg-dialog-btn-primary" id="rpg-dialog-confirm-btn">Deliver Stock</button>
+                </div>
+            `;
+
+            CustomDialog.show(html, (overlay, close) => {
+                const select = overlay.querySelector('#rpg-dialog-npc-select');
+                const btnConfirm = overlay.querySelector('#rpg-dialog-confirm-btn');
+                const btnCancel = overlay.querySelector('#rpg-dialog-cancel-btn');
+
+                btnConfirm.onclick = () => {
+                    const selectedIdx = parseInt(select.value, 10);
+                    close(npcs[selectedIdx]);
+                };
+                btnCancel.onclick = () => close(null);
+            }).then(chosenNpc => {
+                if (chosenNpc) {
+                    this.deliverItemToNpc(chosenNpc, it);
+                }
+            });
+        }
+    }
+
+    deliverItemToNpc(npcNpc, it) {
+        if (!Array.isArray(npcNpc.inventory)) {
+            npcNpc.inventory = [];
         }
 
-        const existing = shopkeeperNpc.inventory.find(invIt => invIt.name === it.name);
+        const existing = npcNpc.inventory.find(invIt => invIt.name === it.name);
         if (existing) {
             existing.count = (existing.count || 0) + 5;
         } else {
-            shopkeeperNpc.inventory.push({
+            npcNpc.inventory.push({
                 id: it.id,
                 name: it.name,
                 type: it.type,
@@ -640,7 +688,7 @@ class BankEditor {
             });
         }
 
-        this.engine.showTopBannerAnnouncement(`Supplied 5x copies of "${it.name}" to Shopkeeper Doran!`, 'success');
+        this.engine.showTopBannerAnnouncement(`Supplied 5x copies of "${it.name}" to ${npcNpc.name}!`, 'success');
     }
 
     toggleAllCheckboxSelections() {
@@ -800,27 +848,63 @@ class BankEditor {
     }
 
     bulkAddSelectedToShopkeeper() {
-        let shopkeeperNpc = null;
-        for (const obj of this.engine.gameObjects) {
-            if (obj && obj.constructor.name === 'Npc' && (obj.name.toLowerCase().includes('doran') || obj.name.toLowerCase().includes('shopkeeper'))) {
-                shopkeeperNpc = obj;
-                break;
-            }
-        }
-
-        if (!shopkeeperNpc) {
-            CustomDialog.alert("Could not locate active Shopkeeper Doran on the current map.", "Shopkeeper Not Found");
-            return;
-        }
-
         const checkedList = Array.from(this.checkedItemIds);
         if (checkedList.length === 0) {
             CustomDialog.alert("Please check-select at least one item slot first.", "No Checked Selection");
             return;
         }
 
-        if (!Array.isArray(shopkeeperNpc.inventory)) {
-            shopkeeperNpc.inventory = [];
+        const npcs = this.getMapNPCs();
+        if (npcs.length === 0) {
+            CustomDialog.alert("Could not locate any active NPCs/Shopkeepers on the current map.", "Shopkeeper Not Found");
+            return;
+        }
+
+        if (npcs.length === 1) {
+            this.deliverBulkToNpc(npcs[0], checkedList);
+        } else {
+            let optionsHtml = npcs.map((npc, idx) => {
+                const role = npc.broadType || (npc.characterData && npc.characterData.broadType) || 'NPC';
+                return `<option value="${idx}">${npc.name} [Role: ${role}]</option>`;
+            }).join('');
+
+            const html = `
+                <div class="rpg-dialog-header">
+                    <span>🏪 Select NPC Merchant</span>
+                </div>
+                <div class="rpg-dialog-body">
+                    <p style="margin-bottom:12px;">Which NPC on the map should receive 5x copies of the checked items (${checkedList.length} total types)?</p>
+                    <select id="rpg-dialog-npc-select" style="width:100%; background:#3B322C; color:#EFEBE0; padding:8px; border:1px solid #8C6D56; border-radius:4px; font-family:inherit;">
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div class="rpg-dialog-footer">
+                    <button class="rpg-dialog-btn rpg-dialog-btn-secondary" id="rpg-dialog-cancel-btn">Cancel</button>
+                    <button class="rpg-dialog-btn rpg-dialog-btn-primary" id="rpg-dialog-confirm-btn">Deliver Stock</button>
+                </div>
+            `;
+
+            CustomDialog.show(html, (overlay, close) => {
+                const select = overlay.querySelector('#rpg-dialog-npc-select');
+                const btnConfirm = overlay.querySelector('#rpg-dialog-confirm-btn');
+                const btnCancel = overlay.querySelector('#rpg-dialog-cancel-btn');
+
+                btnConfirm.onclick = () => {
+                    const selectedIdx = parseInt(select.value, 10);
+                    close(npcs[selectedIdx]);
+                };
+                btnCancel.onclick = () => close(null);
+            }).then(chosenNpc => {
+                if (chosenNpc) {
+                    this.deliverBulkToNpc(chosenNpc, checkedList);
+                }
+            });
+        }
+    }
+
+    deliverBulkToNpc(npcNpc, checkedList) {
+        if (!Array.isArray(npcNpc.inventory)) {
+            npcNpc.inventory = [];
         }
 
         const db = getGlobalItemDatabase(this.engine);
@@ -829,11 +913,11 @@ class BankEditor {
         checkedList.forEach(id => {
             const it = db[id];
             if (it) {
-                const existing = shopkeeperNpc.inventory.find(invIt => invIt.name === it.name);
+                const existing = npcNpc.inventory.find(invIt => invIt.name === it.name);
                 if (existing) {
                     existing.count = (existing.count || 0) + 5;
                 } else {
-                    shopkeeperNpc.inventory.push({
+                    npcNpc.inventory.push({
                         id: it.id,
                         name: it.name,
                         type: it.type,
@@ -856,7 +940,7 @@ class BankEditor {
             }
         });
 
-        CustomDialog.alert(`Successfully customized Doran's supply stacks! Standard retail stocked 5x copies for ${count} categories.`, "Shop Stocked");
+        CustomDialog.alert(`Successfully customized ${npcNpc.name}'s supply stacks! Stocked 5x copies of ${count} items.`, "Shop Stocked");
     }
 
     show() {

@@ -17,6 +17,7 @@ import { FloatingTextEffect, TowerOrbEffect } from './combat/effects.js';
 import CustomDialog from './ui/custom_dialog.js';
 import { executeAbility, getAllAbilities } from './combat/ability_system.js';
 import InventoryUI from './ui/inventory_ui.js';
+import { updateARAMSystems } from './world/aram.js';
 
 console.log("rpg/game/engine.js loaded");
 
@@ -60,6 +61,7 @@ class GameEngine {
             hero: './game/assets/hero_sprite.png',
             tree: './game/assets/tree_srite.png',
             buildingSpritesheet: './game/assets/iso-64x64-building_2.png',
+            outdoorsSpritesheet: './game/assets/iso-64x64-outdoors.png',
             pencil_icon: './game/assets/pencil_icon.png',
             eraser_icon: './game/assets/eraser_icon.png',
             npcSpritesheet: './game/assets/npc_spritesheet_64x64_6frames.png',
@@ -119,6 +121,7 @@ class GameEngine {
                 loadImage(this.assetPaths.hero),
                 loadImage(this.assetPaths.tree),
                 loadImage(this.assetPaths.buildingSpritesheet),
+                loadImage(this.assetPaths.outdoorsSpritesheet),
                 loadImage(this.assetPaths.pencil_icon),
                 loadImage(this.assetPaths.eraser_icon),
                 loadImage(this.assetPaths.npcSpritesheet),
@@ -128,11 +131,12 @@ class GameEngine {
             this.assets.hero = loadedAssets[0];
             this.assets.tree = loadedAssets[1];
             this.assets.buildingSpritesheet = loadedAssets[2];
-            this.assets.pencil_icon = loadedAssets[3];
-            this.assets.eraser_icon = loadedAssets[4];
-            this.assets.npcSpritesheet = loadedAssets[5];
-            this.assets.note_icon = loadedAssets[6];
-            this.assets.enemy_slime = loadedAssets[7];
+            this.assets.outdoorsSpritesheet = loadedAssets[3];
+            this.assets.pencil_icon = loadedAssets[4];
+            this.assets.eraser_icon = loadedAssets[5];
+            this.assets.npcSpritesheet = loadedAssets[6];
+            this.assets.note_icon = loadedAssets[7];
+            this.assets.enemy_slime = loadedAssets[8];
 
             this.assetsLoaded = true;
             console.log("All game assets loaded successfully.");
@@ -258,7 +262,10 @@ class GameEngine {
                 let closest = null;
                 let minDist = ability.range || 120;
                 for (const obj of this.gameObjects) {
-                    if (obj !== this.player && (obj.constructor.name === 'Enemy' || obj.type === 'tower_enemy') && obj.stats && obj.stats.hp > 0) {
+                    if (obj !== this.player && 
+                        ((obj.constructor.name === 'Enemy' && obj.friendly !== true) || obj.type === 'tower_enemy' || (obj.name && obj.name.toLowerCase().includes('scruffy'))) && 
+                        obj.stats && 
+                        obj.stats.hp > 0) {
                         const dx = obj.currentPixelX - this.player.currentPixelX;
                         const dy = obj.currentPixelY - this.player.currentPixelY;
                         const d = Math.sqrt(dx * dx + dy * dy);
@@ -710,333 +717,7 @@ class GameEngine {
     }
 
     updateARAMSystems(deltaTime) {
-        // Wave Spawning System
-        if (this.waveSpawnTimer === undefined) {
-            this.waveSpawnTimer = 1.0; // Fast first wave spawn (1s) after setup
-        }
-        this.waveSpawnTimer -= deltaTime;
-
-        if (this.waveSpawnTimer <= 0) {
-            this.waveSpawnTimer = 22.0; // Wave cooldown (seconds)
-
-            // Faction survival checks
-            let scruffyAlive = false;
-            let doranAlive = false;
-            for (const obj of this.gameObjects) {
-                if (obj instanceof NPC) {
-                    const nameLower = obj.name.toLowerCase();
-                    if (nameLower.includes('scruffy') && obj.stats && obj.stats.hp > 0) {
-                        scruffyAlive = true;
-                    }
-                    if (nameLower.includes('doran') && obj.stats && obj.stats.hp > 0) {
-                        doranAlive = true;
-                    }
-                }
-            }
-
-            if (this.map) {
-                // 1. Spawn Hostile red slimes (staggered)
-                if (scruffyAlive) {
-                    const enemySpawn = this.map.spawnPointsData.find(sp => sp.id === 'spawn_pt_enemy_base');
-                    if (enemySpawn) {
-                        const mapCoords = this.map.screenToMap(enemySpawn.x, enemySpawn.y);
-                        mapCoords.x = 13.2; // Move spawn 1 tile below turret line
-                        import('../data/enemy-list.js').then((module) => {
-                            const enemyTypes = module.enemy_types || {};
-                            const slimeData = enemyTypes['slime'];
-                            if (slimeData) {
-                                for (let i = 0; i < 3; i++) {
-                                    setTimeout(() => {
-                                        if (!this.player || this.player.stats.hp <= 0) return;
-                                        // Ensure Scruffy is still alive upon spawn
-                                        if (!this.gameObjects.some(o => o.name && o.name.toLowerCase().includes('scruffy') && o.stats && o.stats.hp > 0)) return;
-
-                                        const enemyInstanceData = JSON.parse(JSON.stringify(slimeData));
-                                        enemyInstanceData.stats.speed = 65;
-                                        enemyInstanceData.stats.maxHp = 40;
-                                        enemyInstanceData.stats.hp = 40;
-                                        
-                                        const enemy = new Enemy(this, this.map, mapCoords.x, mapCoords.y, enemyInstanceData);
-                                        enemy.friendly = false;
-                                        this.gameObjects.push(enemy);
-                                    }, i * 1500); // Stagger by 1.5s
-                                }
-                            }
-                        }).catch(err => console.error("Error spawning red minions:", err));
-                    }
-                }
-
-                // 2. Spawn Friendly blue slimes (staggered)
-                if (doranAlive) {
-                    const playerSpawn = this.map.spawnPointsData.find(sp => sp.type === 'player_entry');
-                    if (playerSpawn) {
-                        const mapCoords = this.map.screenToMap(playerSpawn.x, playerSpawn.y);
-                        mapCoords.x = 13.2; // Move spawn 1 tile below turret line
-                        import('../data/enemy-list.js').then((module) => {
-                            const enemyTypes = module.enemy_types || {};
-                            const slimeData = enemyTypes['slime'];
-                            if (slimeData) {
-                                for (let i = 0; i < 3; i++) {
-                                    setTimeout(() => {
-                                        if (!this.player || this.player.stats.hp <= 0) return;
-                                        // Ensure Doran is still alive upon spawn
-                                        if (!this.gameObjects.some(o => o.name && o.name.toLowerCase().includes('doran') && o.stats && o.stats.hp > 0)) return;
-
-                                        const friendlyInstanceData = JSON.parse(JSON.stringify(slimeData));
-                                        friendlyInstanceData.stats.speed = 65;
-                                        friendlyInstanceData.stats.maxHp = 40;
-                                        friendlyInstanceData.stats.hp = 40;
-                                        friendlyInstanceData.name = "Allied Slime"; // Rename to Allied Slime
-                                        
-                                        const alliedSlime = new Enemy(this, this.map, mapCoords.x, mapCoords.y, friendlyInstanceData);
-                                        alliedSlime.friendly = true;
-                                        this.gameObjects.push(alliedSlime);
-                                    }, i * 1500); // Stagger by 1.5s
-                                }
-                            }
-                        }).catch(err => console.error("Error spawning friendly minions:", err));
-                    }
-                }
-            }
-        }
-
-        // Tower Behavior & Combat Update
-        for (const obj of this.gameObjects) {
-            const isTowerBlue = obj.type === 'tower_player';
-            const isTowerRed = obj.type === 'tower_enemy';
-
-            if (isTowerBlue || isTowerRed) {
-                // Sentry Auto-initialization
-                if (!obj.stats) {
-                    obj.stats = {
-                        hp: 450,
-                        maxHp: 450,
-                        atk: 25,
-                        attackRange: 160,
-                        attackCooldown: 1.0, 
-                        isDestroyed: false
-                    };
-                    obj.currentTargetLock = null;
-
-                    // Range Rendering Override
-                    const originalRender = obj.render ? obj.render.bind(obj) : null;
-                    obj.render = (ctx, viewOriginX, viewOriginY) => {
-                        if (!obj.stats.isDestroyed) {
-                            const anchorCanvasX = obj.currentPixelX - viewOriginX;
-                            const anchorCanvasY = obj.currentPixelY - viewOriginY;
-                            const radius = obj.stats.attackRange;
-
-                            ctx.save();
-                            // Ground visual fill
-                            ctx.beginPath();
-                            ctx.fillStyle = isTowerBlue ? 'rgba(52, 152, 219, 0.05)' : 'rgba(231, 76, 60, 0.05)';
-                            ctx.ellipse(anchorCanvasX, anchorCanvasY, radius, radius * 0.5, 0, 0, Math.PI * 2);
-                            ctx.fill();
-
-                            // Ground visual border
-                            ctx.strokeStyle = isTowerBlue ? 'rgba(52, 152, 219, 0.45)' : 'rgba(231, 76, 60, 0.45)';
-                            ctx.lineWidth = 1.5;
-                            ctx.setLineDash([8, 4]);
-                            ctx.beginPath();
-                            ctx.ellipse(anchorCanvasX, anchorCanvasY, radius, radius * 0.5, 0, 0, Math.PI * 2);
-                            ctx.stroke();
-                            ctx.restore();
-                        }
-
-                        if (originalRender) {
-                            originalRender(ctx, viewOriginX, viewOriginY);
-                        }
-                    };
-
-                    // Health Bar rendering support decoration
-                    obj.drawHealthBar = (ctx, viewOriginX, viewOriginY) => {
-                        if (obj.stats.isDestroyed) return;
-                        const barWidth = 32;
-                        const barHeight = 4;
-                        const drawX = obj.currentPixelX - viewOriginX - (barWidth / 2);
-                        const drawY = obj.currentPixelY - viewOriginY - 58; // Draw above tower sprite
-
-                        // Background
-                        ctx.fillStyle = 'rgba(0,0,0,0.65)';
-                        ctx.fillRect(drawX, drawY, barWidth, barHeight);
-
-                        // Fill color (Blue for allied, Red for enemy)
-                        ctx.fillStyle = isTowerBlue ? '#3498db' : '#e74c3c';
-                        const fillWidth = (obj.stats.hp / obj.stats.maxHp) * barWidth;
-                        ctx.fillRect(drawX, drawY, fillWidth, barHeight);
-
-                        // Border
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(drawX, drawY, barWidth, barHeight);
-
-                        // Draw warning laser and exclamation mark if locked on actively
-                        if (obj.currentTargetLock && obj.currentTargetLock.target && obj.currentTargetLock.target.stats.hp > 0) {
-                            const currentTarget = obj.currentTargetLock.target;
-                            const tx = currentTarget.currentPixelX - viewOriginX;
-                            const ty = currentTarget.currentPixelY - viewOriginY - 16;
-                            const hx = obj.currentPixelX - viewOriginX;
-                            const hy = obj.currentPixelY - viewOriginY - 48;
-
-                            ctx.save();
-                            // 1. Draw elegant warning laser
-                            ctx.strokeStyle = isTowerBlue ? 'rgba(52, 152, 219, 0.6)' : 'rgba(231, 76, 60, 0.7)';
-                            ctx.lineWidth = 1.5;
-                            ctx.setLineDash([4, 4]);
-                            ctx.beginPath();
-                            ctx.moveTo(hx, hy);
-                            ctx.lineTo(tx, ty);
-                            ctx.stroke();
-
-                            // 2. Draw warning exclamation mark over the tower
-                            const warningX = obj.currentPixelX - viewOriginX;
-                            const warningY = drawY - 18; // 18px above the health bar
-                            
-                            // Pulse warning icon vertically
-                            const pulse = Math.sin(Date.now() / 70) * 2;
-                            ctx.beginPath();
-                            ctx.arc(warningX, warningY + pulse, 10, 0, Math.PI * 2);
-                            ctx.fillStyle = '#e67e22'; // Bold Orange
-                            ctx.shadowColor = '#e67e22';
-                            ctx.shadowBlur = 8;
-                            ctx.fill();
-
-                            ctx.shadowBlur = 0; // Turn off shadow for text sharpness
-                            ctx.fillStyle = '#ffffff';
-                            ctx.font = 'bold 13px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillText('!', warningX, warningY + pulse);
-
-                            ctx.restore();
-                        }
-                    };
-
-                    // Implement customized takeDamage on the Tower Game Object dynamically
-                    obj.takeDamage = (amount, attacker) => {
-                        if (obj.stats.isDestroyed) return;
-                        const damage = Math.max(1, amount - 4); // Flat armor reduction
-                        obj.stats.hp -= damage;
-
-                        // Float damage on combat canvas
-                        this.addEffect(new FloatingTextEffect(this, {
-                            text: damage.toFixed(0),
-                            position: { x: obj.currentPixelX, y: obj.currentPixelY - 45 },
-                            color: isTowerBlue ? '#3498db' : '#e74c3c'
-                        }));
-
-                        if (obj.stats.hp <= 0) {
-                            obj.stats.hp = 0;
-                            obj.stats.isDestroyed = true;
-                            obj.collidable = false; // Allow passing over ruin rubble
-                            // Mutate map representation
-                            obj.spriteSourceRect = { x: 66, y: 132, width: 64, height: 64 }; // Pile of bricks frame
-
-                            // Trigger full-screen floating text announcements
-                            const isVictory = isTowerRed;
-                            const text = isVictory ? "🏆 ENEMY TOWER CRUMBLED! GG!" : "⚠️ ALLIED SENTRY TOWER DOWN!";
-                            const textColor = isVictory ? '#2ecc71' : '#f39c12';
-
-                            this.addEffect(new FloatingTextEffect(this, {
-                                text: text,
-                                position: { x: obj.currentPixelX, y: obj.currentPixelY - 100 },
-                                color: textColor,
-                                font: 'bold 24px Arial',
-                                duration: 5
-                            }));
-
-                            // Clear any active targeting to our destroyed tower
-                            if (this.player.currentTarget === obj) {
-                                this.player.currentTarget = null;
-                            }
-
-                            setTimeout(() => {
-                                const bannerText = isVictory ? "VICTORY! Sentry down! League ARAM Complete!" : "TOWER DOWN! The Allied Sentry has fallen! Protect Shopkeeper Doran!";
-                                const bannerType = isVictory ? "victory" : "warning";
-                                this.showTopBannerAnnouncement(bannerText, bannerType);
-                            }, 1500);
-                        }
-                    };
-                }
-
-                // If tower is alive, cool down and target enemies
-                if (!obj.stats.isDestroyed) {
-                    if (obj.stats.attackCooldown > 0) {
-                        obj.stats.attackCooldown = Math.max(0, obj.stats.attackCooldown - deltaTime);
-                        // Clear active lock while strictly warming down/recharging internal weapon capacity
-                        obj.currentTargetLock = null;
-                    } else {
-                        let currentTarget = null;
-                        let bestDist = obj.stats.attackRange;
-
-                        if (isTowerBlue) {
-                            // Target closest hostile slime minion in range
-                            for (const targetObj of this.gameObjects) {
-                                if (targetObj instanceof Enemy && targetObj.friendly !== true && targetObj.stats && targetObj.stats.hp > 0) {
-                                    const dx = targetObj.currentPixelX - obj.currentPixelX;
-                                    const dy = targetObj.currentPixelY - obj.currentPixelY;
-                                    const dist = Math.sqrt(dx * dx + dy * dy);
-                                    if (dist < bestDist) {
-                                        bestDist = dist;
-                                        currentTarget = targetObj;
-                                    }
-                                }
-                            }
-                        } else if (isTowerRed) {
-                            // Target player or allied friendly slime
-                            if (this.player && this.player.stats.hp > 0) {
-                                const dx = this.player.currentPixelX - obj.currentPixelX;
-                                const dy = this.player.currentPixelY - obj.currentPixelY;
-                                const dist = Math.sqrt(dx * dx + dy * dy);
-                                if (dist < bestDist) {
-                                    bestDist = dist;
-                                    currentTarget = this.player;
-                                }
-                            }
-                            for (const targetObj of this.gameObjects) {
-                                if (targetObj instanceof Enemy && targetObj.friendly === true && targetObj.stats && targetObj.stats.hp > 0) {
-                                    const dx = targetObj.currentPixelX - obj.currentPixelX;
-                                    const dy = targetObj.currentPixelY - obj.currentPixelY;
-                                    const dist = Math.sqrt(dx * dx + dy * dy);
-                                    if (dist < bestDist) {
-                                        bestDist = dist;
-                                        currentTarget = targetObj;
-                                    }
-                                }
-                            }
-                        }
-
-                        // Locked target loading/discharge delay logic
-                        if (currentTarget) {
-                            if (!obj.currentTargetLock || obj.currentTargetLock.target !== currentTarget) {
-                                obj.currentTargetLock = {
-                                    target: currentTarget,
-                                    timer: 1.0 // 1.0 seconds targeting delay before fire discharge
-                                };
-                            } else {
-                                obj.currentTargetLock.timer -= deltaTime;
-                                if (obj.currentTargetLock.timer <= 0) {
-                                    // Lock fully charged! Discharge!
-                                    obj.stats.attackCooldown = 1.6; // Fire rate speed
-                                    obj.currentTargetLock = null;
-
-                                    const projectileColor = isTowerBlue ? '#3498db' : '#e74c3c';
-                                    this.addEffect(new TowerOrbEffect(this, {
-                                        position: { x: obj.currentPixelX, y: obj.currentPixelY - 48 },
-                                        target: currentTarget,
-                                        color: projectileColor,
-                                        damage: obj.stats.atk,
-                                        owner: obj
-                                    }));
-                                }
-                            }
-                        } else {
-                            obj.currentTargetLock = null;
-                        }
-                    }
-                }
-            }
-        }
+        updateARAMSystems(this, deltaTime);
     }
 
     resolveDynamicCollisions() {
@@ -1082,6 +763,7 @@ class GameEngine {
                         const dirX = basePushX * cosA - basePushY * sinA;
                         const dirY = basePushX * sinA + basePushY * cosA;
 
+                        // Linear instant pushback separation
                         const pushX = dirX * overlap;
                         const pushY = dirY * overlap;
                         

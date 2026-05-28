@@ -1,0 +1,47 @@
+/* 🏆 TOWER DESTRUCTION & ARAM GAME ALERT BANNERS */
+
+.rpg-top-banner-announcement {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-50px);
+    background-color: rgba(28, 22, 18, 0.95);
+    border: 2px solid #8C6D56;
+    border-radius: 6px;
+    padding: 10px 24px;
+    color: #EFEBE0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: bold;
+    font-size: 1.1em;
+    z-index: 10005;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.4s ease;
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rpg-top-banner-announcement.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.rpg-top-banner-announcement.victory {
+    border-color: #2ecc71;
+    color: #2ecc71;
+    background-color: rgba(18, 30, 24, 0.95);
+}
+
+.rpg-top-banner-announcement.defeat {
+    border-color: #e74c3c;
+    color: #e74c3c;
+    background-color: rgba(30, 18, 18, 0.95);
+}
+
+.rpg-top-banner-announcement.warning {
+    border-color: #f39c12;
+    color: #f39c12;
+    background-color: rgba(30, 24, 18, 0.95);
+}

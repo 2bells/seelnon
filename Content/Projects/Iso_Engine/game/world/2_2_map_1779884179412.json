@@ -299,7 +299,7 @@
       0,
       0,
       0,
-      1,
+      5,
       2,
       1,
       1,
@@ -325,12 +325,12 @@
       0,
       0,
       0,
-      1,
+      5,
       1,
       1,
       2,
       3,
-      1,
+      10,
       0,
       0,
       0,
@@ -351,7 +351,7 @@
       0,
       0,
       0,
-      1,
+      5,
       1,
       1,
       1,
@@ -628,6 +628,7 @@
       0
     ]
   ],
+  "customSpritesheets": [],
   "tileDefinitions": {
     "1": {
       "sourceRect": {
@@ -664,9 +665,63 @@
         "height": 64
       },
       "spritesheetIndex": 0
+    },
+    "5": {
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 1
+    },
+    "6": {
+      "sourceRect": {
+        "x": 0,
+        "y": 132,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 1
+    },
+    "7": {
+      "sourceRect": {
+        "x": 330,
+        "y": 330,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 1
+    },
+    "8": {
+      "sourceRect": {
+        "x": 264,
+        "y": 198,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 1
+    },
+    "9": {
+      "sourceRect": {
+        "x": 0,
+        "y": 462,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 1
+    },
+    "10": {
+      "sourceRect": {
+        "x": 132,
+        "y": 132,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 1
     }
   },
-  "nextTileId": 5,
+  "nextTileId": 11,
   "objectLayersData": {
     "object1": [
       {
@@ -691,10 +746,22 @@
         "collisionShape": {
           "type": "polygon",
           "vertices": [
-            { "x": 0, "y": -16 },
-            { "x": 32, "y": 0 },
-            { "x": 0, "y": 16 },
-            { "x": -32, "y": 0 }
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
           ]
         },
         "layerKey": "object1"
@@ -721,12 +788,6324 @@
         "collisionShape": {
           "type": "polygon",
           "vertices": [
-            { "x": 0, "y": -16 },
-            { "x": 32, "y": 0 },
-            { "x": 0, "y": 16 },
-            { "x": -32, "y": 0 }
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
           ]
         },
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9.924603576804174,
+        "mapY": 10.693582627081604,
+        "id": "obj_object1_1779990193919_kxwgj34jt",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 24,
+        "id": "obj_object1_1779995020928_x5et56nqe",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 23,
+        "id": "obj_object1_1779995021331_zqs9jo4ci",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 22,
+        "id": "obj_object1_1779995021735_s2qj302jf",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 21,
+        "id": "obj_object1_1779995022184_ie71w5fgd",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 20,
+        "id": "obj_object1_1779995022624_9uqgm6jzr",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 19,
+        "id": "obj_object1_1779995023381_wg41ql1vs",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 18,
+        "id": "obj_object1_1779995024336_dkpwf06v5",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 17,
+        "id": "obj_object1_1779995025008_mfg37zctt",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 16,
+        "id": "obj_object1_1779995025368_l639cmw71",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 15,
+        "id": "obj_object1_1779995026017_s0f23grxu",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 14,
+        "id": "obj_object1_1779995026563_5zzm4elit",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 13,
+        "id": "obj_object1_1779995027345_5lcivapbv",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 12,
+        "id": "obj_object1_1779995028130_6ibvkoo62",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 11,
+        "id": "obj_object1_1779995028745_6x92dq334",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 10,
+        "id": "obj_object1_1779995029472_ecoujfuvo",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 9,
+        "id": "obj_object1_1779995030082_kqg5dq0on",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 8,
+        "id": "obj_object1_1779995030560_flc8d92yh",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 7,
+        "id": "obj_object1_1779995030919_cjfxl4caj",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (8,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 528,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 7,
+        "id": "obj_object1_1779995092220_pzsx4ee5m",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 6,
+        "id": "obj_object1_1779995119325_qb523dw14",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 5,
+        "id": "obj_object1_1779995119978_4iebf9m7o",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 4,
+        "id": "obj_object1_1779995120626_yuicor56h",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 3,
+        "id": "obj_object1_1779995120919_eos3n8i8q",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 2,
+        "id": "obj_object1_1779995121463_v756g3uwl",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 1,
+        "id": "obj_object1_1779995121802_t1v21rznk",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 0,
+        "id": "obj_object1_1779995122681_bm5xpwjkk",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 9,
+        "mapY": 0,
+        "id": "obj_object1_1779995125351_k4rpu62ce",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 10,
+        "mapY": 0,
+        "id": "obj_object1_1779995125821_mshmb9dp5",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 11,
+        "mapY": 0,
+        "id": "obj_object1_1779995126903_dfn50htjr",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 12,
+        "mapY": 0,
+        "id": "obj_object1_1779995127357_jec1g3k98",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 13,
+        "mapY": 0,
+        "id": "obj_object1_1779995127840_37b0xqbvs",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 14,
+        "mapY": 0,
+        "id": "obj_object1_1779995128225_qbabzlthv",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 15,
+        "mapY": 0,
+        "id": "obj_object1_1779995128998_jif6gocd8",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,3)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 198,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 0,
+        "id": "obj_object1_1779995129449_3mig39n7j",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 12,
+        "id": "obj_object1_1779995246735_gdc3ciiw4",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 14,
+        "id": "obj_object1_1779995250652_mj4octiei",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 16,
+        "id": "obj_object1_1779995251787_ibh8tit0m",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 17,
+        "id": "obj_object1_1779995252376_3yqaolosf",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 11,
+        "id": "obj_object1_1779995259102_6hb4diye5",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 9,
+        "id": "obj_object1_1779995260398_kssu1asc9",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 17,
+        "id": "obj_object1_1779995303432_uh5i4fjx2",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 16,
+        "id": "obj_object1_1779995303826_onvqra9tv",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 15,
+        "id": "obj_object1_1779995304139_j3loixe5p",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 14,
+        "id": "obj_object1_1779995304576_xexxl0b5i",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 13,
+        "id": "obj_object1_1779995304982_lraowrq0q",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 12,
+        "id": "obj_object1_1779995305357_xvzrjvl4h",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 11,
+        "id": "obj_object1_1779995305726_v6nkj9xn0",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 10,
+        "id": "obj_object1_1779995306098_34diiymvx",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 9,
+        "id": "obj_object1_1779995306498_7gr08jh9q",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 9,
+        "id": "obj_object1_1779995306992_uamhxuhj9",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 10,
+        "id": "obj_object1_1779995307275_eearnqo51",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 11,
+        "id": "obj_object1_1779995307706_pb26uajq9",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 12,
+        "id": "obj_object1_1779995308082_c34kuugqv",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 13,
+        "id": "obj_object1_1779995308445_hx4luda7h",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 14,
+        "id": "obj_object1_1779995309341_9rmhygw26",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 15,
+        "id": "obj_object1_1779995309759_5yimok6i5",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 16,
+        "id": "obj_object1_1779995310308_4db2jayzm",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,8)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 528,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 19,
+        "mapY": 17,
+        "id": "obj_object1_1779995310632_1qgqu51hm",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,6)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 396,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 20,
+        "id": "obj_object1_1779995320011_jzjzy5u1q",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 19,
+        "id": "obj_object1_1779995326755_m18u3jscf",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 18,
+        "id": "obj_object1_1779995333145_r96xtwgnc",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (0,6)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 396,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 18,
+        "id": "obj_object1_1779995428176_voktdpifl",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,6)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 396,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 10,
+        "id": "obj_object1_1779995467230_o03d65hp2",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,6)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 396,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 13,
+        "id": "obj_object1_1779995469393_0x7e3jaef",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,6)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 396,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 15,
+        "id": "obj_object1_1779995473537_fnt9r2rit",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,6)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 396,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 14,
+        "id": "obj_object1_1779995477800_5p7p47qsx",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,6)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 396,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 8,
+        "id": "obj_object1_1779995493669_ul2g7xvpw",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 7,
+        "id": "obj_object1_1779995500016_zgds27ahb",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 6,
+        "id": "obj_object1_1779995500506_dksli3oyp",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 5,
+        "id": "obj_object1_1779995501830_d9q8iimuo",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 4,
+        "id": "obj_object1_1779995502362_ombzn44oe",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 2,
+        "id": "obj_object1_1779995504468_zhm134ue9",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 1,
+        "id": "obj_object1_1779995505129_ai6bsdqjp",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 3,
+        "id": "obj_object1_1779995506647_n4kvnc5ud",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 17,
+        "id": "obj_object1_1779995572759_4ve0a6b5l",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 16,
+        "id": "obj_object1_1779995573389_9li7os8n8",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 15,
+        "id": "obj_object1_1779995573935_esh9zhpq3",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 14,
+        "id": "obj_object1_1779995574556_t81p4u9yk",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 13,
+        "id": "obj_object1_1779995575604_uqujcgexl",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 12,
+        "id": "obj_object1_1779995576496_z6ycvsv98",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 11,
+        "id": "obj_object1_1779995577229_pupsdizoh",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 10,
+        "id": "obj_object1_1779995577904_r9w498czb",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 9,
+        "id": "obj_object1_1779995578399_i19bg0d2m",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 8,
+        "id": "obj_object1_1779995579061_4533ncqzc",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 7,
+        "id": "obj_object1_1779995583446_5rkhurqu8",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 6,
+        "id": "obj_object1_1779995584197_5gbucuetr",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 5,
+        "id": "obj_object1_1779995585191_879bmtskn",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 4,
+        "id": "obj_object1_1779995585666_gskbf1ywo",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 3,
+        "id": "obj_object1_1779995586326_lt5dsvbhq",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 2,
+        "id": "obj_object1_1779995587039_os761r0on",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 1,
+        "id": "obj_object1_1779995587653_9nf6kn0wd",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 20,
+        "id": "obj_object1_1779995602153_b98nhrp5d",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 21,
+        "id": "obj_object1_1779995605589_q332fdhp1",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 22,
+        "id": "obj_object1_1779995606086_fd8yjn5k8",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 23,
+        "id": "obj_object1_1779995606528_1mc94v3vi",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 17,
+        "mapY": 24,
+        "id": "obj_object1_1779995607086_7b5gkjeix",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 21,
+        "id": "obj_object1_1779995618227_dwje7n53g",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 22,
+        "id": "obj_object1_1779995619659_x4ay6odxr",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 23,
+        "id": "obj_object1_1779995620954_skj96qxaq",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 24,
+        "id": "obj_object1_1779995621779_peanio39k",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 18,
+        "mapY": 25,
+        "id": "obj_object1_1779995624508_3e6ixxxqe",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (1,12)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 66,
+          "y": 792,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16.662640002143213,
+        "mapY": 18.38003941600497,
+        "id": "obj_object1_1779995685560_7h2m0ka54",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 16,
+        "mapY": 18,
+        "id": "obj_object1_1779995694228_9vriufqhm",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (9,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 594,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 18,
+        "id": "obj_object1_1779995736268_934zumsy1",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (9,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 594,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 7,
+        "id": "obj_object1_1779995741785_c1ggbn6j8",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (1,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 66,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 17,
+        "id": "obj_object1_1779995752541_e035mgo6o",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 16,
+        "id": "obj_object1_1779995755994_vaqog867q",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 15,
+        "id": "obj_object1_1779995756858_evsn75o18",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 14,
+        "id": "obj_object1_1779995757321_3aozmsauz",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 13,
+        "id": "obj_object1_1779995757855_gbzvclmeo",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 12,
+        "id": "obj_object1_1779995758677_vlfhx15h4",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 11,
+        "id": "obj_object1_1779995759319_ike91k3zq",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 10,
+        "id": "obj_object1_1779995760464_kod0o05ee",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 9,
+        "id": "obj_object1_1779995761108_kr71wfs6s",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (6,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 396,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 8,
+        "mapY": 8,
+        "id": "obj_object1_1779995766234_qs2voa8ms",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (1,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 66,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 24,
+        "id": "obj_object1_1779995817816_ehjdlmv0z",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 23,
+        "id": "obj_object1_1779995820130_7shyiwfn1",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 22,
+        "id": "obj_object1_1779995820647_fl7jwrdqq",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 21,
+        "id": "obj_object1_1779995821207_mgy57eyii",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 20,
+        "id": "obj_object1_1779995822005_4540z5abl",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 19,
+        "id": "obj_object1_1779995822505_7i5muo9wk",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 18,
+        "id": "obj_object1_1779995823118_dn30ad7yj",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 17,
+        "id": "obj_object1_1779995827351_dr16gppgl",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 15,
+        "id": "obj_object1_1779995836535_zoqvyi5ue",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 14,
+        "id": "obj_object1_1779995838450_75excradh",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 13,
+        "id": "obj_object1_1779995838877_vdgdfoiru",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 12,
+        "id": "obj_object1_1779995840540_8gougmhc2",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 11,
+        "id": "obj_object1_1779995845241_fk4w6mryr",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 10,
+        "id": "obj_object1_1779995847587_1d4bcudw5",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (4,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 264,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 9,
+        "id": "obj_object1_1779995849156_msfrumix9",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (5,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 330,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 8,
+        "id": "obj_object1_1779995851883_hdmvgnuab",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6,
+        "mapY": 7,
+        "id": "obj_object1_1779995853245_sfxhiqkh7",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 6,
+        "id": "obj_object1_1779995871779_x2jhfbmn5",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 5,
+        "id": "obj_object1_1779995872792_q7ceu08f5",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 4,
+        "id": "obj_object1_1779995873642_ii7ozdcb2",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 3,
+        "id": "obj_object1_1779995874121_3lz84pzwu",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 2,
+        "id": "obj_object1_1779995874924_3cpp5ibks",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 1,
+        "id": "obj_object1_1779995875274_3wihyxd4t",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 0,
+        "id": "obj_object1_1779995876174_xd9qay1oo",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (3,7)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 198,
+          "y": 462,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 7,
+        "mapY": 7,
+        "id": "obj_object1_1779995885067_zzii8rj8n",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (1,12)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 1,
+        "spriteSourceRect": {
+          "x": 66,
+          "y": 792,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 6.804904162422693,
+        "mapY": 7.643274162020944,
+        "id": "obj_object1_1779995929000_6b95ek3ix",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 14.718001639768211,
+        "mapY": 21.917547651102872,
+        "id": "obj_object1_1779996042463_knwu42neu",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (1,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 66,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 14.705892122219542,
+        "mapY": 22.928309904974565,
+        "id": "obj_object1_1779996050959_6l28imxhw",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 14.507975455552874,
+        "mapY": 23.751226571641233,
+        "id": "obj_object1_1779996054036_r9w545ldp",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 15.59130878888621,
+        "mapY": 23.08455990497457,
+        "id": "obj_object1_1779996055179_her195d1f",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (1,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 66,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 13.5802666281248,
+        "mapY": 2.3802291451050914,
+        "id": "obj_object1_1779996094019_my4bwgwx0",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 14.403183294791466,
+        "mapY": 2.3489791451050923,
+        "id": "obj_object1_1779996096108_teidydd5y",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 13.3927666281248,
+        "mapY": 3.067729145105094,
+        "id": "obj_object1_1779996097079_17i1ow8bz",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,5)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 330,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "mapX": 13.42400517481339,
+        "mapY": 1.4310952733973874,
+        "id": "obj_object1_1779996099863_atsfjbmw7",
         "layerKey": "object1"
       }
     ],
