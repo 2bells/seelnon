@@ -10,7 +10,7 @@ It does seem that therapy speech go in power couples: sociopath / depression, na
 
 In my world view, it feels like The Dark Triad and DARVO abusers are somewhat responsible for those types of movements of weaponising 'science speech' to gain social street-credit. As those people do get spotlighted as more data/research comes out in public, their defence is to 'double down', because otherwise they have to accept they are the bad guys, and they cannot be 'bad', because c'mon, look at them! They are perfect representation of humanity!
 
-It still seems to greatly reflect the whole pray/predator roleplay we keep doing in society. Now, people who need help, do get a rundown on who is actually the 'bad actor' in their relationships. So as a defensive mechanism it is easy to just proclaim that the other side is also guilty (because it usually goes both ways anyway). So right now, if one does not agree with their offenders they are 'psychotic'.
+It still seems to greatly reflect the whole prey/predator roleplay we keep doing in society. Now, people who need help, do get a rundown on who is actually the 'bad actor' in their relationships. So as a defensive mechanism it is easy to just proclaim that the other side is also guilty (because it usually goes both ways anyway). So right now, if one does not agree with their offenders they are 'psychotic'.
 
 Doesn't help the sheer amount of pure synthetic media and almost complete inability to tell the difference between a man and AI, does chop the legs of reality under everybody's feet. Definition of psychosis requires definition of 'objective reality'. Which gets more and more impossible the more time goes on. 
 
@@ -34,10 +34,10 @@ Poked AI with a stick and it kind of just told me: if you are getting lost in 'e
 
 ## Trust
 
-Some thoughts on what therapy words now mean, because of constant abuse left and write and my ideas on why/when they became mainstream:
+Some thoughts on what therapy words now mean, because of constant abuse left and right and my ideas on why/when they became mainstream:
 
 - Depressed when in reality allostatic load / burnout [computers, grind sigma mindset]
-- ADHD when in reality Dopamine over-indulgence [social media, doom scrolling meta]
+- ADHD when in reality dopamine over-indulgence [social media, doom scrolling meta]
 - Psychotic when in reality overwhelmed by content [AI, synthetic everything]
 
 'Trust' completely left the call.
@@ -53,12 +53,12 @@ is a spicy frequency
 And I do like my
 holopenio pizza
 >_
->_
+
 in right amounts
 ```
 
 
-BTW link to the whole thing... the engine, right? I still need todays updates, there is a lot:
+BTW, link to the whole thing I was reviving... the engine, right? I still need todays updates, there is a lot, but here a cute screenshot:
 
 ![img c](blog/2026-05/img/iso_engine_.jpg)
 
