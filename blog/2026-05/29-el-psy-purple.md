@@ -6,11 +6,11 @@ Is that me or 'Psychosis' is a new Depression/ADHD therapy buzzword?
 
 It was relatively niche in general and were used in severe cases only, I do think it was after the whole 'AI psychosis' term got introduced into the masses, now people found a way to call 'Karen' in a scientific way.
 
-It does seem that therapy speech go in power couples: sociopath / depression, narcissistic / ADHD, manipulative? / psychotic? [I think, at the beginning of psychiatric movement it was just spamming name of Sigmund Freud, depression was looked as a mood, not chemical disbalance. But now everything needs a pill, because... well... pills are commodity at its core, a new consumption habit to push...]
+It does seem that therapy speech go in power couples: sociopath / depression, narcissistic / ADHD, manipulative? / psychotic? [I think, at the beginning of psychiatric movement it was just spamming name of Sigmund Freud, depression was looked at as a mood, not a chemical disbalance. But now everything needs a pill, because... well... pills are commodity at its core, a new consumption habit to push...]
 
 In my world view, it feels like The Dark Triad and DARVO abusers are somewhat responsible for those types of movements of weaponising 'science speech' to gain social street-credit. As those people do get spotlighted as more data/research comes out in public, their defence is to 'double down', because otherwise they have to accept they are the bad guys, and they cannot be 'bad', because c'mon, look at them! They are perfect representation of humanity!
 
-It still seems to greatly reflect the whole pray/predator roleplay we keep doing in society. Now, people who need help, do get a rundown on who is actually the 'bad actor' in their relationships. So as a defensive mechanism it is easy to just proclaim that other side is also guilty (because it usually goes both ways anyway). So right now, if one does not agree with their offenders is 'psychotic'.
+It still seems to greatly reflect the whole pray/predator roleplay we keep doing in society. Now, people who need help, do get a rundown on who is actually the 'bad actor' in their relationships. So as a defensive mechanism it is easy to just proclaim that the other side is also guilty (because it usually goes both ways anyway). So right now, if one does not agree with their offenders they are 'psychotic'.
 
 Doesn't help the sheer amount of pure synthetic media and almost complete inability to tell the difference between a man and AI, does chop the legs of reality under everybody's feet. Definition of psychosis requires definition of 'objective reality'. Which gets more and more impossible the more time goes on. 
 
@@ -34,15 +34,15 @@ Poked AI with a stick and it kind of just told me: if you are getting lost in 'e
 
 ## Trust
 
-Some thoughts on what therapy words now mean and why they became mainstream:
+Some thoughts on what therapy words now mean, because of constant abuse left and write and my ideas on why/when they became mainstream:
 
 - Depressed when in reality allostatic load / burnout [computers, grind sigma mindset]
 - ADHD when in reality Dopamine over-indulgence [social media, doom scrolling meta]
-- Psychotic when in reality overwhelmed by content [AI, synthetic everything, no trust]
+- Psychotic when in reality overwhelmed by content [AI, synthetic everything]
 
 'Trust' completely left the call.
 
-Why trust is important here? Because with computers we get ideas of 'Matrix' with social media we get ideas of 'perfect lives that don't exist' and with AI we kind of just getting 'WTF is even WTF? Was anything real in the first place?'
+Why trust is important here? Because with computers we get ideas of 'Matrix'. With social media we get ideas of 'perfect lives that don't exist' and with AI we kind of just getting: 'WTF is even WTF? Was anything real in the first place?'
 
 ```
 thought of a day
@@ -50,7 +50,11 @@ thought of a day
 purple
 is a spicy frequency
 ///
-holopenio level spicy
+And I do like my
+holopenio pizza
+>_
+>_
+in right amounts
 ```
 
 
