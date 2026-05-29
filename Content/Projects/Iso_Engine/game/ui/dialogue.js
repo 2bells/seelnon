@@ -251,7 +251,8 @@ class DialogueUI {
         }
 
         // Set state to talk and animate in
-        this.setDialogueMode('talk');
+        const isChest = npc.broadType === 'chest' || (npc.characterData && npc.characterData.broadType === 'chest');
+        this.setDialogueMode(isChest ? 'inventory' : 'talk');
         this.domElement.style.display = 'block';
         this.isVisible = true;
 
@@ -943,6 +944,48 @@ class DialogueUI {
                     this.selectedShopPlayerIndex = -1; // Deselect player item
                     this.renderShopWindow();
                 };
+
+                slot.ondblclick = (e) => {
+                    e.stopPropagation();
+                    this.selectedShopVendorIndex = i;
+                    this.selectedShopPlayerIndex = -1;
+
+                    if (player.gold < it.cost) {
+                        CustomDialog.alert("Not enough gold!", "Empty Pockets");
+                        return;
+                    }
+
+                    player.gold -= it.cost;
+                    it.count--;
+
+                    // Deliver to player bag
+                    if (!player.inventory) player.inventory = [];
+                    const playerExisting = player.inventory.find(invIt => invIt.name === it.name);
+                    if (playerExisting) {
+                        playerExisting.count++;
+                    } else {
+                        player.inventory.push({
+                             id: `item_${Date.now()}_bought`,
+                             name: it.name,
+                             type: it.type,
+                             heal: it.heal || 0,
+                             bonusAtk: it.bonusAtk || 0,
+                             bonusDef: it.bonusDef || 0,
+                             description: it.description,
+                             value: it.value || Math.floor(it.cost * 0.7),
+                             count: 1,
+                             equipped: false
+                        });
+                    }
+
+                    if (it.count <= 0) {
+                         npc.inventory = npc.inventory.filter(obj => obj.name !== it.name);
+                         this.selectedShopVendorIndex = 0;
+                    }
+
+                    this._appendSystemMessage(`Purchased 1x ${it.name} for ${it.cost} G.`);
+                    this.renderShopWindow();
+                };
             } else {
                 slot.className += ' empty';
                 slot.innerHTML = '<span class="item-slot-dots">·</span>';
@@ -1120,6 +1163,42 @@ class DialogueUI {
                 slot.onclick = () => {
                     this.selectedShopPlayerIndex = i;
                     this.selectedShopVendorIndex = -1; // Deselect vendor item
+                    this.renderShopWindow();
+                };
+
+                slot.ondblclick = (e) => {
+                    e.stopPropagation();
+                    this.selectedShopPlayerIndex = i;
+                    this.selectedShopVendorIndex = -1;
+
+                    const sellValue = it.value || Math.floor((it.cost || 20) * 0.7);
+                    player.gold += sellValue;
+                    it.count--;
+
+                    // Deliver stock back to shopkeeper
+                    const shopExisting = npc.inventory.find(idxIt => idxIt.name === it.name);
+                    if (shopExisting) {
+                        shopExisting.count++;
+                    } else {
+                        npc.inventory.push({
+                            name: it.name,
+                            type: it.type,
+                            heal: it.heal || 0,
+                            bonusAtk: it.bonusAtk || 0,
+                            bonusDef: it.bonusDef || 0,
+                            description: it.description || '',
+                            cost: it.cost || Math.floor(sellValue / 0.7),
+                            value: sellValue,
+                            count: 1
+                        });
+                    }
+
+                    if (it.count <= 0) {
+                        player.inventory = player.inventory.filter(pi => pi.id !== it.id);
+                        this.selectedShopPlayerIndex = 0;
+                    }
+
+                    this._appendSystemMessage(`Sold 1x ${it.name} for ${sellValue} G.`);
                     this.renderShopWindow();
                 };
             } else {
@@ -1569,24 +1648,64 @@ class DialogueUI {
             dActionRow.style.marginTop = '4px';
 
             const btn = document.createElement('button');
-            btn.className = 'rpg-btn-quest';
-            btn.style.fontSize = '0.75em';
-            btn.style.padding = '3px 12px';
-            btn.textContent = 'Ask For Item';
-            btn.title = `Ask ${npc.name} to grant you this item in exchange for a local task.`;
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                this._appendPlayerChoice(`Could I have your "${selNpcItem.name}"?`);
+            const isChest = npc.broadType === 'chest' || (npc.characterData && npc.characterData.broadType === 'chest');
+            
+            if (isChest) {
+                btn.className = 'rpg-btn-quest';
+                btn.style.fontSize = '0.75em';
+                btn.style.padding = '3px 12px';
+                btn.textContent = 'Take Item';
+                btn.title = `Take ${selNpcItem.name} from the container chest.`;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const player = this.engine.player;
+                    
+                    // Add item to player inventory or increase its count
+                    if (!player.inventory) player.inventory = [];
+                    const playerExisting = player.inventory.find(invIt => invIt.name === selNpcItem.name);
+                    
+                    const itemToGive = { ...selNpcItem };
+                    if (playerExisting) {
+                        playerExisting.count++;
+                    } else {
+                        itemToGive.id = 'chest_item_' + Date.now() + Math.floor(Math.random() * 1000);
+                        itemToGive.count = 1;
+                        itemToGive.equipped = false;
+                        player.inventory.push(itemToGive);
+                    }
+                    
+                    // Subtract or remove from npc inventory
+                    if (selNpcItem.count > 1) {
+                        selNpcItem.count--;
+                    } else {
+                        npcInv.splice(this.selectedInspectNpcIndex, 1);
+                        this.selectedInspectNpcIndex = 0;
+                    }
+                    
+                    this._appendSystemMessage(`Looted: 1x ${itemToGive.name} from the chest.`);
+                    this._triggerNpcResponse(`*Click-click*... You took 1x ${itemToGive.name}.`);
+                    this.renderInventoryWindow();
+                };
+            } else {
+                btn.className = 'rpg-btn-quest';
+                btn.style.fontSize = '0.75em';
+                btn.style.padding = '3px 12px';
+                btn.textContent = 'Ask For Item';
+                btn.title = `Ask ${npc.name} to grant you this item in exchange for a local task.`;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    this._appendPlayerChoice(`Could I have your "${selNpcItem.name}"?`);
 
-                if (this.engine.questSystem) {
-                    const customQuest = this.engine.questSystem.generateItemQuest(npc, selNpcItem);
-                    this._triggerNpcResponse(`Well, I can't just part with my ${selNpcItem.name} for free. But if you helper me with "${customQuest.title}", I'll give it to you! Will you help?`, () => {
-                        this.renderQuestOfferDialogue(customQuest);
-                    });
-                } else {
-                    this._triggerNpcResponse(`I am sorry, my quest trackers appear offline. Try again later!`);
-                }
-            };
+                    if (this.engine.questSystem) {
+                        const customQuest = this.engine.questSystem.generateItemQuest(npc, selNpcItem);
+                        this._triggerNpcResponse(`Well, I can't just part with my ${selNpcItem.name} for free. But if you helper me with "${customQuest.title}", I'll give it to you! Will you help?`, () => {
+                            this.renderQuestOfferDialogue(customQuest);
+                        });
+                    } else {
+                        this._triggerNpcResponse(`I am sorry, my quest trackers appear offline. Try again later!`);
+                    }
+                };
+            }
             dActionRow.appendChild(btn);
 
             npcDetails.appendChild(dNameRow);

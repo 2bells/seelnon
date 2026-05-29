@@ -1,6 +1,7 @@
 // NPC (Non-Player Character) Logic
 import GameObject from './gameObject.js';
 import { FloatingTextEffect } from '../combat/effects.js';
+import { Emitter } from '../combat/projectiles.js';
 
 const NPC_COLLISION_WIDTH = 20;
 const NPC_COLLISION_HEIGHT = 10;
@@ -30,6 +31,7 @@ class NPC extends GameObject {
         this.isReacting = false; // Flag to prevent reacting multiple times at once
         this.isHit = false;
         this.hitFlashTimer = 0;
+        this.emitter = null;
     }
 
     update(deltaTime) {
@@ -38,6 +40,9 @@ class NPC extends GameObject {
             if (this.hitFlashTimer <= 0) {
                 this.isHit = false;
             }
+        }
+        if (this.emitter) {
+            this.emitter.update(deltaTime);
         }
     }
 
@@ -76,6 +81,62 @@ class NPC extends GameObject {
 
     die() {
         console.log(`NPC ${this.name} has been defeated.`);
+
+        // Handle turret transition into searchable chest wreckage
+        if (this.broadType === 'turret') {
+            const emitterConfig = this.characterData?.emitterConfig || {};
+            const presetId = emitterConfig.presetId || 'spark_bullet';
+            const emitterName = this.characterData?.name || 'Turret';
+            
+            // Turn off shooting
+            this.emitter = null;
+            this.broadType = 'chest';
+            this.name = `Wreckage of ${emitterName}`;
+            
+            // Re-inflate stats so we can interact with it as a chest
+            this.stats.hp = 999;
+            this.stats.maxHp = 999;
+            
+            // Setup items list to contain the custom lootable emitter core!
+            const baseSlug = presetId;
+            const abilitySlug = `bullet_hell_${baseSlug}`;
+            const itemSlug = `loot_core_${baseSlug}`;
+            
+            this.inventory = [{
+                id: itemSlug,
+                name: `Core: ${emitterName} Emitter`,
+                type: 'ability',
+                attachedAbility: abilitySlug,
+                count: 1,
+                cost: 150,
+                description: `Deactivated Core of the defeated ${emitterName}. Equip to Slot 1-4 to discharge its custom emitter!`,
+                symbol: '☄️',
+                equipped: false
+            }];
+            
+            // Spawn an epic visual shatter and notice text!
+            if (this.engine) {
+                const FloatingTextEffectClass = FloatingTextEffect || null;
+                if (FloatingTextEffectClass) {
+                    this.engine.addEffect(new FloatingTextEffectClass(this.engine, {
+                        text: `TURRET DEACTIVATED! SEARCH CORE!`,
+                        position: { x: this.currentPixelX, y: this.currentPixelY - 40 },
+                        color: '#e67e22'
+                    }));
+                }
+                
+                if (typeof ParticleSplatterEffect !== 'undefined') {
+                    this.engine.addEffect(new ParticleSplatterEffect(this.engine, {
+                        position: { x: this.currentPixelX, y: this.currentPixelY },
+                        color: '#f39c12',
+                        count: 18,
+                        duration: 0.8
+                    }));
+                }
+            }
+            return;
+        }
+
         const nameLower = this.name.toLowerCase();
         if (nameLower.includes('doran') || nameLower.includes('shopkeeper')) {
             CustomDialog.alert("GAME OVER! Shopkeeper Doran has been defeated!", "Game Over").then(() => {
@@ -110,6 +171,10 @@ class NPC extends GameObject {
             }
             if (Array.isArray(data.inventory)) {
                 this.inventory = JSON.parse(JSON.stringify(data.inventory));
+            }
+            if (this.broadType === 'turret' || data.emitterConfig) {
+                const config = data.emitterConfig || {};
+                this.emitter = new Emitter(this.engine, this, config);
             }
         }
         console.log(`NPC ${this.name} character data loaded with role: ${this.broadType || 'villager'}`);
@@ -163,6 +228,11 @@ class NPC extends GameObject {
     }
 
     render(ctx, viewOriginX, viewOriginY) {
+        // Render Range circle first so it layer-draws underneath the NPC sprite!
+        if (this.emitter) {
+            this.emitter.renderRangeArea(ctx, viewOriginX, viewOriginY);
+        }
+
         // Call parent render to draw the sprite itself
         super.render(ctx, viewOriginX, viewOriginY);
 

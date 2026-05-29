@@ -1,0 +1,293 @@
+/* ----------------------------------------------------
+   RPG EDITOR PANELS SYSTEM-WIDE STYLING (TYPE 2 UNIFORM)
+   ---------------------------------------------------- */
+
+/* All core side/floating panels default structure */
+#rpg-editor-operations-panel,
+#rpg-editor-tools-panel,
+#rpg-npc-creator-panel,
+#rpg-light-mask-list-panel,
+#rpg-light-editor-panel,
+#rpg-quest-editor-panel,
+#rpg-abilities-editor-panel,
+#rpg-projectile-editor-panel,
+#rpg-item-editor-panel,
+#rpg-event-editor-panel,
+#rpg-bank-editor-panel {
+    position: absolute;
+    background-color: rgba(50, 40, 30, 0.90);
+    border: 1px solid #8C6D56;
+    border-radius: 8px;
+    color: #EFEBE0;
+    font-size: 0.9em;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    resize: none;
+    min-width: 200px;
+    min-height: 40px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
+}
+
+/* Specific stacking order */
+#rpg-editor-operations-panel,
+#rpg-editor-tools-panel {
+    z-index: 40002;
+}
+
+#rpg-npc-creator-panel,
+#rpg-light-mask-list-panel,
+#rpg-light-editor-panel,
+#rpg-quest-editor-panel {
+    z-index: 40003;
+}
+
+#rpg-abilities-editor-panel,
+#rpg-projectile-editor-panel {
+    z-index: 40004;
+}
+
+#rpg-item-editor-panel,
+#rpg-event-editor-panel {
+    z-index: 40005;
+}
+
+#rpg-bank-editor-panel {
+    z-index: 40005;
+}
+
+/* Individual Panel Positioning & Default Sizing */
+#rpg-editor-operations-panel {
+    left: 10px;
+    top: 50px;
+    width: 200px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-editor-tools-panel {
+    right: 10px;
+    top: 50px;
+    width: 450px;
+    max-height: calc(100% - 100px);
+}
+
+#rpg-npc-creator-panel {
+    right: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-light-mask-list-panel {
+    left: 10px;
+    top: 50px;
+    width: 200px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-light-editor-panel {
+    right: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-quest-editor-panel {
+    right: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-abilities-editor-panel {
+    right: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-item-editor-panel {
+    right: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-event-editor-panel {
+    right: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-projectile-editor-panel {
+    right: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+}
+
+#rpg-bank-editor-panel {
+    right: 15px;
+    top: 55px;
+    width: 880px;
+    max-width: calc(100% - 30px);
+    height: 520px;
+    max-height: calc(100% - 80px);
+    min-width: 400px;
+}
+
+/* ----------------------------------------------------
+   UNIFORM HEADER TOGGLE BUTTONS (TYPE 2 DESIGN)
+   ---------------------------------------------------- */
+#rpg-editor-operations-toggle,
+#rpg-editor-tools-toggle,
+#rpg-npc-creator-toggle,
+#rpg-light-mask-list-toggle,
+#rpg-light-editor-toggle,
+#rpg-quest-editor-toggle,
+#rpg-abilities-editor-toggle,
+#rpg-projectile-editor-toggle,
+#rpg-item-editor-toggle,
+#rpg-event-editor-toggle,
+#rpg-bank-editor-toggle {
+    background-color: #4a3c30;
+    color: #EFEBE0;
+    border: none;
+    border-bottom: 1px solid #8C6D56;
+    padding: 8px 10px;
+    font-size: 0.95em;
+    font-weight: bold;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+    height: 34px;
+    line-height: 18px;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#rpg-editor-operations-toggle:hover,
+#rpg-editor-tools-toggle:hover,
+#rpg-npc-creator-toggle:hover,
+#rpg-light-mask-list-toggle:hover,
+#rpg-light-editor-toggle:hover,
+#rpg-quest-editor-toggle:hover,
+#rpg-abilities-editor-toggle:hover,
+#rpg-projectile-editor-toggle:hover,
+#rpg-item-editor-toggle:hover,
+#rpg-event-editor-toggle:hover,
+#rpg-bank-editor-toggle:hover {
+    background-color: #5A4B3E;
+}
+
+/* ----------------------------------------------------
+   UNIFORM INNER CONTENT PANEL CONTAINERS
+   ---------------------------------------------------- */
+#rpg-editor-operations-content,
+#rpg-editor-tools-content,
+#rpg-npc-creator-content,
+#rpg-light-mask-list-content,
+#rpg-light-editor-content,
+#rpg-quest-editor-content,
+#rpg-abilities-editor-content,
+#rpg-projectile-editor-content,
+#rpg-item-editor-content,
+#rpg-event-editor-content,
+#rpg-bank-editor-content {
+    padding: 10px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none !important;
+    gap: 12px;
+}
+
+/* Retain special bank inner layout scroll/no-scroll pattern */
+#rpg-bank-editor-content {
+    overflow-y: hidden !important;
+}
+
+/* ----------------------------------------------------
+   COLLAPSED STATES (GUARANTEES PERFECT COMPACT VISUAL)
+   ---------------------------------------------------- */
+#rpg-editor-operations-panel.collapsed,
+#rpg-editor-tools-panel.collapsed,
+#rpg-npc-creator-panel.collapsed,
+#rpg-light-mask-list-panel.collapsed,
+#rpg-light-editor-panel.collapsed,
+#rpg-quest-editor-panel.collapsed,
+#rpg-abilities-editor-panel.collapsed,
+#rpg-projectile-editor-panel.collapsed,
+#rpg-item-editor-panel.collapsed,
+#rpg-event-editor-panel.collapsed,
+#rpg-bank-editor-panel.collapsed {
+    resize: none !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+}
+
+#rpg-editor-operations-panel.collapsed #rpg-editor-operations-content,
+#rpg-editor-tools-panel.collapsed #rpg-editor-tools-content,
+#rpg-npc-creator-panel.collapsed #rpg-npc-creator-content,
+#rpg-light-mask-list-panel.collapsed #rpg-light-mask-list-content,
+#rpg-light-editor-panel.collapsed #rpg-light-editor-content,
+#rpg-quest-editor-panel.collapsed #rpg-quest-editor-content,
+#rpg-abilities-editor-panel.collapsed #rpg-abilities-editor-content,
+#rpg-projectile-editor-panel.collapsed #rpg-projectile-editor-content,
+#rpg-item-editor-panel.collapsed #rpg-item-editor-content,
+#rpg-event-editor-panel.collapsed #rpg-event-editor-content,
+#rpg-bank-editor-panel.collapsed #rpg-bank-editor-content {
+    display: none !important;
+}
+
+/* ----------------------------------------------------
+   RESIZABLE CORNER GRIP SYSTEM (CUSTOM INTERACTION)
+   ---------------------------------------------------- */
+.rpg-panel-resizer {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    bottom: 2px;
+    z-index: 100000;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* For right-aligned panels, drag handles are on the bottom-left */
+.rpg-panel-resizer.bottom-left {
+    left: 2px;
+    cursor: nesw-resize;
+    background: linear-gradient(225deg, 
+        transparent 0%, transparent 40%, 
+        #8C6D56 40%, #8C6D56 50%, 
+        transparent 50%, transparent 60%, 
+        #8C6D56 60%, #8C6D56 70%, 
+        transparent 70%, transparent 80%, 
+        #8C6D56 80%, #8C6D56 90%, 
+        transparent 90%);
+}
+
+/* For left-aligned panels, drag handles are on the bottom-right */
+.rpg-panel-resizer.bottom-right {
+    right: 2px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, 
+        transparent 0%, transparent 40%, 
+        #8C6D56 40%, #8C6D56 50%, 
+        transparent 50%, transparent 60%, 
+        #8C6D56 60%, #8C6D56 70%, 
+        transparent 70%, transparent 80%, 
+        #8C6D56 80%, #8C6D56 90%, 
+        transparent 90%);
+}
+
+/* Hide when panel is collapsed */
+.collapsed .rpg-panel-resizer {
+    display: none !important;
+}

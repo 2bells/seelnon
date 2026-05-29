@@ -80,6 +80,9 @@ class GameObject {
         const screenPos = this.map.mapToScreen(this.mapX, this.mapY);
         this.currentPixelX = screenPos.x;
         this.currentPixelY = screenPos.y;
+
+        this.zIndex = options.zIndex !== undefined ? Number(options.zIndex) : 0;
+        this.disableYSorting = options.disableYSorting !== undefined ? Boolean(options.disableYSorting) : false;
     }
 
     update(deltaTime) {

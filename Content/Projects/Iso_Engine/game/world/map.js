@@ -115,8 +115,8 @@ class GameMap {
     }
     
     // Internal method to add definitions without checking for existing sourceRects
-    addTileDefinitionInternal(id, sourceRect, spritesheetIndex = 0) {
-        this.tileDefinitions[id] = { sourceRect: sourceRect, spritesheetIndex: spritesheetIndex };
+    addTileDefinitionInternal(id, sourceRect, spritesheetIndex = 0, zIndex = 0) {
+        this.tileDefinitions[id] = { sourceRect: sourceRect, spritesheetIndex: spritesheetIndex, zIndex: zIndex };
         if (id >= this.nextTileId) {
             this.nextTileId = id + 1;
         }
@@ -124,23 +124,24 @@ class GameMap {
 
     // Public method for editor to add new tile types
     // Returns the tile ID for the given sourceRect (either existing or newly created)
-    ensureTileDefinition(sourceRect, spritesheetIndex = 0) { // Added padding parameter, default to 2
-        // Check if a definition with this sourceRect AND spritesheetIndex already exists
+    ensureTileDefinition(sourceRect, spritesheetIndex = 0, zIndex = 0) { // Added padding parameter, default to 2
+        // Check if a definition with this sourceRect AND spritesheetIndex AND zIndex already exists
         for (const id in this.tileDefinitions) {
             const def = this.tileDefinitions[id];
             if (def.spritesheetIndex === spritesheetIndex &&
                 def.sourceRect.x === sourceRect.x &&
                 def.sourceRect.y === sourceRect.y &&
                 def.sourceRect.width === sourceRect.width &&
-                def.sourceRect.height === sourceRect.height) {
+                def.sourceRect.height === sourceRect.height &&
+                (def.zIndex || 0) === zIndex) {
                 return parseInt(id); // Found existing, return its ID
             }
         }
         // Not found, create a new one
         const newId = this.nextTileId;
-        this.tileDefinitions[newId] = { sourceRect: sourceRect, spritesheetIndex: spritesheetIndex };
+        this.tileDefinitions[newId] = { sourceRect: sourceRect, spritesheetIndex: spritesheetIndex, zIndex: zIndex };
         this.nextTileId++;
-        console.log(`New tile definition created: ID ${newId} for spritesheet ${spritesheetIndex}, sourceRect`, sourceRect);
+        console.log(`New tile definition created: ID ${newId} with zIndex ${zIndex} for spritesheet ${spritesheetIndex}, sourceRect`, sourceRect);
         return newId;
     }
 
@@ -232,7 +233,7 @@ class GameMap {
         // they are used by the engine to calculate viewOrigin.
     }
 
-    render(ctx, canvas, viewOriginX, viewOriginY) {
+    render(ctx, canvas, viewOriginX, viewOriginY, renderOverhead = false) {
         const editorActive = this.engine.isEditing && this.engine.mapEditor;
         const currentEditorLayer = editorActive ? this.engine.mapEditor.currentLayer : null;
         const isObjectLayerActive = editorActive && (currentEditorLayer === 'object1' || currentEditorLayer === 'object2');
@@ -247,6 +248,19 @@ class GameMap {
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 const tileType = this.tiles[y][x];
+                const tileDef = this.tileDefinitions[tileType];
+                
+                // Determine tile's Z index. Default to 0.
+                const tileZ = (tileDef && tileDef.zIndex !== undefined) ? tileDef.zIndex : 0;
+                
+                // If we are rendering ground/standard tiles (renderOverhead = false), draw when tileZ <= 0
+                // If we are rendering overhead/overlay tiles (renderOverhead = true), draw when tileZ > 0
+                if (renderOverhead) {
+                    if (tileZ <= 0) continue;
+                } else {
+                    if (tileZ > 0) continue;
+                }
+
                 // screenPos is the world coordinate of the tile's top point
                 const screenPos = this.mapToScreen(x, y);
 
@@ -271,7 +285,6 @@ class GameMap {
                 ctx.translate(drawX, drawY);
 
                 let currentTileSourceRect = null;
-                const tileDef = this.tileDefinitions[tileType];
                 if (tileDef) {
                     currentTileSourceRect = tileDef.sourceRect;
                 } else if (tileType !== 0) { 
@@ -737,6 +750,80 @@ class GameMap {
         return { x: pushX, y: pushY, count: collisionCount };
     }
 
+    checkStaticCollisionAt(circleCenter, radius, gameObjects) {
+        const circle = { center: { ...circleCenter }, radius };
+
+        // 1. Prevent walking off map limits or onto empty tiles (abyss)
+        const footX = circleCenter.x;
+        const footY = circleCenter.y + 16;
+        const mapCoords = this.screenToMap(footX, footY);
+        const tileX = Math.floor(mapCoords.x);
+        const tileY = Math.floor(mapCoords.y);
+        if (tileX < 0 || tileX >= this.width || tileY < 0 || tileY >= this.height) {
+            return true; // Out of bounds
+        }
+        if (this.tiles[tileY] === undefined || this.tiles[tileY][tileX] === undefined || this.tiles[tileY][tileX] === 0) {
+            return true; // Abyss / Empty tile
+        }
+
+        // 2. Check against custom collision layer polygons
+        if (this.collisionLayerData) {
+            for (const customShape of this.collisionLayerData) {
+                if (this._circleIntersectsPolygon(circle, customShape.vertices)) {
+                    return true;
+                }
+            }
+        }
+
+        // 2.5. Check against active, uncompleted Lock/Gate Event spawn point obstacles
+        if (this.spawnPointsData) {
+            for (const pt of this.spawnPointsData) {
+                if (pt.type === 'event' && pt.triggerType === 'unlock_remove') {
+                    let isCompleted = false;
+                    try {
+                        const stored = localStorage.getItem('rpg_completed_events');
+                        if (stored) {
+                            const completed = JSON.parse(stored);
+                            isCompleted = !!completed[pt.eventId];
+                        }
+                    } catch (e) {}
+
+                    if (!isCompleted) {
+                        const dx = circleCenter.x - pt.x;
+                        const dy = circleCenter.y - pt.y;
+                        const distSq = dx * dx + dy * dy;
+                        const colRadius = radius + 14; // standard physical size of block/gate
+                        if (distSq < colRadius * colRadius) {
+                            return true; // Collision!
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Check against static GameObjects (excluding players/enemies)
+        if (gameObjects) {
+            for (const obj of gameObjects) {
+                if (obj.collidable && obj.type !== 'player' && obj.type !== 'enemy' && obj.constructor.name !== 'Player' && obj.constructor.name !== 'Enemy') {
+                    const shape = obj.getCollisionBounds();
+                    if (shape) {
+                        if (shape.type === 'rectangle') {
+                            if (this._circleIntersectsRectangle(circle, shape.data)) {
+                                return true;
+                            }
+                        } else if (shape.type === 'polygon') {
+                            if (this._circleIntersectsPolygon(circle, shape.data)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     isValTile(tx, ty) {
         if (tx < 0 || tx >= this.width || ty < 0 || ty >= this.height) return false;
         if (this.tiles[ty] === undefined || this.tiles[ty][tx] === undefined) return false;
@@ -1015,7 +1102,12 @@ class GameMap {
 
             for (const id in data.tileDefinitions) {
                 if (data.tileDefinitions.hasOwnProperty(id)) {
-                    this.addTileDefinitionInternal(parseInt(id), data.tileDefinitions[id].sourceRect, data.tileDefinitions[id].spritesheetIndex || 0);
+                    this.addTileDefinitionInternal(
+                        parseInt(id), 
+                        data.tileDefinitions[id].sourceRect, 
+                        data.tileDefinitions[id].spritesheetIndex || 0,
+                        data.tileDefinitions[id].zIndex || 0
+                    );
                 }
             }
             if (data.nextTileId && data.nextTileId > this.nextTileId) {

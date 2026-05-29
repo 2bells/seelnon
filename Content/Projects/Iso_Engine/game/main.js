@@ -95,10 +95,24 @@ export function initStandaloneGame() {
         };
     }
 
+    const projectileCreatorBtn = document.getElementById('rpg-projectile-creator-button');
+    if (projectileCreatorBtn) {
+        projectileCreatorBtn.onclick = () => {
+            if (gameEngineInstance) gameEngineInstance.toggleProjectileCreator();
+        };
+    }
+
     const itemEditorBtn = document.getElementById('rpg-item-editor-button');
     if (itemEditorBtn) {
         itemEditorBtn.onclick = () => {
             if (gameEngineInstance) gameEngineInstance.toggleItemEditor();
+        };
+    }
+
+    const eventEditorBtn = document.getElementById('rpg-event-editor-button');
+    if (eventEditorBtn) {
+        eventEditorBtn.onclick = () => {
+            if (gameEngineInstance) gameEngineInstance.toggleEventEditor();
         };
     }
 

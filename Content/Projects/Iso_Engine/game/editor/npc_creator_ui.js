@@ -1,6 +1,8 @@
 // scripts/extensions/rpg/game/editor/npc_creator_ui.js
 console.log("rpg/game/editor/npc_creator_ui.js loaded");
 
+import { getAllProjectiles } from '../combat/projectiles.js';
+
 const SPRITE_SIZE = 64;
 
 class NpcCreatorUI {
@@ -109,11 +111,19 @@ class NpcCreatorUI {
         const optEny = document.createElement('option');
         optEny.value = 'enemy';
         optEny.textContent = 'Enemy';
+        const optCst = document.createElement('option');
+        optCst.value = 'chest';
+        optCst.textContent = 'Chest / Loot Container';
+        const optTur = document.createElement('option');
+        optTur.value = 'turret';
+        optTur.textContent = 'Turret / Emitter';
 
         roleSelect.appendChild(optVil);
         roleSelect.appendChild(optMer);
         roleSelect.appendChild(optGrd);
         roleSelect.appendChild(optEny);
+        roleSelect.appendChild(optCst);
+        roleSelect.appendChild(optTur);
         roleDiv.appendChild(roleLabel);
         roleDiv.appendChild(roleSelect);
         statsGrid.appendChild(roleDiv);
@@ -248,6 +258,253 @@ class NpcCreatorUI {
         this.fields.speed = spdInput;
 
         statsSection.appendChild(statsGrid);
+
+        // --- Emitter & Projectile Settings ---
+        const emitterSection = this._createSection(content, 'Emitter & Projectile Settings');
+        emitterSection.id = 'npc-creator-emitter-section';
+        emitterSection.style.display = 'none';
+
+        // Projectile Preset Link
+        const presetDiv = document.createElement('div');
+        presetDiv.style.margin = '6px 0';
+        const presetLabel = document.createElement('label');
+        presetLabel.textContent = 'Link Emitter Preset';
+        presetLabel.style.fontSize = '0.8em';
+        const presetSelect = document.createElement('select');
+        presetSelect.style.width = '100%';
+        presetSelect.style.background = '#3B322C';
+        presetSelect.style.color = '#EFEBE0';
+        presetSelect.style.border = '1px solid #8C6D56';
+        presetSelect.style.borderRadius = '4px';
+        presetSelect.style.padding = '4px';
+        presetSelect.style.fontSize = '0.9em';
+        presetDiv.appendChild(presetLabel);
+        presetDiv.appendChild(presetSelect);
+        emitterSection.appendChild(presetDiv);
+        this.fields.presetId = presetSelect;
+        presetSelect.addEventListener('change', () => {
+            this.updateEmitterFieldsVisibility();
+        });
+
+        // Show Area
+        const saDiv = document.createElement('div');
+        saDiv.style.display = 'flex';
+        saDiv.style.alignItems = 'center';
+        saDiv.style.gap = '8px';
+        saDiv.style.margin = '4px 0';
+        const saLabel = document.createElement('label');
+        saLabel.textContent = 'Show Range Circle';
+        saLabel.style.fontSize = '0.85em';
+        saLabel.style.cursor = 'pointer';
+        const saInput = document.createElement('input');
+        saInput.type = 'checkbox';
+        saInput.checked = true;
+        saInput.style.cursor = 'pointer';
+        saDiv.appendChild(saInput);
+        saDiv.appendChild(saLabel);
+        emitterSection.appendChild(saDiv);
+        this.fields.showArea = saInput;
+
+        // Notify
+        const notDiv = document.createElement('div');
+        notDiv.style.display = 'flex';
+        notDiv.style.alignItems = 'center';
+        notDiv.style.gap = '8px';
+        notDiv.style.margin = '4px 0';
+        const notLabel = document.createElement('label');
+        notLabel.textContent = 'Notify / Warn Text on Discharge';
+        notLabel.style.fontSize = '0.85em';
+        notLabel.style.cursor = 'pointer';
+        const notInput = document.createElement('input');
+        notInput.type = 'checkbox';
+        notInput.checked = false;
+        notInput.style.cursor = 'pointer';
+        notDiv.appendChild(notInput);
+        notDiv.appendChild(notLabel);
+        emitterSection.appendChild(notDiv);
+        this.fields.notify = notInput;
+
+        // Cooldown
+        const cdDiv = document.createElement('div');
+        cdDiv.style.margin = '6px 0';
+        const cdLabel = document.createElement('label');
+        cdLabel.textContent = 'Cooldown Interval (seconds)';
+        cdLabel.style.fontSize = '0.8em';
+        const cdInput = document.createElement('input');
+        cdInput.type = 'number';
+        cdInput.step = '0.1';
+        cdInput.value = '1.5';
+        cdInput.min = '0.1';
+        cdInput.style.width = '100%';
+        cdInput.style.background = '#3B322C';
+        cdInput.style.color = '#EFEBE0';
+        cdInput.style.border = '1px solid #8C6D56';
+        cdInput.style.borderRadius = '4px';
+        cdInput.style.padding = '4px';
+        cdInput.style.boxSizing = 'border-box';
+        cdDiv.appendChild(cdLabel);
+        cdDiv.appendChild(cdInput);
+        emitterSection.appendChild(cdDiv);
+        this.fields.cooldown = cdInput;
+
+        // Range
+        const rngDiv = document.createElement('div');
+        rngDiv.style.margin = '6px 0';
+        const rngLabel = document.createElement('label');
+        rngLabel.textContent = 'Detection Range (pixels)';
+        rngLabel.style.fontSize = '0.8em';
+        const rngInput = document.createElement('input');
+        rngInput.type = 'number';
+        rngInput.value = '220';
+        rngInput.min = '20';
+        rngInput.style.width = '100%';
+        rngInput.style.background = '#3B322C';
+        rngInput.style.color = '#EFEBE0';
+        rngInput.style.border = '1px solid #8C6D56';
+        rngInput.style.borderRadius = '4px';
+        rngInput.style.padding = '4px';
+        rngInput.style.boxSizing = 'border-box';
+        rngDiv.appendChild(rngLabel);
+        rngDiv.appendChild(rngInput);
+        emitterSection.appendChild(rngDiv);
+        this.fields.range = rngInput;
+
+        // Projectile Type
+        const ptDiv = document.createElement('div');
+        ptDiv.style.margin = '6px 0';
+        const ptLabel = document.createElement('label');
+        ptLabel.textContent = 'Projectile Behavior';
+        ptLabel.style.fontSize = '0.8em';
+        const ptSelect = document.createElement('select');
+        ptSelect.style.width = '100%';
+        ptSelect.style.background = '#3B322C';
+        ptSelect.style.color = '#EFEBE0';
+        ptSelect.style.border = '1px solid #8C6D56';
+        ptSelect.style.borderRadius = '4px';
+        ptSelect.style.padding = '4px';
+        ptSelect.style.fontSize = '0.9em';
+
+        const optProStd = document.createElement('option');
+        optProStd.value = 'standard';
+        optProStd.textContent = 'Standard Linear Shot';
+        const optProSk = document.createElement('option');
+        optProSk.value = 'seeking';
+        optProSk.textContent = 'Scurrilous Homing/Seeking';
+        const optProCir = document.createElement('option');
+        optProCir.value = 'circular';
+        optProCir.textContent = 'Spiral / Orbital Orbit';
+        const optProSw = document.createElement('option');
+        optProSw.value = 'sinewave';
+        optProSw.textContent = 'Oscillating Sine Wave';
+        const optProSb = document.createElement('option');
+        optProSb.value = 'starburst';
+        optProSb.textContent = 'Starburst Nova Ring';
+
+        ptSelect.appendChild(optProStd);
+        ptSelect.appendChild(optProSk);
+        ptSelect.appendChild(optProCir);
+        ptSelect.appendChild(optProSw);
+        ptSelect.appendChild(optProSb);
+        ptDiv.appendChild(ptLabel);
+        ptDiv.appendChild(ptSelect);
+        emitterSection.appendChild(ptDiv);
+        this.fields.projectileType = ptSelect;
+
+        // Projectile Speed
+        const psDiv = document.createElement('div');
+        psDiv.style.margin = '6px 0';
+        const psLabel = document.createElement('label');
+        psLabel.textContent = 'Projectile Velocity Speed';
+        psLabel.style.fontSize = '0.8em';
+        const psInput = document.createElement('input');
+        psInput.type = 'number';
+        psInput.value = '160';
+        psInput.min = '10';
+        psInput.style.width = '100%';
+        psInput.style.background = '#3B322C';
+        psInput.style.color = '#EFEBE0';
+        psInput.style.border = '1px solid #8C6D56';
+        psInput.style.borderRadius = '4px';
+        psInput.style.padding = '4px';
+        psInput.style.boxSizing = 'border-box';
+        psDiv.appendChild(psLabel);
+        psDiv.appendChild(psInput);
+        emitterSection.appendChild(psDiv);
+        this.fields.projectileSpeed = psInput;
+
+        // Burst Count / Bullet spread count
+        const bcDiv = document.createElement('div');
+        bcDiv.style.margin = '6px 0';
+        const bcLabel = document.createElement('label');
+        bcLabel.textContent = 'Burst Round Count (Spread / Nova)';
+        bcLabel.style.fontSize = '0.8em';
+        const bcInput = document.createElement('input');
+        bcInput.type = 'number';
+        bcInput.value = '1';
+        bcInput.min = '1';
+        bcInput.style.width = '100%';
+        bcInput.style.background = '#3B322C';
+        bcInput.style.color = '#EFEBE0';
+        bcInput.style.border = '1px solid #8C6D56';
+        bcInput.style.borderRadius = '4px';
+        bcInput.style.padding = '4px';
+        bcInput.style.boxSizing = 'border-box';
+        bcDiv.appendChild(bcLabel);
+        bcDiv.appendChild(bcInput);
+        emitterSection.appendChild(bcDiv);
+        this.fields.burstCount = bcInput;
+
+        // Damage
+        const dmgDiv = document.createElement('div');
+        dmgDiv.style.margin = '6px 0';
+        const dmgLabel = document.createElement('label');
+        dmgLabel.textContent = 'Damage Rating';
+        dmgLabel.style.fontSize = '0.8em';
+        const dmgInput = document.createElement('input');
+        dmgInput.type = 'number';
+        dmgInput.value = '15';
+        dmgInput.min = '1';
+        dmgInput.style.width = '100%';
+        dmgInput.style.background = '#3B322C';
+        dmgInput.style.color = '#EFEBE0';
+        dmgInput.style.border = '1px solid #8C6D56';
+        dmgInput.style.borderRadius = '4px';
+        dmgInput.style.padding = '4px';
+        dmgInput.style.boxSizing = 'border-box';
+        dmgDiv.appendChild(dmgLabel);
+        dmgDiv.appendChild(dmgInput);
+        emitterSection.appendChild(dmgDiv);
+        this.fields.damage = dmgInput;
+
+        // Projectile Color
+        const pcDiv = document.createElement('div');
+        pcDiv.style.margin = '6px 0';
+        const pcLabel = document.createElement('label');
+        pcLabel.textContent = 'Glow Spark Color Hex';
+        pcLabel.style.fontSize = '0.8em';
+        const pcInput = document.createElement('input');
+        pcInput.type = 'text';
+        pcInput.value = '#ff3333';
+        pcInput.style.width = '100%';
+        pcInput.style.background = '#3B322C';
+        pcInput.style.color = '#EFEBE0';
+        pcInput.style.border = '1px solid #8C6D56';
+        pcInput.style.borderRadius = '4px';
+        pcInput.style.padding = '4px';
+        pcInput.style.boxSizing = 'border-box';
+        pcDiv.appendChild(pcLabel);
+        pcDiv.appendChild(pcInput);
+        emitterSection.appendChild(pcDiv);
+        this.fields.projectileColor = pcInput;
+
+        // Toggle on Role Select Change
+        roleSelect.addEventListener('change', () => {
+            if (roleSelect.value === 'turret') {
+                emitterSection.style.display = 'block';
+            } else {
+                emitterSection.style.display = 'none';
+            }
+        });
 
         // --- Starting Inventory ---
         const invSection = this._createSection(content, 'Starting Inventory');
@@ -876,6 +1133,40 @@ class NpcCreatorUI {
         this.fields.def.value = stats.def ?? 5;
         this.fields.speed.value = stats.speed ?? 120;
 
+        // emitter settings
+        const emitterConfig = npcData.emitterConfig || {};
+
+        // Populate emitter preset select options dynamically
+        const prSelect = this.fields.presetId;
+        if (prSelect) {
+            prSelect.innerHTML = '<option value="">-- Manual (Raw Fields) --</option>';
+            const presets = getAllProjectiles();
+            Object.keys(presets).forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = presets[k].name;
+                prSelect.appendChild(opt);
+            });
+            prSelect.value = emitterConfig.presetId || '';
+        }
+
+        this.fields.showArea.checked = emitterConfig.showArea !== false;
+        this.fields.notify.checked = !!emitterConfig.notify;
+        this.fields.cooldown.value = emitterConfig.cooldown ?? 1.5;
+        this.fields.range.value = emitterConfig.range ?? 220;
+        this.fields.projectileType.value = emitterConfig.projectileType ?? 'standard';
+        this.fields.projectileSpeed.value = emitterConfig.projectileSpeed ?? 160;
+        this.fields.burstCount.value = emitterConfig.burstCount ?? 1;
+        this.fields.damage.value = emitterConfig.damage ?? 15;
+        this.fields.projectileColor.value = emitterConfig.projectileColor ?? '#ff3333';
+
+        this.updateEmitterFieldsVisibility();
+
+        const emPanel = document.getElementById('npc-creator-emitter-section');
+        if (emPanel) {
+            emPanel.style.display = npcData.broadType === 'turret' ? 'block' : 'none';
+        }
+
         // items
         this.inventoryContainer.innerHTML = '';
         (npcData.inventory || []).forEach(it => {
@@ -905,6 +1196,23 @@ class NpcCreatorUI {
 
         // collector role and stats
         data.broadType = this.fields.broadType.value;
+        if (data.broadType === 'turret') {
+            data.emitterConfig = {
+                presetId: this.fields.presetId.value || undefined,
+                showArea: this.fields.showArea.checked,
+                notify: this.fields.notify.checked,
+                cooldown: parseFloat(this.fields.cooldown.value) || 1.5,
+                range: parseInt(this.fields.range.value, 10) || 220,
+                projectileType: this.fields.projectileType.value,
+                projectileSpeed: parseInt(this.fields.projectileSpeed.value, 10) || 160,
+                burstCount: parseInt(this.fields.burstCount.value, 10) || 1,
+                damage: parseInt(this.fields.damage.value, 10) || 15,
+                projectileColor: this.fields.projectileColor.value || '#ff3333'
+            };
+        } else {
+            delete data.emitterConfig;
+        }
+
         data.stats = {
             level: parseInt(this.fields.level.value, 10) || 1,
             hp: parseInt(this.fields.hp.value, 10) || 50,
@@ -975,6 +1283,27 @@ class NpcCreatorUI {
             return null;
         }
         return data;
+    }
+
+    updateEmitterFieldsVisibility() {
+        const presetId = this.fields.presetId ? this.fields.presetId.value : '';
+        const manualFields = [
+            'projectileType',
+            'projectileSpeed',
+            'burstCount',
+            'damage',
+            'projectileColor',
+            'cooldown',
+            'range',
+            'showArea',
+            'notify'
+        ];
+        manualFields.forEach(k => {
+            const f = this.fields[k];
+            if (f && f.parentElement) {
+                f.parentElement.style.display = presetId ? 'none' : 'block';
+            }
+        });
     }
 }
 

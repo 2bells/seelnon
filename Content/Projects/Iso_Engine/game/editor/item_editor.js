@@ -804,7 +804,7 @@ class ItemEditor {
         // Find shopkeeper NPC spawned on map
         let shopkeeperNpc = null;
         for (const obj of this.engine.gameObjects) {
-            if (obj.constructor.name === 'Npc' && (obj.name.toLowerCase().includes('doran') || obj.name.toLowerCase().includes('shopkeeper'))) {
+            if (obj.constructor.name === 'Npc' && obj.name && (obj.name.toLowerCase().includes('doran') || obj.name.toLowerCase().includes('shopkeeper'))) {
                 shopkeeperNpc = obj;
                 break;
             }

@@ -3,6 +3,7 @@ console.log("rpg/game/editor/abilities_editor.js loaded");
 
 import CustomDialog from '../ui/custom_dialog.js';
 import { getAllAbilities, saveCustomAbility, deleteCustomAbility } from '../combat/ability_system.js';
+import { getAllProjectiles } from '../combat/projectiles.js';
 
 class AbilitiesEditor {
     constructor(engine, modalContentElement) {
@@ -223,6 +224,27 @@ class AbilitiesEditor {
         recoverySection.appendChild(makeRow('Slide Speed (px/s)', 'number', 'recovery_slideSpeed', { step: 10 }));
         content.appendChild(recoverySection);
 
+        // --- SECTION 6.5: Projectile Emitter Attachment ---
+        const bSection = document.createElement('div');
+        bSection.className = 'abilities-editor-section';
+        bSection.innerHTML = '<h4>⚡ Projectile Emitter Attachment</h4>';
+        bSection.appendChild(makeRow('Attach Emitter?', 'checkbox', 'emitter_enabled'));
+        bSection.appendChild(makeRow('Link Preset', 'select', 'emitter_presetId', { options: [] }));
+        bSection.appendChild(makeRow('Projectile Type', 'select', 'emitter_type', {
+            options: [
+                { value: 'standard', text: 'Standard Linear' },
+                { value: 'seeking', text: 'Seeking / Homing' },
+                { value: 'circular', text: 'Circular Spiral' },
+                { value: 'sinewave', text: 'Sine Wave Oscillation' },
+                { value: 'starburst', text: 'Starburst Ring' }
+            ]
+        }));
+        bSection.appendChild(makeRow('Spars/Nova Bullets', 'number', 'emitter_burstCount', { step: 1, min: 1 }));
+        bSection.appendChild(makeRow('Emitter Speed', 'number', 'emitter_speed', { step: 10, min: 10 }));
+        bSection.appendChild(makeRow('Emitter Damage', 'number', 'emitter_damage', { step: 1, min: 1 }));
+        bSection.appendChild(makeRow('Spars Color Hex', 'text', 'emitter_color'));
+        content.appendChild(bSection);
+
         // --- SECTION 7: Workspace Actions ---
         const actionsSection = document.createElement('div');
         actionsSection.className = 'abilities-editor-section';
@@ -341,6 +363,30 @@ class AbilitiesEditor {
         this.fields.recovery_lockTurn.checked = !!rc.lockTurn;
         this.fields.recovery_slideSpeed.value = rc.slideSpeed || 0;
 
+        // Emitter params
+        const em = ab.emitterConfig || {};
+        this.fields.emitter_enabled.checked = !!ab.hasEmitter;
+
+        // Populate Emitter Preset select dropdown dynamically
+        const presetSelect = this.fields.emitter_presetId;
+        if (presetSelect) {
+            presetSelect.innerHTML = '<option value="">-- Manual (Raw Fields) --</option>';
+            const presets = getAllProjectiles();
+            Object.keys(presets).forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = presets[k].name;
+                presetSelect.appendChild(opt);
+            });
+            presetSelect.value = em.presetId || '';
+        }
+
+        this.fields.emitter_type.value = em.projectileType || 'standard';
+        this.fields.emitter_burstCount.value = em.burstCount || 1;
+        this.fields.emitter_speed.value = em.projectileSpeed || 160;
+        this.fields.emitter_damage.value = em.damage || 15;
+        this.fields.emitter_color.value = em.projectileColor || '#ff3333';
+
         this.updateFormPreview();
     }
 
@@ -386,6 +432,15 @@ class AbilitiesEditor {
                 lockMovement: this.fields.recovery_lockMovement.checked,
                 lockTurn: this.fields.recovery_lockTurn.checked,
                 slideSpeed: parseFloat(this.fields.recovery_slideSpeed.value) || 0
+            },
+            hasEmitter: this.fields.emitter_enabled.checked,
+            emitterConfig: {
+                presetId: this.fields.emitter_presetId.value || undefined,
+                projectileType: this.fields.emitter_type.value,
+                burstCount: parseInt(this.fields.emitter_burstCount.value, 10) || 1,
+                projectileSpeed: parseInt(this.fields.emitter_speed.value, 10) || 160,
+                damage: parseInt(this.fields.emitter_damage.value, 10) || 15,
+                projectileColor: this.fields.emitter_color.value || '#ff3333'
             }
         };
 
@@ -494,6 +549,7 @@ class AbilitiesEditor {
 
     // Redraws the hitbox shape preview relative to the core anchor point in real time.
     updateFormPreview() {
+        this.updateEmitterFieldsVisibility();
         if (!this.ctxPreview) return;
 
         const ctx = this.ctxPreview;
@@ -581,6 +637,31 @@ class AbilitiesEditor {
 
         ctx.fillStyle = '#e74c3c';
         ctx.fillText("ACTIVE HITBOX", tax, tay - ry - 6);
+    }
+
+    updateEmitterFieldsVisibility() {
+        const hasEmitter = this.fields.emitter_enabled ? this.fields.emitter_enabled.checked : false;
+        const presetId = this.fields.emitter_presetId ? this.fields.emitter_presetId.value : '';
+
+        const presetRow = this.fields.emitter_presetId ? this.fields.emitter_presetId.parentElement : null;
+        if (presetRow) {
+            presetRow.style.display = hasEmitter ? 'flex' : 'none';
+        }
+
+        const manualKeys = [
+            'emitter_type',
+            'emitter_burstCount',
+            'emitter_speed',
+            'emitter_damage',
+            'emitter_color'
+        ];
+
+        manualKeys.forEach(k => {
+            const f = this.fields[k];
+            if (f && f.parentElement) {
+                f.parentElement.style.display = (hasEmitter && !presetId) ? 'flex' : 'none';
+            }
+        });
     }
 }
 

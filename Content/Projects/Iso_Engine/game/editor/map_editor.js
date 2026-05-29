@@ -407,9 +407,11 @@ class MapEditor {
 
         if (this.currentLayer === 'tile') {
             this.selectedObjectBrush = null; 
+            const activeZIndex = this.uiManager && this.uiManager.tileZIndexInput ? Number(this.uiManager.tileZIndexInput.value) : 0;
             this.selectedTileBrush = { 
                 sourceRect: clickedSourceRect,
-                spritesheetIndex: this.currentSpriteSheetIndex
+                spritesheetIndex: this.currentSpriteSheetIndex,
+                zIndex: activeZIndex
             };
             console.log("Selected tile brush:", this.selectedTileBrush);
        
@@ -590,9 +592,11 @@ class MapEditor {
                     roundedMapY >= 0 && roundedMapY < this.map.height) {
                     
                     this.saveState();
+                    const tileZIndex = (this.selectedTileBrush && this.selectedTileBrush.zIndex !== undefined) ? this.selectedTileBrush.zIndex : 0;
                     const tileIdToPlace = this.map.ensureTileDefinition(
                         this.selectedTileBrush.sourceRect,
-                        this.selectedTileBrush.spritesheetIndex
+                        this.selectedTileBrush.spritesheetIndex,
+                        tileZIndex
                     );
                     this.map.setTileId(roundedMapX, roundedMapY, tileIdToPlace);
                 } else {
@@ -619,6 +623,8 @@ class MapEditor {
             if (this.currentTool === 'place' && this.selectedObjectBrush) {
                 let finalObjectConfig = { ...this.selectedObjectBrush };
                 finalObjectConfig.collidable = this.uiManager.collidableCheckbox.checked;
+                finalObjectConfig.disableYSorting = this.uiManager.disableYSortCheckbox ? this.uiManager.disableYSortCheckbox.checked : false;
+                finalObjectConfig.zIndex = this.uiManager.objectZIndexInput ? Number(this.uiManager.objectZIndexInput.value) : 0;
 
                 if (this.currentLayer === 'object1' && finalObjectConfig.collidable && !finalObjectConfig.collisionShape) {
                      console.warn("Assigning default diamond collision to object1 object at placement time.");
@@ -750,6 +756,21 @@ class MapEditor {
                         CustomDialog.alert("Please select an enemy type.", "Enemy Type Missing");
                         return;
                     }
+                    const params = this.uiManager.getSelectedEventParams();
+                    if (params.eventId) {
+                        spawnData.eventId = params.eventId;
+                        spawnData.triggerType = params.triggerType;
+                    }
+                } else if (spawnType === SPAWN_TYPES.EVENT) {
+                    const params = this.uiManager.getSelectedEventParams();
+                    if (!params.eventId) {
+                        CustomDialog.alert("Please create and select a Custom Event first.", "Event Missing");
+                        return;
+                    }
+                    spawnData.eventId = params.eventId;
+                    spawnData.triggerType = params.triggerType;
+                    spawnData.message = params.message;
+                    spawnData.emoji = params.emoji;
                 }
                 
                 this.saveState();
@@ -1046,6 +1067,15 @@ class MapEditor {
                 ctx.arc(point.x, point.y, SPAWN_POINT_RADIUS / this.engine.zoomLevel, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
+
+                if (point.type === SPAWN_TYPES.EVENT && point.emoji) {
+                    ctx.save();
+                    ctx.font = `${14 / this.engine.zoomLevel}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(point.emoji, point.x, point.y);
+                    ctx.restore();
+                }
 
                 // Optionally, draw a small letter or icon for type if desired
                 // ctx.fillStyle = 'black';

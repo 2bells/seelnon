@@ -75,6 +75,50 @@ const STANDARD_ITEMS = [
     }
 ];
 
+export function resolveItemEmoji(item) {
+    if (!item) return '🎁';
+    if (item.emoji) return item.emoji;
+    
+    const name = item.name.toLowerCase();
+    
+    if (item.type === 'weapon' || name.includes('sword') || name.includes('blade') || name.includes('saber') || name.includes('dagger') || name.includes('edge')) {
+        if (name.includes('axe')) return '🪓';
+        if (name.includes('bow')) return '🏹';
+        if (name.includes('wand') || name.includes('staff')) return '🔮';
+        return '🗡️';
+    }
+    
+    if (item.type === 'shield' || name.includes('shield')) return '🛡️';
+    
+    if (item.type === 'armor' || name.includes('armor') || name.includes('breastplate') || name.includes('plate') || name.includes('robe') || name.includes('mail')) return '👕';
+    
+    if (name.includes('ring')) return '💍';
+    if (name.includes('charm') || name.includes('amulet') || name.includes('pendant')) return '💍';
+    
+    if (item.type === 'consumable' || name.includes('potion') || name.includes('elixir') || name.includes('herb') || name.includes('leaf') || name.includes('food') || name.includes('apple')) {
+        if (name.includes('potion')) return '❤️';
+        if (name.includes('herb') || name.includes('leaf')) return '🌿';
+        if (name.includes('elixir')) return '🍵';
+        return '🍎';
+    }
+    
+    if (name.includes('tome') || name.includes('rune') || name.includes('book') || name.includes('scroll')) {
+        if (name.includes('leap') || name.includes('frog') || name.includes('bounce')) return '🐸';
+        if (name.includes('strike') || name.includes('sword') || name.includes('dash')) return '⚔️';
+        if (name.includes('siphon') || name.includes('blood') || name.includes('drain')) return '❤️';
+        if (name.includes('wall') || name.includes('earth') || name.includes('mountain') || name.includes('stone')) return '⛰️';
+        return '📜';
+    }
+    
+    if (item.type === 'event' || name.includes('key') || name.includes('gate') || name.includes('lock')) {
+        return '🔑';
+    }
+    
+    if (item.type === 'material') return '📦';
+    
+    return '🎁';
+}
+
 export function getMapItems(engine) {
     const items = [];
     if (engine.player && Array.isArray(engine.player.inventory)) {
@@ -107,14 +151,66 @@ export function getGlobalItemDatabase(engine) {
         const cleanName = it.name.trim().toLowerCase().replace(/\s+/g, '_');
         const key = it.id || `map_${cleanName}`;
         if (!db[key]) {
+            // Find a standard template with the same name to copy nice attributes
+            const matchingStd = STANDARD_ITEMS.find(std => std.name.toLowerCase() === it.name.toLowerCase());
+            
+            // Hardcoded special fallbacks for starting items or merchant/special items
+            let fallbackCost = it.cost || 20;
+            let fallbackValue = it.value || 14;
+            let fallbackEmoji = it.emoji || '🎁';
+            let fallbackType = it.type || 'material';
+
+            if (matchingStd) {
+                fallbackCost = matchingStd.cost;
+                fallbackValue = matchingStd.value;
+                fallbackEmoji = matchingStd.emoji;
+                fallbackType = matchingStd.type;
+            } else {
+                // Parse properties for specialized items
+                const nameLower = it.name.toLowerCase();
+                if (nameLower.includes('infinity edge')) {
+                    fallbackCost = 400;
+                    fallbackValue = 280;
+                    fallbackEmoji = '🗡️';
+                    fallbackType = 'weapon';
+                } else if (nameLower.includes("warmog's armor")) {
+                    fallbackCost = 350;
+                    fallbackValue = 245;
+                    fallbackEmoji = '👕';
+                    fallbackType = 'shield';
+                } else if (nameLower.includes('slime leap') || nameLower.includes('tome of slime')) {
+                    fallbackCost = 50;
+                    fallbackValue = 25;
+                    fallbackEmoji = '🐸';
+                    fallbackType = 'ability';
+                } else if (nameLower.includes('dash strike') || nameLower.includes('ring of dash')) {
+                    fallbackCost = 50;
+                    fallbackValue = 25;
+                    fallbackEmoji = '⚔️';
+                    fallbackType = 'ability';
+                } else if (nameLower.includes('blood siphon') || nameLower.includes('amulet of blood')) {
+                    fallbackCost = 50;
+                    fallbackValue = 25;
+                    fallbackEmoji = '❤️';
+                    fallbackType = 'ability';
+                } else if (nameLower.includes('earth wall') || nameLower.includes('rune of earth')) {
+                    fallbackCost = 50;
+                    fallbackValue = 25;
+                    fallbackEmoji = '⛰️';
+                    fallbackType = 'ability';
+                } else {
+                    fallbackEmoji = resolveItemEmoji(it);
+                }
+            }
+
             db[key] = {
                 id: key,
                 name: it.name,
-                type: it.type || 'material',
-                emoji: it.emoji || '🎁',
+                type: it.type || fallbackType,
+                emoji: it.emoji || fallbackEmoji,
                 description: it.description || '',
-                cost: it.cost || 20,
-                value: it.value || 14,
+                cost: it.cost || fallbackCost,
+                value: it.value || fallbackValue,
                 bonusAtk: it.bonusAtk || 0,
                 bonusDef: it.bonusDef || 0,
                 passiveAtk: it.passiveAtk || 0,

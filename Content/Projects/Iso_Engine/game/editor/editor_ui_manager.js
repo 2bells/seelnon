@@ -4,6 +4,7 @@ console.log("rpg/game/editor/editor_ui_manager.js loaded");
 // Import SPAWN_TYPES from MapEditor directly if they are exported there, or define locally.
 // Assuming MapEditor exports SPAWN_TYPES:
 import { SPAWN_TYPES } from './map_editor.js';
+import { getAllCustomEvents } from './event_editor.js';
 
 const SPRITESHEET_TILE_SIZE = 64; // Must match MapEditor's constant
 
@@ -93,6 +94,12 @@ class EditorUIManager {
         this.spawnEnemyContainer = null; // New container for enemy selection
         this.spawnEnemySelect = null; // New dropdown for enemies
 
+        this.spawnEventContainer = null;
+        this.spawnEventSelect = null;
+        this.spawnEventModeSelect = null;
+        this.spawnEventMessageInput = null;
+        this.spawnEventEmojiSelect = null;
+
         // New UI elements for spritesheets
         this.spritesheetControlsContainer = null;
         this.uploadSpritesheetButton = null;
@@ -168,6 +175,18 @@ class EditorUIManager {
         this.toolsPanel = document.createElement('div');
         this.toolsPanel.id = 'rpg-editor-tools-panel';
 
+        // --- Title / Collapsible Header Toggle ---
+        const titleButton = document.createElement('button');
+        titleButton.id = 'rpg-editor-tools-toggle';
+        titleButton.textContent = 'Tile & Object Palette';
+        titleButton.onclick = () => this.toolsPanel.classList.toggle('collapsed');
+        this.toolsPanel.appendChild(titleButton);
+
+        // --- Panel Content Wrapper ---
+        this.toolsContent = document.createElement('div');
+        this.toolsContent.id = 'rpg-editor-tools-content';
+        this.toolsPanel.appendChild(this.toolsContent);
+
         // --- Layer Navigation ---
         const layerNavContainer = document.createElement('div');
         layerNavContainer.className = 'rpg-editor-layer-nav';
@@ -182,7 +201,7 @@ class EditorUIManager {
         layerNavContainer.appendChild(prevLayerButton);
         layerNavContainer.appendChild(this.layerDisplayElement);
         layerNavContainer.appendChild(nextLayerButton);
-        this.toolsPanel.appendChild(layerNavContainer); 
+        this.toolsContent.appendChild(layerNavContainer); 
         this.editor.updateLayerDisplay(); // Initial display update
 
         // --- Tool Selection (Pencil/Eraser/Undo/Redo) ---
@@ -217,7 +236,7 @@ class EditorUIManager {
         toolSelectionContainer.appendChild(this.eraserToolButton);
         toolSelectionContainer.appendChild(this.undoToolButton);
         toolSelectionContainer.appendChild(this.redoToolButton);
-        this.toolsPanel.appendChild(toolSelectionContainer); 
+        this.toolsContent.appendChild(toolSelectionContainer); 
 
         // --- Spritesheet Controls ---
         this.spritesheetControlsContainer = document.createElement('div');
@@ -260,7 +279,7 @@ class EditorUIManager {
         this.spritesheetControlsContainer.appendChild(this.nextSpritesheetButton);
         this.spritesheetControlsContainer.appendChild(this.spritesheetFileInput);
 
-        this.toolsPanel.appendChild(this.spritesheetControlsContainer);
+        this.toolsContent.appendChild(this.spritesheetControlsContainer);
 
         // --- Snap to Grid Checkbox ---
         this.snapToGridLabel = document.createElement('label');
@@ -274,14 +293,14 @@ class EditorUIManager {
         const snapToGridText = document.createElement('span');
         snapToGridText.textContent = ' Snap to Grid';
         this.snapToGridLabel.appendChild(snapToGridText);
-        this.toolsPanel.appendChild(this.snapToGridLabel); 
+        this.toolsContent.appendChild(this.snapToGridLabel); 
 
         // --- Spritesheet Name Display ---
         this.spritesheetNameDisplay = document.createElement('div');
         this.spritesheetNameDisplay.className = 'rpg-editor-info';
         this.spritesheetNameDisplay.style.textAlign = 'center';
         this.spritesheetNameDisplay.style.marginBottom = '5px';
-        this.toolsPanel.appendChild(this.spritesheetNameDisplay);
+        this.toolsContent.appendChild(this.spritesheetNameDisplay);
 
         // --- Tile Spritesheet (shown for 'tile' and 'object1' layers) ---
         this.spritesheetContainerElement = document.createElement('div'); 
@@ -290,7 +309,7 @@ class EditorUIManager {
         this.spritesheetCanvas.id = 'rpg-editor-spritesheet-canvas';
         this.spritesheetCtx = this.spritesheetCanvas.getContext('2d');
         this.spritesheetContainerElement.appendChild(this.spritesheetCanvas);
-        this.toolsPanel.appendChild(this.spritesheetContainerElement); 
+        this.toolsContent.appendChild(this.spritesheetContainerElement); 
 
         // --- Selected Tile Preview (shown for 'tile' and 'object1' layers) ---
         this.previewContainerElement = document.createElement('div'); 
@@ -301,7 +320,7 @@ class EditorUIManager {
         this.previewCanvas.height = SPRITESHEET_TILE_SIZE;
         this.previewCtx = this.previewCanvas.getContext('2d');
         this.previewContainerElement.appendChild(this.previewCanvas);
-        this.toolsPanel.appendChild(this.previewContainerElement); 
+        this.toolsContent.appendChild(this.previewContainerElement); 
         
         // --- Object Palette (shown for 'object2' layers) ---
         this.objectPaletteContainer = document.createElement('div');
@@ -339,9 +358,90 @@ class EditorUIManager {
         collidableText.textContent = ' Collidable';
         collidableText.style.marginLeft = '5px';
         collidableLabel.appendChild(collidableText);
-        this.toolsPanel.appendChild(collidableLabel); 
+        this.toolsContent.appendChild(collidableLabel); 
 
-        this.toolsPanel.appendChild(this.objectPaletteContainer);
+        // Disable Y-Sorting checkbox for objects
+        this.disableYSortLabel = document.createElement('label');
+        this.disableYSortLabel.style.display = 'flex'; 
+        this.disableYSortLabel.style.alignItems = 'center';
+        this.disableYSortLabel.style.marginTop = '10px';
+        this.disableYSortCheckbox = document.createElement('input');
+        this.disableYSortCheckbox.type = 'checkbox';
+        this.disableYSortCheckbox.id = 'rpg-editor-disable-y-sort-checkbox';
+        this.disableYSortCheckbox.checked = false; // Default is false (Y-sorted)
+        this.disableYSortCheckbox.onchange = () => {
+            if (this.editor.selectedObjectBrush) {
+                this.editor.selectedObjectBrush.disableYSorting = this.disableYSortCheckbox.checked;
+            }
+        };
+        this.disableYSortLabel.appendChild(this.disableYSortCheckbox);
+        const disableYSortText = document.createElement('span');
+        disableYSortText.textContent = ' Disable Y-Sorting (render behind)';
+        disableYSortText.style.marginLeft = '5px';
+        this.disableYSortLabel.appendChild(disableYSortText);
+        this.toolsContent.appendChild(this.disableYSortLabel);
+
+        // Z-Index number input for objects
+        this.zIndexContainer = document.createElement('div');
+        this.zIndexContainer.style.display = 'flex';
+        this.zIndexContainer.style.alignItems = 'center';
+        this.zIndexContainer.style.marginTop = '10px';
+        this.zIndexContainer.style.marginBottom = '10px';
+        
+        const zIndexLabel = document.createElement('span');
+        zIndexLabel.textContent = 'Object Z-Index: ';
+        zIndexLabel.style.marginRight = '10px';
+        this.zIndexContainer.appendChild(zIndexLabel);
+
+        this.objectZIndexInput = document.createElement('input');
+        this.objectZIndexInput.type = 'number';
+        this.objectZIndexInput.id = 'rpg-editor-object-zindex-input';
+        this.objectZIndexInput.value = '0';
+        this.objectZIndexInput.style.width = '60px';
+        this.objectZIndexInput.style.padding = '4px';
+        this.objectZIndexInput.style.backgroundColor = '#1e1e1e';
+        this.objectZIndexInput.style.color = '#fff';
+        this.objectZIndexInput.style.border = '1px solid #444';
+        this.objectZIndexInput.style.borderRadius = '3px';
+        this.objectZIndexInput.onchange = () => {
+            if (this.editor.selectedObjectBrush) {
+                this.editor.selectedObjectBrush.zIndex = Number(this.objectZIndexInput.value);
+            }
+        };
+        this.zIndexContainer.appendChild(this.objectZIndexInput);
+        this.toolsContent.appendChild(this.zIndexContainer);
+
+        // Z-Index number input for tiles
+        this.tileZIndexContainer = document.createElement('div');
+        this.tileZIndexContainer.style.display = 'flex';
+        this.tileZIndexContainer.style.alignItems = 'center';
+        this.tileZIndexContainer.style.marginTop = '10px';
+        this.tileZIndexContainer.style.marginBottom = '10px';
+        
+        const tileZIndexLabel = document.createElement('span');
+        tileZIndexLabel.textContent = 'Tile Z-Index: ';
+        tileZIndexLabel.style.marginRight = '10px';
+        this.tileZIndexContainer.appendChild(tileZIndexLabel);
+
+        this.tileZIndexInput = document.createElement('input');
+        this.tileZIndexInput.type = 'number';
+        this.tileZIndexInput.id = 'rpg-editor-tile-zindex-input';
+        this.tileZIndexInput.value = '0';
+        this.tileZIndexInput.style.width = '60px';
+        this.tileZIndexInput.style.padding = '4px';
+        this.tileZIndexInput.style.backgroundColor = '#1e1e1e';
+        this.tileZIndexInput.style.color = '#fff';
+        this.tileZIndexInput.style.border = '1px solid #444';
+        this.tileZIndexInput.style.borderRadius = '3px';
+        this.tileZIndexInput.onchange = () => {
+            if (this.editor.selectedTileBrush) {
+                this.editor.selectedTileBrush.zIndex = Number(this.tileZIndexInput.value);
+            }
+        };
+        this.tileZIndexContainer.appendChild(this.tileZIndexInput);
+        this.toolsContent.appendChild(this.tileZIndexContainer);
+
+        this.toolsContent.appendChild(this.objectPaletteContainer);
 
         // --- Spawn Layer Specific Controls ---
         this.spawnTypeContainer = document.createElement('div');
@@ -421,13 +521,79 @@ class EditorUIManager {
         this.spawnEnemyContainer.appendChild(this.spawnEnemySelect);
         this.spawnTypeContainer.appendChild(this.spawnEnemyContainer);
 
-        this.toolsPanel.appendChild(this.spawnTypeContainer);
+        // --- Container for custom Event selection and parameters ---
+        this.spawnEventContainer = document.createElement('div');
+        this.spawnEventContainer.id = 'rpg-editor-spawn-event-controls';
+        this.spawnEventContainer.style.marginTop = '10px';
+        this.spawnEventContainer.style.display = 'none';
+
+        const eventSelectLabel = document.createElement('label');
+        eventSelectLabel.textContent = 'Linked Event:';
+        eventSelectLabel.style.display = 'block';
+        eventSelectLabel.style.marginBottom = '2px';
+        this.spawnEventSelect = document.createElement('select');
+        this.spawnEventSelect.style.width = '100%';
+        this.spawnEventSelect.style.marginBottom = '8px';
+        this.spawnEventContainer.appendChild(eventSelectLabel);
+        this.spawnEventContainer.appendChild(this.spawnEventSelect);
+
+        const eventModeLabel = document.createElement('label');
+        eventModeLabel.textContent = 'Trigger Type:';
+        eventModeLabel.style.display = 'block';
+        eventModeLabel.style.marginBottom = '2px';
+        this.spawnEventModeSelect = document.createElement('select');
+        this.spawnEventModeSelect.style.width = '100%';
+        this.spawnEventModeSelect.style.marginBottom = '8px';
+        const optUnlock = document.createElement('option');
+        optUnlock.value = 'unlock_remove';
+        optUnlock.textContent = '🚪 Lock Obstacle (Requires Item)';
+        const optGive = document.createElement('option');
+        optGive.value = 'give_item';
+        optGive.textContent = '📦 Interact Loot (Gives Item)';
+        this.spawnEventModeSelect.appendChild(optUnlock);
+        this.spawnEventModeSelect.appendChild(optGive);
+        this.spawnEventContainer.appendChild(eventModeLabel);
+        this.spawnEventContainer.appendChild(this.spawnEventModeSelect);
+
+        const eventMsgLabel = document.createElement('label');
+        eventMsgLabel.textContent = 'Dialogue Message:';
+        eventMsgLabel.style.display = 'block';
+        eventMsgLabel.style.marginBottom = '2px';
+        this.spawnEventMessageInput = document.createElement('input');
+        this.spawnEventMessageInput.type = 'text';
+        this.spawnEventMessageInput.placeholder = 'Dialogue prompt...';
+        this.spawnEventMessageInput.style.width = '100%';
+        this.spawnEventMessageInput.style.marginBottom = '8px';
+        this.spawnEventContainer.appendChild(eventMsgLabel);
+        this.spawnEventContainer.appendChild(this.spawnEventMessageInput);
+
+        const eventEmojiLabel = document.createElement('label');
+        eventEmojiLabel.textContent = 'Visual Icon (Emoji):';
+        eventEmojiLabel.style.display = 'block';
+        eventEmojiLabel.style.marginBottom = '2px';
+        this.spawnEventEmojiSelect = document.createElement('select');
+        this.spawnEventEmojiSelect.style.width = '100%';
+        this.spawnEventEmojiSelect.style.marginBottom = '8px';
+        
+        const eventSymbols = ['🚪', '📦', '🔑', '⚡', '🟢', '💎', '🎟️', '📜', '💀', '🔮', '🛡️', '⚔️', '⭐', 'None'];
+        eventSymbols.forEach(sym => {
+            const opt = document.createElement('option');
+            opt.value = sym === 'None' ? '' : sym;
+            opt.textContent = sym;
+            this.spawnEventEmojiSelect.appendChild(opt);
+        });
+        this.spawnEventContainer.appendChild(eventEmojiLabel);
+        this.spawnEventContainer.appendChild(this.spawnEventEmojiSelect);
+
+        this.spawnTypeContainer.appendChild(this.spawnEventContainer);
+
+        this.toolsContent.appendChild(this.spawnTypeContainer);
 
 
         // --- Info Text ---
         this.layerInfoTextElement = document.createElement('p');
         this.layerInfoTextElement.className = 'rpg-editor-info';
-        this.toolsPanel.appendChild(this.layerInfoTextElement);
+        this.toolsContent.appendChild(this.layerInfoTextElement);
 
         this.modalContentElement.appendChild(this.toolsPanel);
         this.updateToolPanelVisibility(); 
@@ -514,6 +680,11 @@ class EditorUIManager {
         // Collidable Checkbox (for all object layers)
         if(collidableLabel) collidableLabel.style.display = isObjectLayer ? 'flex' : 'none';
 
+        // Disable Y-Sorting and Z-Index controls visibility
+        if (this.disableYSortLabel) this.disableYSortLabel.style.display = isObjectLayer ? 'flex' : 'none';
+        if (this.zIndexContainer) this.zIndexContainer.style.display = isObjectLayer ? 'flex' : 'none';
+        if (this.tileZIndexContainer) this.tileZIndexContainer.style.display = (currentLayer === 'tile') ? 'flex' : 'none';
+
         // Snap to Grid (for objects, shapes, spawns)
         this.snapToGridLabel.style.display = (isObjectLayer || isShapeLayer || isSpawnLayer) ? 'flex' : 'none';
 
@@ -521,11 +692,31 @@ class EditorUIManager {
         this.spawnTypeContainer.style.display = isSpawnLayer ? 'block' : 'none';
 
         // --- Update state of visible controls ---
-        if (isObjectLayer && collidableLabel && collidableLabel.style.display !== 'none') {
+        if (currentLayer === 'tile') {
+            if (this.editor.selectedTileBrush) {
+                if (this.tileZIndexInput) {
+                    this.tileZIndexInput.value = this.editor.selectedTileBrush.zIndex !== undefined ? this.editor.selectedTileBrush.zIndex : 0;
+                }
+            } else {
+                if (this.tileZIndexInput) this.tileZIndexInput.value = 0;
+            }
+        }
+
+        if (isObjectLayer) {
             if (this.editor.selectedObjectBrush) {
-                this.collidableCheckbox.checked = this.editor.selectedObjectBrush.collidable !== undefined ? this.editor.selectedObjectBrush.collidable : true;
+                if (collidableLabel && collidableLabel.style.display !== 'none') {
+                    this.collidableCheckbox.checked = this.editor.selectedObjectBrush.collidable !== undefined ? this.editor.selectedObjectBrush.collidable : true;
+                }
+                if (this.disableYSortCheckbox) {
+                    this.disableYSortCheckbox.checked = this.editor.selectedObjectBrush.disableYSorting !== undefined ? this.editor.selectedObjectBrush.disableYSorting : false;
+                }
+                if (this.objectZIndexInput) {
+                    this.objectZIndexInput.value = this.editor.selectedObjectBrush.zIndex !== undefined ? this.editor.selectedObjectBrush.zIndex : 0;
+                }
             } else {
                 this.collidableCheckbox.checked = true;
+                if (this.disableYSortCheckbox) this.disableYSortCheckbox.checked = false;
+                if (this.objectZIndexInput) this.objectZIndexInput.value = 0;
             }
         }
         if (this.snapToGridLabel.style.display !== 'none') {
@@ -541,6 +732,13 @@ class EditorUIManager {
             }
             if (this.spawnEnemyContainer) {
                 this.spawnEnemyContainer.style.display = (selectedSpawnType === SPAWN_TYPES.ENEMY) ? 'block' : 'none';
+            }
+            if (this.spawnEventContainer) {
+                const showsEvent = (selectedSpawnType === SPAWN_TYPES.EVENT || selectedSpawnType === SPAWN_TYPES.ENEMY);
+                this.spawnEventContainer.style.display = showsEvent ? 'block' : 'none';
+                if (showsEvent) {
+                    this.populateEventSelect();
+                }
             }
         }
 
@@ -703,6 +901,35 @@ class EditorUIManager {
             option.textContent = enemyTypes[enemyId].name || enemyId;
             this.spawnEnemySelect.appendChild(option);
         }
+    }
+
+    populateEventSelect() {
+        if (!this.spawnEventSelect) return;
+        this.spawnEventSelect.innerHTML = '';
+        const events = getAllCustomEvents();
+        const keys = Object.keys(events);
+        if (keys.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '-- Create Event first! --';
+            this.spawnEventSelect.appendChild(opt);
+            return;
+        }
+        keys.forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = `${events[k].emoji || '🔑'} ${events[k].name}`;
+            this.spawnEventSelect.appendChild(opt);
+        });
+    }
+
+    getSelectedEventParams() {
+        return {
+            eventId: this.spawnEventSelect ? this.spawnEventSelect.value : '',
+            triggerType: this.spawnEventModeSelect ? this.spawnEventModeSelect.value : 'unlock_remove',
+            message: this.spawnEventMessageInput ? this.spawnEventMessageInput.value : '',
+            emoji: this.spawnEventEmojiSelect ? this.spawnEventEmojiSelect.value : ''
+        };
     }
 
     renderPlayerUI() {

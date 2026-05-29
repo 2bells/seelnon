@@ -74,6 +74,10 @@ class Enemy extends GameObject {
         // New properties for respawning
         this.respawnTimer = 0;
         this.RESPAWN_TIME = 15; // 15 seconds
+
+        // Custom ability paint flash timers
+        this.selfDamageFlashTimer = 0;
+        this.healingFlashTimer = 0;
     }
 
     update(deltaTime) {
@@ -95,6 +99,12 @@ class Enemy extends GameObject {
             if (this.hitFlashTimer <= 0) {
                 this.isHit = false;
             }
+        }
+        if (this.selfDamageFlashTimer > 0) {
+            this.selfDamageFlashTimer = Math.max(0, this.selfDamageFlashTimer - deltaTime);
+        }
+        if (this.healingFlashTimer > 0) {
+            this.healingFlashTimer = Math.max(0, this.healingFlashTimer - deltaTime);
         }
 
         // Apply knockback friction
@@ -126,6 +136,12 @@ class Enemy extends GameObject {
         }
 
         this.executeAIState(deltaTime);
+
+        // Ensure we resolve static collisions on landing or while grounded,
+        // even during the attack active/recovery phase when normal movement is locked!
+        if (this.aiState === AI_STATE.ATTACKING && this.attackSubState !== 'startup') {
+            this.resolveStaticCollisions();
+        }
     }
 
     findCurrentTarget() {
@@ -415,8 +431,8 @@ class Enemy extends GameObject {
                 const dy = bestTile.y - this.currentPixelY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist > 0) {
-                    this.currentPixelX += (dx / dist) * Math.min(dist, 15);
-                    this.currentPixelY += (dy / dist) * Math.min(dist, 15);
+                    this.currentPixelX += dx;
+                    this.currentPixelY += dy;
                     this.updateMapCoordsFromPixels();
                 }
             }
@@ -668,31 +684,8 @@ class Enemy extends GameObject {
             };
 
             const checkCollisionAt = (targetPx, targetPy) => {
-                enemyCircle.center.x = targetPx;
-                enemyCircle.center.y = targetPy - GLOBAL_COLLISION_Y_OFFSET;
-
-                // Check against static GameObjects
-                for (const obj of this.engine.gameObjects) {
-                    if (obj.collidable && obj !== this && !(obj instanceof Player) && !(obj instanceof Enemy)) {
-                        const objCollisionShape = obj.getCollisionBounds();
-                        if (objCollisionShape) {
-                            if (objCollisionShape.type === 'rectangle') {
-                                if (this.map._circleIntersectsRectangle(enemyCircle, objCollisionShape.data)) return true;
-                            } else if (objCollisionShape.type === 'polygon') {
-                                if (this.map._circleIntersectsPolygon(enemyCircle, objCollisionShape.data)) return true;
-                            }
-                        }
-                    }
-                }
-
-                // Check against custom collision polygons
-                if (this.map && this.map.collisionLayerData) {
-                    for (const customShape of this.map.collisionLayerData) {
-                        if (this.map._circleIntersectsPolygon(enemyCircle, customShape.vertices)) return true;
-                    }
-                }
-
-                return false;
+                const center = { x: targetPx, y: targetPy - GLOBAL_COLLISION_Y_OFFSET };
+                return this.map.checkStaticCollisionAt(center, this.collisionRadius, this.engine.gameObjects);
             };
             
             if (!checkCollisionAt(potentialPixelX, potentialPixelY)) {
@@ -908,7 +901,63 @@ class Enemy extends GameObject {
             );
         }
         ctx.restore();
- 
+
+        // Crimson / Red Paint Tint for Self Damage Blood cast
+        if (this.selfDamageFlashTimer && this.selfDamageFlashTimer > 0) {
+            ctx.save();
+            if (this.friendly === true) {
+                ctx.filter = 'hue-rotate(240deg)';
+            }
+            ctx.globalAlpha = 0.65 * (this.selfDamageFlashTimer / 0.4);
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = Math.ceil(drawW) || 1;
+            tempCanvas.height = Math.ceil(drawH) || 1;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (this.spriteSourceRect) {
+                tempCtx.drawImage(
+                    this.sprite,
+                    this.spriteSourceRect.x, this.spriteSourceRect.y,
+                    this.spriteSourceRect.width, this.spriteSourceRect.height,
+                    0, 0, tempCanvas.width, tempCanvas.height
+                );
+            } else {
+                tempCtx.drawImage(this.sprite, 0, 0, tempCanvas.width, tempCanvas.height);
+            }
+            tempCtx.globalCompositeOperation = 'source-atop';
+            tempCtx.fillStyle = '#e74c3c'; // red
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            ctx.drawImage(tempCanvas, spriteDrawX, spriteDrawY);
+            ctx.restore();
+        }
+
+        // Green / Emerald Paint Tint for Healing Siphons
+        if (this.healingFlashTimer && this.healingFlashTimer > 0) {
+            ctx.save();
+            if (this.friendly === true) {
+                ctx.filter = 'hue-rotate(240deg)';
+            }
+            ctx.globalAlpha = 0.65 * (this.healingFlashTimer / 0.45);
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = Math.ceil(drawW) || 1;
+            tempCanvas.height = Math.ceil(drawH) || 1;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (this.spriteSourceRect) {
+                tempCtx.drawImage(
+                    this.sprite,
+                    this.spriteSourceRect.x, this.spriteSourceRect.y,
+                    this.spriteSourceRect.width, this.spriteSourceRect.height,
+                    0, 0, tempCanvas.width, tempCanvas.height
+                );
+            } else {
+                tempCtx.drawImage(this.sprite, 0, 0, tempCanvas.width, tempCanvas.height);
+            }
+            tempCtx.globalCompositeOperation = 'source-atop';
+            tempCtx.fillStyle = '#2ecc71'; // green
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            ctx.drawImage(tempCanvas, spriteDrawX, spriteDrawY);
+            ctx.restore();
+        }
+
         // --- Render Hit Flash ---
         if (this.isHit) {
             ctx.save();

@@ -46,7 +46,8 @@ class Player {
             { id: 'item_slime_leap', name: 'Tome of Slime Leap', emoji: '🐸', type: 'ability', attachedAbility: 'slime_leap', description: 'Imbued with bouncy momentum. Equips Slime Leap skill into a Hotbar slot.', count: 1, value: 50, equipped: false },
             { id: 'item_dash_strike', name: 'Ring of Dash Strike', emoji: '⚔️', type: 'ability', attachedAbility: 'dash_strike', description: 'Imbued with swift wind. Equips Dash Strike skill into a Hotbar slot.', count: 1, value: 50, equipped: false },
             { id: 'item_blood_siphon', name: 'Amulet of Blood Siphon', emoji: '❤️', type: 'ability', attachedAbility: 'blood_siphon', description: 'Imbued with dark blood magic. Equips Blood Siphon skill into a Hotbar slot.', count: 1, value: 50, equipped: false },
-            { id: 'item_earth_wall', name: 'Rune of Earth Wall', emoji: '⛰️', type: 'ability', attachedAbility: 'earth_wall', description: 'Imbued with earthen elements. Equips Earth Wall skill into a Hotbar slot.', count: 1, value: 50, equipped: false }
+            { id: 'item_earth_wall', name: 'Rune of Earth Wall', emoji: '⛰️', type: 'ability', attachedAbility: 'earth_wall', description: 'Imbued with earthen elements. Equips Earth Wall skill into a Hotbar slot.', count: 1, value: 50, equipped: false },
+            { id: 'item_plasma_orb', name: 'Tome of Plasma Orb', emoji: '⚡', type: 'ability', attachedAbility: 'plasma_orb', description: 'Charged with volt particles. Equips Plasma Orb skill to discharge a multi-shot sine wave.', count: 1, value: 75, equipped: false }
         ];
 
         // Ability System properties
@@ -230,16 +231,8 @@ class Player {
         let push = this.map.getStaticPushVector(center, this.collisionRadius, this.engine.gameObjects);
         
         if (push.count > 0) {
-            const pushLength = Math.sqrt(push.x * push.x + push.y * push.y);
-            if (pushLength > 0) {
-                // Scale the push slightly with a safety buffer (+3px) to guarantee clearing the collidable boundary
-                const multiplier = (pushLength + 3.0) / pushLength;
-                this.currentPixelX += push.x * multiplier;
-                this.currentPixelY += push.y * multiplier;
-            } else {
-                this.currentPixelX += push.x;
-                this.currentPixelY += push.y;
-            }
+            this.currentPixelX += push.x;
+            this.currentPixelY += push.y;
             this.updateMapCoordsFromPixels();
         }
 
@@ -274,8 +267,8 @@ class Player {
                 const dy = bestTile.y - this.currentPixelY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist > 0) {
-                    this.currentPixelX += (dx / dist) * Math.min(dist, 15);
-                    this.currentPixelY += (dy / dist) * Math.min(dist, 15);
+                    this.currentPixelX += dx;
+                    this.currentPixelY += dy;
                     this.updateMapCoordsFromPixels();
                 }
             }
@@ -319,6 +312,14 @@ class Player {
             if (this.hitFlashTimer <= 0) {
                 this.isHit = false;
             }
+        }
+
+        // Update custom ability flash timers
+        if (this.selfDamageFlashTimer && this.selfDamageFlashTimer > 0) {
+            this.selfDamageFlashTimer = Math.max(0, this.selfDamageFlashTimer - deltaTime);
+        }
+        if (this.healingFlashTimer && this.healingFlashTimer > 0) {
+            this.healingFlashTimer = Math.max(0, this.healingFlashTimer - deltaTime);
         }
 
         // Apply knockback friction
@@ -371,54 +372,8 @@ class Player {
             };
 
             const checkCollisionAt = (targetPx, targetPy) => {
-                playerCircle.center.x = targetPx;
-                playerCircle.center.y = targetPy - GLOBAL_COLLISION_Y_OFFSET; // Apply offset for collision check
-
-                // Prevent walking off the bridge (empty tiles where tileType === 0)
-                if (this.map) {
-                    const mapCoords = this.map.screenToMap(targetPx, targetPy);
-                    const tileX = Math.floor(mapCoords.x);
-                    const tileY = Math.floor(mapCoords.y);
-                    if (tileX < 0 || tileX >= this.map.width || tileY < 0 || tileY >= this.map.height) {
-                        return true; // Out of bounds
-                    }
-                    const tileType = this.map.tiles[tileY][tileX];
-                    if (tileType === 0) {
-                        return true; // Empty tile (abyss)
-                    }
-                }
-
-                // Check against GameObjects
-                for (const obj of this.engine.gameObjects) { 
-                    // ADDED: Player's pathing collision should ignore enemies. Dynamic push-out is handled by engine.
-                    if (obj.collidable && !(obj instanceof Enemy)) { 
-                        const objCollisionShape = obj.getCollisionBounds(); // { type: 'rectangle'/'polygon', data: rect/vertices }
-                        if (objCollisionShape) {
-                            if (objCollisionShape.type === 'rectangle') {
-                                if (this.map._circleIntersectsRectangle(playerCircle, objCollisionShape.data)) { // Use this.map
-                                    // console.log("Collision (Player Circle vs Object AABB):", obj.id);
-                                    return true;
-                                }
-                            } else if (objCollisionShape.type === 'polygon') {
-                                 if (this.map._circleIntersectsPolygon(playerCircle, objCollisionShape.data)) { // Use this.map
-                                    // console.log("Collision (Player Circle vs Object Polygon):", obj.id);
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Check against custom collision layer polygons
-                if (this.map && this.map.collisionLayerData) {
-                    for (const customShape of this.map.collisionLayerData) { // customShape is {id, vertices: [{x,y},...]}
-                         if (this.map._circleIntersectsPolygon(playerCircle, customShape.vertices)) { // Use this.map
-                            // console.log("Collision (Player Circle vs Custom Polygon):", customShape.id);
-                            return true; 
-                        }
-                    }
-                }
-                return false; 
+                const center = { x: targetPx, y: targetPy - GLOBAL_COLLISION_Y_OFFSET };
+                return this.map.checkStaticCollisionAt(center, this.collisionRadius, this.engine.gameObjects);
             };
 
             if (!checkCollisionAt(potentialPixelX, potentialPixelY)) {
@@ -521,7 +476,7 @@ class Player {
             const ratio = this.hitFlashTimer / 0.15; // 1.0 down to 0.0
             scaleX = 1.4 - 0.4 * (1.0 - ratio); // Wide recoil hit
             scaleY = 0.6 + 0.4 * (1.0 - ratio); // Flat recoil hit
-        } else if (this.activeAbility && this.abilityState === 'startup' && this.activeAbility.startup && this.activeAbility.startup.jumpHeight > 0) {
+        } else if (this.activeAbility && this.activeAbility.id === 'slime_leap' && this.abilityState === 'startup') {
             const ability = this.activeAbility;
             const duration = (ability.startup && ability.startup.duration) || 0.4;
             const progress = Math.max(0, Math.min(1, 1 - (this.abilityTimer / duration)));
@@ -542,11 +497,72 @@ class Player {
                 scaleX = 1.0 + 0.15 * norm;
                 scaleY = 1.0 - 0.15 * norm;
             }
-        } else if (this.landingSquashTimer > 0) {
+        } else if (this.activeAbility && this.activeAbility.id === 'plasma_orb' && this.abilityState === 'startup') {
+            const ability = this.activeAbility;
+            const duration = (ability.startup && ability.startup.duration) || 0.25;
+            const progress = Math.max(0, Math.min(1, 1 - (this.abilityTimer / duration)));
+            // Charged squish: slattens wider and shorter
+            scaleX = 1.0 + 0.35 * progress;
+            scaleY = 1.0 - 0.35 * progress;
+        } else if (this.activeAbility && this.activeAbility.id === 'dash_strike') {
+            const ability = this.activeAbility;
+            if (this.abilityState === 'startup') {
+                const progress = Math.max(0, Math.min(1, 1 - (this.abilityTimer / ability.startup.duration)));
+                scaleX = 0.75 - 0.15 * progress;
+                scaleY = 1.25 + 0.2 * progress;
+            } else if (this.abilityState === 'active') {
+                scaleX = 1.45;
+                scaleY = 0.65;
+            } else if (this.abilityState === 'recovery') {
+                const ratio = Math.max(0, Math.min(1, this.abilityTimer / ability.recovery.duration));
+                scaleX = 1.0 + 0.45 * ratio;
+                scaleY = 1.0 - 0.35 * ratio;
+            }
+        } else if (this.activeAbility && this.activeAbility.id === 'blood_siphon') {
+            const ability = this.activeAbility;
+            if (this.abilityState === 'startup') {
+                const progress = Math.max(0, Math.min(1, 1 - (this.abilityTimer / ability.startup.duration)));
+                scaleX = 1.0 + 0.3 * progress;
+                scaleY = 1.0 - 0.3 * progress;
+            } else if (this.abilityState === 'active') {
+                scaleX = 1.3;
+                scaleY = 0.7;
+            } else if (this.abilityState === 'recovery') {
+                const ratio = Math.max(0, Math.min(1, this.abilityTimer / ability.recovery.duration));
+                if (this.healingFlashTimer > 0) {
+                    scaleX = 1.0 - 0.3 * ratio;
+                    scaleY = 1.0 + 0.45 * ratio;
+                } else {
+                    scaleX = 1.0 + 0.3 * ratio;
+                    scaleY = 1.0 - 0.3 * ratio;
+                }
+            }
+        } else if (this.activeAbility && this.activeAbility.id === 'earth_wall') {
+            const ability = this.activeAbility;
+            if (this.abilityState === 'startup') {
+                const progress = Math.max(0, Math.min(1, 1 - (this.abilityTimer / ability.startup.duration)));
+                scaleX = 1.0 + 0.35 * progress;
+                scaleY = 1.0 - 0.35 * progress;
+            } else if (this.abilityState === 'active') {
+                scaleX = 0.75;
+                scaleY = 1.35;
+            } else if (this.abilityState === 'recovery') {
+                const ratio = Math.max(0, Math.min(1, this.abilityTimer / ability.recovery.duration));
+                scaleX = 1.0 - 0.25 * ratio;
+                scaleY = 1.0 + 0.35 * ratio;
+            }
+        } else if (this.landingSquashTimer > 0 && (
+            this.lastAbilityId === 'slime_leap' || 
+            this.lastAbilityId === 'plasma_orb' || 
+            this.lastAbilityId === 'dash_strike' || 
+            this.lastAbilityId === 'blood_siphon' || 
+            this.lastAbilityId === 'earth_wall'
+        )) {
+            const maxAmt = (this.lastAbilityId === 'plasma_orb' || this.lastAbilityId === 'earth_wall') ? 0.3 : 0.4;
             const ratio = this.landingSquashTimer / 0.35;
             const wave = Math.sin(ratio * Math.PI * 3.5) * ratio; // decaying impact bounce
-            scaleX = 1.0 + wave * 0.4;
-            scaleY = 1.0 - wave * 0.4;
+            scaleX = 1.0 + wave * maxAmt;
+            scaleY = 1.0 - wave * maxAmt;
         }
 
         const drawW = this.playerVisualWidth * scaleX;
@@ -556,6 +572,38 @@ class Player {
 
         if (this.sprite && this.sprite.complete) {
             ctx.drawImage(this.sprite, spriteDrawX, spriteDrawY, drawW, drawH);
+
+            // Crimson / Red Paint Tint for Self Damage Blood cast
+            if (this.selfDamageFlashTimer && this.selfDamageFlashTimer > 0) {
+                ctx.save();
+                ctx.globalAlpha = 0.65 * (this.selfDamageFlashTimer / 0.4);
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = Math.ceil(drawW) || 1;
+                tempCanvas.height = Math.ceil(drawH) || 1;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(this.sprite, 0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.globalCompositeOperation = 'source-atop';
+                tempCtx.fillStyle = '#e74c3c'; // red
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                ctx.drawImage(tempCanvas, spriteDrawX, spriteDrawY);
+                ctx.restore();
+            }
+
+            // Green / Emerald Paint Tint for Healing Siphons
+            if (this.healingFlashTimer && this.healingFlashTimer > 0) {
+                ctx.save();
+                ctx.globalAlpha = 0.65 * (this.healingFlashTimer / 0.45);
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = Math.ceil(drawW) || 1;
+                tempCanvas.height = Math.ceil(drawH) || 1;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(this.sprite, 0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.globalCompositeOperation = 'source-atop';
+                tempCtx.fillStyle = '#2ecc71'; // green
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                ctx.drawImage(tempCanvas, spriteDrawX, spriteDrawY);
+                ctx.restore();
+            }
         } else {
             // Placeholder drawing if sprite not loaded
             ctx.fillStyle = '#4A70D4';

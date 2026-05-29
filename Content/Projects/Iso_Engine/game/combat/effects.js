@@ -5,6 +5,7 @@ class FloatingTextEffect {
     constructor(engine, options) {
         this.engine = engine;
         this.id = `floating_text_${Date.now()}_${Math.random()}`;
+        this.isHighZ = true;
 
         this.text = options.text;
         this.position = { ...options.position };
@@ -128,6 +129,7 @@ class TowerOrbEffect {
     constructor(engine, options) {
         this.engine = engine;
         this.id = `orb_${Date.now()}_${Math.random()}`;
+        this.isHighZ = true;
         this.position = { ...options.position };
         this.target = options.target; // The Enemy or Player object
         this.color = options.color || '#3498db'; // Allied blue, Enemy red
@@ -204,6 +206,7 @@ class ParticleSplatterEffect {
     constructor(engine, options) {
         this.engine = engine;
         this.id = `splatter_${Date.now()}_${Math.random()}`;
+        this.isHighZ = true;
         this.position = { ...options.position };
         this.particles = [];
         this.duration = options.duration || 0.6; // short-lived explosive burst

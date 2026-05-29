@@ -1,8 +1,9 @@
 // JRPG Isometric Game Engine Ability System
 console.log("game/combat/ability_system.js loaded");
 
-import { FloatingTextEffect, TelegraphEffect } from './effects.js';
+import { FloatingTextEffect, TelegraphEffect, ParticleSplatterEffect } from './effects.js';
 import GameObject from '../entities/gameObject.js';
+import { Emitter } from './projectiles.js';
 
 export const DEFAULT_ABILITIES = {
     'slime_leap': {
@@ -47,28 +48,28 @@ export const DEFAULT_ABILITIES = {
         healing: 0,
         targetType: 'direction_mouse',
         startup: {
-            duration: 0.2,
+            duration: 0.15,
             lockMovement: true,
-            lockTurn: false,
+            lockTurn: true,
             disableCollision: false,
             dashSpeed: 450,
             jumpHeight: 0,
             hpChange: 0
         },
         active: {
-            duration: 0.15,
+            duration: 0.1,
             damage: 15,
             knockbackForce: 80,
             hpChange: 0,
             healing: 0,
-            hitboxShape: { type: 'ellipse', radiusX: 50, radiusY: 30 },
+            hitboxShape: { type: 'ellipse', radiusX: 50, radiusY: 25 },
             createObstacle: false
         },
         recovery: {
-            duration: 0.3,
+            duration: 0.15,
             lockMovement: true,
-            lockTurn: false,
-            slideSpeed: 50
+            lockTurn: true,
+            slideSpeed: 0
         }
     },
     'blood_siphon': {
@@ -80,7 +81,7 @@ export const DEFAULT_ABILITIES = {
         healing: 30, // Heals 30 on hit
         targetType: 'closest_enemy',
         startup: {
-            duration: 0.4,
+            duration: 0.2,
             lockMovement: true,
             lockTurn: true,
             disableCollision: false,
@@ -89,16 +90,16 @@ export const DEFAULT_ABILITIES = {
             hpChange: -15
         },
         active: {
-            duration: 0.3,
+            duration: 0.15,
             damage: 28, // High damage high reward
             knockbackForce: 50,
             hpChange: 0,
             healing: 30,
-            hitboxShape: { type: 'ellipse', radiusX: 35, radiusY: 35 },
+            hitboxShape: { type: 'ellipse', radiusX: 60, radiusY: 30 },
             createObstacle: false
         },
         recovery: {
-            duration: 0.4,
+            duration: 0.2,
             lockMovement: false,
             lockTurn: false,
             slideSpeed: 0
@@ -113,8 +114,54 @@ export const DEFAULT_ABILITIES = {
         healing: 0,
         targetType: 'direction_mouse',
         startup: {
-            duration: 0.4,
+            duration: 0.18,
             lockMovement: true,
+            lockTurn: true,
+            disableCollision: false,
+            dashSpeed: 0,
+            jumpHeight: 0,
+            hpChange: 0
+        },
+        active: {
+            duration: 0.12,
+            damage: 6,
+            knockbackForce: 100,
+            hpChange: 0,
+            healing: 0,
+            hitboxShape: { type: 'ellipse', radiusX: 30, radiusY: 15 },
+            createObstacle: true
+        },
+        recovery: {
+            duration: 0.25,
+            lockMovement: true,
+            lockTurn: true,
+            slideSpeed: -350 // fast backdash
+        }
+    },
+    'plasma_orb': {
+        id: 'plasma_orb',
+        name: 'Plasma Orb',
+        cooldown: 1.5,
+        range: 220,
+        costHp: 0,
+        healing: 0,
+        targetType: 'direction_mouse',
+        hasEmitter: true,
+        emitterConfig: {
+            projectileType: 'starburst',
+            projectileSpeed: 180,
+            projectileColor: '#f1c40f',
+            projectileRadius: 5,
+            emoji: '',
+            renderType: 'glow',
+            damage: 18,
+            burstCount: 5,
+            sinFrequency: 10,
+            sinAmplitude: 40
+        },
+        startup: {
+            duration: 0.25,
+            lockMovement: false,
             lockTurn: false,
             disableCollision: false,
             dashSpeed: 0,
@@ -122,19 +169,19 @@ export const DEFAULT_ABILITIES = {
             hpChange: 0
         },
         active: {
-            duration: 0.25,
-            damage: 6,
-            knockbackForce: 100,
+            duration: 0.1,
+            damage: 0,
+            knockbackForce: 10,
             hpChange: 0,
             healing: 0,
-            hitboxShape: { type: 'ellipse', radiusX: 30, radiusY: 20 },
-            createObstacle: true
+            hitboxShape: { type: 'ellipse', radiusX: 20, radiusY: 10 },
+            createObstacle: false
         },
         recovery: {
-            duration: 0.5,
-            lockMovement: true,
-            lockTurn: true,
-            slideSpeed: -60 // slide backwards away from the wall
+            duration: 0.2,
+            lockMovement: false,
+            lockTurn: false,
+            slideSpeed: 0
         }
     }
 };
@@ -298,11 +345,45 @@ export function executeAbility(caster, abilityId, getTargetPosFn) {
 
     // Set caster variables
     caster.activeAbility = ability;
+    caster.lastAbilityId = abilityId;
     caster.abilityState = 'startup';
     caster.abilityTimer = ability.startup.duration;
     caster.abilityStartPos = { x: caster.currentPixelX, y: caster.currentPixelY };
     caster.abilityTargetPos = { x: targetPos.x, y: targetPos.y };
     caster.abilityDealtDamage = false;
+
+    // Custom startup aesthetic particles and squeeze flashes
+    if (abilityId === 'dash_strike') {
+        const isPinkSlime = caster.friendly === true || (caster.name && caster.name.toLowerCase().includes('allied')) || caster === caster.engine.player;
+        const dustColor = isPinkSlime ? '#e91e63' : '#8bc34a';
+        caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+            position: { x: caster.currentPixelX, y: caster.currentPixelY },
+            color: '#ffffff', // sharp white whoosh wind cuts
+            count: 12,
+            duration: 0.3
+        }));
+        caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+            position: { x: caster.currentPixelX, y: caster.currentPixelY },
+            color: dustColor, // base slime trail dust
+            count: 8,
+            duration: 0.35
+        }));
+    } else if (abilityId === 'blood_siphon') {
+        caster.selfDamageFlashTimer = 0.4;
+        caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+            position: { x: caster.currentPixelX, y: caster.currentPixelY },
+            color: '#e74c3c', // deep crimson blood splatter
+            count: 15,
+            duration: 0.45
+        }));
+    } else if (abilityId === 'earth_wall') {
+        caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+            position: { x: caster.currentPixelX, y: caster.currentPixelY },
+            color: '#95a5a6', // dusty gray gravel rubble
+            count: 10,
+            duration: 0.35
+        }));
+    }
 
     if (ability.startup.disableCollision) {
         caster.collidable = false;
@@ -354,16 +435,36 @@ export function updateAbilityCycle(caster, deltaTime) {
 
         // Apply motion
         if (ability.startup.dashSpeed && ability.startup.dashSpeed > 0) {
-            caster.currentPixelX = caster.abilityStartPos.x + dx * progress;
-            caster.currentPixelY = caster.abilityStartPos.y + dy * progress;
+            const nextX = caster.abilityStartPos.x + dx * progress;
+            const nextY = caster.abilityStartPos.y + dy * progress;
+
+            if (ability.startup.disableCollision) {
+                // If collision is disabled (e.g. leap), we can teleport/leaps over walls
+                caster.currentPixelX = nextX;
+                caster.currentPixelY = nextY;
+            } else {
+                // Ground motion - we must predict collision ahead of time!
+                const circleCenter = { x: nextX, y: nextY - 16 }; // shift upward by 16 for GLOBAL_COLLISION_Y_OFFSET
+                const isColliding = caster.map.checkStaticCollisionAt(circleCenter, caster.collisionRadius, caster.engine.gameObjects);
+                
+                if (!isColliding) {
+                    caster.currentPixelX = nextX;
+                    caster.currentPixelY = nextY;
+                } else {
+                    // Collision predicted! Let's stop permanently at the wall boundary.
+                    caster.abilityTargetPos = { x: caster.currentPixelX, y: caster.currentPixelY };
+                }
+            }
         }
 
         // Phase finished, trigger Active / Impact Phase
         if (caster.abilityTimer <= 0) {
-            caster.currentPixelX = caster.abilityTargetPos.x;
-            caster.currentPixelY = caster.abilityTargetPos.y;
+            if (ability.startup.dashSpeed && ability.startup.dashSpeed > 0) {
+                caster.currentPixelX = caster.abilityTargetPos.x;
+                caster.currentPixelY = caster.abilityTargetPos.y;
+            }
             caster.visualYOffset = 0;
-            if (ability.startup && ability.startup.jumpHeight > 0) {
+            if ((ability.startup && ability.startup.jumpHeight > 0) || ability.id === 'plasma_orb') {
                 caster.landingSquashTimer = 0.35; // Trigger bounciness on landing
             }
             caster.collidable = true; // guarantee solid landing
@@ -405,12 +506,24 @@ export function updateAbilityCycle(caster, deltaTime) {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist > 0 && ability.recovery.slideSpeed && ability.recovery.slideSpeed !== 0) {
-            const slideX = (dx / dist) * ability.recovery.slideSpeed * deltaTime;
-            const slideY = (dy / dist) * ability.recovery.slideSpeed * deltaTime;
+            let currentSlideSpeed = ability.recovery.slideSpeed;
+            // Decay slide speed linearly to simulate high-friction organic stop / crisp backdash deceleration
+            if (ability.id === 'dash_strike' || ability.id === 'earth_wall' || ability.recovery.decaySlide) {
+                const ratio = Math.max(0, Math.min(1, caster.abilityTimer / ability.recovery.duration)); // 1.0 down to 0.0
+                currentSlideSpeed = ability.recovery.slideSpeed * ratio;
+            }
+            
+            const slideX = (dx / dist) * currentSlideSpeed * deltaTime;
+            const slideY = (dy / dist) * currentSlideSpeed * deltaTime;
             
             // Check collisions before sliding, or let them slide slightly
-            caster.currentPixelX += slideX;
-            caster.currentPixelY += slideY;
+            const nextX = caster.currentPixelX + slideX;
+            const nextY = caster.currentPixelY + slideY;
+            const circleCenter = { x: nextX, y: nextY - 16 };
+            if (!caster.map.checkStaticCollisionAt(circleCenter, caster.collisionRadius, caster.engine.gameObjects)) {
+                caster.currentPixelX = nextX;
+                caster.currentPixelY = nextY;
+            }
             if (typeof caster.updateMapCoordsFromPixels === 'function') {
                 caster.updateMapCoordsFromPixels();
             }
@@ -428,6 +541,53 @@ export function updateAbilityCycle(caster, deltaTime) {
 function triggerHitboxScanAndResolve(caster, ability) {
     if (caster.abilityDealtDamage) return;
     caster.abilityDealtDamage = true;
+
+    // Fire projectiles if the ability has an attached emitter
+    if (ability.hasEmitter && ability.emitterConfig) {
+        let casterAtk = 10;
+        if (caster) {
+            if (typeof caster.getAtk === 'function') {
+                casterAtk = caster.getAtk();
+            } else if (caster.stats && caster.stats.atk !== undefined) {
+                casterAtk = caster.stats.atk;
+            }
+        }
+        const baseDmg = ability.emitterConfig.damage || 15;
+        const scaledDmg = Math.floor(baseDmg + 1.0 * casterAtk);
+
+        const config = {
+            ...ability.emitterConfig,
+            enabled: true,
+            showArea: false,
+            notify: false,
+            cooldown: 0.01,
+            range: ability.range || 220,
+            damage: scaledDmg
+        };
+        const tempEmitter = new Emitter(caster.engine, caster, config);
+        tempEmitter.fire();
+
+        if (ability.id === 'plasma_orb') {
+            const isPinkSlime = caster.friendly === true || (caster.name && caster.name.toLowerCase().includes('allied'));
+            const pColor = isPinkSlime ? '#e91e63' : '#8bc34a';
+            if (typeof ParticleSplatterEffect !== 'undefined') {
+                // Physical slime matter debris splatters
+                caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+                    position: { x: caster.currentPixelX, y: caster.currentPixelY },
+                    color: pColor,
+                    count: 14,
+                    duration: 0.55
+                }));
+                // Arc/plasma gold burst sparks
+                caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+                    position: { x: caster.currentPixelX, y: caster.currentPixelY },
+                    color: '#f1c40f',
+                    count: 12,
+                    duration: 0.45
+                }));
+            }
+        }
+    }
 
     const center = caster.abilityTargetPos;
     const shape = ability.active.hitboxShape || { type: 'ellipse', radiusX: 30, radiusY: 15 };
@@ -473,6 +633,22 @@ function triggerHitboxScanAndResolve(caster, ability) {
     let dealDamageMultiplier = 1;
     // Apply HP changes
     if (hitOpponents.length > 0) {
+        // Trigger extra impact particle splatters for Dash Strike
+        if (ability.id === 'dash_strike') {
+            caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+                position: { x: center.x, y: center.y },
+                color: '#f1c40f', // gold spark pop
+                count: 15,
+                duration: 0.45
+            }));
+            caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+                position: { x: center.x, y: center.y },
+                color: '#ffffff', // sharp white cut
+                count: 10,
+                duration: 0.35
+            }));
+        }
+
         for (const victim of hitOpponents) {
             // Apply damage with character attribute scaling!
             let dmg = ability.active.damage || 0;
@@ -529,6 +705,16 @@ function triggerHitboxScanAndResolve(caster, ability) {
         // Apply health healing siphons
         if (ability.active.healing && ability.active.healing > 0) {
             caster.stats.hp = Math.min(caster.stats.maxHp, caster.stats.hp + ability.active.healing);
+            
+            // Trigger beautiful green healing organic flash
+            caster.healingFlashTimer = 0.45;
+            caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+                position: { x: caster.currentPixelX, y: caster.currentPixelY },
+                color: '#2ecc71', // pure healing green sparkles
+                count: 15,
+                duration: 0.5
+            }));
+
             caster.engine.addEffect(new FloatingTextEffect(caster.engine, {
                 text: `+${ability.active.healing} HP`,
                 position: { x: caster.currentPixelX, y: caster.currentPixelY - 30 },
@@ -546,6 +732,21 @@ function triggerHitboxScanAndResolve(caster, ability) {
             // Spawn standard temporary solid rock obstacle on mapped tiles
             const stone = new TemporaryObstacle(caster.engine, caster.engine.map, Math.floor(mapCoords.x) + 0.5, Math.floor(mapCoords.y) + 0.5);
             caster.engine.gameObjects.push(stone);
+
+            // Dynamic dirt & rocky gray stone debris splattering upwards on wall raise!
+            caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+                position: { x: center.x, y: center.y },
+                color: '#7f8c8d', // dark granite gray
+                count: 12,
+                duration: 0.65
+            }));
+            caster.engine.addEffect(new ParticleSplatterEffect(caster.engine, {
+                position: { x: center.x, y: center.y },
+                color: '#d35400', // dusty clay brown
+                count: 10,
+                duration: 0.5
+            }));
+
             caster.engine.addEffect(new FloatingTextEffect(caster.engine, {
                 text: "BARRIER CREATED!",
                 position: { x: center.x, y: center.y - 20 },

@@ -261,11 +261,37 @@ class GameEngine {
             if (ability.targetType === 'closest_enemy') {
                 let closest = null;
                 let minDist = ability.range || 120;
+                
+                const isHostileToPlayer = (obj) => {
+                    if (!obj || obj === this.player) return false;
+                    
+                    // Exclude player towers, shopkeepers, allied slimes
+                    if (obj.friendly === true) return false;
+                    if (obj.type === 'tower_player') return false;
+                    if (obj.broadType === 'player_ability') return false;
+                    if (obj.name && (
+                        obj.name.toLowerCase().includes('allied') ||
+                        obj.name.toLowerCase().includes('doran') ||
+                        obj.name.toLowerCase().includes('player')
+                    )) {
+                        return false;
+                    }
+                    
+                    // Include hostile enemies, hostile towers, or scruffy slimes
+                    return (
+                        obj.type === 'tower_enemy' ||
+                        obj.broadType === 'enemy' ||
+                        obj.broadType === 'turret' ||
+                        (obj.constructor && obj.constructor.name === 'Enemy') ||
+                        (obj.name && (
+                            obj.name.toLowerCase().includes('scruffy') ||
+                            (obj.name.toLowerCase().includes('slime') && !obj.name.toLowerCase().includes('allied'))
+                        ))
+                    );
+                };
+
                 for (const obj of this.gameObjects) {
-                    if (obj !== this.player && 
-                        ((obj.constructor.name === 'Enemy' && obj.friendly !== true) || obj.type === 'tower_enemy' || (obj.name && obj.name.toLowerCase().includes('scruffy'))) && 
-                        obj.stats && 
-                        obj.stats.hp > 0) {
+                    if (isHostileToPlayer(obj) && obj.stats && obj.stats.hp > 0) {
                         const dx = obj.currentPixelX - this.player.currentPixelX;
                         const dy = obj.currentPixelY - this.player.currentPixelY;
                         const d = Math.sqrt(dx * dx + dy * dy);
@@ -329,6 +355,30 @@ class GameEngine {
                             data: spawnPoint
                         };
                     }
+                } else if (spawnPoint.type === SPAWN_TYPES.EVENT) {
+                    // Check if event already completed
+                    let isCompleted = false;
+                    try {
+                        const stored = localStorage.getItem('rpg_completed_events');
+                        if (stored) {
+                            const completed = JSON.parse(stored);
+                            isCompleted = !!completed[spawnPoint.eventId];
+                        }
+                    } catch (e) {}
+
+                    if (!isCompleted) {
+                        const dx = this.player.currentPixelX - spawnPoint.x;
+                        const dy = this.player.currentPixelY - spawnPoint.y;
+                        const distSq = dx * dx + dy * dy;
+
+                        if (distSq < closestDistSq) {
+                            closestDistSq = distSq;
+                            closestInteractable = {
+                                type: 'event_spawn',
+                                data: spawnPoint
+                            };
+                        }
+                    }
                 }
             }
         }
@@ -336,6 +386,9 @@ class GameEngine {
         // Check NPCs
         for (const obj of this.gameObjects) {
             if (obj instanceof NPC) {
+                const broadType = obj.broadType || (obj.characterData && obj.characterData.broadType) || 'villager';
+                if (broadType === 'turret') continue; // Turrets are non-interactable emitters!
+
                 const dx = this.player.currentPixelX - obj.currentPixelX;
                 const dy = this.player.currentPixelY - obj.currentPixelY;
                 const distSq = dx * dx + dy * dy;
@@ -422,6 +475,14 @@ class GameEngine {
         return this.editorManager ? this.editorManager.isEditorActive('abilities') : false;
     }
 
+    toggleProjectileCreator() {
+        this.editorManager.toggle('projectile');
+    }
+
+    isProjectileCreatorActive() {
+        return this.editorManager ? this.editorManager.isEditorActive('projectile') : false;
+    }
+
     toggleItemEditor() {
         this.editorManager.toggle('item');
     }
@@ -436,6 +497,14 @@ class GameEngine {
 
     isBankEditorActive() {
         return this.editorManager ? this.editorManager.isEditorActive('bank') : false;
+    }
+
+    toggleEventEditor() {
+        this.editorManager.toggle('event');
+    }
+
+    isEventEditorActive() {
+        return this.editorManager ? this.editorManager.isEditorActive('event') : false;
     }
 
     showTopBannerAnnouncement(text, type) {
@@ -683,6 +752,17 @@ class GameEngine {
 
         this.checkForInteractables();
 
+        // If a dialogue window is active, check if the player moved too far away
+        if (this.dialogueUI && this.dialogueUI.isVisible && this.dialogueUI.participants && this.dialogueUI.participants.length > 0) {
+            const activeNpc = this.dialogueUI.participants[0];
+            const dx = this.player.currentPixelX - activeNpc.currentPixelX;
+            const dy = this.player.currentPixelY - activeNpc.currentPixelY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > 80 * 80) {
+                this.dialogueUI.hideDialogue();
+            }
+        }
+
         // Player interaction with spawn points
         if (this.inputState.action && this.editorManager && !this.editorManager.isEditorActive() && this.currentInteractable) { // Only interact if not editing and something is interactable
             this.handlePlayerInteraction();
@@ -820,12 +900,43 @@ class GameEngine {
 
         if (this.map) {
             // Map render will handle its own alpha for tile layer if editor is on object layer
-            this.map.render(this.ctx, this.canvas, viewOriginX, viewOriginY);
+            // Pass false for renderOverhead to render ground tile layers (zIndex <= 0)
+            this.map.render(this.ctx, this.canvas, viewOriginX, viewOriginY, false);
         }
 
-        const renderables = [this.player, ...this.gameObjects, ...this.effects]; // gameObjects from map, plus effects
+        const groundEffects = [];
+        const topEffects = [];
+        for (const eff of this.effects) {
+            if (eff.isHighZ) {
+                topEffects.push(eff);
+            } else {
+                groundEffects.push(eff);
+            }
+        }
+
+        const renderables = [this.player, ...this.gameObjects, ...groundEffects]; // gameObjects from map, plus effects
 
         renderables.sort((a, b) => {
+            // Sort by zIndex first (default 0)
+            const zA = a.zIndex !== undefined ? a.zIndex : 0;
+            const zB = b.zIndex !== undefined ? b.zIndex : 0;
+            if (zA !== zB) {
+                return zA - zB;
+            }
+
+            // Check if Y-sorting is disabled
+            const ySortingDisabledA = a.disableYSorting || false;
+            const ySortingDisabledB = b.disableYSorting || false;
+            if (ySortingDisabledA && !ySortingDisabledB) {
+                return -1;
+            }
+            if (!ySortingDisabledA && ySortingDisabledB) {
+                return 1;
+            }
+            if (ySortingDisabledA && ySortingDisabledB) {
+                return 0; // maintain relative creation order
+            }
+
             const yA = a.getSortY ? a.getSortY() : (a.currentPixelY || 0);
             const yB = b.getSortY ? b.getSortY() : (b.currentPixelY || 0);
             return yA - yB;
@@ -860,10 +971,67 @@ class GameEngine {
             }
             this.ctx.restore(); // Restore alpha for next entity
         }
+
+        // Render custom Event interactive symbols
+        if (this.map && this.map.spawnPointsData) {
+            for (const pt of this.map.spawnPointsData) {
+                if (pt.type === 'event') {
+                    let isCompleted = false;
+                    try {
+                        const stored = localStorage.getItem('rpg_completed_events');
+                        if (stored) {
+                            const completed = JSON.parse(stored);
+                            isCompleted = !!completed[pt.eventId];
+                        }
+                    } catch (e) {}
+
+                    if (!isCompleted) {
+                        const emoji = pt.emoji || '⚡';
+                        const drawX = pt.x - viewOriginX;
+                        const drawY = pt.y - viewOriginY;
+
+                        this.ctx.save();
+                        this.ctx.font = '24px Arial';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        
+                        this.ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                        this.ctx.shadowBlur = 4;
+                        this.ctx.shadowOffsetX = 1;
+                        this.ctx.shadowOffsetY = 2;
+                        
+                        this.ctx.fillText(emoji, drawX, drawY);
+                        this.ctx.restore();
+                    } else if (pt.triggerType === 'give_item') {
+                        const drawX = pt.x - viewOriginX;
+                        const drawY = pt.y - viewOriginY;
+                        this.ctx.save();
+                        this.ctx.font = '16px Arial';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        this.ctx.globalAlpha = 0.5;
+                        this.ctx.fillText('💨', drawX, drawY);
+                        this.ctx.restore();
+                    }
+                }
+            }
+        }
+
+        if (this.map) {
+            // Draw overhead / overlay tile layers (zIndex > 0)
+            this.map.render(this.ctx, this.canvas, viewOriginX, viewOriginY, true);
+        }
         
         // Render light system overlay after the main world drawing but before editor overlays
         if (this.lightSystem) {
             this.lightSystem.render(viewOriginX, viewOriginY);
+        }
+
+        // Render high-Z flying projectiles, particle splatters, and floating head text notifications on topmost visual layer
+        for (const eff of topEffects) {
+            this.ctx.save();
+            eff.render(this.ctx, viewOriginX, viewOriginY);
+            this.ctx.restore();
         }
 
 
@@ -955,6 +1123,13 @@ class GameEngine {
                     promptText = `[${actionKey}] Go to ${data.targetMap || '???'}`;
                 }
                 break;
+            case 'event_spawn':
+                if (data.triggerType === 'give_item') {
+                    promptText = `[${actionKey}] ${data.message || 'Search container'}`;
+                } else {
+                    promptText = `[${actionKey}] ${data.message || 'Unlock/activate obstacle'}`;
+                }
+                break;
             case 'note_object':
                 promptText = `[${actionKey}] Read note`;
                 break;
@@ -967,7 +1142,7 @@ class GameEngine {
 
         // Draw this text at the bottom center of the screen
         const x = this.canvas.width / 2;
-        const y = this.canvas.height - 60; // Position above the player HP bar
+        const y = this.canvas.height - 130; // Position above the skill hot bar and player HP bar
 
         this.ctx.font = 'bold 16px Arial';
         this.ctx.textAlign = 'center';
@@ -1020,6 +1195,119 @@ class GameEngine {
         if (type === 'note_object') {
             CustomDialog.alert(`A note reads:\n\n"${data.customData.text}"`, "Reading Note");
             return;
+        }
+
+        if (type === 'event_spawn') {
+            this.triggerEventSpawnPoint(data);
+            return;
+        }
+    }
+
+    triggerEventSpawnPoint(spawnPoint) {
+        if (!spawnPoint || !spawnPoint.eventId) return;
+
+        // Auto-generated key item identifier is `item_evt_${eventId}`
+        const requiredItemId = `item_evt_${spawnPoint.eventId}`;
+
+        // Get friendly event name for display prompts
+        let eventName = "Event Key";
+        try {
+            const stored = localStorage.getItem('rpg_custom_events');
+            if (stored) {
+                const custom = JSON.parse(stored);
+                if (custom[spawnPoint.eventId]) {
+                    eventName = custom[spawnPoint.eventId].name;
+                }
+            }
+        } catch (e) {}
+
+        if (spawnPoint.triggerType === 'give_item') {
+            if (!this.player.inventory) this.player.inventory = [];
+
+            // Add standard or key item
+            let itemToAdd = null;
+            try {
+                const itemsStored = localStorage.getItem('rpg_custom_items');
+                if (itemsStored) {
+                     const customItems = JSON.parse(itemsStored);
+                     if (customItems[requiredItemId]) {
+                          itemToAdd = customItems[requiredItemId];
+                     }
+                }
+            } catch (e) {}
+
+            if (!itemToAdd) {
+                itemToAdd = {
+                    id: requiredItemId,
+                    name: eventName,
+                    type: 'event',
+                    emoji: spawnPoint.emoji || '🔑',
+                    description: `Event key item`,
+                    count: 1
+                };
+            }
+
+            const existing = this.player.inventory.find(it => it.id === itemToAdd.id);
+            if (existing) {
+                existing.count = (existing.count || 0) + 1;
+            } else {
+                this.player.inventory.push({
+                    id: itemToAdd.id,
+                    name: itemToAdd.name,
+                    type: itemToAdd.type || 'event',
+                    emoji: itemToAdd.emoji || '🔑',
+                    description: itemToAdd.description || '',
+                    cost: itemToAdd.cost || 0,
+                    value: 0,
+                    count: 1,
+                    attachedEvent: spawnPoint.eventId
+                });
+            }
+
+            // Save & Sync bags
+            this.player.saveToStorage();
+            if (this.inventoryUI) {
+                this.inventoryUI.refresh();
+            }
+
+            // Persistence
+            const completed = JSON.parse(localStorage.getItem('rpg_completed_events') || '{}');
+            completed[spawnPoint.eventId] = { completed: true, timestamp: Date.now() };
+            localStorage.setItem('rpg_completed_events', JSON.stringify(completed));
+
+            CustomDialog.alert(`You found: ${itemToAdd.emoji || '🔑'} 1x "${itemToAdd.name}"!`, "Loot Container");
+            this.currentInteractable = null;
+            return;
+        }
+
+        if (spawnPoint.triggerType === 'unlock_remove') {
+            if (!this.player.inventory) this.player.inventory = [];
+            
+            // Check possession
+            const hasItem = this.player.inventory.find(it => it.id === requiredItemId && it.count > 0);
+            if (!hasItem) {
+                CustomDialog.alert(`The obstacle is locked tight! You must find the correct Key Item:\n\n🔑 "${eventName}"`, "Locked Obstacle");
+                return;
+            }
+
+            // Consume or keep? Always consume key item for doors/progression of single usage!
+            hasItem.count--;
+            if (hasItem.count <= 0) {
+                this.player.inventory = this.player.inventory.filter(it => it.id !== requiredItemId);
+            }
+
+            this.player.saveToStorage();
+            if (this.inventoryUI) {
+                this.inventoryUI.refresh();
+            }
+
+            // Persist as unlocked
+            const completed = JSON.parse(localStorage.getItem('rpg_completed_events') || '{}');
+            completed[spawnPoint.eventId] = { completed: true, timestamp: Date.now() };
+            localStorage.setItem('rpg_completed_events', JSON.stringify(completed));
+
+            CustomDialog.alert(`Using ${hasItem.emoji || '🔑'} "${eventName}"...\n\nThe path/door is now permanently unlocked!`, "Path Unlocked!");
+            this.currentInteractable = null;
         }
     }
 
@@ -1362,6 +1650,32 @@ class GameEngine {
         console.log(`Found ${enemySpawns.length} enemy spawn points.`);
         
         for (const spawnPoint of enemySpawns) {
+            // Check custom event conditions if attached
+            if (spawnPoint.eventId) {
+                let isCompleted = false;
+                try {
+                    const stored = localStorage.getItem('rpg_completed_events');
+                    if (stored) {
+                        const completed = JSON.parse(stored);
+                        isCompleted = !!completed[spawnPoint.eventId];
+                    }
+                } catch (e) {}
+
+                if (spawnPoint.triggerType === 'unlock_remove') {
+                    // "Stop spawning if Event is completed" (cleansed!)
+                    if (isCompleted) {
+                        console.log(`Bypassing enemy spawn at point ${spawnPoint.id} because cleansing Event "${spawnPoint.eventId}" is completed.`);
+                        continue;
+                    }
+                } else if (spawnPoint.triggerType === 'give_item') {
+                    // "Spawn only if Event is completed" (boss target unlocked!)
+                    if (!isCompleted) {
+                        console.log(`Bypassing enemy spawn at point ${spawnPoint.id} because trigger Event "${spawnPoint.eventId}" has not occurred yet.`);
+                        continue;
+                    }
+                }
+            }
+
             let enemyKey = spawnPoint.enemyId;
 
             // Fallback for older maps or unassigned spawn points
