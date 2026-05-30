@@ -463,8 +463,6 @@ class EditorUIManager {
         this.tileZIndexContainer.appendChild(this.tileZIndexInput);
         this.toolsContent.appendChild(this.tileZIndexContainer);
 
-        this.toolsContent.appendChild(this.objectPaletteContainer);
-
         // --- Spawn Layer Specific Controls ---
         this.spawnTypeContainer = document.createElement('div');
         this.spawnTypeContainer.id = 'rpg-editor-spawn-controls';
