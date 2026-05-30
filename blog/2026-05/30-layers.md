@@ -8,13 +8,13 @@ Anyway, who cares: making the isometric thingy:
 
 ![img c](blog/2026-05/img/stuff11.jpg)
 
-So a lot of stuff to be honest and most of it not even tested. Kind of just going for it. Usually, progress is relatively slow, but I'm trying to approach it as a painting and just moving it at mach-5 to 'feature complete' idea of my vision with features kind of 'there', but kind of broken. Still, generally speaking, while fully designing own games by using UI is not fully-fully possible: it is VERY possible to just tell AI: 'yo, do this' and it actually does that, because it can anchor itself on the things that are described by the engine... 
+So a lot of stuff to be honest and most of it not even tested. Kind of just going for it. Usually, progress is relatively slow, but I'm trying to approach it as a painting and just moving it at mach-5 to 'feature complete' idea of my vision with features kind of 'there', but kind of broken. Still, generally speaking, fully designing complete games by using UI is not fully-fully possible (depends on the nature of the game tho): it is VERY possible to just tell AI: 'yo, do this' and it actually does that, because it can anchor itself on the things that are described by the engine... 
 
 ![img c](blog/2026-05/img/stuff12.jpg)
 
 ![img c](blog/2026-05/img/stuff13.jpg)
 
-So by having editor ideas present within the code, it helps AI to navigate creation as well. So it is almost like it has a 'working documentation' present to follow through. Interesting.
+So by having editor itself present within the code, it helps AI to navigate creation as well. So it is almost like it has a 'working documentation' to follow through. Interesting.
 
 ## History
 
