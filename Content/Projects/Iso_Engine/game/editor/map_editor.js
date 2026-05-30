@@ -453,6 +453,16 @@ class MapEditor {
                                               this.uiManager.collidableCheckbox.checked : 
                                               (objectDefinition.collidable !== undefined ? objectDefinition.collidable : true);
         
+        if (this.selectedObjectBrush.scale) {
+            const asset = this.assets[this.selectedObjectBrush.assetName];
+            if (asset && asset.complete) {
+                this.selectedObjectBrush.visualWidth = asset.width * this.selectedObjectBrush.scale;
+                this.selectedObjectBrush.visualHeight = asset.height * this.selectedObjectBrush.scale;
+                this.selectedObjectBrush.anchorOffsetX = this.selectedObjectBrush.visualWidth * (this.selectedObjectBrush.anchorOffsetXFactor !== undefined ? this.selectedObjectBrush.anchorOffsetXFactor : 0.5);
+                this.selectedObjectBrush.anchorOffsetY = this.selectedObjectBrush.visualHeight * (this.selectedObjectBrush.anchorOffsetYFactor !== undefined ? this.selectedObjectBrush.anchorOffsetYFactor : 1.0);
+            }
+        }
+
         if (!this.selectedObjectBrush.collisionShape && this.selectedObjectBrush.collidable) {
             // If object is collidable but has no shape defined (e.g. new palette items), give it a default diamond
             console.warn(`Object ${this.selectedObjectBrush.displayName} from palette is collidable but has no collisionShape. Assigning default diamond.`);
@@ -973,6 +983,8 @@ class MapEditor {
 
                     if (rect) {
                         ctx.drawImage(asset, rect.x, rect.y, rect.width, rect.height, drawX, drawY, rect.width, rect.height);
+                    } else if (brush.visualWidth && brush.visualHeight) {
+                         ctx.drawImage(asset, drawX, drawY, brush.visualWidth, brush.visualHeight);
                     } else {
                         ctx.drawImage(asset, drawX, drawY);
                     }

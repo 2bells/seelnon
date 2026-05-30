@@ -14,9 +14,9 @@ const OBJECT_PALETTE_DEFINITIONS = {
         type: 'tree',
         displayName: 'Tree',
         assetName: 'tree', // Engine.assets key
-        // visualWidth, visualHeight determined by asset or can be overridden
-        // anchorOffsetX/Y, collisionShape determined by asset or can be overridden
-        // For tree, these are calculated dynamically based on asset size in MapEditor for now
+        scale: 2,
+        anchorOffsetXFactor: 0.5,
+        anchorOffsetYFactor: 0.95,
         collidable: true, // Default
     },
     table: {
