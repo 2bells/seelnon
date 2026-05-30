@@ -16,7 +16,7 @@ Nothing too crazy, pretty much just a wrapper for a 'group LLM chat'. But I didn
 
 From this point I will be somewhat continuing the previous rant about 'nature of LLM'...
 
-[Read here](blog/2026-05/26-ai.md)
+[Previous here](blog/2026-05/26-ai.md)
 
 Main part is about general claims of LLMs having no real intelligence of sorts and that they just flip numbers, while being 'static statistical machines'. Not like I'm saying the opposite, but the picture is much more blurry in general, because if we look at humans with specific 'setups' and some types of 'neuro divergency', they might have perfect photographic memory and be able to snapshot a panoramic view and recreate it as if it was done with a camera, while also struggling to write 'strawberry', because they cannot properly internalize 'language symbols' in their brain.
 
