@@ -411,7 +411,9 @@ class MapEditor {
             this.selectedTileBrush = { 
                 sourceRect: clickedSourceRect,
                 spritesheetIndex: this.currentSpriteSheetIndex,
-                zIndex: activeZIndex
+                zIndex: activeZIndex,
+                anchorOffsetX: SPRITESHEET_TILE_SIZE / 2,
+                anchorOffsetY: SPRITESHEET_TILE_SIZE / 2
             };
             console.log("Selected tile brush:", this.selectedTileBrush);
        
@@ -843,23 +845,31 @@ class MapEditor {
         const rawWorldX = moveX + viewOriginX;
         const rawWorldY = moveY + viewOriginY;
 
-        if ((this.currentLayer === 'collision' || this.currentLayer === 'occlusion') && this.snapToGrid && this.currentTool === 'place') {
+        if (this.currentTool === 'place' && this.snapToGrid) {
             const mapCoords = this.map.screenToMap(rawWorldX, rawWorldY);
-            // Snap to tile corners (integer map coords) for collision/occlusion polygons
-            const snappedMapX = Math.round(mapCoords.x);
-            const snappedMapY = Math.round(mapCoords.y);
+            let snappedMapX, snappedMapY;
+
+            if (this.currentLayer === 'collision' || this.currentLayer === 'occlusion') {
+                snappedMapX = Math.round(mapCoords.x);
+                snappedMapY = Math.round(mapCoords.y);
+            } else if (this.currentLayer === 'spawn') {
+                snappedMapX = Math.floor(mapCoords.x) + 0.5;
+                snappedMapY = Math.floor(mapCoords.y) + 0.5;
+            } else if (this.currentLayer === 'tile') {
+                snappedMapX = Math.floor(mapCoords.x);
+                snappedMapY = Math.floor(mapCoords.y);
+            } else if (this.currentLayer === 'object1' || this.currentLayer === 'object2') {
+                snappedMapX = Math.floor(mapCoords.x) + 1;
+                snappedMapY = Math.floor(mapCoords.y) + 1;
+            } else {
+                 this.currentMouseWorldPos.x = rawWorldX;
+                 this.currentMouseWorldPos.y = rawWorldY;
+                 return;
+            }
             const snappedWorldPos = this.map.mapToScreen(snappedMapX, snappedMapY);
             this.currentMouseWorldPos.x = snappedWorldPos.x;
             this.currentMouseWorldPos.y = snappedWorldPos.y;
-        } else if (this.currentLayer === 'spawn' && this.snapToGrid && this.currentTool === 'place') {
-            const mapCoords = this.map.screenToMap(rawWorldX, rawWorldY);
-            const snappedMapX = Math.floor(mapCoords.x) + 0.5; // Center of tile
-            const snappedMapY = Math.floor(mapCoords.y) + 0.5; // Center of tile
-            const snappedWorldPos = this.map.mapToScreen(snappedMapX, snappedMapY);
-            this.currentMouseWorldPos.x = snappedWorldPos.x;
-            this.currentMouseWorldPos.y = snappedWorldPos.y;
-        }
-         else {
+        } else {
             this.currentMouseWorldPos.x = rawWorldX;
             this.currentMouseWorldPos.y = rawWorldY;
         }
@@ -937,6 +947,92 @@ class MapEditor {
         if (!this.isActive) return;
         ctx.save();
         
+        // --- Ghost Preview ---
+        if (this.currentTool === 'place' && (this.currentLayer === 'tile' || this.currentLayer === 'object1' || this.currentLayer === 'object2')) {
+            const brush = (this.currentLayer === 'tile') ? this.selectedTileBrush : this.selectedObjectBrush;
+            
+            if (brush) {
+                ctx.save();
+                ctx.globalAlpha = 0.5;
+                
+                let asset;
+                if (brush.spritesheetIndex !== undefined && this.spritesheets[brush.spritesheetIndex]) {
+                     asset = this.spritesheets[brush.spritesheetIndex].image;
+                } else if (brush.assetName) {
+                     asset = this.assets[brush.assetName];
+                }
+
+                if (asset && asset.complete) {
+                    const rect = brush.sourceRect || brush.spriteSourceRect;
+                    // Need to adjust position based on anchor offset if it's an object
+                    let drawX = this.currentMouseWorldPos.x;
+                    let drawY = this.currentMouseWorldPos.y;
+                    
+                    if (brush.anchorOffsetX) drawX -= brush.anchorOffsetX;
+                    if (brush.anchorOffsetY) drawY -= brush.anchorOffsetY;
+
+                    if (rect) {
+                        ctx.drawImage(asset, rect.x, rect.y, rect.width, rect.height, drawX, drawY, rect.width, rect.height);
+                    } else {
+                        ctx.drawImage(asset, drawX, drawY);
+                    }
+                }
+                ctx.restore();
+            }
+        }
+        // --- END Ghost Preview ---
+
+        // --- Eraser Preview ---
+        if (this.currentTool === 'erase') {
+            ctx.save();
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = 'red';
+            
+            if (this.currentLayer === 'tile') {
+                const mapCoords = this.map.screenToMap(this.currentMouseWorldPos.x, this.currentMouseWorldPos.y);
+                const tileX = Math.floor(mapCoords.x);
+                const tileY = Math.floor(mapCoords.y);
+                
+                if (tileX >= 0 && tileX < this.map.width && tileY >= 0 && tileY < this.map.height) {
+                    const screenPos = this.map.mapToScreen(tileX, tileY);
+                    const halfW = this.map.halfTileWidth;
+                    const halfH = this.map.halfTileHeight;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(screenPos.x, screenPos.y);
+                    ctx.lineTo(screenPos.x + halfW, screenPos.y + halfH);
+                    ctx.lineTo(screenPos.x, screenPos.y + halfH * 2);
+                    ctx.lineTo(screenPos.x - halfW, screenPos.y + halfH);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            } else if (this.currentLayer === 'object1' || this.currentLayer === 'object2') {
+                const object = this._getObjectAtWorldCoords(this.currentMouseWorldPos.x, this.currentMouseWorldPos.y, this.currentLayer);
+                if (object) {
+                     // Draw over the object's estimated footprint
+                     const rectX = object.currentPixelX - (object.visualWidth || 64) / 2;
+                     const rectY = object.currentPixelY - (object.visualHeight || 64);
+                     ctx.fillRect(rectX, rectY, object.visualWidth || 64, object.visualHeight || 64);
+                }
+            } else if (this.currentLayer === 'collision' || this.currentLayer === 'occlusion') {
+                const shape = (this.currentLayer === 'collision') ?
+                    this.map.findCustomCollisionShapeAt(this.currentMouseWorldPos.x, this.currentMouseWorldPos.y) :
+                    this.map.findOcclusionShapeAt(this.currentMouseWorldPos.x, this.currentMouseWorldPos.y);
+                
+                if (shape) {
+                    ctx.beginPath();
+                    ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
+                    for (let i = 1; i < shape.vertices.length; i++) {
+                        ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+        }
+        // --- END Eraser Preview ---
+
         // Draw Grid Lines
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.lineWidth = 1 / this.engine.zoomLevel; 
@@ -1023,6 +1119,15 @@ class MapEditor {
             }
         }
         
+        // --- Ghost Preview for Start Point ---
+        if ((this.currentLayer === 'collision' || this.currentLayer === 'occlusion') && this.currentPolygonVertices.length === 0 && this.currentTool === 'place') {
+            const isCollision = this.currentLayer === 'collision';
+            ctx.fillStyle = isCollision ? 'rgba(255, 0, 0, 0.5)' : 'rgba(0, 0, 255, 0.5)';
+            ctx.beginPath();
+            ctx.arc(this.currentMouseWorldPos.x, this.currentMouseWorldPos.y, 5 / this.engine.zoomLevel, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         // --- Polygon Preview for Collision or Occlusion Layer ---
         if ((this.currentLayer === 'collision' || this.currentLayer === 'occlusion') && this.currentPolygonVertices.length > 0 && this.currentTool === 'place') {
             const isCollision = this.currentLayer === 'collision';
@@ -1184,6 +1289,12 @@ class MapEditor {
         // Don't intercept when writing text inside inputs/textareas
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
             return;
+        }
+
+        // Support Esc to cancel current polygon drawing
+        if (event.key === 'Escape') {
+             this.currentPolygonVertices = [];
+             console.log("Cancelled current polygon drawing.");
         }
 
         // Support Ctrl+Z / Cmd+Z (Undo)

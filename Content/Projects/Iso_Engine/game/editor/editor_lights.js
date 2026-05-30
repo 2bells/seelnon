@@ -29,11 +29,22 @@ class LightEditor {
         this.isDragging = false;
         this.draggedVertexInfo = null; // { mask, vertexIndex }
 
+        this._boundHandleKeyDown = this.handleKeyDown.bind(this);
         this._boundHandleMouseDown = this.handleMouseDown.bind(this);
         this._boundHandleMouseUp = this.handleMouseUp.bind(this);
         this._boundHandleMapClick = this.handleMapClick.bind(this);
         this._boundHandleMouseMove = this.handleMouseMove.bind(this);
         this._boundFinalizePolygon = this.finalizeCurrentPolygon.bind(this);
+    }
+
+    handleKeyDown(event) {
+        if (!this.isActive) return;
+        if (event.key === 'Escape') {
+            this.currentPolygonVertices = [];
+            this.currentTool = 'select';
+            this.selectedMask = null;
+            this.updatePropertiesPanel();
+        }
     }
 
     initUI() {
@@ -110,6 +121,7 @@ class LightEditor {
         this.engine.canvas.addEventListener('click', this._boundHandleMapClick);
         this.engine.canvas.addEventListener('dblclick', this._boundFinalizePolygon);
         this.engine.canvas.addEventListener('mousemove', this._boundHandleMouseMove);
+        window.addEventListener('keydown', this._boundHandleKeyDown);
         
         this.refreshUI();
     }
@@ -132,6 +144,7 @@ class LightEditor {
         this.engine.canvas.removeEventListener('click', this._boundHandleMapClick);
         this.engine.canvas.removeEventListener('dblclick', this._boundFinalizePolygon);
         this.engine.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
+        window.removeEventListener('keydown', this._boundHandleKeyDown);
     }
     
     refreshUI() {
@@ -423,6 +436,14 @@ class LightEditor {
                 ctx.arc(vertex.x, vertex.y, handleRadius, 0, Math.PI * 2);
                 ctx.fill();
             }
+        }
+
+        // --- Ghost Preview for Start Point ---
+        if (this.currentTool === 'place_mask' && this.currentPolygonVertices.length === 0) {
+            ctx.fillStyle = this.currentMaskType === 'light' ? 'rgba(255, 255, 0, 0.5)' : 'rgba(50, 50, 50, 0.9)';
+            ctx.beginPath();
+            ctx.arc(this.currentMouseWorldPos.x, this.currentMouseWorldPos.y, 5 / this.engine.zoomLevel, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         // Draw polygon being created

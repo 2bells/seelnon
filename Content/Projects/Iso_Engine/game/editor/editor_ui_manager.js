@@ -318,18 +318,45 @@ class EditorUIManager {
         this.toolsContent.appendChild(this.previewContainerElement); 
         
         // --- Object Palette (shown for 'object2' layers) ---
-        this.objectPaletteContainer = document.createElement('div');
-        this.objectPaletteContainer.id = 'rpg-editor-object-palette';
-        this.objectPaletteContainer.style.display = 'none'; // Initially hidden
+        this.objectPaletteWrapper = document.createElement('div');
+        this.objectPaletteWrapper.id = 'rpg-editor-object-palette-wrapper';
+        this.objectPaletteWrapper.style.display = 'none'; // Initially hidden
+        this.toolsContent.appendChild(this.objectPaletteWrapper);
 
         const paletteTitle = document.createElement('h4');
         paletteTitle.textContent = 'Object Palette';
-        this.objectPaletteContainer.appendChild(paletteTitle);
+        this.objectPaletteWrapper.appendChild(paletteTitle);
+
+        this.objectPaletteContainer = document.createElement('div');
+        this.objectPaletteContainer.id = 'rpg-editor-object-palette';
+        this.objectPaletteWrapper.appendChild(this.objectPaletteContainer);
 
         for (const key in OBJECT_PALETTE_DEFINITIONS) {
             const objDef = OBJECT_PALETTE_DEFINITIONS[key];
             const button = document.createElement('button');
-            button.textContent = objDef.displayName;
+            button.title = objDef.displayName;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; 
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            
+            // Wait for image loading if necessary, but for now simple draw
+            const asset = this.editor.assets ? this.editor.assets[objDef.assetName] : null;
+            if (asset && asset.complete) {
+                if (objDef.spriteSourceRect) {
+                    ctx.drawImage(asset, objDef.spriteSourceRect.x, objDef.spriteSourceRect.y, objDef.spriteSourceRect.width, objDef.spriteSourceRect.height, 0, 0, 32, 32);
+                } else {
+                    ctx.drawImage(asset, 0, 0, 32, 32);
+                }
+            } else {
+                // If not loaded, draw text placeholder
+                ctx.fillStyle = '#8C6D56';
+                ctx.font = '8px Arial';
+                ctx.fillText(objDef.displayName, 2, 16);
+            }
+            
+            button.appendChild(canvas);
             button.onclick = () => this.editor.selectObjectForPlacing(objDef); 
             this.objectPaletteContainer.appendChild(button);
         }
@@ -722,7 +749,7 @@ class EditorUIManager {
         this.previewContainerElement.style.display = (!isTileSelectionLayer || this.editor.currentTool === 'erase') ? 'block' : 'none';
 
         // Object Palette (for object2)
-        this.objectPaletteContainer.style.display = (currentLayer === 'object2') ? 'block' : 'none';
+        this.objectPaletteWrapper.style.display = (currentLayer === 'object2') ? 'block' : 'none';
 
         // Collidable Checkbox (for all object layers)
         if(collidableLabel) collidableLabel.style.display = isObjectLayer ? 'flex' : 'none';

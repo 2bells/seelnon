@@ -20,7 +20,7 @@
     [0,0,0,0,0,0,0,0,11,1,2,3,1,2,1,0,12,0,14,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,11,1,1,1,1,1,1,0,12,0,0,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,11,3,1,2,1,1,1,0,12,0,14,0,0,0,0,0],
-    [0,0,0,0,0,0,0,11,11,1,1,1,1,2,3,0,12,12,14,14,0,0,0,0],
+    [0,0,0,0,0,0,0,11,11,1,1,1,1,2,3,1,12,12,14,14,0,0,0,0],
     [0,0,0,0,0,0,0,11,1,2,1,1,1,1,1,1,0,12,0,0,14,0,0,0],
     [0,0,0,0,0,0,0,11,1,1,1,2,3,1,2,1,0,12,14,13,14,0,0,0],
     [0,0,0,0,0,0,0,11,1,1,1,1,1,1,1,1,0,12,14,0,0,14,0,0],
@@ -169,9 +169,29 @@
       },
       "spritesheetIndex": 1,
       "zIndex": 0
+    },
+    "15": {
+      "sourceRect": {
+        "x": 198,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 0,
+      "zIndex": 1
+    },
+    "16": {
+      "sourceRect": {
+        "x": 132,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "spritesheetIndex": 0,
+      "zIndex": 1
     }
   },
-  "nextTileId": 15,
+  "nextTileId": 17,
   "objectLayersData": {
     "object1": [
       {
@@ -298,48 +318,6 @@
         "mapX": 9.924603576804174,
         "mapY": 10.693582627081604,
         "id": "obj_object1_1779990193919_kxwgj34jt",
-        "layerKey": "object1"
-      },
-      {
-        "type": "spriteObject",
-        "displayName": "Object (2,0)",
-        "assetName": "buildingSpritesheet",
-        "spritesheetIndex": 0,
-        "spriteSourceRect": {
-          "x": 132,
-          "y": 0,
-          "width": 64,
-          "height": 64
-        },
-        "visualWidth": 64,
-        "visualHeight": 64,
-        "anchorOffsetX": 32,
-        "anchorOffsetY": 64,
-        "collidable": false,
-        "collisionShape": {
-          "type": "polygon",
-          "vertices": [
-            {
-              "x": 0,
-              "y": -16
-            },
-            {
-              "x": 32,
-              "y": 0
-            },
-            {
-              "x": 0,
-              "y": 16
-            },
-            {
-              "x": -32,
-              "y": 0
-            }
-          ]
-        },
-        "mapX": 16,
-        "mapY": 18,
-        "id": "obj_object1_1779995694228_9vriufqhm",
         "layerKey": "object1"
       },
       {
@@ -676,6 +654,50 @@
         "mapX": 13.42400517481339,
         "mapY": 1.4310952733973874,
         "id": "obj_object1_1779996099863_atsfjbmw7",
+        "layerKey": "object1"
+      },
+      {
+        "type": "spriteObject",
+        "displayName": "Object (2,0)",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 132,
+          "y": 0,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "collidable": false,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -16
+            },
+            {
+              "x": 32,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 16
+            },
+            {
+              "x": -32,
+              "y": 0
+            }
+          ]
+        },
+        "disableYSorting": true,
+        "zIndex": 0,
+        "mapX": 16,
+        "mapY": 18,
+        "id": "obj_object1_1780170979089_zy6rmc959",
         "layerKey": "object1"
       }
     ],
