@@ -259,13 +259,6 @@ class EditorUIManager {
         this.uploadSpritesheetButton = document.createElement('label');
         this.uploadSpritesheetButton.htmlFor = sheetUploadId;
         this.uploadSpritesheetButton.className = 'rpg-file-label';
-        this.uploadSpritesheetButton.style.display = 'inline-flex';
-        this.uploadSpritesheetButton.style.justifyContent = 'center';
-        this.uploadSpritesheetButton.style.alignItems = 'center';
-        this.uploadSpritesheetButton.style.width = '24px';
-        this.uploadSpritesheetButton.style.height = '18px';
-        this.uploadSpritesheetButton.style.margin = '0 5px';
-        this.uploadSpritesheetButton.style.padding = '5px 8px';
         this.uploadSpritesheetButton.innerHTML = '&#11014;'; // Up arrow emoji
         this.uploadSpritesheetButton.title = 'Upload Spritesheet';
 
@@ -279,8 +272,6 @@ class EditorUIManager {
         this.spritesheetControlsContainer.appendChild(this.nextSpritesheetButton);
         this.spritesheetControlsContainer.appendChild(this.spritesheetFileInput);
 
-        this.toolsContent.appendChild(this.spritesheetControlsContainer);
-
         // --- Snap to Grid Checkbox ---
         this.snapToGridLabel = document.createElement('label');
         this.snapToGridLabel.className = 'rpg-editor-snap-label';
@@ -293,7 +284,6 @@ class EditorUIManager {
         const snapToGridText = document.createElement('span');
         snapToGridText.textContent = ' Snap to Grid';
         this.snapToGridLabel.appendChild(snapToGridText);
-        this.toolsContent.appendChild(this.snapToGridLabel); 
 
         // --- Spritesheet Name Display ---
         this.spritesheetNameDisplay = document.createElement('div');
@@ -311,9 +301,14 @@ class EditorUIManager {
         this.spritesheetContainerElement.appendChild(this.spritesheetCanvas);
         this.toolsContent.appendChild(this.spritesheetContainerElement); 
 
+        // Arrows, upload, and snap to grid placed BELOW the spritesheet window
+        this.toolsContent.appendChild(this.spritesheetControlsContainer);
+        this.toolsContent.appendChild(this.snapToGridLabel); 
+
         // --- Selected Tile Preview (shown for 'tile' and 'object1' layers) ---
         this.previewContainerElement = document.createElement('div'); 
         this.previewContainerElement.id = 'rpg-editor-tile-preview-container';
+        this.previewContainerElement.style.marginBottom = '25px';
         this.previewCanvas = document.createElement('canvas');
         this.previewCanvas.id = 'rpg-editor-tile-preview-canvas';
         this.previewCanvas.width = SPRITESHEET_TILE_SIZE;
@@ -448,11 +443,19 @@ class EditorUIManager {
         this.spawnTypeContainer.id = 'rpg-editor-spawn-controls';
         this.spawnTypeContainer.style.display = 'none'; // Hidden by default
 
-        const spawnTypeLabel = document.createElement('label');
-        spawnTypeLabel.textContent = 'Spawn Type: ';
-        spawnTypeLabel.style.display = 'block';
-        spawnTypeLabel.style.marginBottom = '5px';
-        
+        // Elegant inline helper for abilities-style row form inputs
+        const makeFormRow = (labelText, inputElement, parentContainer) => {
+            const row = document.createElement('div');
+            row.className = 'abilities-form-row';
+            row.style.marginBottom = '8px';
+            const lbl = document.createElement('label');
+            lbl.textContent = labelText;
+            row.appendChild(lbl);
+            row.appendChild(inputElement);
+            parentContainer.appendChild(row);
+            return row;
+        };
+
         this.spawnTypeSelect = document.createElement('select');
         this.spawnTypeSelect.id = 'rpg-editor-spawn-type-select';
         for (const typeKey in SPAWN_TYPES) {
@@ -462,19 +465,13 @@ class EditorUIManager {
             this.spawnTypeSelect.appendChild(option);
         }
         this.spawnTypeSelect.onchange = () => this.updateToolPanelVisibility(); // Re-check visibility for targetMapInput
-        spawnTypeLabel.appendChild(this.spawnTypeSelect);
-        this.spawnTypeContainer.appendChild(spawnTypeLabel);
+        makeFormRow('Spawn Type', this.spawnTypeSelect, this.spawnTypeContainer);
 
-        const targetMapLabel = document.createElement('label');
-        targetMapLabel.textContent = 'Target Map Name: ';
-        targetMapLabel.style.display = 'block'; // Will be controlled by visibility logic
-        targetMapLabel.style.marginBottom = '5px';
         this.spawnTargetMapInput = document.createElement('input');
         this.spawnTargetMapInput.type = 'text';
         this.spawnTargetMapInput.id = 'rpg-editor-spawn-targetmap-input';
         this.spawnTargetMapInput.placeholder = 'e.g., next_level';
-        targetMapLabel.appendChild(this.spawnTargetMapInput);
-        this.spawnTypeContainer.appendChild(targetMapLabel);
+        makeFormRow('Target Map Name', this.spawnTargetMapInput, this.spawnTypeContainer);
 
         // --- Container for permanent NPC upload ---
         this.spawnPermanentNpcContainer = document.createElement('div');
@@ -489,22 +486,40 @@ class EditorUIManager {
         this.npcJsonInput.style.display = 'none';
         this.npcJsonInput.onchange = (event) => this.editor.handleNpcJsonUpload(event);
 
+        const uploadNpcRow = document.createElement('div');
+        uploadNpcRow.className = 'abilities-form-row';
+        uploadNpcRow.style.marginBottom = '6px';
+        const uploadNpcLabel = document.createElement('label');
+        uploadNpcLabel.textContent = 'NPC Blueprint';
+        
         const uploadNpcButton = document.createElement('label');
         uploadNpcButton.htmlFor = npcBrushUploadId;
         uploadNpcButton.className = 'rpg-file-label';
         uploadNpcButton.style.display = 'block';
-        uploadNpcButton.style.width = '100%';
-        uploadNpcButton.style.marginBottom = '6px';
-        uploadNpcButton.textContent = 'Upload NPC (.json)';
+        uploadNpcButton.style.padding = '4.5px 8px';
+        uploadNpcButton.style.fontSize = '0.9em';
+        uploadNpcButton.style.textAlign = 'center';
+        uploadNpcButton.style.cursor = 'pointer';
+        uploadNpcButton.style.backgroundColor = '#3B322C';
+        uploadNpcButton.style.border = '1px solid #8C6D56';
+        uploadNpcButton.style.borderRadius = '4px';
+        uploadNpcButton.style.color = '#EFEBE0';
+        uploadNpcButton.textContent = 'Upload (.json)';
+
+        uploadNpcRow.appendChild(uploadNpcLabel);
+        uploadNpcRow.appendChild(uploadNpcButton);
+        this.spawnPermanentNpcContainer.appendChild(this.npcJsonInput);
+        this.spawnPermanentNpcContainer.appendChild(uploadNpcRow);
 
         this.spawnNpcBrushInfo = document.createElement('p');
         this.spawnNpcBrushInfo.className = 'rpg-editor-info';
         this.spawnNpcBrushInfo.style.textAlign = 'center';
+        this.spawnNpcBrushInfo.style.fontSize = '0.85em';
+        this.spawnNpcBrushInfo.style.color = '#e67e22';
+        this.spawnNpcBrushInfo.style.marginTop = '4px';
         this.spawnNpcBrushInfo.textContent = 'No NPC loaded.';
-
-        this.spawnPermanentNpcContainer.appendChild(this.npcJsonInput);
-        this.spawnPermanentNpcContainer.appendChild(uploadNpcButton);
         this.spawnPermanentNpcContainer.appendChild(this.spawnNpcBrushInfo);
+        
         this.spawnTypeContainer.appendChild(this.spawnPermanentNpcContainer);
 
         // --- Container for enemy selection ---
@@ -512,13 +527,10 @@ class EditorUIManager {
         this.spawnEnemyContainer.id = 'rpg-editor-spawn-enemy-controls';
         this.spawnEnemyContainer.style.marginTop = '10px';
 
-        const enemyTypeLabel = document.createElement('label');
-        enemyTypeLabel.textContent = 'Enemy Type:';
         this.spawnEnemySelect = document.createElement('select');
         this.spawnEnemySelect.id = 'rpg-editor-spawn-enemy-select';
-        
-        this.spawnEnemyContainer.appendChild(enemyTypeLabel);
-        this.spawnEnemyContainer.appendChild(this.spawnEnemySelect);
+        makeFormRow('Enemy Type', this.spawnEnemySelect, this.spawnEnemyContainer);
+
         this.spawnTypeContainer.appendChild(this.spawnEnemyContainer);
 
         // --- Container for custom Event selection and parameters ---
@@ -527,23 +539,10 @@ class EditorUIManager {
         this.spawnEventContainer.style.marginTop = '10px';
         this.spawnEventContainer.style.display = 'none';
 
-        const eventSelectLabel = document.createElement('label');
-        eventSelectLabel.textContent = 'Linked Event:';
-        eventSelectLabel.style.display = 'block';
-        eventSelectLabel.style.marginBottom = '2px';
         this.spawnEventSelect = document.createElement('select');
-        this.spawnEventSelect.style.width = '100%';
-        this.spawnEventSelect.style.marginBottom = '8px';
-        this.spawnEventContainer.appendChild(eventSelectLabel);
-        this.spawnEventContainer.appendChild(this.spawnEventSelect);
+        makeFormRow('Linked Event', this.spawnEventSelect, this.spawnEventContainer);
 
-        const eventModeLabel = document.createElement('label');
-        eventModeLabel.textContent = 'Trigger Type:';
-        eventModeLabel.style.display = 'block';
-        eventModeLabel.style.marginBottom = '2px';
         this.spawnEventModeSelect = document.createElement('select');
-        this.spawnEventModeSelect.style.width = '100%';
-        this.spawnEventModeSelect.style.marginBottom = '8px';
         const optUnlock = document.createElement('option');
         optUnlock.value = 'unlock_remove';
         optUnlock.textContent = '🚪 Lock Obstacle (Requires Item)';
@@ -552,29 +551,14 @@ class EditorUIManager {
         optGive.textContent = '📦 Interact Loot (Gives Item)';
         this.spawnEventModeSelect.appendChild(optUnlock);
         this.spawnEventModeSelect.appendChild(optGive);
-        this.spawnEventContainer.appendChild(eventModeLabel);
-        this.spawnEventContainer.appendChild(this.spawnEventModeSelect);
+        this.spawnEventModeRow = makeFormRow('Trigger Type', this.spawnEventModeSelect, this.spawnEventContainer);
 
-        const eventMsgLabel = document.createElement('label');
-        eventMsgLabel.textContent = 'Dialogue Message:';
-        eventMsgLabel.style.display = 'block';
-        eventMsgLabel.style.marginBottom = '2px';
         this.spawnEventMessageInput = document.createElement('input');
         this.spawnEventMessageInput.type = 'text';
         this.spawnEventMessageInput.placeholder = 'Dialogue prompt...';
-        this.spawnEventMessageInput.style.width = '100%';
-        this.spawnEventMessageInput.style.marginBottom = '8px';
-        this.spawnEventContainer.appendChild(eventMsgLabel);
-        this.spawnEventContainer.appendChild(this.spawnEventMessageInput);
+        this.spawnEventMessageRow = makeFormRow('Dialogue Message', this.spawnEventMessageInput, this.spawnEventContainer);
 
-        const eventEmojiLabel = document.createElement('label');
-        eventEmojiLabel.textContent = 'Visual Icon (Emoji):';
-        eventEmojiLabel.style.display = 'block';
-        eventEmojiLabel.style.marginBottom = '2px';
         this.spawnEventEmojiSelect = document.createElement('select');
-        this.spawnEventEmojiSelect.style.width = '100%';
-        this.spawnEventEmojiSelect.style.marginBottom = '8px';
-        
         const eventSymbols = ['🚪', '📦', '🔑', '⚡', '🟢', '💎', '🎟️', '📜', '💀', '🔮', '🛡️', '⚔️', '⭐', 'None'];
         eventSymbols.forEach(sym => {
             const opt = document.createElement('option');
@@ -582,10 +566,73 @@ class EditorUIManager {
             opt.textContent = sym;
             this.spawnEventEmojiSelect.appendChild(opt);
         });
-        this.spawnEventContainer.appendChild(eventEmojiLabel);
-        this.spawnEventContainer.appendChild(this.spawnEventEmojiSelect);
+        this.spawnEventEmojiRow = makeFormRow('Visual Icon', this.spawnEventEmojiSelect, this.spawnEventContainer);
 
         this.spawnTypeContainer.appendChild(this.spawnEventContainer);
+
+        // --- Spawner Settings (Collapsible) ---
+        this.spawnSettingsContainer = document.createElement('div');
+        this.spawnSettingsContainer.id = 'rpg-editor-spawn-settings-controls';
+        this.spawnSettingsContainer.style.marginTop = '10px';
+        this.spawnSettingsContainer.style.border = '1px solid #8C6D56';
+        this.spawnSettingsContainer.style.padding = '8px';
+        this.spawnSettingsContainer.style.borderRadius = '4px';
+        this.spawnSettingsContainer.style.backgroundColor = '#2c1e16';
+        this.spawnSettingsContainer.style.display = 'none';
+
+        const settingsHeader = document.createElement('div');
+        settingsHeader.style.fontWeight = 'bold';
+        settingsHeader.style.fontSize = '12px';
+        settingsHeader.style.color = '#e67e22';
+        settingsHeader.style.cursor = 'pointer';
+        settingsHeader.style.display = 'flex';
+        settingsHeader.style.justifyContent = 'space-between';
+        settingsHeader.style.alignItems = 'center';
+        settingsHeader.style.padding = '2px 0';
+        settingsHeader.innerHTML = '<span>⚙️ Procedural Spawner Settings</span> <span id="rpg-spawn-settings-arrow">▼</span>';
+        
+        const settingsBody = document.createElement('div');
+        settingsBody.id = 'rpg-spawn-settings-body';
+        settingsBody.style.display = 'flex';
+        settingsBody.style.flexDirection = 'column';
+        settingsBody.style.gap = '8px';
+        settingsBody.style.marginTop = '8px';
+
+        settingsHeader.onclick = () => {
+            if (settingsBody.style.display === 'none') {
+                settingsBody.style.display = 'flex';
+                document.getElementById('rpg-spawn-settings-arrow').textContent = '▼';
+            } else {
+                settingsBody.style.display = 'none';
+                document.getElementById('rpg-spawn-settings-arrow').textContent = '►';
+            }
+        };
+
+        // Respawner enabled
+        this.spawnRespawnCheckbox = document.createElement('input');
+        this.spawnRespawnCheckbox.type = 'checkbox';
+        this.spawnRespawnCheckbox.id = 'rpg-editor-spawn-respawn-check';
+        makeFormRow('Procedural Spawn', this.spawnRespawnCheckbox, settingsBody);
+
+        // Respawn delay (seconds)
+        this.spawnRespawnDelayInput = document.createElement('input');
+        this.spawnRespawnDelayInput.type = 'number';
+        this.spawnRespawnDelayInput.id = 'rpg-editor-spawn-respawn-delay';
+        this.spawnRespawnDelayInput.value = '10';
+        this.spawnRespawnDelayInput.min = '1';
+        makeFormRow('Respawn Delay (s)', this.spawnRespawnDelayInput, settingsBody);
+
+        // Max concurrent spawns
+        this.spawnLimitInput = document.createElement('input');
+        this.spawnLimitInput.type = 'number';
+        this.spawnLimitInput.id = 'rpg-editor-spawn-limit';
+        this.spawnLimitInput.value = '1';
+        this.spawnLimitInput.min = '1';
+        makeFormRow('Max Active Limit', this.spawnLimitInput, settingsBody);
+
+        this.spawnSettingsContainer.appendChild(settingsHeader);
+        this.spawnSettingsContainer.appendChild(settingsBody);
+        this.spawnTypeContainer.appendChild(this.spawnSettingsContainer);
 
         this.toolsContent.appendChild(this.spawnTypeContainer);
 
@@ -733,12 +780,19 @@ class EditorUIManager {
             if (this.spawnEnemyContainer) {
                 this.spawnEnemyContainer.style.display = (selectedSpawnType === SPAWN_TYPES.ENEMY) ? 'block' : 'none';
             }
+            if (this.spawnSettingsContainer) {
+                this.spawnSettingsContainer.style.display = (selectedSpawnType === SPAWN_TYPES.ENEMY) ? 'block' : 'none';
+            }
             if (this.spawnEventContainer) {
-                const showsEvent = (selectedSpawnType === SPAWN_TYPES.EVENT || selectedSpawnType === SPAWN_TYPES.ENEMY);
+                const showsEvent = (selectedSpawnType === SPAWN_TYPES.EVENT || selectedSpawnType === SPAWN_TYPES.ENEMY || selectedSpawnType === SPAWN_TYPES.PLAYER_EXIT);
                 this.spawnEventContainer.style.display = showsEvent ? 'block' : 'none';
                 if (showsEvent) {
                     this.populateEventSelect();
                 }
+                const isExit = (selectedSpawnType === SPAWN_TYPES.PLAYER_EXIT);
+                if (this.spawnEventModeRow) this.spawnEventModeRow.style.display = isExit ? 'none' : 'block';
+                if (this.spawnEventMessageRow) this.spawnEventMessageRow.style.display = isExit ? 'none' : 'block';
+                if (this.spawnEventEmojiRow) this.spawnEventEmojiRow.style.display = isExit ? 'none' : 'block';
             }
         }
 
@@ -929,6 +983,14 @@ class EditorUIManager {
             triggerType: this.spawnEventModeSelect ? this.spawnEventModeSelect.value : 'unlock_remove',
             message: this.spawnEventMessageInput ? this.spawnEventMessageInput.value : '',
             emoji: this.spawnEventEmojiSelect ? this.spawnEventEmojiSelect.value : ''
+        };
+    }
+
+    getSpawnerSettings() {
+        return {
+            procedural: this.spawnRespawnCheckbox ? this.spawnRespawnCheckbox.checked : false,
+            interval: this.spawnRespawnDelayInput ? parseFloat(this.spawnRespawnDelayInput.value) || 10 : 10,
+            limit: this.spawnLimitInput ? parseInt(this.spawnLimitInput.value) || 1 : 1
         };
     }
 

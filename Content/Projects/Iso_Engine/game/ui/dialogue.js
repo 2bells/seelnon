@@ -175,25 +175,26 @@ class DialogueUI {
             const nameLower = npc.name.toLowerCase();
             if (broadType.toLowerCase() === 'merchant' || nameLower.includes('doran') || nameLower.includes('shopkeeper') || nameLower === 'shortia') {
                 npc.inventory = [
-                    { name: 'Red Potion', type: 'consumable', heal: 40, cost: 20, value: 14, description: 'Restores 40 HP', count: 5 },
-                    { name: 'Gold Elixir', type: 'consumable', heal: 100, cost: 60, value: 42, description: 'Fully restores health', count: 2 },
-                    { name: 'Iron Sword', type: 'weapon', bonusAtk: 5, cost: 120, value: 84, description: '+5 Weapon attack power', count: 1 },
-                    { name: 'Steel Shield', type: 'shield', bonusDef: 4, cost: 100, value: 70, description: '+4 Defense gear', count: 1 }
+                    { id: 'std_red_potion', name: 'Red Potion', type: 'consumable', emoji: '❤️', heal: 40, cost: 20, value: 14, description: 'Restores 40 HP', count: 5 },
+                    { id: 'std_gold_elixir', name: 'Gold Elixir', type: 'consumable', emoji: '🍵', heal: 100, cost: 60, value: 42, description: 'Fully restores health', count: 2 },
+                    { id: 'std_iron_sword', name: 'Iron Sword', type: 'weapon', emoji: '🗡️', bonusAtk: 5, cost: 120, value: 84, description: '+5 Weapon attack power', count: 1 },
+                    { id: 'std_steel_shield', name: 'Steel Shield', type: 'shield', emoji: '🛡️', bonusDef: 4, cost: 100, value: 70, description: '+4 Defense gear', count: 1 },
+                    { id: 'item_emitter_plasma_orb', name: 'Plasma Orb Emitter Core', type: 'emitter', emoji: '⚡', cost: 150, value: 75, description: "Passive core. Shoots elegant Plasma Orb starburst rings automatically.", count: 1, emitterConfig: { projectileType: "starburst", cooldown: 1.5, range: 220, projectileSpeed: 180, burstCount: 5, damage: 18, projectileColor: "#f1c40f", renderType: "glow" } }
                 ];
                 npc.equippedWeapon = null;
                 npc.equippedShield = null;
             } else if (broadType.toLowerCase() === 'guard') {
                 npc.inventory = [
-                    { name: 'Iron Sword', type: 'weapon', bonusAtk: 5, cost: 120, value: 84, description: '+5 Weapon attack power', count: 1 },
-                    { name: 'Red Potion', type: 'consumable', heal: 40, cost: 20, value: 14, description: 'Restores 40 HP', count: 2 }
+                    { id: 'std_iron_sword', name: 'Iron Sword', type: 'weapon', emoji: '🗡️', bonusAtk: 5, cost: 120, value: 84, description: '+5 Weapon attack power', count: 1 },
+                    { id: 'std_red_potion', name: 'Red Potion', type: 'consumable', emoji: '❤️', heal: 40, cost: 20, value: 14, description: 'Restores 40 HP', count: 2 }
                 ];
-                npc.equippedWeapon = { name: 'Iron Sword', type: 'weapon', bonusAtk: 5, description: '+5 Weapon attack power' };
-                npc.equippedShield = { name: 'Steel Shield', type: 'shield', bonusDef: 4, description: '+4 Defense gear' };
+                npc.equippedWeapon = { id: 'std_iron_sword', name: 'Iron Sword', type: 'weapon', bonusAtk: 5, description: '+5 Weapon attack power' };
+                npc.equippedShield = { id: 'std_steel_shield', name: 'Steel Shield', type: 'shield', bonusDef: 4, description: '+4 Defense gear' };
             } else {
                 // Default villager / Lanna
                 npc.inventory = [
-                    { name: 'Green Herb', type: 'consumable', heal: 15, cost: 8, value: 5, description: 'Restores 15 HP', count: 3 },
-                    { name: 'Red Potion', type: 'consumable', heal: 40, cost: 20, value: 14, description: 'Restores 40 HP', count: 1 }
+                    { id: 'std_green_herb', name: 'Green Herb', type: 'consumable', emoji: '🌿', heal: 15, cost: 8, value: 5, description: 'Restores 15 HP', count: 3 },
+                    { id: 'std_red_potion', name: 'Red Potion', type: 'consumable', emoji: '❤️', heal: 40, cost: 20, value: 14, description: 'Restores 40 HP', count: 1 }
                 ];
                 npc.equippedWeapon = null;
                 npc.equippedShield = null;
@@ -371,8 +372,13 @@ class DialogueUI {
         container.innerHTML = '';
 
         let choices = [];
+        const nameLower = npc.name.toLowerCase();
+        const isPortalMerchant = nameLower.includes('portal merchant') || npc.id === 'npc_portal_merchant_cleared';
 
-        if (npc.characterData && Array.isArray(npc.characterData.dialogue_branches) && npc.characterData.dialogue_branches.length > 0) {
+        if (isPortalMerchant) {
+            // No custom gossip or map editor guides for interdimensional merchant
+            choices = [];
+        } else if (npc.characterData && Array.isArray(npc.characterData.dialogue_branches) && npc.characterData.dialogue_branches.length > 0) {
             choices = npc.characterData.dialogue_branches.map(branch => {
                 return {
                     text: branch.text || "...",
@@ -412,13 +418,26 @@ class DialogueUI {
 
         // Add standard RPG role integration buttons
         const broadType = npc.broadType || (npc.characterData && npc.characterData.broadType) || 'villager';
-        const nameLower = npc.name.toLowerCase();
-        if (broadType === 'merchant' || nameLower.includes('doran') || nameLower.includes('shopkeeper')) {
+        if (broadType === 'merchant' || nameLower.includes('doran') || nameLower.includes('shopkeeper') || isPortalMerchant) {
             choices.unshift({
                 text: "🏪 Barter / Open Shop",
                 action: () => {
                     this._appendPlayerChoice("Show me your trade stocks.");
                     this.setDialogueMode('shop');
+                }
+            });
+        }
+
+        if (isPortalMerchant) {
+            choices.push({
+                text: "🚪 Return Home",
+                action: () => {
+                    this._appendPlayerChoice("I'm ready to head back to town.");
+                    this.hideDialogue();
+                    const dev = this.engine.editorManager?.editors.chaos_map_device;
+                    if (dev && typeof dev.retreatFromItemWorld === 'function') {
+                        dev.retreatFromItemWorld(false); // Dimensional Victory already claimed instantly
+                    }
                 }
             });
         }

@@ -34,6 +34,7 @@ export class CreativeProjectile {
         
         this.lifeTime = options.lifeTime ?? 6.0; // 6 seconds before self-destruction
         this.age = 0;
+        this.turnAfterShot = options.turnAfterShot ?? 0;
     }
 
     update(deltaTime) {
@@ -82,6 +83,9 @@ export class CreativeProjectile {
         } 
         else {
             // Standard straight line projectile
+            if (this.turnAfterShot && this.turnAfterShot !== 0) {
+                this.angle += this.turnAfterShot * deltaTime;
+            }
             this.position.x += Math.cos(this.angle) * this.speed * deltaTime;
             this.position.y += Math.sin(this.angle) * this.speed * deltaTime;
         }
@@ -215,6 +219,10 @@ export class Emitter {
                     notify: pr.emitter?.notify ?? pr.notify ?? false,
                     cooldown: pr.emitter?.cooldown || pr.cooldown || 1.5,
                     range: pr.emitter?.range || pr.range || 220,
+                    spacing: pr.emitter?.spacing ?? pr.spacing ?? 0.5,
+                    spinning: pr.emitter?.spinning ?? pr.spinning ?? 0,
+                    turnAfterShot: pr.emitter?.turnAfterShot ?? pr.turnAfterShot ?? 0,
+                    burstDelay: pr.emitter?.burstDelay ?? pr.burstDelay ?? 0,
                 };
             }
         }
@@ -245,10 +253,36 @@ export class Emitter {
         // Telegraph option
         this.showArea = config.showArea ?? true;
         this.notify = config.notify ?? false;
+
+        // Custom features additions
+        this.spacing = config.spacing ?? 0.5;
+        this.spinning = config.spinning ?? 0;
+        this.turnAfterShot = config.turnAfterShot ?? 0;
+        this.burstDelay = config.burstDelay ?? 0;
+
+        this.burstQueue = [];
+        this.burstQueueTimer = 0;
+    }
+
+    spawnProjectile(options) {
+        if (!this.engine) return;
+        const proj = new CreativeProjectile(this.engine, options);
+        this.engine.addEffect(proj);
     }
 
     update(deltaTime) {
         if (!this.enabled) return;
+
+        if (this.burstQueue && this.burstQueue.length > 0) {
+            this.burstQueueTimer -= deltaTime;
+            if (this.burstQueueTimer <= 0) {
+                this.burstQueueTimer = this.burstDelay || 0.1;
+                const nextShot = this.burstQueue.shift();
+                if (nextShot) {
+                    this.spawnProjectile(nextShot);
+                }
+            }
+        }
 
         this.timer -= deltaTime;
         if (this.timer <= 0) {
@@ -346,40 +380,56 @@ export class Emitter {
 
         // Support dynamic firing behaviors
         const count = this.burstCount;
-        
+        const spacing = this.spacing ?? 0.5; // Custom angle-spread in radians
+        const spinningVal = this.spinning ?? 0;
+
+        let finalDamage = this.damage;
+        if (this.owner) {
+            let ownerAtk = 10;
+            if (typeof this.owner.getAtk === 'function') {
+                ownerAtk = this.owner.getAtk();
+            } else if (this.owner.stats && this.owner.stats.atk !== undefined) {
+                ownerAtk = this.owner.stats.atk;
+            }
+            // Standard scale: Base damage + 100% of Owner ATK
+            finalDamage = Math.floor(this.damage + 1.0 * ownerAtk);
+        }
+
+        const shotsToSchedule = [];
+
         if (this.projectileType === 'starburst') {
             // Fires a full starburst ring of bullets
             for (let i = 0; i < count; i++) {
                 const angle = baseAngle + (i * (Math.PI * 2) / count) + this.spiralOffset;
-                const proj = new CreativeProjectile(this.engine, {
+                shotsToSchedule.push({
                     startX, startY,
                     angle: angle,
                     speed: this.projectileSpeed,
-                    damage: this.damage,
+                    damage: finalDamage,
                     color: this.projectileColor,
                     radius: this.projectileRadius,
                     owner: this.owner,
                     emoji: this.emoji,
                     renderType: this.renderType,
-                    type: 'standard'
+                    type: 'standard',
+                    turnAfterShot: this.turnAfterShot
                 });
-                this.engine.addEffect(proj);
             }
-            this.spiralOffset += 0.25; // Spin the starburst!
+            this.spiralOffset += (spinningVal !== 0 ? spinningVal : 0.25);
         } 
         else if (count > 1) {
             // Spread shot pattern
-            const spreadAngle = 0.5; // Radians wide (~30 deg)
+            const spreadAngle = spacing;
             const angleStep = spreadAngle / (count - 1);
             const startAngle = baseAngle - spreadAngle / 2;
             
             for (let i = 0; i < count; i++) {
                 const angle = startAngle + (angleStep * i);
-                const proj = new CreativeProjectile(this.engine, {
+                shotsToSchedule.push({
                     startX, startY,
                     angle: angle,
                     speed: this.projectileSpeed,
-                    damage: this.damage,
+                    damage: finalDamage,
                     color: this.projectileColor,
                     radius: this.projectileRadius,
                     owner: this.owner,
@@ -389,18 +439,19 @@ export class Emitter {
                     type: this.projectileType,
                     circularSpeed: this.circularSpeed,
                     sinFrequency: this.sinFrequency,
-                    sinAmplitude: this.sinAmplitude
+                    sinAmplitude: this.sinAmplitude,
+                    turnAfterShot: this.turnAfterShot
                 });
-                this.engine.addEffect(proj);
             }
+            this.spiralOffset += spinningVal;
         } 
         else {
             // Single shot
-            const proj = new CreativeProjectile(this.engine, {
+            shotsToSchedule.push({
                 startX, startY,
                 angle: baseAngle,
                 speed: this.projectileSpeed,
-                damage: this.damage,
+                damage: finalDamage,
                 color: this.projectileColor,
                 radius: this.projectileRadius,
                 owner: this.owner,
@@ -410,9 +461,19 @@ export class Emitter {
                 type: this.projectileType,
                 circularSpeed: this.circularSpeed,
                 sinFrequency: this.sinFrequency,
-                sinAmplitude: this.sinAmplitude
+                sinAmplitude: this.sinAmplitude,
+                turnAfterShot: this.turnAfterShot
             });
-            this.engine.addEffect(proj);
+            this.spiralOffset += spinningVal;
+        }
+
+        // If burst delay is configured, queue these shots!
+        if (this.burstDelay && this.burstDelay > 0 && shotsToSchedule.length > 1) {
+            this.burstQueue = shotsToSchedule;
+            this.burstQueueTimer = 0; // Fire first shot immediately
+        } else {
+            // Otherwise, spawn all immediately
+            shotsToSchedule.forEach(opt => this.spawnProjectile(opt));
         }
     }
 

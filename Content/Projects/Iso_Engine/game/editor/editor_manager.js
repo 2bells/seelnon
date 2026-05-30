@@ -10,6 +10,7 @@ import ItemEditor from './item_editor.js';
 import BankEditor from './bank_editor.js';
 import EventEditor from './event_editor.js';
 import ProjectileCreator from './projectile_creator.js';
+import ChaosMapDevice from './chaos_map_device.js';
 
 class EditorManager {
     constructor(engine, modalContentElement) {
@@ -33,6 +34,7 @@ class EditorManager {
         this.editors.bank = new BankEditor(this.engine, this.modalContentElement);
         this.editors.event = new EventEditor(this.engine, this.modalContentElement);
         this.editors.projectile = new ProjectileCreator(this.engine, this.modalContentElement);
+        this.editors.chaos_map_device = new ChaosMapDevice(this.engine, this.modalContentElement);
     }
 
     toggle(editorName) {
@@ -130,7 +132,8 @@ class EditorManager {
             'rpg-item-editor-panel',
             'rpg-event-editor-panel',
             'rpg-bank-editor-panel',
-            'rpg-projectile-editor-panel'
+            'rpg-projectile-editor-panel',
+            'rpg-chaos-map-device-panel'
         ];
         const isRightSide = rightSideIds.includes(el.id);
         this._applyPanelResizer(el, isRightSide);

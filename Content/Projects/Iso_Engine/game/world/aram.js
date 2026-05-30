@@ -5,7 +5,116 @@ import Enemy from '../entities/enemy.js';
 import { FloatingTextEffect, TowerOrbEffect } from '../combat/effects.js';
 import { enemy_types } from '../../data/enemy-list.js';
 
+export function isARAMMap(map) {
+    if (!map) return false;
+    const name = (map.currentMapName || "").toLowerCase();
+    return name === "2_2_map" || name === "aram_level2_map";
+}
+
+export function checkAndSpawnARAMNPCs(engine) {
+    if (!isARAMMap(engine.map)) return;
+
+    // 1. Doran placement tweak: find Shopkeeper Doran runtime instance or reposition
+    for (const obj of engine.gameObjects) {
+        if (obj instanceof NPC && obj.name.toLowerCase().includes('doran')) {
+            const yCoord = engine.map.height - 1.0; // Dynamic based on height (23 for height 24, 35 for height 36)
+            obj.mapX = 10.0;
+            obj.mapY = yCoord;
+            const updatedPxScreen = engine.map.mapToScreen(obj.mapX, obj.mapY);
+            obj.currentPixelX = updatedPxScreen.x;
+            obj.currentPixelY = updatedPxScreen.y;
+        }
+    }
+
+    // 2. Programmatically spawn Merchant Scruffy if not loaded (representing the Red Faction Nexus / boss objective)
+    const isItemWorld = engine.map && engine.map.currentMapName && engine.map.currentMapName.startsWith('ItemWorld');
+    const hasScruffy = engine.gameObjects.some(obj => obj instanceof NPC && obj.name.toLowerCase().includes('scruffy'));
+    if (!hasScruffy && !isItemWorld) {
+        const scruffyMapCoords = { x: 10.0, y: 2.0 }; // Symmetrically offsetted and moved down from the wall
+        const scruffyOptions = {
+            id: 'npc_permanent_scruffy',
+            name: "Merchant Scruffy",
+            assetName: 'npcSpritesheet',
+            spriteSourceRect: { x: 128, y: 0, width: 64, height: 64 } // Frame 2 in spritesheet (nice wizard/merchant visual)
+        };
+
+        const diffLevel = engine.aramDifficultyLevel || 1;
+        const playerLvl = engine.player && engine.player.stats ? engine.player.stats.level : 1;
+        
+        let scaleFactor;
+        if (diffLevel >= 2) {
+            scaleFactor = 1 + (diffLevel - 1) * 0.75 + (playerLvl - 1) * 0.35; // Drastic scaling for Level 2+
+        } else {
+            scaleFactor = 1 + (diffLevel - 1) * 0.4 + (playerLvl - 1) * 0.16;
+        }
+
+        const scruffyData = {
+            name: "Merchant Scruffy",
+            description: "Scurrilous rival merchant and guardian of the Red Faction Nexus.",
+            personality: "Calls Blue Faction peasants trash, boasts about his ultimate defensive elixirs.",
+            first_mes: "Aha! You think you can conquer the Red Faction?! Beat my Red Sentry and my loyal slimes first, or buy my Infinity Edge!",
+            mes_example: "",
+            scenario: "Sells elite battle gear, weapons and shields to player for coin.",
+            map_sprite: { type: "spritesheet", source: 2 },
+            stats: { 
+                level: Math.round(12 + (diffLevel - 1) * 3 + (playerLvl - 1) * 0.5), 
+                hp: Math.round(550 * scaleFactor), 
+                maxHp: Math.round(550 * scaleFactor), 
+                atk: Math.round(45 * scaleFactor), 
+                def: Math.round(12 * scaleFactor), 
+                speed: 120 
+            },
+            inventory: [
+                {
+                    name: "Infinity Edge",
+                    type: "weapon",
+                    bonusAtk: 45,
+                    cost: 400,
+                    description: "+45 Attack. Guaranteed critical blow multiplier.",
+                    count: 1
+                },
+                {
+                    name: "Warmog's Armor",
+                    type: "shield",
+                    bonusDef: 30,
+                    cost: 350,
+                    description: "+30 Defense. Scurrilous ultimate protection barrier.",
+                    count: 1
+                }
+            ]
+        };
+        const scruffyNpc = new NPC(engine, engine.map, scruffyMapCoords.x, scruffyMapCoords.y, scruffyOptions);
+        scruffyNpc.loadCharacterData(scruffyData);
+        engine.gameObjects.push(scruffyNpc);
+        console.log(`Spawned Merchant Scruffy programmatically at map coords (${scruffyMapCoords.x}, ${scruffyMapCoords.y}).`);
+    }
+}
+
+export function scaleARAMEnemyStats(engine, enemyInstanceData) {
+    if (!isARAMMap(engine.map)) return;
+
+    const diffLevel = engine.aramDifficultyLevel || 1;
+    const playerLvl = engine.player && engine.player.stats ? engine.player.stats.level : 1;
+    
+    let scaleFactor;
+    if (diffLevel >= 2) {
+        scaleFactor = 1 + (diffLevel - 1) * 0.75 + (playerLvl - 1) * 0.35; // Drastic enemy scaling for Level 2+
+    } else {
+        scaleFactor = 1 + (diffLevel - 1) * 0.35 + (playerLvl - 1) * 0.15;
+    }
+
+    if (enemyInstanceData.stats) {
+        enemyInstanceData.stats.level = playerLvl + (diffLevel - 1) * 2;
+        enemyInstanceData.stats.maxHp = Math.round((enemyInstanceData.stats.maxHp || 40) * scaleFactor);
+        enemyInstanceData.stats.hp = enemyInstanceData.stats.maxHp;
+        enemyInstanceData.stats.atk = Math.round((enemyInstanceData.stats.atk || 10) * scaleFactor);
+        enemyInstanceData.stats.def = Math.round((enemyInstanceData.stats.def || 5) * scaleFactor);
+    }
+}
+
 export function updateARAMSystems(engine, deltaTime) {
+    if (!isARAMMap(engine.map)) return;
+
     // Wave Spawning System
     if (engine.waveSpawnTimer === undefined) {
         engine.waveSpawnTimer = 1.0; // Fast first wave spawn (1s) after setup
@@ -47,9 +156,24 @@ export function updateARAMSystems(engine, deltaTime) {
                                 if (!engine.gameObjects.some(o => o.name && o.name.toLowerCase().includes('scruffy') && o.stats && o.stats.hp > 0)) return;
 
                                 const enemyInstanceData = JSON.parse(JSON.stringify(slimeData));
+                                
+                                const diffLevel = engine.aramDifficultyLevel || 1;
+                                const playerLvl = engine.player && engine.player.stats ? engine.player.stats.level : 1;
+                                
+                                let scaleFactor;
+                                let damageMultiplier = 1.0;
+                                if (diffLevel >= 2) {
+                                    scaleFactor = 1 + (diffLevel - 1) * 0.8 + (playerLvl - 1) * 0.4;
+                                    damageMultiplier = 1.75; // Red slimes do drastically higher damage on level 2
+                                } else {
+                                    scaleFactor = 1 + (diffLevel - 1) * 0.35 + (playerLvl - 1) * 0.15;
+                                }
+                                
                                 enemyInstanceData.stats.speed = 65;
-                                enemyInstanceData.stats.maxHp = 40;
-                                enemyInstanceData.stats.hp = 40;
+                                enemyInstanceData.stats.maxHp = Math.round(40 * scaleFactor);
+                                enemyInstanceData.stats.hp = enemyInstanceData.stats.maxHp;
+                                enemyInstanceData.stats.atk = Math.round((enemyInstanceData.stats.atk || 8) * scaleFactor * damageMultiplier);
+                                enemyInstanceData.stats.level = playerLvl + (diffLevel - 1) * 2;
                                 
                                 const enemy = new Enemy(engine, engine.map, mapCoords.x, mapCoords.y, enemyInstanceData);
                                 enemy.friendly = false;
@@ -76,9 +200,22 @@ export function updateARAMSystems(engine, deltaTime) {
                                 if (!engine.gameObjects.some(o => o.name && o.name.toLowerCase().includes('doran') && o.stats && o.stats.hp > 0)) return;
 
                                 const friendlyInstanceData = JSON.parse(JSON.stringify(slimeData));
+                                
+                                const diffLevel = engine.aramDifficultyLevel || 1;
+                                const playerLvl = engine.player && engine.player.stats ? engine.player.stats.level : 1;
+                                
+                                let scaleFactor;
+                                if (diffLevel >= 2) {
+                                    scaleFactor = 1 + (diffLevel - 1) * 0.8 + (playerLvl - 1) * 0.4;
+                                } else {
+                                    scaleFactor = 1 + (diffLevel - 1) * 0.35 + (playerLvl - 1) * 0.15;
+                                }
+                                
                                 friendlyInstanceData.stats.speed = 65;
-                                friendlyInstanceData.stats.maxHp = 40;
-                                friendlyInstanceData.stats.hp = 40;
+                                friendlyInstanceData.stats.maxHp = Math.round(40 * scaleFactor);
+                                friendlyInstanceData.stats.hp = friendlyInstanceData.stats.maxHp;
+                                friendlyInstanceData.stats.atk = Math.round((friendlyInstanceData.stats.atk || 8) * scaleFactor);
+                                friendlyInstanceData.stats.level = playerLvl + (diffLevel - 1) * 2;
                                 friendlyInstanceData.name = "Allied Slime"; // Rename to Allied Slime
                                 
                                 const alliedSlime = new Enemy(engine, engine.map, mapCoords.x, mapCoords.y, friendlyInstanceData);
@@ -98,12 +235,22 @@ export function updateARAMSystems(engine, deltaTime) {
         const isTowerRed = obj.type === 'tower_enemy';
 
         if (isTowerBlue || isTowerRed) {
-            // Sentry Auto-initialization
+            // Sentry Auto-initialization with ARAM level scaling
             if (!obj.stats) {
+                const diffLevel = engine.aramDifficultyLevel || 1;
+                const playerLvl = engine.player && engine.player.stats ? engine.player.stats.level : 1;
+                
+                let scaleFactor;
+                if (diffLevel >= 2) {
+                    scaleFactor = 1 + (diffLevel - 1) * 0.85 + (playerLvl - 1) * 0.35; // Drastic tower scaling
+                } else {
+                    scaleFactor = 1 + (diffLevel - 1) * 0.35 + (playerLvl - 1) * 0.15;
+                }
+
                 obj.stats = {
-                    hp: 450,
-                    maxHp: 450,
-                    atk: 25,
+                    hp: Math.round(450 * scaleFactor),
+                    maxHp: Math.round(450 * scaleFactor),
+                    atk: Math.round(25 * scaleFactor),
                     attackRange: 140, // Balanced range synchronized perfectly with bridges
                     attackCooldown: 1.0, 
                     isDestroyed: false
@@ -272,7 +419,7 @@ export function updateARAMSystems(engine, deltaTime) {
                         }
 
                         setTimeout(() => {
-                            const bannerText = isVictory ? "VICTORY! Sentry down! League ARAM Complete!" : "TOWER DOWN! The Allied Sentry has fallen! Protect Shopkeeper Doran!";
+                            const bannerText = isVictory ? "TOWER FALLEN! An enemy tower has fallen!" : "TOWER DOWN! The Allied Sentry has fallen! Protect Shopkeeper Doran!";
                             const bannerType = isVictory ? "victory" : "warning";
                             engine.showTopBannerAnnouncement(bannerText, bannerType);
                         }, 1500);

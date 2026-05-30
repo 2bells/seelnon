@@ -78,7 +78,7 @@ class EventEditor {
         // Toggle panel title
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'rpg-event-editor-toggle';
-        toggleBtn.textContent = '⚡ Custom Event Designer';
+        toggleBtn.textContent = 'Event Designer';
         toggleBtn.onclick = () => this.toggleCollapse();
         this.panel.appendChild(toggleBtn);
 
@@ -242,33 +242,90 @@ class EventEditor {
         // --- Action Buttons ---
         const btnRow = document.createElement('div');
         btnRow.style.display = 'flex';
-        btnRow.style.gap = '8px';
+        btnRow.style.gap = '4px';
         btnRow.style.marginTop = '10px';
+        btnRow.style.width = '100%';
+        btnRow.style.alignItems = 'center';
 
         const saveBtn = document.createElement('button');
-        saveBtn.textContent = '💾 Save Event';
-        saveBtn.style.flex = '1';
+        saveBtn.textContent = '💾 Save';
+        saveBtn.style.flex = '1.2';
         saveBtn.style.backgroundColor = '#2ecc71';
         saveBtn.style.color = '#fff';
         saveBtn.style.border = 'none';
-        saveBtn.style.padding = '6px';
+        saveBtn.style.height = '28px';
+        saveBtn.style.fontSize = '11px';
         saveBtn.style.fontWeight = 'bold';
         saveBtn.style.cursor = 'pointer';
+        saveBtn.style.borderRadius = '4px';
         saveBtn.onclick = () => this.saveEvent();
+        btnRow.appendChild(saveBtn);
+
+        const exportBtn = document.createElement('button');
+        exportBtn.textContent = '📤 Export';
+        exportBtn.style.flex = '1';
+        exportBtn.style.backgroundColor = '#2980b9';
+        exportBtn.style.color = '#fff';
+        exportBtn.style.border = 'none';
+        exportBtn.style.height = '28px';
+        exportBtn.style.fontSize = '11px';
+        exportBtn.style.fontWeight = 'bold';
+        exportBtn.style.cursor = 'pointer';
+        exportBtn.style.borderRadius = '4px';
+        exportBtn.onclick = () => this.exportCurrentEvent();
+        btnRow.appendChild(exportBtn);
+
+        const evFileId = 'rpg-event-editor-single-import-input';
+        const fileInput = document.createElement('input');
+        fileInput.id = evFileId;
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+        fileInput.style.display = 'none';
+        fileInput.onchange = (e) => this.importEventFile(e);
+        btnRow.appendChild(fileInput);
+
+        const importLabel = document.createElement('label');
+        importLabel.htmlFor = evFileId;
+        importLabel.textContent = '📥 Import';
+        importLabel.style.flex = '1';
+        importLabel.style.display = 'inline-block';
+        importLabel.style.color = '#fff';
+        importLabel.style.border = '1px solid #5A4B3E';
+        importLabel.style.height = '28px';
+        importLabel.style.lineHeight = '26px';
+        importLabel.style.borderRadius = '4px';
+        importLabel.style.fontWeight = 'bold';
+        importLabel.style.textAlign = 'center';
+        importLabel.style.cursor = 'pointer';
+        importLabel.style.backgroundColor = '#8c765c';
+        importLabel.style.fontSize = '11px';
+        importLabel.style.boxSizing = 'border-box';
+        importLabel.style.margin = '0';
+        importLabel.style.padding = '0';
+        btnRow.appendChild(importLabel);
 
         const clearBtn = document.createElement('button');
-        clearBtn.textContent = '❌ Clear';
-        clearBtn.style.flex = '1';
+        clearBtn.textContent = '🗑️';
+        clearBtn.style.flex = '0.4';
         clearBtn.style.backgroundColor = '#e74c3c';
         clearBtn.style.color = '#fff';
         clearBtn.style.border = 'none';
-        clearBtn.style.padding = '6px';
+        clearBtn.style.height = '28px';
         clearBtn.style.fontWeight = 'bold';
         clearBtn.style.cursor = 'pointer';
-        clearBtn.onclick = () => this.clearForm();
-
-        btnRow.appendChild(saveBtn);
+        clearBtn.style.borderRadius = '4px';
+        clearBtn.style.display = 'flex';
+        clearBtn.style.alignItems = 'center';
+        clearBtn.style.justifyContent = 'center';
+        clearBtn.onclick = () => {
+            if (this.selectedEventId) {
+                this.deleteEvent(this.selectedEventId);
+            } else {
+                this.clearForm();
+            }
+        };
         btnRow.appendChild(clearBtn);
+
         formGrid.appendChild(btnRow);
 
         content.appendChild(formGrid);
@@ -367,6 +424,61 @@ class EventEditor {
         this.fields.emojiSelect.selectedIndex = 0;
         this.fields.costInput.value = '100';
         this.fields.modeSelect.selectedIndex = 0;
+    }
+
+    exportCurrentEvent() {
+        const name = this.fields.nameInput.value.trim();
+        if (!name) {
+            CustomDialog.alert('Please design or load an Event first to export.', 'Missing Name');
+            return;
+        }
+        const evt = {
+            id: this.selectedEventId || `evt_${Date.now()}`,
+            name: name,
+            description: this.fields.descInput.value.trim(),
+            emoji: this.fields.emojiSelect.value,
+            cost: Number(this.fields.costInput.value) || 0,
+            mode: this.fields.modeSelect.value,
+            timestamp: Date.now()
+        };
+        const json = JSON.stringify(evt, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileName = name.toLowerCase().replace(/[^a-z0-9]/gi, '_');
+        a.download = `event_${fileName}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    importEventFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!importedData || !importedData.id || !importedData.name) {
+                    CustomDialog.alert("JSON file does not appear to be a valid Event config.", "Import Failed");
+                    return;
+                }
+
+                saveCustomEvent(importedData);
+                this.loadEventIntoForm(importedData);
+                this.refreshEventsList();
+                
+                CustomDialog.alert(`Successfully imported Custom Event "${importedData.name}"!`, "Import Complete");
+            } catch (err) {
+                console.error(err);
+                CustomDialog.alert("Could not load Event JSON: file format is invalid.", "Import Error");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
     }
 
     loadEventIntoForm(evt) {

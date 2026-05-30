@@ -63,7 +63,7 @@ class ItemEditor {
 
         const titleButton = document.createElement('button');
         titleButton.id = 'rpg-item-editor-toggle';
-        titleButton.textContent = '💎 Custom Item Creator & Bank';
+        titleButton.textContent = 'Custom Item Creator';
         titleButton.onclick = () => this.panel.classList.toggle('collapsed');
         this.panel.appendChild(titleButton);
 
@@ -137,7 +137,7 @@ class ItemEditor {
         content.appendChild(selectorSection);
 
         // --- SECTION 1.5: Item Bank (Vault) ---
-        this.createItemBankSection(content);
+        // Hidden/Removed as requested: Bank is accessible as separate menu in the top bar.
 
         // --- SECTION 2: Form Configurations (NPC style layout) ---
         const formSection = document.createElement('div');
@@ -250,7 +250,8 @@ class ItemEditor {
                 { val: 'armor', label: '👕 Armor (Equippable)' },
                 { val: 'consumable', label: '❤️ Potions / Consumable' },
                 { val: 'material', label: '💰 Material / Quest Loot' },
-                { val: 'passive', label: '💍 Charm / Relic' }
+                { val: 'passive', label: '💍 Charm / Relic' },
+                { val: 'emitter', label: '📡 Passive Autonomous Emitter (Equippable)' }
             ]
         });
 
@@ -387,6 +388,72 @@ class ItemEditor {
         makeField(spellBox, 'Select Spell', 'select', 'attachedAbility');
         form.appendChild(spellBox);
 
+        // 8.5 Dynamic Autonomous Emitter Config
+        const emitterBox = document.createElement('div');
+        emitterBox.id = 'item-editor-emitter-box';
+        emitterBox.style.display = 'none'; // Only show if item type is 'emitter'
+        emitterBox.style.flexDirection = 'column';
+        emitterBox.style.marginTop = '8px';
+        emitterBox.style.backgroundColor = '#251E1A';
+        emitterBox.style.padding = '8px';
+        emitterBox.style.borderRadius = '5px';
+        emitterBox.style.border = '1px solid #3B322C';
+        
+        const grpTitleEmitter = document.createElement('div');
+        grpTitleEmitter.style.fontSize = '0.86em';
+        grpTitleEmitter.style.fontWeight = 'bold';
+        grpTitleEmitter.style.color = '#e67e22';
+        grpTitleEmitter.style.marginBottom = '4px';
+        grpTitleEmitter.textContent = '📡 Autonomous Emitter Properties';
+        emitterBox.appendChild(grpTitleEmitter);
+
+        const emitterGrid1 = colGrid2(emitterBox);
+        makeField(emitterGrid1, 'Projectile Behavior', 'select', 'emitter_projectileType', {
+            options: [
+                { val: 'standard', label: 'Standard Linear Shot' },
+                { val: 'seeking', label: 'Homing/Seeking Shot' },
+                { val: 'circular', label: 'Spiral / Orbital Orbit' },
+                { val: 'sinewave', label: 'Oscillating Sine Wave' },
+                { val: 'starburst', label: 'Starburst Nova Ring' }
+            ]
+        });
+        makeField(emitterGrid1, 'Cooldown Interval (s)', 'number', 'emitter_cooldown', { min: 0.1, step: 0.1 });
+
+        const emitterGrid2 = colGrid2(emitterBox);
+        makeField(emitterGrid2, 'Detection Range (px)', 'number', 'emitter_range', { min: 20 });
+        makeField(emitterGrid2, 'Projectile Speed (px/s)', 'number', 'emitter_projectileSpeed', { min: 10 });
+
+        const emitterGrid3 = colGrid2(emitterBox);
+        makeField(emitterGrid3, 'Burst Bullet Count', 'number', 'emitter_burstCount', { min: 1 });
+        makeField(emitterGrid3, 'Base Bullet Damage', 'number', 'emitter_damage', { min: 0 });
+
+        const emitterGrid4 = colGrid2(emitterBox);
+        makeField(emitterGrid4, 'Glow Spark Color Hex', 'text', 'emitter_projectileColor', { placeholder: '#f39c12' });
+        makeField(emitterGrid4, 'Spit Icon / Emoji', 'text', 'emitter_emoji', { placeholder: '☄️' });
+
+        const emitterGrid5 = colGrid2(emitterBox);
+        makeField(emitterGrid5, 'Bullet Radius (px)', 'number', 'emitter_projectileRadius', { min: 1, max: 50 });
+        makeField(emitterGrid5, 'Render Type', 'select', 'emitter_renderType', {
+            options: [
+                { val: 'glow', label: 'Glow Effect Circle' },
+                { val: 'emoji', label: 'Sprite Emoji' }
+            ]
+        });
+
+        const emitterGrid6 = colGrid2(emitterBox);
+        makeField(emitterGrid6, 'Spinning Rate (rad)', 'number', 'emitter_spinning', { step: 0.05 });
+        makeField(emitterGrid6, 'Curve after Shot (rad)', 'number', 'emitter_turnAfterShot', { step: 0.05 });
+
+        form.appendChild(emitterBox);
+
+        // Wire class selector change to show/hide emitterBox
+        const typeSelectField = this.fields.type;
+        if (typeSelectField) {
+            typeSelectField.addEventListener('change', () => {
+                emitterBox.style.display = (typeSelectField.value === 'emitter') ? 'flex' : 'none';
+            });
+        }
+
         // 9. Initial Owner/Spawn Allocation
         const allocationBox = document.createElement('div');
         allocationBox.style.display = 'flex';
@@ -423,30 +490,80 @@ class ItemEditor {
 
         const actionBtns = document.createElement('div');
         actionBtns.style.display = 'flex';
-        actionBtns.style.gap = '8px';
+        actionBtns.style.gap = '4px';
+        actionBtns.style.width = '100%';
+        actionBtns.style.alignItems = 'center';
+        actionBtns.style.marginTop = '4px';
 
         const btnSave = document.createElement('button');
-        btnSave.textContent = '💾 Save to Game';
-        btnSave.style.flex = '2';
+        btnSave.textContent = '💾 Save';
+        btnSave.style.flex = '1.2';
         btnSave.style.backgroundColor = '#27ae60';
         btnSave.style.color = 'white';
         btnSave.style.border = 'none';
-        btnSave.style.padding = '8px';
+        btnSave.style.height = '28px';
+        btnSave.style.fontSize = '11px';
         btnSave.style.fontWeight = 'bold';
         btnSave.style.borderRadius = '4px';
         btnSave.style.cursor = 'pointer';
         btnSave.onclick = () => this.saveCurrentFormToLibrary();
         actionBtns.appendChild(btnSave);
 
+        const btnExportItem = document.createElement('button');
+        btnExportItem.textContent = '📤 Export';
+        btnExportItem.style.flex = '1';
+        btnExportItem.style.backgroundColor = '#2980b9';
+        btnExportItem.style.color = 'white';
+        btnExportItem.style.border = 'none';
+        btnExportItem.style.height = '28px';
+        btnExportItem.style.fontSize = '11px';
+        btnExportItem.style.fontWeight = 'bold';
+        btnExportItem.style.borderRadius = '4px';
+        btnExportItem.style.cursor = 'pointer';
+        btnExportItem.onclick = () => this.exportCurrentItem();
+        actionBtns.appendChild(btnExportItem);
+
+        const itemImportInputId = 'rpg-item-editor-single-import-input';
+        const fileInputItem = document.createElement('input');
+        fileInputItem.id = itemImportInputId;
+        fileInputItem.type = 'file';
+        fileInputItem.accept = '.json';
+        fileInputItem.style.display = 'none';
+        fileInputItem.onchange = (e) => this.importItemFile(e);
+        actionBtns.appendChild(fileInputItem);
+
+        const labelImportItem = document.createElement('label');
+        labelImportItem.htmlFor = itemImportInputId;
+        labelImportItem.textContent = '📥 Import';
+        labelImportItem.style.flex = '1';
+        labelImportItem.style.display = 'inline-block';
+        labelImportItem.style.textAlign = 'center';
+        labelImportItem.style.cursor = 'pointer';
+        labelImportItem.style.backgroundColor = '#8c765c';
+        labelImportItem.style.color = 'white';
+        labelImportItem.style.border = '1px solid #5A4B3E';
+        labelImportItem.style.height = '28px';
+        labelImportItem.style.lineHeight = '26px';
+        labelImportItem.style.borderRadius = '4px';
+        labelImportItem.style.fontWeight = 'bold';
+        labelImportItem.style.fontSize = '11px';
+        labelImportItem.style.boxSizing = 'border-box';
+        labelImportItem.style.margin = '0';
+        labelImportItem.style.padding = '0';
+        actionBtns.appendChild(labelImportItem);
+
         const btnDelete = document.createElement('button');
-        btnDelete.textContent = '🗑️ Delete';
-        btnDelete.style.flex = '1';
+        btnDelete.textContent = '🗑️';
+        btnDelete.style.flex = '0.4';
         btnDelete.style.backgroundColor = '#c0392b';
         btnDelete.style.color = 'white';
         btnDelete.style.border = 'none';
-        btnDelete.style.padding = '8px';
+        btnDelete.style.height = '28px';
         btnDelete.style.borderRadius = '4px';
         btnDelete.style.cursor = 'pointer';
+        btnDelete.style.display = 'flex';
+        btnDelete.style.alignItems = 'center';
+        btnDelete.style.justifyContent = 'center';
         btnDelete.onclick = () => this.deleteSelectedItem();
         actionBtns.appendChild(btnDelete);
 
@@ -917,6 +1034,18 @@ class ItemEditor {
             { id: "std_green_herb", name: "Green Herb", emoji: "🌿" },
             { id: "std_iron_sword", name: "Iron Sword", emoji: "🗡️" },
             { id: "std_steel_shield", name: "Steel Shield", emoji: "🛡️" },
+            { id: "std_lunate_armor", name: "Lunate Leather Mail", emoji: "👕" },
+            { id: "itm_portal_elixir_1", name: "Dimensional Elixir", emoji: "🧪" },
+            { id: "itm_cosmos_ward_1", name: "Astral Ward", emoji: "🛡️" },
+            { id: "itm_cosmos_blade_1", name: "Cosmos Blade", emoji: "🗡️" },
+            { id: "item_slime_leap", name: "Tome of Slime Leap", emoji: "🐸" },
+            { id: "item_dash_strike", name: "Ring of Dash Strike", emoji: "⚔️" },
+            { id: "item_blood_siphon", name: "Amulet of Blood Siphon", emoji: "❤️" },
+            { id: "item_earth_wall", name: "Rune of Earth Wall", emoji: "⛰️" },
+            { id: "item_plasma_orb", name: "Tome of Plasma Orb", emoji: "⚡" },
+            { id: "item_emitter_plasma_orb", name: "Plasma Orb Emitter Core", emoji: "⚡" },
+            { id: "item_emitter_sentry_tower", name: "Ancient Sentry Emitter", emoji: "📡" },
+            { id: "item_gatekeeper_key", name: "Gatekeeper Key", emoji: "🔑" },
             { id: "std_lucky_ring", name: "Lucky Charm Ring", emoji: "💍" }
         ];
 
@@ -1021,10 +1150,31 @@ class ItemEditor {
         this.fields.heal.value = item.heal ?? '0';
         this.fields.curseHp.value = item.curseHp ?? '0';
         this.fields.attachedAbility.value = item.attachedAbility || '';
+
+        // Display of emitter properties box
+        const emitterBox = document.getElementById('item-editor-emitter-box');
+        if (emitterBox) {
+            emitterBox.style.display = (item.type === 'emitter') ? 'flex' : 'none';
+        }
+
+        // Load emitter config values if present
+        const ec = item.emitterConfig || {};
+        if (this.fields.emitter_projectileType) this.fields.emitter_projectileType.value = ec.projectileType || 'standard';
+        if (this.fields.emitter_cooldown) this.fields.emitter_cooldown.value = ec.cooldown ?? '1.5';
+        if (this.fields.emitter_range) this.fields.emitter_range.value = ec.range ?? '220';
+        if (this.fields.emitter_projectileSpeed) this.fields.emitter_projectileSpeed.value = ec.projectileSpeed ?? '160';
+        if (this.fields.emitter_burstCount) this.fields.emitter_burstCount.value = ec.burstCount ?? '1';
+        if (this.fields.emitter_damage) this.fields.emitter_damage.value = ec.damage ?? '15';
+        if (this.fields.emitter_projectileColor) this.fields.emitter_projectileColor.value = ec.projectileColor || '#ff3333';
+        if (this.fields.emitter_emoji) this.fields.emitter_emoji.value = ec.emoji || '☄️';
+        if (this.fields.emitter_projectileRadius) this.fields.emitter_projectileRadius.value = ec.projectileRadius ?? '8';
+        if (this.fields.emitter_renderType) this.fields.emitter_renderType.value = ec.renderType || 'glow';
+        if (this.fields.emitter_spinning) this.fields.emitter_spinning.value = ec.spinning ?? '0';
+        if (this.fields.emitter_turnAfterShot) this.fields.emitter_turnAfterShot.value = ec.turnAfterShot ?? '0';
     }
 
     getCurrentFormConfig() {
-        return {
+        const config = {
             id: this.fields.id_slug.value.trim().toLowerCase(),
             name: this.fields.name.value.trim() || 'Custom Item',
             type: this.fields.type.value,
@@ -1044,6 +1194,24 @@ class ItemEditor {
             curseHp: parseInt(this.fields.curseHp.value, 10) || 0,
             attachedAbility: this.fields.attachedAbility.value || null
         };
+
+        if (this.fields.type.value === 'emitter') {
+            config.emitterConfig = {
+                projectileType: this.fields.emitter_projectileType.value,
+                cooldown: parseFloat(this.fields.emitter_cooldown.value) || 1.5,
+                range: parseInt(this.fields.emitter_range.value, 10) || 220,
+                projectileSpeed: parseInt(this.fields.emitter_projectileSpeed.value, 10) || 160,
+                burstCount: parseInt(this.fields.emitter_burstCount.value, 10) || 1,
+                damage: parseInt(this.fields.emitter_damage.value, 10) || 15,
+                projectileColor: this.fields.emitter_projectileColor.value || '#ff3333',
+                emoji: this.fields.emitter_emoji.value || '☄️',
+                projectileRadius: parseInt(this.fields.emitter_projectileRadius.value, 10) || 8,
+                renderType: this.fields.emitter_renderType.value || 'glow',
+                spinning: parseFloat(this.fields.emitter_spinning.value) || 0,
+                turnAfterShot: parseFloat(this.fields.emitter_turnAfterShot.value) || 0
+            };
+        }
+        return config;
     }
 
     saveCurrentFormToLibrary() {
@@ -1098,6 +1266,61 @@ class ItemEditor {
                 CustomDialog.alert("Item blueprint deleted from campaign.", "Delete Succeeded");
             }
         });
+    }
+
+    exportCurrentItem() {
+        const config = this.getCurrentFormConfig();
+        if (!config.id) {
+            CustomDialog.alert("ID slug is required to export the custom item.", "Validation Failure");
+            return;
+        }
+        const json = JSON.stringify(config, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileName = (config.name || 'custom_item').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+        a.download = `item_${fileName}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        CustomDialog.alert(`Export template for "${config.name}" downloaded!`, "Export Succeeded");
+    }
+
+    importItemFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!importedData || !importedData.id || !importedData.name) {
+                    CustomDialog.alert("JSON file does not appear to be a valid Custom Item config.", "Import Failed");
+                    return;
+                }
+
+                saveCustomItem(importedData);
+                this.selectedItemId = importedData.id;
+                this.refreshItemDropdown();
+                this.refreshBankList();
+                this.loadItemIntoForm();
+
+                // Refresh sibling Bank & Vault Editor view if active!
+                const bankEditor = this.engine.editorManager ? this.engine.editorManager.editors.bank : null;
+                if (bankEditor) {
+                    bankEditor.renderDatabaseView();
+                }
+
+                CustomDialog.alert(`Successfully imported Custom Item "${importedData.name}"!`, "Import Complete");
+            } catch (err) {
+                console.error(err);
+                CustomDialog.alert("Could not load Item JSON: format is invalid.", "Import Error");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
     }
 
     spawnItemInPlayerInventory(silent = false) {

@@ -39,7 +39,8 @@ export function initStandaloneGame() {
                     gameEngineInstance.player.currentPixelX,
                     gameEngineInstance.player.currentPixelY,
                     effectiveCanvasWidth,
-                    effectiveCanvasHeight
+                    effectiveCanvasHeight,
+                    true
                 );
             }
         }

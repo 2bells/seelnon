@@ -2,6 +2,7 @@
 import GameObject from './gameObject.js';
 import { FloatingTextEffect } from '../combat/effects.js';
 import { Emitter } from '../combat/projectiles.js';
+import { getAllAbilities } from '../combat/ability_system.js';
 
 const NPC_COLLISION_WIDTH = 20;
 const NPC_COLLISION_HEIGHT = 10;
@@ -32,6 +33,7 @@ class NPC extends GameObject {
         this.isHit = false;
         this.hitFlashTimer = 0;
         this.emitter = null;
+        this.emitters = [];
     }
 
     update(deltaTime) {
@@ -43,6 +45,9 @@ class NPC extends GameObject {
         }
         if (this.emitter) {
             this.emitter.update(deltaTime);
+        }
+        if (this.emitters && this.emitters.length > 0) {
+            this.emitters.forEach(em => em.update(deltaTime));
         }
     }
 
@@ -90,6 +95,7 @@ class NPC extends GameObject {
             
             // Turn off shooting
             this.emitter = null;
+            this.emitters = [];
             this.broadType = 'chest';
             this.name = `Wreckage of ${emitterName}`;
             
@@ -99,18 +105,31 @@ class NPC extends GameObject {
             
             // Setup items list to contain the custom lootable emitter core!
             const baseSlug = presetId;
-            const abilitySlug = `bullet_hell_${baseSlug}`;
-            const itemSlug = `loot_core_${baseSlug}`;
+            const itemSlug = `loot_core_${baseSlug}_${Math.floor(Math.random() * 1000)}`;
             
             this.inventory = [{
                 id: itemSlug,
                 name: `Core: ${emitterName} Emitter`,
-                type: 'ability',
-                attachedAbility: abilitySlug,
+                type: 'emitter',
+                emitterConfig: {
+                    projectileType: emitterConfig.projectileType || 'standard',
+                    cooldown: emitterConfig.cooldown || 1.5,
+                    range: emitterConfig.range || 220,
+                    projectileSpeed: emitterConfig.projectileSpeed || 160,
+                    burstCount: emitterConfig.burstCount || 1,
+                    damage: emitterConfig.damage || 15,
+                    projectileColor: emitterConfig.projectileColor || '#ff3333',
+                    emoji: emitterConfig.emoji || '☄️',
+                    projectileRadius: emitterConfig.projectileRadius || 8,
+                    renderType: emitterConfig.renderType || 'glow',
+                    spinning: emitterConfig.spinning || 0,
+                    turnAfterShot: emitterConfig.turnAfterShot || 0
+                },
                 count: 1,
                 cost: 150,
-                description: `Deactivated Core of the defeated ${emitterName}. Equip to Slot 1-4 to discharge its custom emitter!`,
-                symbol: '☄️',
+                value: 75,
+                description: `Deactivated Core of the defeated ${emitterName}. Equip to Slot 1-4 to discharge its custom autonomous emitter!`,
+                emoji: emitterConfig.emoji || '📡',
                 equipped: false
             }];
             
@@ -143,8 +162,31 @@ class NPC extends GameObject {
                 window.location.reload();
             });
         } else if (nameLower.includes('scruffy')) {
-            CustomDialog.alert("🏆 VICTORY! Merchant Scruffy has been defeated! You have conquered the bridge! GG WP!", "Conquered!").then(() => {
-                window.location.reload();
+            const currentLevel = this.engine.aramDifficultyLevel || 1;
+            const nextLevel = currentLevel + 1;
+            CustomDialog.alert(`🏆 VICTORY! Merchant Scruffy has been defeated!<br><br>You have conquered ARAM Level ${currentLevel}! Advance to Level ${nextLevel} with stronger enemies?`, "Conquered!").then(async () => {
+                this.engine.aramDifficultyLevel = nextLevel;
+                
+                // Heal player fully
+                if (this.engine.player && this.engine.player.stats) {
+                    this.engine.player.stats.hp = this.engine.player.stats.maxHp;
+                }
+                
+                // Reload ARAM map cleanly from JSON
+                try {
+                    const mapFile = nextLevel >= 2 ? './game/world/aram_level2_map.json' : './game/world/2_2_map_1779884179412.json';
+                    const response = await fetch(mapFile);
+                    if (response.ok) {
+                        const mapData = await response.json();
+                        await this.engine.loadMap(mapData);
+                    } else {
+                        console.error("Failed to load map data from server file, attempting fallback reload.");
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    console.error("Error reloading ARAM map:", error);
+                    window.location.reload();
+                }
             });
         }
     }
@@ -175,6 +217,18 @@ class NPC extends GameObject {
             if (this.broadType === 'turret' || data.emitterConfig) {
                 const config = data.emitterConfig || {};
                 this.emitter = new Emitter(this.engine, this, config);
+            }
+            this.emitters = [];
+            if (data && Array.isArray(data.equippedAbilities)) {
+                data.equippedAbilities.forEach(abId => {
+                    if (abId) {
+                        const abilities = getAllAbilities();
+                        const ab = abilities[abId];
+                        if (ab && ab.hasEmitter && ab.emitterConfig) {
+                            this.emitters.push(new Emitter(this.engine, this, { ...ab.emitterConfig, presetId: ab.emitterConfig.presetId || abId }));
+                        }
+                    }
+                });
             }
         }
         console.log(`NPC ${this.name} character data loaded with role: ${this.broadType || 'villager'}`);
@@ -231,6 +285,9 @@ class NPC extends GameObject {
         // Render Range circle first so it layer-draws underneath the NPC sprite!
         if (this.emitter) {
             this.emitter.renderRangeArea(ctx, viewOriginX, viewOriginY);
+        }
+        if (this.emitters && this.emitters.length > 0) {
+            this.emitters.forEach(em => em.renderRangeArea(ctx, viewOriginX, viewOriginY));
         }
 
         // Call parent render to draw the sprite itself

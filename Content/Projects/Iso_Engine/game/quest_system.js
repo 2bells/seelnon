@@ -124,7 +124,9 @@ export class QuestSystem {
 
     onEnemyKilled(enemyName) {
         this.activeQuests.forEach(q => {
-            if (q.type === 'slay' && q.target.toLowerCase() === enemyName.toLowerCase()) {
+            const matchExact = q.target.toLowerCase() === enemyName.toLowerCase();
+            const matchContains = enemyName.toLowerCase().includes(q.target.toLowerCase()) || q.target.toLowerCase().includes(enemyName.toLowerCase());
+            if (q.type === 'slay' && (matchExact || matchContains)) {
                 q.currentCount++;
                 if (q.currentCount > q.targetCount) {
                     q.currentCount = q.targetCount;

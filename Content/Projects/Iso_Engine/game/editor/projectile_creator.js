@@ -35,7 +35,7 @@ class ProjectileCreator {
         // Title / Header
         const titleButton = document.createElement('button');
         titleButton.id = 'rpg-projectile-editor-toggle';
-        titleButton.textContent = '☄️ Projectile Creator';
+        titleButton.textContent = 'Projectile Creator';
         titleButton.onclick = () => this.panel.classList.toggle('collapsed');
         this.panel.appendChild(titleButton);
 
@@ -217,18 +217,6 @@ class ProjectileCreator {
         actionsSection.style.flexDirection = 'column';
         actionsSection.style.gap = '8px';
 
-        const btnSave = document.createElement('button');
-        btnSave.textContent = '💾 Save Preset';
-        btnSave.style.backgroundColor = '#2c3e50';
-        btnSave.style.color = '#fff';
-        btnSave.style.border = '1px solid #34495e';
-        btnSave.style.padding = '8px';
-        btnSave.style.borderRadius = '4px';
-        btnSave.style.fontWeight = 'bold';
-        btnSave.style.cursor = 'pointer';
-        btnSave.onclick = () => this.saveCurrentPreset();
-        actionsSection.appendChild(btnSave);
-
         const btnLootable = document.createElement('button');
         btnLootable.textContent = '⚔️ Generate Core Ability & Lootable Item!';
         btnLootable.style.backgroundColor = '#d35400';
@@ -241,16 +229,87 @@ class ProjectileCreator {
         btnLootable.onclick = () => this.generateAbilityAndCoreLootItem();
         actionsSection.appendChild(btnLootable);
 
+        const projIORow = document.createElement('div');
+        projIORow.style.display = 'flex';
+        projIORow.style.gap = '4px';
+        projIORow.style.marginTop = '4px';
+        projIORow.style.width = '100%';
+        projIORow.style.alignItems = 'center';
+
+        const btnSave = document.createElement('button');
+        btnSave.textContent = '💾 Save';
+        btnSave.style.backgroundColor = '#2c3e50';
+        btnSave.style.color = '#fff';
+        btnSave.style.border = '1px solid #34495e';
+        btnSave.style.height = '28px';
+        btnSave.style.fontSize = '11px';
+        btnSave.style.flex = '1.2';
+        btnSave.style.borderRadius = '4px';
+        btnSave.style.fontWeight = 'bold';
+        btnSave.style.cursor = 'pointer';
+        btnSave.onclick = () => this.saveCurrentPreset();
+        projIORow.appendChild(btnSave);
+
+        const btnExportProj = document.createElement('button');
+        btnExportProj.textContent = '📤 Export';
+        btnExportProj.style.flex = '1';
+        btnExportProj.style.backgroundColor = '#2980b9';
+        btnExportProj.style.color = '#fff';
+        btnExportProj.style.border = 'none';
+        btnExportProj.style.height = '28px';
+        btnExportProj.style.fontSize = '11px';
+        btnExportProj.style.borderRadius = '4px';
+        btnExportProj.style.fontWeight = 'bold';
+        btnExportProj.style.cursor = 'pointer';
+        btnExportProj.onclick = () => this.exportCurrentProjectile();
+        projIORow.appendChild(btnExportProj);
+
+        const projImportInputId = 'rpg-projectile-editor-single-import-input';
+        const fileInputProj = document.createElement('input');
+        fileInputProj.id = projImportInputId;
+        fileInputProj.type = 'file';
+        fileInputProj.accept = '.json';
+        fileInputProj.style.display = 'none';
+        fileInputProj.onchange = (e) => this.importProjectileFile(e);
+        projIORow.appendChild(fileInputProj);
+
+        const labelImportProj = document.createElement('label');
+        labelImportProj.htmlFor = projImportInputId;
+        labelImportProj.textContent = '📥 Import';
+        labelImportProj.style.flex = '1';
+        labelImportProj.style.display = 'inline-block';
+        labelImportProj.style.textAlign = 'center';
+        labelImportProj.style.cursor = 'pointer';
+        labelImportProj.style.backgroundColor = '#8c765c';
+        labelImportProj.style.color = '#fff';
+        labelImportProj.style.border = '1px solid #5A4B3E';
+        labelImportProj.style.height = '28px';
+        labelImportProj.style.lineHeight = '26px';
+        labelImportProj.style.borderRadius = '4px';
+        labelImportProj.style.fontWeight = 'bold';
+        labelImportProj.style.fontSize = '11px';
+        labelImportProj.style.boxSizing = 'border-box';
+        labelImportProj.style.margin = '0';
+        labelImportProj.style.padding = '0';
+        projIORow.appendChild(labelImportProj);
+
         const btnDel = document.createElement('button');
-        btnDel.textContent = '🗑️ Delete Custom Preset';
+        btnDel.textContent = '🗑️';
         btnDel.style.backgroundColor = '#c0392b';
         btnDel.style.color = '#fff';
         btnDel.style.border = '1px solid #962d22';
-        btnDel.style.padding = '6px';
+        btnDel.style.height = '28px';
+        btnDel.style.flex = '0.4';
         btnDel.style.borderRadius = '4px';
         btnDel.style.cursor = 'pointer';
+        btnDel.style.fontWeight = 'bold';
+        btnDel.style.display = 'flex';
+        btnDel.style.alignItems = 'center';
+        btnDel.style.justifyContent = 'center';
         btnDel.onclick = () => this.deleteSelectedPreset();
-        actionsSection.appendChild(btnDel);
+        projIORow.appendChild(btnDel);
+
+        actionsSection.appendChild(projIORow);
 
         content.appendChild(actionsSection);
         this.panel.appendChild(content);
@@ -439,6 +498,80 @@ class ProjectileCreator {
         CustomDialog.confirm("Delete this custom projectile preset permanently from local registry?", "Confirm Wipe").then(res => {
             if (res) runDelete();
         });
+    }
+
+    exportCurrentProjectile() {
+        const valId = this.fields.id.value.trim();
+        if (!valId) {
+            CustomDialog.alert("Please save or load a custom projectile preset first.", "Validation Error");
+            return;
+        }
+
+        const preset = {
+            id: valId,
+            name: this.fields.name.value.trim() || 'Custom Projectile',
+            renderType: this.fields.renderType.value,
+            emoji: this.fields.emoji.value.trim(),
+            color: this.fields.color.value.trim() || '#ff0000',
+            radius: parseInt(this.fields.radius.value, 10) || 8,
+            emitter: {
+                type: this.fields.emitterType.value,
+                cooldown: parseFloat(this.fields.cooldown.value) || 1.5,
+                projectileSpeed: parseInt(this.fields.speed.value, 10) || 160,
+                burstCount: parseInt(this.fields.burstCount.value, 10) || 1,
+                damage: parseInt(this.fields.damage.value, 10) || 15,
+                range: parseInt(this.fields.range.value, 10) || 220,
+                sinAmplitude: parseInt(this.fields.sinAmplitude.value, 10) || 30,
+                sinFrequency: parseInt(this.fields.sinFrequency.value, 10) || 8,
+                circularSpeed: parseFloat(this.fields.circularSpeed.value) || 3,
+                showArea: true,
+                notify: false
+            }
+        };
+
+        const json = JSON.stringify(preset, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileName = preset.name.toLowerCase().replace(/[^a-z0-9]/gi, '_');
+        a.download = `emitter_${fileName}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        CustomDialog.alert(`Exported custom projectile preset designs successfully!`, "Export Success");
+    }
+
+    importProjectileFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!importedData || !importedData.id || !importedData.name) {
+                    CustomDialog.alert("JSON file does not appear to be a valid Projectile Emitter configuration.", "Import Failed");
+                    return;
+                }
+
+                saveCustomProjectile(importedData);
+                this.selectedPresetId = importedData.id;
+                this.refreshPresetList();
+                this.loadPresetIntoForm();
+                
+                // Auto-generate active equippable ability and loot core item silently on every save/load import!
+                this.generateAbilityAndCoreLootItem(true);
+
+                CustomDialog.alert(`Successfully imported Projectile Emitter "${importedData.name}"! Attached Ability and Core Lootable item generated!`, "Import Complete");
+            } catch (err) {
+                console.error(err);
+                CustomDialog.alert("Could not load Projectile Emitter JSON: format is invalid.", "Import Error");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
     }
 
     // Automatically generates an epically usable Bullet Hell Ability AND corresponding looting Core Item!

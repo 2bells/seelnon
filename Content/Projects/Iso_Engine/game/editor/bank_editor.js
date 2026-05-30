@@ -61,6 +61,155 @@ const STANDARD_ITEMS = [
         count: 1
     },
     {
+        id: "std_lunate_armor",
+        name: "Lunate Leather Mail",
+        type: "armor",
+        emoji: "👕",
+        bonusDef: 6,
+        cost: 150,
+        value: 100,
+        description: "A stylish high-defense jacket stitched of fine leather.",
+        count: 1
+    },
+    {
+        id: "itm_portal_elixir_1",
+        name: "Dimensional Elixir",
+        type: "consumable",
+        emoji: "🧪",
+        heal: 80,
+        cost: 35,
+        value: 15,
+        description: "Restores 80 HP instantly.",
+        count: 1
+    },
+    {
+        id: "itm_cosmos_ward_1",
+        name: "Astral Ward",
+        type: "shield",
+        emoji: "🛡️",
+        bonusDef: 15,
+        cost: 180,
+        value: 80,
+        description: "An ancient shield forged from cosmic essence. +15 DEF.",
+        count: 1
+    },
+    {
+        id: "itm_cosmos_blade_1",
+        name: "Cosmos Blade",
+        type: "weapon",
+        emoji: "🗡️",
+        bonusAtk: 22,
+        cost: 200,
+        value: 90,
+        description: "A blade radiating with portal energies. +22 ATK.",
+        count: 1
+    },
+    {
+        id: "item_slime_leap",
+        name: "Tome of Slime Leap",
+        type: "ability",
+        emoji: "🐸",
+        attachedAbility: "slime_leap",
+        cost: 50,
+        value: 25,
+        description: "Imbued with bouncy momentum. Equips Slime Leap skill into a Hotbar slot.",
+        count: 1
+    },
+    {
+        id: "item_dash_strike",
+        name: "Ring of Dash Strike",
+        type: "ability",
+        emoji: "⚔️",
+        attachedAbility: "dash_strike",
+        cost: 50,
+        value: 25,
+        description: "Imbued with swift wind. Equips Dash Strike skill into a Hotbar slot.",
+        count: 1
+    },
+    {
+        id: "item_blood_siphon",
+        name: "Amulet of Blood Siphon",
+        type: "ability",
+        emoji: "❤️",
+        attachedAbility: "blood_siphon",
+        cost: 50,
+        value: 25,
+        description: "Imbued with dark blood magic. Equips Blood Siphon skill into a Hotbar slot.",
+        count: 1
+    },
+    {
+        id: "item_earth_wall",
+        name: "Rune of Earth Wall",
+        type: "ability",
+        emoji: "⛰️",
+        attachedAbility: "earth_wall",
+        cost: 50,
+        value: 25,
+        description: "Imbued with earthen elements. Equips Earth Wall skill into a Hotbar slot.",
+        count: 1
+    },
+    {
+        id: "item_plasma_orb",
+        name: "Tome of Plasma Orb",
+        type: "ability",
+        emoji: "⚡",
+        attachedAbility: "plasma_orb",
+        cost: 75,
+        value: 37,
+        description: "Charged with volt particles. Equips Plasma Orb skill to discharge a multi-shot sine wave.",
+        count: 1
+    },
+    {
+        id: "item_emitter_plasma_orb",
+        name: "Plasma Orb Emitter Core",
+        type: "emitter",
+        emoji: "⚡",
+        cost: 150,
+        value: 75,
+        description: "Passive core. Shoots elegant Plasma Orb starburst rings automatically at targets.",
+        emitterConfig: {
+            projectileType: "starburst",
+            cooldown: 1.5,
+            range: 220,
+            projectileSpeed: 180,
+            burstCount: 5,
+            damage: 18,
+            projectileColor: "#f1c40f",
+            renderType: "glow"
+        },
+        count: 1
+    },
+    {
+        id: "item_emitter_sentry_tower",
+        name: "Ancient Sentry Emitter",
+        type: "emitter",
+        emoji: "📡",
+        cost: 180,
+        value: 90,
+        description: "Passive core. Fires fast, high-power energy tracking missiles automatically at targets in radius.",
+        emitterConfig: {
+            projectileType: "seeking",
+            cooldown: 1.6,
+            range: 250,
+            projectileSpeed: 200,
+            burstCount: 1,
+            damage: 25,
+            projectileColor: "#e74c3c",
+            renderType: "glow"
+        },
+        count: 1
+    },
+    {
+        id: "item_gatekeeper_key",
+        name: "Gatekeeper Key",
+        type: "material",
+        emoji: "🔑",
+        cost: 0,
+        value: 0,
+        description: "An ancient brass key that unlocks boss barrier gates.",
+        count: 1
+    },
+    {
         id: "std_lucky_ring",
         name: "Lucky Charm Ring",
         type: "passive",
@@ -80,6 +229,10 @@ export function resolveItemEmoji(item) {
     if (item.emoji) return item.emoji;
     
     const name = item.name.toLowerCase();
+    
+    if (item.type === 'emitter' || name.includes('emitter') || name.includes('sentry')) {
+        return '📡';
+    }
     
     if (item.type === 'weapon' || name.includes('sword') || name.includes('blade') || name.includes('saber') || name.includes('dagger') || name.includes('edge')) {
         if (name.includes('axe')) return '🪓';
@@ -121,18 +274,21 @@ export function resolveItemEmoji(item) {
 
 export function getMapItems(engine) {
     const items = [];
+    if (!engine) return items;
     if (engine.player && Array.isArray(engine.player.inventory)) {
         engine.player.inventory.forEach(it => {
             if (it && it.name) items.push(it);
         });
     }
-    engine.gameObjects.forEach(obj => {
-        if (obj && (obj.constructor.name === 'Npc' || obj.constructor.name === 'NPC' || obj.type === 'npc_permanent') && Array.isArray(obj.inventory)) {
-            obj.inventory.forEach(it => {
-                if (it && it.name) items.push(it);
-            });
-        }
-    });
+    if (Array.isArray(engine.gameObjects)) {
+        engine.gameObjects.forEach(obj => {
+            if (obj && (obj.constructor.name === 'Npc' || obj.constructor.name === 'NPC' || obj.type === 'npc_permanent') && Array.isArray(obj.inventory)) {
+                obj.inventory.forEach(it => {
+                    if (it && it.name) items.push(it);
+                });
+            }
+        });
+    }
     return items;
 }
 
@@ -218,7 +374,8 @@ export function getGlobalItemDatabase(engine) {
                 passiveHp: it.passiveHp || 0,
                 heal: it.heal || 0,
                 curseHp: it.curseHp || 0,
-                attachedAbility: it.attachedAbility || null
+                attachedAbility: it.attachedAbility || null,
+                emitterConfig: it.emitterConfig || null
             };
         }
     });
@@ -252,7 +409,7 @@ class BankEditor {
         // Floating Header Tool Title
         const headerBtn = document.createElement('button');
         headerBtn.id = 'rpg-bank-editor-toggle';
-        headerBtn.textContent = '🏦 Global Item Library Database & Vault';
+        headerBtn.textContent = 'Item Database & Vault';
         headerBtn.onclick = () => this.panel.classList.toggle('collapsed');
         this.panel.appendChild(headerBtn);
 
@@ -263,7 +420,7 @@ class BankEditor {
         const splitLayout = document.createElement('div');
         splitLayout.id = 'rpg-bank-cols';
         splitLayout.style.display = 'grid';
-        splitLayout.style.gridTemplateColumns = '1.6fr 1fr';
+        splitLayout.style.gridTemplateColumns = '3.5fr 1fr';
         splitLayout.style.gap = '10px';
         splitLayout.style.height = '100%';
         splitLayout.style.boxSizing = 'border-box';
@@ -272,7 +429,8 @@ class BankEditor {
         const leftBox = document.createElement('div');
         leftBox.style.display = 'flex';
         leftBox.style.flexDirection = 'column';
-        leftBox.style.gap = '8px';
+        leftBox.style.gap = '6px';
+        leftBox.style.height = '100%';
 
         const gridTitle = document.createElement('div');
         gridTitle.style.fontSize = '0.9em';
@@ -281,15 +439,78 @@ class BankEditor {
         gridTitle.textContent = '📦 Global Blueprints Grid Database';
         leftBox.appendChild(gridTitle);
 
-        // Grid Container
+        // Sorting & Filtering Tabs Bar
+        const filterContainer = document.createElement('div');
+        filterContainer.id = 'rpg-bank-filters-tabs';
+        filterContainer.style.display = 'flex';
+        filterContainer.style.flexWrap = 'wrap';
+        filterContainer.style.gap = '5px';
+        filterContainer.style.margin = '4px 0';
+
+        const categories = [
+            { id: 'all', name: '🌍 All Blueprints' },
+            { id: 'consumable', name: '❤️ Consumables' },
+            { id: 'weapon', name: '⚔️ Weapons' },
+            { id: 'defense', name: '🛡️ Defense' },
+            { id: 'ability', name: '🌀 Abilities' },
+            { id: 'emitter', name: '📡 Emitters' },
+            { id: 'material', name: '📦 Materials & Quest' }
+        ];
+
+        this.currentFilterType = 'all';
+
+        categories.forEach(cat => {
+            const tab = document.createElement('button');
+            tab.textContent = cat.name;
+            tab.style.padding = '3px 7px';
+            tab.style.fontSize = '10px';
+            tab.style.fontFamily = 'inherit';
+            tab.style.fontWeight = 'bold';
+            tab.style.borderRadius = '3px';
+            tab.style.cursor = 'pointer';
+            tab.style.border = '1px solid #5A4B3E';
+            tab.style.transition = 'all 0.1s ease';
+            
+            const updateTabStyle = () => {
+                if (this.currentFilterType === cat.id) {
+                    tab.style.backgroundColor = '#d35400';
+                    tab.style.color = '#fff';
+                    tab.style.borderColor = '#e67e22';
+                } else {
+                    tab.style.backgroundColor = '#4A3D35';
+                    tab.style.color = '#D4C8A0';
+                    tab.style.borderColor = '#5A4B3E';
+                }
+            };
+            
+            updateTabStyle();
+            
+            tab.onclick = () => {
+                this.currentFilterType = cat.id;
+                Array.from(filterContainer.children).forEach(sibling => {
+                    if (sibling.onRefStyles) sibling.onRefStyles();
+                });
+                this.renderDatabaseView();
+            };
+            
+            tab.onRefStyles = updateTabStyle;
+            filterContainer.appendChild(tab);
+        });
+        leftBox.appendChild(filterContainer);
+
+        // Grid Container (responsive width & large height scroller!)
         const gridContainer = document.createElement('div');
         gridContainer.id = 'rpg-bank-grid-scroller';
         gridContainer.className = 'inventory-grid-container';
-        gridContainer.style.gridTemplateColumns = 'repeat(7, 1fr)';
-        gridContainer.style.gap = '5px';
-        gridContainer.style.padding = '6px';
-        gridContainer.style.maxHeight = '390px';
+        gridContainer.style.display = 'grid';
+        gridContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(46px, 1fr))';
+        gridContainer.style.gap = '4px';
+        gridContainer.style.padding = '4px';
+        gridContainer.style.flex = '1';
         gridContainer.style.overflowY = 'auto';
+        gridContainer.style.backgroundColor = '#1C1512';
+        gridContainer.style.border = '1px solid #42332A';
+        gridContainer.style.borderRadius = '4px';
         leftBox.appendChild(gridContainer);
         this.gridContainer = gridContainer;
 
@@ -298,7 +519,7 @@ class BankEditor {
         selectOps.style.display = 'flex';
         selectOps.style.justifyContent = 'space-between';
         selectOps.style.alignItems = 'center';
-        selectOps.style.marginTop = '4px';
+        selectOps.style.marginTop = '2px';
 
         const labelPrompt = document.createElement('span');
         labelPrompt.style.fontSize = '0.72em';
@@ -321,7 +542,7 @@ class BankEditor {
         row1.style.gap = '5px';
 
         const btnExport = document.createElement('button');
-        btnExport.textContent = '📤 Export (.json)';
+        btnExport.textContent = '📤 Export Checked (.json)';
         btnExport.className = 'item-btn-action';
         btnExport.style.flex = '1';
         btnExport.style.backgroundColor = '#2980b9';
@@ -384,6 +605,7 @@ class BankEditor {
         rightBox.style.padding = '8px';
         rightBox.style.gap = '6px';
         rightBox.style.boxSizing = 'border-box';
+        rightBox.style.height = '100%';
         this.inspectorBox = rightBox;
 
         splitLayout.appendChild(rightBox);
@@ -401,7 +623,37 @@ class BankEditor {
         this.gridContainer.innerHTML = '';
 
         const db = getGlobalItemDatabase(this.engine);
-        const keys = Object.keys(db);
+        let keys = Object.keys(db);
+
+        // Apply dynamic sorting filtering by category
+        if (this.currentFilterType && this.currentFilterType !== 'all') {
+            keys = keys.filter(id => {
+                const it = db[id];
+                if (!it) return false;
+                const type = (it.type || '').toLowerCase();
+                const name = (it.name || '').toLowerCase();
+                
+                if (this.currentFilterType === 'consumable') {
+                    return type === 'consumable' || name.includes('potion') || name.includes('elixir') || name.includes('herb');
+                }
+                if (this.currentFilterType === 'weapon') {
+                    return type === 'weapon' || name.includes('sword') || name.includes('blade') || name.includes('axe') || name.includes('dagger');
+                }
+                if (this.currentFilterType === 'defense') {
+                    return type === 'shield' || type === 'armor' || name.includes('shield') || name.includes('mail') || name.includes('ring') || type === 'passive';
+                }
+                if (this.currentFilterType === 'ability') {
+                    return type === 'ability' || name.includes('tome') || name.includes('rune');
+                }
+                if (this.currentFilterType === 'emitter') {
+                    return type === 'emitter' || name.includes('emitter');
+                }
+                if (this.currentFilterType === 'material') {
+                    return type === 'material' || type === 'event' || type === 'quest' || name.includes('key');
+                }
+                return false;
+            });
+        }
 
         if (keys.length === 0) {
             const emptyLabel = document.createElement('div');
@@ -411,7 +663,7 @@ class BankEditor {
             emptyLabel.style.fontStyle = 'italic';
             emptyLabel.style.textAlign = 'center';
             emptyLabel.style.padding = '20px 0';
-            emptyLabel.textContent = 'Empty database.';
+            emptyLabel.textContent = `No items of this type in database.`;
             this.gridContainer.appendChild(emptyLabel);
             return;
         }
@@ -422,6 +674,11 @@ class BankEditor {
             const slot = document.createElement('div');
             slot.className = 'inventory-item-slot filled';
             if (this.selectedItemId === id) slot.className += ' selected';
+            slot.style.maxWidth = 'none';
+            slot.style.width = '100%';
+            slot.style.height = 'auto';
+            slot.style.aspectRatio = '1 / 1';
+            slot.style.margin = '0';
 
             // Top-left checkbox for bulk actions
             const chk = document.createElement('input');
@@ -521,11 +778,11 @@ class BankEditor {
         // Stats Box
         const statsScroll = document.createElement('div');
         statsScroll.style.overflowY = 'auto';
-        statsScroll.style.maxHeight = '140px';
+        statsScroll.style.maxHeight = 'calc(100% - 90px)';
         statsScroll.style.display = 'flex';
         statsScroll.style.flexDirection = 'column';
         statsScroll.style.gap = '3px';
-        statsScroll.style.fontSize = '0.75em';
+        statsScroll.style.fontSize = '0.74em';
         statsScroll.style.color = '#EFEBE0';
 
         const makeStatRow = (label, val, color = '#EFEBE0') => {
@@ -551,14 +808,26 @@ class BankEditor {
         if (it.curseHp) makeStatRow('Consumable Poison Damage:', `${it.curseHp} Curse`, '#9b59b6');
         if (it.attachedAbility) makeStatRow('Spell Granted:', `🔮 ${it.attachedAbility}`, '#2980b9');
 
+        // Render detailed Emitter configurations
+        if (it.emitterConfig) {
+            makeStatRow('📡 Emitter Projectile:', it.emitterConfig.projectileType || 'seeking', '#f1c40f');
+            if (it.emitterConfig.cooldown) makeStatRow('⏱️ Shot Cooldown:', `${it.emitterConfig.cooldown}s`, '#f1c40f');
+            if (it.emitterConfig.range) makeStatRow('📏 Emitter Range:', `${it.emitterConfig.range}px`, '#f1c40f');
+            if (it.emitterConfig.damage !== undefined) makeStatRow('💥 Core Damage:', it.emitterConfig.damage, '#e74c3c');
+            if (it.emitterConfig.projectileSpeed) makeStatRow('🚀 Projectile Speed:', it.emitterConfig.projectileSpeed, '#3498db');
+            if (it.emitterConfig.burstCount && it.emitterConfig.burstCount > 1) makeStatRow('🔥 Burst Count:', it.emitterConfig.burstCount, '#e67e22');
+        }
+
         const descDiv = document.createElement('div');
         descDiv.style.fontStyle = 'italic';
         descDiv.style.color = '#D4C8A0';
+        descDiv.style.fontStyle = 'italic';
         descDiv.style.padding = '4px';
         descDiv.style.backgroundColor = '#1F1915';
         descDiv.style.borderRadius = '4px';
         descDiv.style.lineHeight = '1.3';
         descDiv.style.marginTop = '4px';
+        descDiv.style.fontSize = '0.92em';
         descDiv.textContent = it.description || 'No blueprint description provided.';
         statsScroll.appendChild(descDiv);
 

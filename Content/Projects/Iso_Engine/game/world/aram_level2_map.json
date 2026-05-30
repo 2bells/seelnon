@@ -1,7 +1,7 @@
 {
-  "mapName": "2_2_map",
+  "mapName": "aram_level2_map",
   "width": 24,
-  "height": 24,
+  "height": 36,
   "tiles": [
     [0,0,0,0,0,0,0,11,1,1,1,1,2,3,1,2,0,0,0,0,0,0,0,0],
     [0,0,0,0,0,0,0,11,2,1,1,1,1,1,1,1,0,12,14,0,0,0,0,0],
@@ -15,6 +15,18 @@
     [0,0,0,0,0,0,0,0,11,2,3,1,2,1,1,0,12,0,14,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,11,1,1,1,1,1,2,0,12,0,0,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,11,5,2,1,1,1,1,0,12,14,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,11,1,1,2,1,2,1,1,12,0,0,0,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,11,5,1,1,2,3,10,0,12,0,0,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,11,5,1,1,1,1,1,0,12,14,0,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,11,1,2,3,1,2,1,0,12,0,14,0,0,0,0,0],
@@ -176,7 +188,7 @@
     "object1": [
       {
         "id": "tower_player_1",
-        "displayName": "Allied Sentry Tower",
+        "displayName": "Allied Inner Sentry",
         "type": "tower_player",
         "assetName": "buildingSpritesheet",
         "spritesheetIndex": 0,
@@ -191,7 +203,49 @@
         "anchorOffsetX": 32,
         "anchorOffsetY": 64,
         "mapX": 12,
-        "mapY": 18,
+        "mapY": 30,
+        "collidable": true,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -12
+            },
+            {
+              "x": 28,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": -28,
+              "y": 0
+            }
+          ]
+        },
+        "layerKey": "object1"
+      },
+      {
+        "id": "tower_player_2",
+        "displayName": "Allied Outer Sentry",
+        "type": "tower_player",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 0,
+          "y": 66,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "mapX": 12,
+        "mapY": 22,
         "collidable": true,
         "collisionShape": {
           "type": "polygon",
@@ -218,7 +272,7 @@
       },
       {
         "id": "tower_enemy_1",
-        "displayName": "Enemy Sentry Tower",
+        "displayName": "Enemy Inner Sentry",
         "type": "tower_enemy",
         "assetName": "buildingSpritesheet",
         "spritesheetIndex": 0,
@@ -233,7 +287,49 @@
         "anchorOffsetX": 32,
         "anchorOffsetY": 64,
         "mapX": 12,
-        "mapY": 7,
+        "mapY": 6,
+        "collidable": true,
+        "collisionShape": {
+          "type": "polygon",
+          "vertices": [
+            {
+              "x": 0,
+              "y": -12
+            },
+            {
+              "x": 28,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": -28,
+              "y": 0
+            }
+          ]
+        },
+        "layerKey": "object1"
+      },
+      {
+        "id": "tower_enemy_2",
+        "displayName": "Enemy Outer Sentry",
+        "type": "tower_enemy",
+        "assetName": "buildingSpritesheet",
+        "spritesheetIndex": 0,
+        "spriteSourceRect": {
+          "x": 66,
+          "y": 66,
+          "width": 64,
+          "height": 64
+        },
+        "visualWidth": 64,
+        "visualHeight": 64,
+        "anchorOffsetX": 32,
+        "anchorOffsetY": 64,
+        "mapX": 12,
+        "mapY": 14,
         "collidable": true,
         "collisionShape": {
           "type": "polygon",
@@ -338,7 +434,7 @@
           ]
         },
         "mapX": 16,
-        "mapY": 18,
+        "mapY": 30,
         "id": "obj_object1_1779995694228_9vriufqhm",
         "layerKey": "object1"
       },
@@ -380,7 +476,7 @@
           ]
         },
         "mapX": 14.718001639768211,
-        "mapY": 21.917547651102872,
+        "mapY": 33.91754765110287,
         "id": "obj_object1_1779996042463_knwu42neu",
         "layerKey": "object1"
       },
@@ -422,7 +518,7 @@
           ]
         },
         "mapX": 14.705892122219542,
-        "mapY": 22.928309904974565,
+        "mapY": 34.92830990497457,
         "id": "obj_object1_1779996050959_6l28imxhw",
         "layerKey": "object1"
       },
@@ -464,7 +560,7 @@
           ]
         },
         "mapX": 14.507975455552874,
-        "mapY": 23.751226571641233,
+        "mapY": 35.75122657164123,
         "id": "obj_object1_1779996054036_r9w545ldp",
         "layerKey": "object1"
       },
@@ -506,7 +602,7 @@
           ]
         },
         "mapX": 15.59130878888621,
-        "mapY": 23.08455990497457,
+        "mapY": 35.08455990497457,
         "id": "obj_object1_1779996055179_her195d1f",
         "layerKey": "object1"
       },
@@ -683,47 +779,6 @@
   },
   "collisionLayerData": [
     {
-      "id": "custom_coll_poly_1779999145268_8ryxwlnmd",
-      "vertices": [
-        {
-          "x": -512,
-          "y": 512
-        },
-        {
-          "x": -320,
-          "y": 416
-        },
-        {
-          "x": -288,
-          "y": 432
-        },
-        {
-          "x": 96,
-          "y": 240
-        },
-        {
-          "x": 64,
-          "y": 224
-        },
-        {
-          "x": 288,
-          "y": 112
-        },
-        {
-          "x": 160,
-          "y": 48
-        },
-        {
-          "x": -672,
-          "y": 464
-        },
-        {
-          "x": -544,
-          "y": 528
-        }
-      ]
-    },
-    {
       "id": "custom_coll_poly_1779999166723_9czxn6ede",
       "vertices": [
         {
@@ -745,60 +800,129 @@
       ]
     },
     {
-      "id": "custom_coll_poly_1779999203893_yt7lgi66j",
+      "id": "custom_coll_poly_1780152401911_hxyc4gzqb",
       "vertices": [
         {
-          "x": 544,
+          "x": -928,
+          "y": 720
+        },
+        {
+          "x": -704,
+          "y": 608
+        },
+        {
+          "x": -672,
+          "y": 624
+        },
+        {
+          "x": -480,
+          "y": 528
+        },
+        {
+          "x": -512,
+          "y": 512
+        },
+        {
+          "x": -128,
+          "y": 320
+        },
+        {
+          "x": -96,
+          "y": 336
+        },
+        {
+          "x": 96,
           "y": 240
         },
         {
-          "x": 320,
-          "y": 352
+          "x": 64,
+          "y": 224
+        },
+        {
+          "x": 352,
+          "y": 80
+        },
+        {
+          "x": 224,
+          "y": 16
+        },
+        {
+          "x": -1056,
+          "y": 656
+        }
+      ]
+    },
+    {
+      "id": "custom_coll_poly_1780152414655_8qs47l9nk",
+      "vertices": [
+        {
+          "x": -928,
+          "y": 688
+        },
+        {
+          "x": -576,
+          "y": 864
+        },
+        {
+          "x": -640,
+          "y": 896
+        },
+        {
+          "x": -992,
+          "y": 720
+        }
+      ]
+    },
+    {
+      "id": "custom_coll_poly_1780152455128_kolpvfwh1",
+      "vertices": [
+        {
+          "x": -672,
+          "y": 848
+        },
+        {
+          "x": -416,
+          "y": 720
+        },
+        {
+          "x": -448,
+          "y": 704
+        },
+        {
+          "x": -256,
+          "y": 608
+        },
+        {
+          "x": -288,
+          "y": 592
+        },
+        {
+          "x": 96,
+          "y": 400
+        },
+        {
+          "x": 128,
+          "y": 416
         },
         {
           "x": 288,
           "y": 336
         },
         {
-          "x": -64,
-          "y": 512
+          "x": 320,
+          "y": 352
         },
         {
-          "x": -32,
-          "y": 528
-        },
-        {
-          "x": -288,
-          "y": 656
-        },
-        {
-          "x": -160,
-          "y": 720
+          "x": 544,
+          "y": 240
         },
         {
           "x": 672,
           "y": 304
-        }
-      ]
-    },
-    {
-      "id": "custom_coll_poly_1779999223550_vxoj1p11n",
-      "vertices": [
-        {
-          "x": -576,
-          "y": 480
         },
         {
-          "x": -192,
-          "y": 672
-        },
-        {
-          "x": -288,
-          "y": 720
-        },
-        {
-          "x": -672,
-          "y": 528
+          "x": -544,
+          "y": 912
         }
       ]
     }
@@ -807,8 +931,8 @@
   "spawnPointsData": [
     {
       "id": "spawn_pt_player_entry",
-      "x": -320,
-      "y": 528,
+      "x": -800,
+      "y": 720,
       "type": "player_entry",
       "targetMap": null,
       "npcData": null,
@@ -816,8 +940,8 @@
     },
     {
       "id": "spawn_pt_shopkeeper",
-      "x": -384,
-      "y": 464,
+      "x": -672,
+      "y": 656,
       "type": "npc_permanent",
       "targetMap": null,
       "npcData": {

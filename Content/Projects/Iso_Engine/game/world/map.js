@@ -225,12 +225,27 @@ class GameMap {
         return { x: mapX, y: mapY };
     }
 
-    // Center camera on a specific world pixel coordinate
-    centerOn(targetWorldX, targetWorldY, effectiveCanvasWidth, effectiveCanvasHeight) {
-        this.cameraX = targetWorldX;
-        this.cameraY = targetWorldY;
-        // The map doesn't need to store effectiveCanvasWidth/Height,
-        // they are used by the engine to calculate viewOrigin.
+    // Center camera on a specific world pixel coordinate with optional smoothing interpolation
+    centerOn(targetWorldX, targetWorldY, effectiveCanvasWidth, effectiveCanvasHeight, instant = false) {
+        if (instant || (this.cameraX === 0 && this.cameraY === 0)) {
+            this.cameraX = targetWorldX;
+            this.cameraY = targetWorldY;
+        } else {
+            // Apply a nice smooth interpolation (lerp).
+            // This dampens high frequency jittering and sudden collision-resolver snaps.
+            const lerpFactor = 0.12; // 12% toward target per frame (very smooth feel)
+            const dx = targetWorldX - this.cameraX;
+            const dy = targetWorldY - this.cameraY;
+            
+            // If the jump is extremely large (e.g. teleports/respawns), snap instantly to avoid massive scrolling
+            if (Math.abs(dx) > 300 || Math.abs(dy) > 300) {
+                this.cameraX = targetWorldX;
+                this.cameraY = targetWorldY;
+            } else {
+                this.cameraX += dx * lerpFactor;
+                this.cameraY += dy * lerpFactor;
+            }
+        }
     }
 
     render(ctx, canvas, viewOriginX, viewOriginY, renderOverhead = false) {
@@ -490,13 +505,9 @@ class GameMap {
             return null;
         }
         const newPoint = {
-            id: `spawn_pt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            x: pointData.x,
-            y: pointData.y,
-            type: pointData.type || 'default', // Ensure type is always set
-            targetMap: pointData.targetMap || null, // Store targetMap if provided
-            npcData: pointData.npcData || null, // Store full NPC data if provided
-            enemyId: pointData.enemyId || null
+            id: pointData.id || `spawn_pt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            ...pointData,
+            type: pointData.type || 'default' // Ensure type is always set
         };
         this.spawnPointsData.push(newPoint);
         console.log("Added spawn point:", newPoint);

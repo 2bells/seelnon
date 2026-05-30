@@ -283,9 +283,22 @@
 
 #rpg-npc-creator-panel label {
     display: block;
+    margin-top: 8px;
     margin-bottom: 2px;
     font-weight: bold;
     color: #D4C8A0;
+}
+#rpg-npc-creator-panel .abilities-form-row label {
+    display: inline-block;
+    margin: 0;
+    font-weight: normal;
+    font-size: 0.85em;
+    color: #D4C8A0;
+    flex: 1;
+}
+#rpg-npc-creator-panel h4 + label,
+#rpg-npc-creator-panel .npc-creator-section > label:first-of-type {
+    margin-top: 2px;
 }
 
 #rpg-npc-creator-panel input[type="text"],
@@ -301,6 +314,20 @@
     font-size: 0.95em;
 }
 
+#rpg-npc-creator-panel .abilities-form-row input[type="text"],
+#rpg-npc-creator-panel .abilities-form-row input[type="number"],
+#rpg-npc-creator-panel .abilities-form-row select {
+    width: auto;
+    flex: 1.2;
+    padding: 3px 6px;
+    font-size: 0.9em;
+    background-color: #3B322C;
+    border: 1px solid #8C6D56;
+    border-radius: 4px;
+    color: #EFEBE0;
+    box-sizing: border-box;
+}
+
 #rpg-npc-creator-panel textarea {
     min-height: 60px;
     resize: vertical;
@@ -309,7 +336,11 @@
 #rpg-npc-creator-panel .npc-creator-section {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    margin-top: 24px;
+}
+#rpg-npc-creator-panel .npc-creator-section:first-child {
+    margin-top: 0;
 }
 
 #rpg-npc-creator-panel button {

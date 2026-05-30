@@ -17,7 +17,7 @@ import { FloatingTextEffect, TowerOrbEffect } from './combat/effects.js';
 import CustomDialog from './ui/custom_dialog.js';
 import { executeAbility, getAllAbilities } from './combat/ability_system.js';
 import InventoryUI from './ui/inventory_ui.js';
-import { updateARAMSystems } from './world/aram.js';
+import { updateARAMSystems, isARAMMap, checkAndSpawnARAMNPCs, scaleARAMEnemyStats } from './world/aram.js';
 
 console.log("rpg/game/engine.js loaded");
 
@@ -40,6 +40,7 @@ class GameEngine {
         }
 
         this.gameState = {}; // To store current game state
+        this.aramDifficultyLevel = 1; // Tracks growing ARAM mode difficulty levels
         this.lastTimestamp = 0;
         this.isRunning = false;
         this.isPausedForEditor = false; // For editor pausing game updates
@@ -85,6 +86,7 @@ class GameEngine {
         this.gameLoop = this.gameLoop.bind(this);
         this._handleKeyDown = this._handleKeyDown.bind(this);
         this._handleKeyUp = this._handleKeyUp.bind(this);
+        window.engine = this;
     }
 
     addEffect(effect) {
@@ -507,6 +509,14 @@ class GameEngine {
         return this.editorManager ? this.editorManager.isEditorActive('event') : false;
     }
 
+    toggleChaosMapDevice() {
+        this.editorManager.toggle('chaos_map_device');
+    }
+
+    isChaosMapDeviceActive() {
+        return this.editorManager ? this.editorManager.isEditorActive('chaos_map_device') : false;
+    }
+
     showTopBannerAnnouncement(text, type) {
         const container = document.getElementById('rpg-canvas-container');
         if (!container) return;
@@ -654,7 +664,7 @@ class GameEngine {
 
         const effectiveCanvasWidth = this.canvas.width / this.zoomLevel;
         const effectiveCanvasHeight = this.canvas.height / this.zoomLevel;
-        this.map.centerOn(this.player.currentPixelX, this.player.currentPixelY, effectiveCanvasWidth, effectiveCanvasHeight);
+        this.map.centerOn(this.player.currentPixelX, this.player.currentPixelY, effectiveCanvasWidth, effectiveCanvasHeight, true);
 
         console.log("Game Engine Started. Player and Map initialized.");
         requestAnimationFrame(this.gameLoop);
@@ -794,6 +804,9 @@ class GameEngine {
 
         // Update custom ARAM systems (towers & waves)
         this.updateARAMSystems(deltaTime);
+
+        // Update custom procedural spawners from the editor Map
+        this.updateProceduralSpawners(deltaTime);
     }
 
     updateARAMSystems(deltaTime) {
@@ -1120,7 +1133,25 @@ class GameEngine {
                 break;
             case 'spawn_point':
                 if (data.type === SPAWN_TYPES.PLAYER_EXIT) {
-                    promptText = `[${actionKey}] Go to ${data.targetMap || '???'}`;
+                    let isLocked = false;
+                    if (data.eventId) {
+                        try {
+                            const stored = localStorage.getItem('rpg_completed_events');
+                            if (stored) {
+                                const completed = JSON.parse(stored);
+                                isLocked = !completed[data.eventId];
+                            } else {
+                                isLocked = true;
+                            }
+                        } catch (e) {
+                            isLocked = true;
+                        }
+                    }
+                    if (isLocked) {
+                        promptText = `[${actionKey}] Go to ${data.targetMap || '???'} (Locked 🔒)`;
+                    } else {
+                        promptText = `[${actionKey}] Go to ${data.targetMap || '???'}`;
+                    }
                 }
                 break;
             case 'event_spawn':
@@ -1142,7 +1173,7 @@ class GameEngine {
 
         // Draw this text at the bottom center of the screen
         const x = this.canvas.width / 2;
-        const y = this.canvas.height - 130; // Position above the skill hot bar and player HP bar
+        const y = this.canvas.height - 145; // Position above the skill hot bar and player HP bar
 
         this.ctx.font = 'bold 16px Arial';
         this.ctx.textAlign = 'center';
@@ -1175,6 +1206,33 @@ class GameEngine {
 
         if (type === 'spawn_point' && data.type === SPAWN_TYPES.PLAYER_EXIT) {
             console.log(`Player interacted with PLAYER_EXIT: ${data.id}, targetMap: ${data.targetMap}`);
+            if (data.eventId) {
+                let isCompleted = false;
+                try {
+                    const stored = localStorage.getItem('rpg_completed_events');
+                    if (stored) {
+                        const completed = JSON.parse(stored);
+                        isCompleted = !!completed[data.eventId];
+                    }
+                } catch (e) {}
+
+                if (!isCompleted) {
+                    let eventName = "Linked Event";
+                    try {
+                        const stored = localStorage.getItem('rpg_custom_events');
+                        if (stored) {
+                            const custom = JSON.parse(stored);
+                            if (custom[data.eventId]) {
+                                eventName = custom[data.eventId].name;
+                            }
+                        }
+                    } catch (e) {}
+
+                    CustomDialog.alert(`The exit is locked tight! You must complete or activate the event first:\n\n🔒 "${eventName}"`, "Locked Exit");
+                    return;
+                }
+            }
+
             if (data.targetMap) {
                 this.requestMapTransition(data.targetMap);
             } else {
@@ -1384,7 +1442,7 @@ class GameEngine {
         // Recenter camera immediately
         const effectiveCanvasWidth = this.canvas.width / this.zoomLevel;
         const effectiveCanvasHeight = this.canvas.height / this.zoomLevel;
-        this.map.centerOn(this.player.currentPixelX, this.player.currentPixelY, effectiveCanvasWidth, effectiveCanvasHeight);
+        this.map.centerOn(this.player.currentPixelX, this.player.currentPixelY, effectiveCanvasWidth, effectiveCanvasHeight, true);
 
         // Update editor states for the new map
         if (this.editorManager) {
@@ -1523,7 +1581,7 @@ class GameEngine {
         console.log(`Found ${permanentNpcSpawns.length} permanent NPC spawn points.`);
         for (const spawnPoint of permanentNpcSpawns) {
             const characterData = spawnPoint.npcData;
-            const mapCoords = this.map.screenToMap(spawnPoint.x, spawnPoint.y);
+            let mapCoords = this.map.screenToMap(spawnPoint.x, spawnPoint.y);
             
             let npcOptions = {
                 id: `npc_permanent_${spawnPoint.id}`,
@@ -1548,49 +1606,8 @@ class GameEngine {
             console.log(`Spawned permanent NPC '${npc.name}' at map coords (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}).`);
         }
 
-        // Programmatically spawn Merchant Scruffy if not loaded (representing the Red Faction Nexus / boss objective)
-        const hasScruffy = this.gameObjects.some(obj => obj instanceof NPC && obj.name.toLowerCase().includes('scruffy'));
-        if (!hasScruffy) {
-            const scruffyMapCoords = { x: 8.5, y: 3.5 }; // Perfectly offsetted symmetrically at Red Nexus (opposite Doran at 8.5, 20.5)
-            const scruffyOptions = {
-                id: 'npc_permanent_scruffy',
-                name: "Merchant Scruffy",
-                assetName: 'npcSpritesheet',
-                spriteSourceRect: { x: 128, y: 0, width: 64, height: 64 } // Frame 2 in spritesheet (nice wizard/merchant visual)
-            };
-            const scruffyData = {
-                name: "Merchant Scruffy",
-                description: "Scurrilous rival merchant and guardian of the Red Faction Nexus.",
-                personality: "Calls Blue Faction peasants trash, boasts about his ultimate defensive elixirs.",
-                first_mes: "Aha! You think you can conquer the Red Faction?! Beat my Red Sentry and my loyal slimes first, or buy my Infinity Edge!",
-                mes_example: "",
-                scenario: "Sells elite battle gear, weapons and shields to player for coin.",
-                map_sprite: { type: "spritesheet", source: 2 },
-                stats: { level: 12, hp: 550, maxHp: 550, atk: 45, def: 12, speed: 120 },
-                inventory: [
-                    {
-                        name: "Infinity Edge",
-                        type: "weapon",
-                        bonusAtk: 45,
-                        cost: 400,
-                        description: "+45 Attack. Guaranteed critical blow multiplier.",
-                        count: 1
-                    },
-                    {
-                        name: "Warmog's Armor",
-                        type: "shield",
-                        bonusDef: 30,
-                        cost: 350,
-                        description: "+30 Defense. Scurrilous ultimate protection barrier.",
-                        count: 1
-                    }
-                ]
-            };
-            const scruffyNpc = new NPC(this, this.map, scruffyMapCoords.x, scruffyMapCoords.y, scruffyOptions);
-            scruffyNpc.loadCharacterData(scruffyData);
-            this.gameObjects.push(scruffyNpc);
-            console.log(`Spawned Merchant Scruffy programmatically at map coords (${scruffyMapCoords.x}, ${scruffyMapCoords.y}).`);
-        }
+        // Post-process ARAM specific NPCs and adjustments safely in aram.js
+        checkAndSpawnARAMNPCs(this);
 
         // 3. Spawn random NPCs at generic NPC spawn points
         const randomNpcSpawns = this.map.spawnPointsData.filter(sp => sp.type === SPAWN_TYPES.NPC);
@@ -1631,6 +1648,7 @@ class GameEngine {
         try {
             const enemyListModule = await import('../data/enemy-list.js');
             enemyTypes = enemyListModule.enemy_types || {};
+            this.loadedEnemyTypes = enemyTypes;
             console.log("Loaded enemy types from enemy-list.js:", Object.keys(enemyTypes));
         } catch (error) {
             console.error("Error loading enemy list:", error);
@@ -1649,7 +1667,91 @@ class GameEngine {
         const enemySpawns = this.map.spawnPointsData.filter(sp => sp.type === SPAWN_TYPES.ENEMY);
         console.log(`Found ${enemySpawns.length} enemy spawn points.`);
         
-        for (const spawnPoint of enemySpawns) {
+        const isItemWorld = this.map && this.map.currentMapName && this.map.currentMapName.startsWith('ItemWorld');
+
+        const doSpawn = () => {
+            // Verify current map hasn't changed during the delay
+            if (isItemWorld && (!this.map || !this.map.currentMapName || !this.map.currentMapName.startsWith('ItemWorld'))) {
+                return;
+            }
+
+            for (const spawnPoint of enemySpawns) {
+                // Check custom event conditions if attached
+                if (spawnPoint.eventId) {
+                    let isCompleted = false;
+                    try {
+                        const stored = localStorage.getItem('rpg_completed_events');
+                        if (stored) {
+                            const completed = JSON.parse(stored);
+                            isCompleted = !!completed[spawnPoint.eventId];
+                        }
+                    } catch (e) {}
+
+                    if (spawnPoint.triggerType === 'unlock_remove') {
+                        // "Stop spawning if Event is completed" (cleansed!)
+                        if (isCompleted) {
+                            console.log(`Bypassing enemy spawn at point ${spawnPoint.id} because cleansing Event "${spawnPoint.eventId}" is completed.`);
+                            continue;
+                        }
+                    } else if (spawnPoint.triggerType === 'give_item') {
+                        // "Spawn only if Event is completed" (boss target unlocked!)
+                        if (!isCompleted) {
+                            console.log(`Bypassing enemy spawn at point ${spawnPoint.id} because trigger Event "${spawnPoint.eventId}" has not occurred yet.`);
+                            continue;
+                        }
+                    }
+                }
+
+                let enemyKey = spawnPoint.enemyId;
+
+                // Fallback for older maps or unassigned spawn points
+                if (!enemyKey || !enemyTypes[enemyKey]) {
+                    if (enemyTypeKeys.length > 0) {
+                        console.warn(`Spawn point ${spawnPoint.id} has no valid enemyId. Spawning random enemy.`);
+                        enemyKey = enemyTypeKeys[Math.floor(Math.random() * enemyTypeKeys.length)];
+                    } else {
+                        console.warn(`Spawn point ${spawnPoint.id} has no enemyId and no enemy types are available to spawn randomly.`);
+                        continue; // Skip this spawn point
+                    }
+                }
+                
+                const enemyData = enemyTypes[enemyKey];
+
+                if (enemyData) {
+                    const mapCoords = this.map.screenToMap(spawnPoint.x, spawnPoint.y);
+                    // Deep copy enemyData to avoid modifying the template in enemy-list.js
+                    const enemyInstanceData = JSON.parse(JSON.stringify(enemyData));
+
+                    // Apply scaling for ARAM based on ARAM difficulty and player level
+                    scaleARAMEnemyStats(this, enemyInstanceData);
+
+                    const enemy = new Enemy(this, this.map, mapCoords.x, mapCoords.y, enemyInstanceData);
+                    enemy.spawnerId = spawnPoint.id || `spawner_${spawnPoint.x}_${spawnPoint.y}`;
+                    this.gameObjects.push(enemy);
+                    console.log(`Spawned enemy '${enemy.name}' from key '${enemyKey}' at map coords (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}).`);
+                }
+            }
+        };
+
+        if (isItemWorld) {
+            this.showTopBannerAnnouncement("Stabilizing dimensional zone... Grace Period active!", "victory");
+            setTimeout(() => {
+                doSpawn();
+            }, 1000);
+        } else {
+            doSpawn();
+        }
+    }
+
+    updateProceduralSpawners(deltaTime) {
+        if (this.isEditing || !this.map || !this.map.spawnPointsData) return;
+        if (!this.loadedEnemyTypes) return;
+
+        // Find all enemy spawn points with procedural config
+        const proceduralSpawns = this.map.spawnPointsData.filter(sp => sp.type === SPAWN_TYPES.ENEMY && sp.procedural);
+        if (proceduralSpawns.length === 0) return;
+
+        for (const spawnPoint of proceduralSpawns) {
             // Check custom event conditions if attached
             if (spawnPoint.eventId) {
                 let isCompleted = false;
@@ -1662,44 +1764,57 @@ class GameEngine {
                 } catch (e) {}
 
                 if (spawnPoint.triggerType === 'unlock_remove') {
-                    // "Stop spawning if Event is completed" (cleansed!)
-                    if (isCompleted) {
-                        console.log(`Bypassing enemy spawn at point ${spawnPoint.id} because cleansing Event "${spawnPoint.eventId}" is completed.`);
-                        continue;
-                    }
+                    if (isCompleted) continue; // Cleansed, disabled
                 } else if (spawnPoint.triggerType === 'give_item') {
-                    // "Spawn only if Event is completed" (boss target unlocked!)
-                    if (!isCompleted) {
-                        console.log(`Bypassing enemy spawn at point ${spawnPoint.id} because trigger Event "${spawnPoint.eventId}" has not occurred yet.`);
-                        continue;
-                    }
+                    if (!isCompleted) continue; // Requires event complete to start spawning
                 }
             }
 
-            let enemyKey = spawnPoint.enemyId;
+            const spawnerId = spawnPoint.id || `spawner_${spawnPoint.x}_${spawnPoint.y}`;
 
-            // Fallback for older maps or unassigned spawn points
-            if (!enemyKey || !enemyTypes[enemyKey]) {
-                if (enemyTypeKeys.length > 0) {
-                    console.warn(`Spawn point ${spawnPoint.id} has no valid enemyId. Spawning random enemy.`);
-                    enemyKey = enemyTypeKeys[Math.floor(Math.random() * enemyTypeKeys.length)];
-                } else {
-                    console.warn(`Spawn point ${spawnPoint.id} has no enemyId and no enemy types are available to spawn randomly.`);
-                    continue; // Skip this spawn point
+            // Count current alive enemies spawned by this spawner
+            const countAlive = this.gameObjects.filter(obj => 
+                obj instanceof Enemy && 
+                obj.spawnerId === spawnerId && 
+                obj.stats && 
+                obj.stats.hp > 0
+            ).length;
+
+            const limit = spawnPoint.limit || 1;
+
+            if (countAlive < limit) {
+                if (spawnPoint.cooldownTimer === undefined) {
+                    // Start immediately if there are absolutely no alive units
+                    spawnPoint.cooldownTimer = countAlive === 0 ? 0.5 : (spawnPoint.interval || 10);
                 }
-            }
-            
-            const enemyData = enemyTypes[enemyKey];
 
-            if (enemyData) {
-                const mapCoords = this.map.screenToMap(spawnPoint.x, spawnPoint.y);
-                // Deep copy enemyData to avoid modifying the template in enemy-list.js
-                const enemyInstanceData = JSON.parse(JSON.stringify(enemyData));
-                const enemy = new Enemy(this, this.map, mapCoords.x, mapCoords.y, enemyInstanceData);
-                this.gameObjects.push(enemy);
-                console.log(`Spawned enemy '${enemy.name}' from key '${enemyKey}' at map coords (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}).`);
+                spawnPoint.cooldownTimer -= deltaTime;
+
+                if (spawnPoint.cooldownTimer <= 0) {
+                    spawnPoint.cooldownTimer = spawnPoint.interval || 10;
+                    this.spawnOneEnemyFromPoint(spawnPoint, spawnerId);
+                }
+            } else {
+                // Keep reset timer ready if count is maxed out
+                spawnPoint.cooldownTimer = spawnPoint.interval || 10;
             }
         }
+    }
+
+    spawnOneEnemyFromPoint(spawnPoint, spawnerId) {
+        const enemyKey = spawnPoint.enemyId;
+        if (!enemyKey || !this.loadedEnemyTypes || !this.loadedEnemyTypes[enemyKey]) return;
+
+        const enemyData = this.loadedEnemyTypes[enemyKey];
+        const mapCoords = this.map.screenToMap(spawnPoint.x, spawnPoint.y);
+        const enemyInstanceData = JSON.parse(JSON.stringify(enemyData));
+
+        scaleARAMEnemyStats(this, enemyInstanceData);
+
+        const enemy = new Enemy(this, this.map, mapCoords.x, mapCoords.y, enemyInstanceData);
+        enemy.spawnerId = spawnerId;
+        this.gameObjects.push(enemy);
+        console.log(`Procedurally spawned enemy '${enemy.name}' from spawner '${spawnerId}' at (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}).`);
     }
 }
 

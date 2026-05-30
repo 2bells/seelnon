@@ -741,6 +741,10 @@ class MapEditor {
                 
                 if (spawnType === SPAWN_TYPES.PLAYER_EXIT) {
                     spawnData.targetMap = this.uiManager.getTargetMapValue();
+                    const params = this.uiManager.getSelectedEventParams();
+                    if (params.eventId) {
+                        spawnData.eventId = params.eventId;
+                    }
                 } else if (spawnType === SPAWN_TYPES.NPC_PERMANENT) {
                     if (this.loadedNpcData) {
                         spawnData.npcData = this.loadedNpcData;
@@ -760,6 +764,12 @@ class MapEditor {
                     if (params.eventId) {
                         spawnData.eventId = params.eventId;
                         spawnData.triggerType = params.triggerType;
+                    }
+                    const spawnerSettings = this.uiManager.getSpawnerSettings();
+                    if (spawnerSettings.procedural) {
+                        spawnData.procedural = true;
+                        spawnData.interval = spawnerSettings.interval;
+                        spawnData.limit = spawnerSettings.limit;
                     }
                 } else if (spawnType === SPAWN_TYPES.EVENT) {
                     const params = this.uiManager.getSelectedEventParams();

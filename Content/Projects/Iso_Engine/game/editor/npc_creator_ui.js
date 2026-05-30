@@ -2,6 +2,8 @@
 console.log("rpg/game/editor/npc_creator_ui.js loaded");
 
 import { getAllProjectiles } from '../combat/projectiles.js';
+import { getGlobalItemDatabase } from './bank_editor.js';
+import { getAllAbilities } from '../combat/ability_system.js';
 
 const SPRITE_SIZE = 64;
 
@@ -42,15 +44,23 @@ class NpcCreatorUI {
         const opsSection = this._createSection(content, 'Operations');
         const opsButtons = document.createElement('div');
         opsButtons.style.display = 'flex';
-        opsButtons.style.gap = '5px';
+        opsButtons.style.gap = '6px';
+        opsButtons.style.width = '100%';
+        opsButtons.style.alignItems = 'center';
         
         const newButton = document.createElement('button');
         newButton.textContent = 'New';
+        newButton.className = 'abilities-btn';
+        newButton.style.flex = '1';
+        newButton.style.padding = '5px';
         newButton.onclick = () => this.creator.reset();
         opsButtons.appendChild(newButton);
 
         const saveButton = document.createElement('button');
         saveButton.textContent = 'Save (.json)';
+        saveButton.className = 'abilities-btn';
+        saveButton.style.flex = '1';
+        saveButton.style.padding = '5px';
         saveButton.onclick = () => this.creator.save();
         opsButtons.appendChild(saveButton);
         
@@ -66,449 +76,84 @@ class NpcCreatorUI {
         
         const loadButton = document.createElement('label');
         loadButton.htmlFor = npcLoadId;
-        loadButton.className = 'rpg-file-label';
+        loadButton.className = 'abilities-btn';
+        loadButton.style.flex = '1';
+        loadButton.style.display = 'inline-block';
+        loadButton.style.textAlign = 'center';
+        loadButton.style.cursor = 'pointer';
+        loadButton.style.padding = '5px 0';
+        loadButton.style.fontSize = '12px';
+        loadButton.style.lineHeight = 'normal';
+        loadButton.style.margin = '0';
         loadButton.textContent = 'Load (.json)';
         opsButtons.appendChild(loadButton);
         opsSection.appendChild(opsButtons);
 
         // --- Core Info ---
         const coreSection = this._createSection(content, 'Core Information');
-        this.fields.name = this._createTextField(coreSection, 'name', 'Name');
-        this.fields.description = this._createTextArea(coreSection, 'description', 'Description');
-        this.fields.first_mes = this._createTextArea(coreSection, 'first_mes', 'Greeting / First Message');
+        this.fields.name = this._createFormRow(coreSection, 'Name', 'text', 'name');
+        this.fields.description = this._createFormRow(coreSection, 'Description', 'textarea', 'description', { minHeight: '52px' });
+        this.fields.first_mes = this._createFormRow(coreSection, 'Greeting / First Message', 'textarea', 'first_mes', { minHeight: '52px' });
 
         // --- Stats & Role ---
         const statsSection = this._createSection(content, 'Stats & Role');
-        const statsGrid = document.createElement('div');
-        statsGrid.style.display = 'grid';
-        statsGrid.style.gridTemplateColumns = '1fr 1fr';
-        statsGrid.style.gap = '6px';
+        this.fields.broadType = this._createFormRow(statsSection, 'Role', 'select', 'broadType', {
+            options: [
+                { value: 'villager', text: 'Villager' },
+                { value: 'merchant', text: 'Merchant' },
+                { value: 'guard', text: 'Guard' },
+                { value: 'enemy', text: 'Enemy' },
+                { value: 'chest', text: 'Chest / Loot Container' },
+                { value: 'turret', text: 'Turret / Emitter' }
+            ]
+        });
 
-        // Role Dropdown
-        const roleDiv = document.createElement('div');
-        const roleLabel = document.createElement('label');
-        roleLabel.style.fontSize = '0.8em';
-        roleLabel.textContent = 'Role';
-        const roleSelect = document.createElement('select');
-        roleSelect.id = 'npc-creator-broadType';
-        roleSelect.style.width = '100%';
-        roleSelect.style.background = '#3B322C';
-        roleSelect.style.color = '#EFEBE0';
-        roleSelect.style.border = '1px solid #8C6D56';
-        roleSelect.style.borderRadius = '4px';
-        roleSelect.style.padding = '4px';
-        roleSelect.style.fontSize = '0.9em';
-
-        const optVil = document.createElement('option');
-        optVil.value = 'villager';
-        optVil.textContent = 'Villager';
-        const optMer = document.createElement('option');
-        optMer.value = 'merchant';
-        optMer.textContent = 'Merchant';
-        const optGrd = document.createElement('option');
-        optGrd.value = 'guard';
-        optGrd.textContent = 'Guard';
-        const optEny = document.createElement('option');
-        optEny.value = 'enemy';
-        optEny.textContent = 'Enemy';
-        const optCst = document.createElement('option');
-        optCst.value = 'chest';
-        optCst.textContent = 'Chest / Loot Container';
-        const optTur = document.createElement('option');
-        optTur.value = 'turret';
-        optTur.textContent = 'Turret / Emitter';
-
-        roleSelect.appendChild(optVil);
-        roleSelect.appendChild(optMer);
-        roleSelect.appendChild(optGrd);
-        roleSelect.appendChild(optEny);
-        roleSelect.appendChild(optCst);
-        roleSelect.appendChild(optTur);
-        roleDiv.appendChild(roleLabel);
-        roleDiv.appendChild(roleSelect);
-        statsGrid.appendChild(roleDiv);
-        this.fields.broadType = roleSelect;
-
-        // Level Input
-        const lvlDiv = document.createElement('div');
-        const lvlLabel = document.createElement('label');
-        lvlLabel.style.fontSize = '0.8em';
-        lvlLabel.textContent = 'Level';
-        const lvlInput = document.createElement('input');
-        lvlInput.type = 'number';
-        lvlInput.value = '1';
-        lvlInput.min = '1';
-        lvlInput.max = '100';
-        lvlInput.style.width = '100%';
-        lvlInput.style.background = '#3B322C';
-        lvlInput.style.color = '#EFEBE0';
-        lvlInput.style.border = '1px solid #8C6D56';
-        lvlInput.style.borderRadius = '4px';
-        lvlInput.style.padding = '4px';
-        lvlInput.style.boxSizing = 'border-box';
-        lvlDiv.appendChild(lvlLabel);
-        lvlDiv.appendChild(lvlInput);
-        statsGrid.appendChild(lvlDiv);
-        this.fields.level = lvlInput;
-
-        // HP Input
-        const hpDiv = document.createElement('div');
-        const hpLabel = document.createElement('label');
-        hpLabel.style.fontSize = '0.8em';
-        hpLabel.textContent = 'HP';
-        const hpInput = document.createElement('input');
-        hpInput.type = 'number';
-        hpInput.value = '50';
-        hpInput.min = '1';
-        hpInput.style.width = '100%';
-        hpInput.style.background = '#3B322C';
-        hpInput.style.color = '#EFEBE0';
-        hpInput.style.border = '1px solid #8C6D56';
-        hpInput.style.borderRadius = '4px';
-        hpInput.style.padding = '4px';
-        hpInput.style.boxSizing = 'border-box';
-        hpDiv.appendChild(hpLabel);
-        hpDiv.appendChild(hpInput);
-        statsGrid.appendChild(hpDiv);
-        this.fields.hp = hpInput;
-
-        // Max HP Input
-        const mhpDiv = document.createElement('div');
-        const mhpLabel = document.createElement('label');
-        mhpLabel.style.fontSize = '0.8em';
-        mhpLabel.textContent = 'Max HP';
-        const mhpInput = document.createElement('input');
-        mhpInput.type = 'number';
-        mhpInput.value = '50';
-        mhpInput.min = '1';
-        mhpInput.style.width = '100%';
-        mhpInput.style.background = '#3B322C';
-        mhpInput.style.color = '#EFEBE0';
-        mhpInput.style.border = '1px solid #8C6D56';
-        mhpInput.style.borderRadius = '4px';
-        mhpInput.style.padding = '4px';
-        mhpInput.style.boxSizing = 'border-box';
-        mhpDiv.appendChild(mhpLabel);
-        mhpDiv.appendChild(mhpInput);
-        statsGrid.appendChild(mhpDiv);
-        this.fields.maxHp = mhpInput;
-
-        // Atk Input
-        const atkDiv = document.createElement('div');
-        const atkLabel = document.createElement('label');
-        atkLabel.style.fontSize = '0.8em';
-        atkLabel.textContent = 'Attack';
-        const atkInput = document.createElement('input');
-        atkInput.type = 'number';
-        atkInput.value = '10';
-        atkInput.min = '0';
-        atkInput.style.width = '100%';
-        atkInput.style.background = '#3B322C';
-        atkInput.style.color = '#EFEBE0';
-        atkInput.style.border = '1px solid #8C6D56';
-        atkInput.style.borderRadius = '4px';
-        atkInput.style.padding = '4px';
-        atkInput.style.boxSizing = 'border-box';
-        atkDiv.appendChild(atkLabel);
-        atkDiv.appendChild(atkInput);
-        statsGrid.appendChild(atkDiv);
-        this.fields.atk = atkInput;
-
-        // Def Input
-        const defDiv = document.createElement('div');
-        const defLabel = document.createElement('label');
-        defLabel.style.fontSize = '0.8em';
-        defLabel.textContent = 'Defense';
-        const defInput = document.createElement('input');
-        defInput.type = 'number';
-        defInput.value = '5';
-        defInput.min = '0';
-        defInput.style.width = '100%';
-        defInput.style.background = '#3B322C';
-        defInput.style.color = '#EFEBE0';
-        defInput.style.border = '1px solid #8C6D56';
-        defInput.style.borderRadius = '4px';
-        defInput.style.padding = '4px';
-        defInput.style.boxSizing = 'border-box';
-        defDiv.appendChild(defLabel);
-        defDiv.appendChild(defInput);
-        statsGrid.appendChild(defDiv);
-        this.fields.def = defInput;
-
-        // Speed Input
-        const spdDiv = document.createElement('div');
-        spdDiv.style.gridColumn = 'span 2';
-        const spdLabel = document.createElement('label');
-        spdLabel.style.fontSize = '0.8em';
-        spdLabel.textContent = 'Speed';
-        const spdInput = document.createElement('input');
-        spdInput.type = 'number';
-        spdInput.value = '120';
-        spdInput.min = '1';
-        spdInput.style.width = '100%';
-        spdInput.style.background = '#3B322C';
-        spdInput.style.color = '#EFEBE0';
-        spdInput.style.border = '1px solid #8C6D56';
-        spdInput.style.borderRadius = '4px';
-        spdInput.style.padding = '4px';
-        spdInput.style.boxSizing = 'border-box';
-        spdDiv.appendChild(spdLabel);
-        spdDiv.appendChild(spdInput);
-        statsGrid.appendChild(spdDiv);
-        this.fields.speed = spdInput;
-
-        statsSection.appendChild(statsGrid);
+        this.fields.level = this._createFormRow(statsSection, 'Level', 'number', 'level', { min: 1, max: 100 });
+        this.fields.hp = this._createFormRow(statsSection, 'HP', 'number', 'hp', { min: 1 });
+        this.fields.maxHp = this._createFormRow(statsSection, 'Max HP', 'number', 'maxHp', { min: 1 });
+        this.fields.atk = this._createFormRow(statsSection, 'Attack', 'number', 'atk', { min: 0 });
+        this.fields.def = this._createFormRow(statsSection, 'Defense', 'number', 'def', { min: 0 });
+        this.fields.speed = this._createFormRow(statsSection, 'Speed', 'number', 'speed', { min: 1 });
 
         // --- Emitter & Projectile Settings ---
         const emitterSection = this._createSection(content, 'Emitter & Projectile Settings');
         emitterSection.id = 'npc-creator-emitter-section';
         emitterSection.style.display = 'none';
 
-        // Projectile Preset Link
-        const presetDiv = document.createElement('div');
-        presetDiv.style.margin = '6px 0';
-        const presetLabel = document.createElement('label');
-        presetLabel.textContent = 'Link Emitter Preset';
-        presetLabel.style.fontSize = '0.8em';
-        const presetSelect = document.createElement('select');
-        presetSelect.style.width = '100%';
-        presetSelect.style.background = '#3B322C';
-        presetSelect.style.color = '#EFEBE0';
-        presetSelect.style.border = '1px solid #8C6D56';
-        presetSelect.style.borderRadius = '4px';
-        presetSelect.style.padding = '4px';
-        presetSelect.style.fontSize = '0.9em';
-        presetDiv.appendChild(presetLabel);
-        presetDiv.appendChild(presetSelect);
-        emitterSection.appendChild(presetDiv);
-        this.fields.presetId = presetSelect;
-        presetSelect.addEventListener('change', () => {
-            this.updateEmitterFieldsVisibility();
+        this.fields.presetId = this._createFormRow(emitterSection, 'Link Emitter Preset', 'select', 'presetId', { options: [] });
+        this.fields.showArea = this._createFormRow(emitterSection, 'Show Range Circle', 'checkbox', 'showArea', { checked: true });
+        this.fields.notify = this._createFormRow(emitterSection, 'Notify/Warn Discharge', 'checkbox', 'notify', { checked: false });
+        this.fields.cooldown = this._createFormRow(emitterSection, 'Cooldown Interval (s)', 'number', 'cooldown', { min: 0.1, step: 0.1 });
+        this.fields.range = this._createFormRow(emitterSection, 'Detection Range (px)', 'number', 'range', { min: 20 });
+        
+        this.fields.projectileType = this._createFormRow(emitterSection, 'Projectile Behavior', 'select', 'projectileType', {
+            options: [
+                { value: 'standard', text: 'Standard Linear Shot' },
+                { value: 'seeking', text: 'Scurrilous Homing/Seeking' },
+                { value: 'circular', text: 'Spiral / Orbital Orbit' },
+                { value: 'sinewave', text: 'Oscillating Sine Wave' },
+                { value: 'starburst', text: 'Starburst Nova Ring' }
+            ]
         });
 
-        // Show Area
-        const saDiv = document.createElement('div');
-        saDiv.style.display = 'flex';
-        saDiv.style.alignItems = 'center';
-        saDiv.style.gap = '8px';
-        saDiv.style.margin = '4px 0';
-        const saLabel = document.createElement('label');
-        saLabel.textContent = 'Show Range Circle';
-        saLabel.style.fontSize = '0.85em';
-        saLabel.style.cursor = 'pointer';
-        const saInput = document.createElement('input');
-        saInput.type = 'checkbox';
-        saInput.checked = true;
-        saInput.style.cursor = 'pointer';
-        saDiv.appendChild(saInput);
-        saDiv.appendChild(saLabel);
-        emitterSection.appendChild(saDiv);
-        this.fields.showArea = saInput;
-
-        // Notify
-        const notDiv = document.createElement('div');
-        notDiv.style.display = 'flex';
-        notDiv.style.alignItems = 'center';
-        notDiv.style.gap = '8px';
-        notDiv.style.margin = '4px 0';
-        const notLabel = document.createElement('label');
-        notLabel.textContent = 'Notify / Warn Text on Discharge';
-        notLabel.style.fontSize = '0.85em';
-        notLabel.style.cursor = 'pointer';
-        const notInput = document.createElement('input');
-        notInput.type = 'checkbox';
-        notInput.checked = false;
-        notInput.style.cursor = 'pointer';
-        notDiv.appendChild(notInput);
-        notDiv.appendChild(notLabel);
-        emitterSection.appendChild(notDiv);
-        this.fields.notify = notInput;
-
-        // Cooldown
-        const cdDiv = document.createElement('div');
-        cdDiv.style.margin = '6px 0';
-        const cdLabel = document.createElement('label');
-        cdLabel.textContent = 'Cooldown Interval (seconds)';
-        cdLabel.style.fontSize = '0.8em';
-        const cdInput = document.createElement('input');
-        cdInput.type = 'number';
-        cdInput.step = '0.1';
-        cdInput.value = '1.5';
-        cdInput.min = '0.1';
-        cdInput.style.width = '100%';
-        cdInput.style.background = '#3B322C';
-        cdInput.style.color = '#EFEBE0';
-        cdInput.style.border = '1px solid #8C6D56';
-        cdInput.style.borderRadius = '4px';
-        cdInput.style.padding = '4px';
-        cdInput.style.boxSizing = 'border-box';
-        cdDiv.appendChild(cdLabel);
-        cdDiv.appendChild(cdInput);
-        emitterSection.appendChild(cdDiv);
-        this.fields.cooldown = cdInput;
-
-        // Range
-        const rngDiv = document.createElement('div');
-        rngDiv.style.margin = '6px 0';
-        const rngLabel = document.createElement('label');
-        rngLabel.textContent = 'Detection Range (pixels)';
-        rngLabel.style.fontSize = '0.8em';
-        const rngInput = document.createElement('input');
-        rngInput.type = 'number';
-        rngInput.value = '220';
-        rngInput.min = '20';
-        rngInput.style.width = '100%';
-        rngInput.style.background = '#3B322C';
-        rngInput.style.color = '#EFEBE0';
-        rngInput.style.border = '1px solid #8C6D56';
-        rngInput.style.borderRadius = '4px';
-        rngInput.style.padding = '4px';
-        rngInput.style.boxSizing = 'border-box';
-        rngDiv.appendChild(rngLabel);
-        rngDiv.appendChild(rngInput);
-        emitterSection.appendChild(rngDiv);
-        this.fields.range = rngInput;
-
-        // Projectile Type
-        const ptDiv = document.createElement('div');
-        ptDiv.style.margin = '6px 0';
-        const ptLabel = document.createElement('label');
-        ptLabel.textContent = 'Projectile Behavior';
-        ptLabel.style.fontSize = '0.8em';
-        const ptSelect = document.createElement('select');
-        ptSelect.style.width = '100%';
-        ptSelect.style.background = '#3B322C';
-        ptSelect.style.color = '#EFEBE0';
-        ptSelect.style.border = '1px solid #8C6D56';
-        ptSelect.style.borderRadius = '4px';
-        ptSelect.style.padding = '4px';
-        ptSelect.style.fontSize = '0.9em';
-
-        const optProStd = document.createElement('option');
-        optProStd.value = 'standard';
-        optProStd.textContent = 'Standard Linear Shot';
-        const optProSk = document.createElement('option');
-        optProSk.value = 'seeking';
-        optProSk.textContent = 'Scurrilous Homing/Seeking';
-        const optProCir = document.createElement('option');
-        optProCir.value = 'circular';
-        optProCir.textContent = 'Spiral / Orbital Orbit';
-        const optProSw = document.createElement('option');
-        optProSw.value = 'sinewave';
-        optProSw.textContent = 'Oscillating Sine Wave';
-        const optProSb = document.createElement('option');
-        optProSb.value = 'starburst';
-        optProSb.textContent = 'Starburst Nova Ring';
-
-        ptSelect.appendChild(optProStd);
-        ptSelect.appendChild(optProSk);
-        ptSelect.appendChild(optProCir);
-        ptSelect.appendChild(optProSw);
-        ptSelect.appendChild(optProSb);
-        ptDiv.appendChild(ptLabel);
-        ptDiv.appendChild(ptSelect);
-        emitterSection.appendChild(ptDiv);
-        this.fields.projectileType = ptSelect;
-
-        // Projectile Speed
-        const psDiv = document.createElement('div');
-        psDiv.style.margin = '6px 0';
-        const psLabel = document.createElement('label');
-        psLabel.textContent = 'Projectile Velocity Speed';
-        psLabel.style.fontSize = '0.8em';
-        const psInput = document.createElement('input');
-        psInput.type = 'number';
-        psInput.value = '160';
-        psInput.min = '10';
-        psInput.style.width = '100%';
-        psInput.style.background = '#3B322C';
-        psInput.style.color = '#EFEBE0';
-        psInput.style.border = '1px solid #8C6D56';
-        psInput.style.borderRadius = '4px';
-        psInput.style.padding = '4px';
-        psInput.style.boxSizing = 'border-box';
-        psDiv.appendChild(psLabel);
-        psDiv.appendChild(psInput);
-        emitterSection.appendChild(psDiv);
-        this.fields.projectileSpeed = psInput;
-
-        // Burst Count / Bullet spread count
-        const bcDiv = document.createElement('div');
-        bcDiv.style.margin = '6px 0';
-        const bcLabel = document.createElement('label');
-        bcLabel.textContent = 'Burst Round Count (Spread / Nova)';
-        bcLabel.style.fontSize = '0.8em';
-        const bcInput = document.createElement('input');
-        bcInput.type = 'number';
-        bcInput.value = '1';
-        bcInput.min = '1';
-        bcInput.style.width = '100%';
-        bcInput.style.background = '#3B322C';
-        bcInput.style.color = '#EFEBE0';
-        bcInput.style.border = '1px solid #8C6D56';
-        bcInput.style.borderRadius = '4px';
-        bcInput.style.padding = '4px';
-        bcInput.style.boxSizing = 'border-box';
-        bcDiv.appendChild(bcLabel);
-        bcDiv.appendChild(bcInput);
-        emitterSection.appendChild(bcDiv);
-        this.fields.burstCount = bcInput;
-
-        // Damage
-        const dmgDiv = document.createElement('div');
-        dmgDiv.style.margin = '6px 0';
-        const dmgLabel = document.createElement('label');
-        dmgLabel.textContent = 'Damage Rating';
-        dmgLabel.style.fontSize = '0.8em';
-        const dmgInput = document.createElement('input');
-        dmgInput.type = 'number';
-        dmgInput.value = '15';
-        dmgInput.min = '1';
-        dmgInput.style.width = '100%';
-        dmgInput.style.background = '#3B322C';
-        dmgInput.style.color = '#EFEBE0';
-        dmgInput.style.border = '1px solid #8C6D56';
-        dmgInput.style.borderRadius = '4px';
-        dmgInput.style.padding = '4px';
-        dmgInput.style.boxSizing = 'border-box';
-        dmgDiv.appendChild(dmgLabel);
-        dmgDiv.appendChild(dmgInput);
-        emitterSection.appendChild(dmgDiv);
-        this.fields.damage = dmgInput;
-
-        // Projectile Color
-        const pcDiv = document.createElement('div');
-        pcDiv.style.margin = '6px 0';
-        const pcLabel = document.createElement('label');
-        pcLabel.textContent = 'Glow Spark Color Hex';
-        pcLabel.style.fontSize = '0.8em';
-        const pcInput = document.createElement('input');
-        pcInput.type = 'text';
-        pcInput.value = '#ff3333';
-        pcInput.style.width = '100%';
-        pcInput.style.background = '#3B322C';
-        pcInput.style.color = '#EFEBE0';
-        pcInput.style.border = '1px solid #8C6D56';
-        pcInput.style.borderRadius = '4px';
-        pcInput.style.padding = '4px';
-        pcInput.style.boxSizing = 'border-box';
-        pcDiv.appendChild(pcLabel);
-        pcDiv.appendChild(pcInput);
-        emitterSection.appendChild(pcDiv);
-        this.fields.projectileColor = pcInput;
+        this.fields.projectileSpeed = this._createFormRow(emitterSection, 'Projectile Velocity', 'number', 'projectileSpeed', { min: 10 });
+        this.fields.burstCount = this._createFormRow(emitterSection, 'Burst Bullet Count', 'number', 'burstCount', { min: 1 });
+        this.fields.damage = this._createFormRow(emitterSection, 'Damage Rating', 'number', 'damage', { min: 1 });
+        this.fields.projectileColor = this._createFormRow(emitterSection, 'Glow Spark Color Hex', 'text', 'projectileColor');
 
         // Toggle on Role Select Change
-        roleSelect.addEventListener('change', () => {
-            if (roleSelect.value === 'turret') {
+        this.fields.broadType.addEventListener('change', () => {
+            if (this.fields.broadType.value === 'turret') {
                 emitterSection.style.display = 'block';
             } else {
                 emitterSection.style.display = 'none';
             }
         });
 
-        // --- Starting Inventory ---
-        const invSection = this._createSection(content, 'Starting Inventory');
+        // --- Starting Inventory & Abilities ---
+        const invSection = this._createSection(content, 'Starting Inventory & Abilities');
         this._createInventoryManager(invSection);
+        this._createSlottedAbilitiesManager(invSection);
 
         // --- Custom Conversation Branches ---
         const branchSection = this._createSection(content, 'Dialogue Options / Branches');
@@ -526,7 +171,7 @@ class NpcCreatorUI {
     
     _createSection(parent, title) {
         const section = document.createElement('div');
-        section.className = 'npc-creator-section';
+        section.className = 'abilities-editor-section'; // Unified with ability creator section aesthetic
         const h4 = document.createElement('h4');
         h4.textContent = title;
         section.appendChild(h4);
@@ -534,44 +179,133 @@ class NpcCreatorUI {
         return section;
     }
 
-    _createTextField(parent, id, labelText) {
-        const label = document.createElement('label');
-        label.htmlFor = `npc-creator-${id}`;
-        label.textContent = labelText;
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.id = `npc-creator-${id}`;
-        parent.appendChild(label);
-        parent.appendChild(input);
-        return input;
-    }
+    _createFormRow(parent, labelText, inputType, fieldId, props = {}) {
+        const row = document.createElement('div');
+        row.className = 'abilities-form-row';
 
-    _createTextArea(parent, id, labelText) {
         const label = document.createElement('label');
-        label.htmlFor = `npc-creator-${id}`;
         label.textContent = labelText;
-        const textarea = document.createElement('textarea');
-        textarea.id = `npc-creator-${id}`;
-        parent.appendChild(label);
-        parent.appendChild(textarea);
-        return textarea;
+        label.htmlFor = `npc-creator-${fieldId}`;
+        label.style.fontSize = '0.85em';
+        label.style.color = '#D4C8A0';
+        label.style.flex = '1';
+        row.appendChild(label);
+
+        let input;
+        if (inputType === 'select') {
+            input = document.createElement('select');
+            if (props.options) {
+                props.options.forEach(o => {
+                    const opt = document.createElement('option');
+                    opt.value = o.value;
+                    opt.textContent = o.text;
+                    input.appendChild(opt);
+                });
+            }
+        } else if (inputType === 'checkbox') {
+            input = document.createElement('input');
+            input.type = 'checkbox';
+            if (props.checked !== undefined) input.checked = props.checked;
+        } else if (inputType === 'textarea') {
+            const areaRow = document.createElement('div');
+            areaRow.style.display = 'flex';
+            areaRow.style.flexDirection = 'column';
+            areaRow.style.gap = '4px';
+            areaRow.style.marginBottom = '6px';
+            areaRow.style.width = '100%';
+
+            const areaLabel = document.createElement('label');
+            areaLabel.style.fontSize = '0.85em';
+            areaLabel.style.color = '#D4C8A0';
+            areaLabel.style.fontWeight = 'bold';
+            areaLabel.textContent = labelText;
+            areaLabel.htmlFor = `npc-creator-${fieldId}`;
+            areaRow.appendChild(areaLabel);
+
+            input = document.createElement('textarea');
+            input.id = `npc-creator-${fieldId}`;
+            input.style.width = '100%';
+            input.style.background = '#3B322C';
+            input.style.color = '#EFEBE0';
+            input.style.border = '1px solid #8C6D56';
+            input.style.borderRadius = '4px';
+            input.style.padding = '5px';
+            input.style.boxSizing = 'border-box';
+            input.style.fontSize = '0.9em';
+            input.style.minHeight = props.minHeight || '52px';
+            input.style.resize = 'vertical';
+            input.style.fontFamily = 'inherit';
+
+            areaRow.appendChild(input);
+            parent.appendChild(areaRow);
+            this.fields[fieldId] = input;
+            return input;
+        } else {
+            input = document.createElement('input');
+            input.type = inputType;
+            if (props.step) input.step = props.step;
+            if (props.min !== undefined) input.min = props.min;
+            if (props.max !== undefined) input.max = props.max;
+        }
+
+        input.id = `npc-creator-${fieldId}`;
+        
+        if (inputType === 'select' || inputType === 'text' || inputType === 'number') {
+            input.style.background = '#3B322C';
+            input.style.color = '#EFEBE0';
+            input.style.border = '1px solid #8C6D56';
+            input.style.borderRadius = '4px';
+            input.style.padding = '3px 6px';
+            input.style.fontSize = '0.9em';
+            input.style.boxSizing = 'border-box';
+            input.style.flex = '1.2';
+        } else if (inputType === 'checkbox') {
+            input.style.cursor = 'pointer';
+            input.style.width = '16px';
+            input.style.height = '16px';
+            input.style.accentColor = '#8C6D56';
+        }
+
+        row.appendChild(input);
+        parent.appendChild(row);
+        this.fields[fieldId] = input;
+        return input;
     }
     
     _createMapSpritePicker(parent) {
-        const label = document.createElement('label');
-        label.textContent = "Map Sprite (64x64)";
-        parent.appendChild(label);
+        const containerLabel = document.createElement('label');
+        containerLabel.style.fontSize = '0.85em';
+        containerLabel.style.color = '#D4C8A0';
+        containerLabel.style.fontWeight = 'bold';
+        containerLabel.style.marginTop = '8px';
+        containerLabel.textContent = "Map Sprite (64x64)";
+        parent.appendChild(containerLabel);
 
         const container = document.createElement('div');
         container.className = 'npc-creator-sprite-picker';
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '10px';
+        container.style.marginTop = '4px';
         
         const previewDiv = document.createElement('div');
         previewDiv.className = 'npc-sprite-preview-container';
         previewDiv.title = 'Click to select from spritesheet';
         previewDiv.style.cursor = 'pointer';
+        previewDiv.style.width = '64px';
+        previewDiv.style.height = '64px';
+        previewDiv.style.border = '1px dashed #8C6D56';
+        previewDiv.style.borderRadius = '4px';
+        previewDiv.style.backgroundColor = '#2C2420';
+        previewDiv.style.display = 'flex';
+        previewDiv.style.justifyContent = 'center';
+        previewDiv.style.alignItems = 'center';
+
         const previewCanvas = document.createElement('canvas');
         previewCanvas.width = SPRITE_SIZE;
         previewCanvas.height = SPRITE_SIZE;
+        previewCanvas.style.maxWidth = '100%';
+        previewCanvas.style.maxHeight = '100%';
         previewDiv.appendChild(previewCanvas);
         this.fields.mapSpritePreview = previewCanvas;
         
@@ -593,8 +327,15 @@ class NpcCreatorUI {
         
         const uploadButton = document.createElement('label');
         uploadButton.htmlFor = npcMapSpriteId;
-        uploadButton.className = 'rpg-file-label';
+        uploadButton.className = 'abilities-btn';
+        uploadButton.style.padding = '4px 8px';
+        uploadButton.style.fontSize = '10px';
+        uploadButton.style.display = 'inline-block';
+        uploadButton.style.textAlign = 'center';
+        uploadButton.style.cursor = 'pointer';
+        uploadButton.style.margin = '0';
         uploadButton.textContent = 'Upload Custom';
+        
         uploadDiv.appendChild(uploadInput);
         uploadDiv.appendChild(uploadButton);
 
@@ -634,26 +375,19 @@ class NpcCreatorUI {
             }
         };
 
-        // Close when clicking overlay
         overlay.onclick = (e) => {
             if (e.target === overlay) {
                 closePopup();
             }
         };
 
-        // Handle selection
         selectorCanvas.onclick = (e) => {
             const rect = selectorCanvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const spriteIndex = Math.floor(x / SPRITE_SIZE);
             
-            // Update NPC data
             this.creator.currentNpcData.map_sprite = { type: 'spritesheet', source: spriteIndex };
-            
-            // Update the preview on the main UI
             this.updateMapSpritePreview();
-
-            // Close popup
             closePopup();
         };
 
@@ -662,17 +396,37 @@ class NpcCreatorUI {
     }
 
     _createMainAvatarPicker(parent) {
-        const label = document.createElement('label');
-        label.textContent = "Main Dialogue Avatar";
-        parent.appendChild(label);
+        const containerLabel = document.createElement('label');
+        containerLabel.style.fontSize = '0.85em';
+        containerLabel.style.color = '#D4C8A0';
+        containerLabel.style.fontWeight = 'bold';
+        containerLabel.style.marginTop = '8px';
+        containerLabel.textContent = "Main Dialogue Avatar";
+        parent.appendChild(containerLabel);
         
         const container = document.createElement('div');
         container.className = 'npc-creator-avatar-picker';
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '10px';
+        container.style.marginTop = '4px';
 
         const previewDiv = document.createElement('div');
         previewDiv.className = 'npc-avatar-preview-container';
+        previewDiv.style.width = '64px';
+        previewDiv.style.height = '64px';
+        previewDiv.style.border = '1px dashed #8C6D56';
+        previewDiv.style.borderRadius = '4px';
+        previewDiv.style.backgroundColor = '#2C2420';
+        previewDiv.style.display = 'flex';
+        previewDiv.style.justifyContent = 'center';
+        previewDiv.style.alignItems = 'center';
+        previewDiv.style.overflow = 'hidden';
+
         const img = document.createElement('img');
         img.alt = 'Main Avatar';
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '100%';
         previewDiv.appendChild(img);
         this.fields.mainAvatarPreview = img;
         
@@ -686,7 +440,13 @@ class NpcCreatorUI {
 
         const uploadButton = document.createElement('label');
         uploadButton.htmlFor = npcMainAvatarId;
-        uploadButton.className = 'rpg-file-label';
+        uploadButton.className = 'abilities-btn';
+        uploadButton.style.padding = '4px 8px';
+        uploadButton.style.fontSize = '10px';
+        uploadButton.style.display = 'inline-block';
+        uploadButton.style.textAlign = 'center';
+        uploadButton.style.cursor = 'pointer';
+        uploadButton.style.margin = '0';
         uploadButton.textContent = 'Upload Main Avatar';
 
         container.appendChild(previewDiv);
@@ -698,16 +458,23 @@ class NpcCreatorUI {
     _createReactiveAvatarManager(parent) {
         const label = document.createElement('label');
         label.textContent = "Reactive Avatars";
+        label.style.marginTop = '8px';
         parent.appendChild(label);
 
         this.reactiveAvatarContainer = document.createElement('div');
         this.reactiveAvatarContainer.style.display = 'flex';
         this.reactiveAvatarContainer.style.flexDirection = 'column';
-        this.reactiveAvatarContainer.style.gap = '5px';
+        this.reactiveAvatarContainer.style.gap = '6px';
+        this.reactiveAvatarContainer.style.marginTop = '4px';
         parent.appendChild(this.reactiveAvatarContainer);
 
         const addButton = document.createElement('button');
         addButton.textContent = '+ Add Reactive Avatar';
+        addButton.className = 'abilities-btn';
+        addButton.style.marginTop = '6px';
+        addButton.style.width = '100%';
+        addButton.style.padding = '5px';
+        addButton.style.fontSize = '11px';
         addButton.onclick = () => this._addReactiveAvatarEntry();
         parent.appendChild(addButton);
     }
@@ -720,6 +487,13 @@ class NpcCreatorUI {
         
         const entryDiv = document.createElement('div');
         entryDiv.className = 'npc-reactive-avatar-entry';
+        entryDiv.style.display = 'flex';
+        entryDiv.style.alignItems = 'center';
+        entryDiv.style.gap = '8px';
+        entryDiv.style.backgroundColor = '#2C2420';
+        entryDiv.style.border = '1px solid #5A4B3E';
+        entryDiv.style.padding = '5px';
+        entryDiv.style.borderRadius = '4px';
         
         const npcReactiveId = `rpg-npc-reactive-avatar-file-upload-input-${index}-${Date.now()}`;
         const previewDiv = document.createElement('label');
@@ -727,9 +501,19 @@ class NpcCreatorUI {
         previewDiv.className = 'npc-avatar-preview-container';
         previewDiv.style.width = '32px';
         previewDiv.style.height = '32px';
+        previewDiv.style.border = '1px dashed #8C6D56';
+        previewDiv.style.borderRadius = '3px';
+        previewDiv.style.backgroundColor = '#3B322C';
+        previewDiv.style.display = 'flex';
+        previewDiv.style.justifyContent = 'center';
+        previewDiv.style.alignItems = 'center';
         previewDiv.style.cursor = 'pointer';
+        previewDiv.style.overflow = 'hidden';
         previewDiv.title = "Click to upload avatar";
+
         const img = document.createElement('img');
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '100%';
         if (data.dataUrl) img.src = data.dataUrl;
         previewDiv.appendChild(img);
         
@@ -744,12 +528,28 @@ class NpcCreatorUI {
         keywordInput.type = 'text';
         keywordInput.placeholder = 'Keywords (comma-separated)';
         keywordInput.value = data.keyword;
+        keywordInput.style.flex = '1';
+        keywordInput.style.background = '#3B322C';
+        keywordInput.style.color = '#EFEBE0';
+        keywordInput.style.border = '1px solid #8C6D56';
+        keywordInput.style.borderRadius = '3px';
+        keywordInput.style.padding = '3px 6px';
+        keywordInput.style.fontSize = '11px';
+        keywordInput.style.fontFamily = 'inherit';
         keywordInput.onchange = (e) => {
             this.creator.currentNpcData.dialogue_avatars.reactive[index].keyword = e.target.value;
         };
         
         const removeButton = document.createElement('button');
-        removeButton.textContent = 'X';
+        removeButton.textContent = '✖';
+        removeButton.title = 'Remove Avatar';
+        removeButton.style.padding = '3px 6px';
+        removeButton.style.fontSize = '11px';
+        removeButton.style.backgroundColor = '#5C2C28';
+        removeButton.style.color = '#FFDADA';
+        removeButton.style.border = '1px solid #7D3833';
+        removeButton.style.borderRadius = '3px';
+        removeButton.style.cursor = 'pointer';
         removeButton.onclick = () => {
             this.creator.currentNpcData.dialogue_avatars.reactive.splice(index, 1);
             this.updateReactiveAvatarList();
@@ -784,11 +584,10 @@ class NpcCreatorUI {
                 const sx = spriteData.source * SPRITE_SIZE;
                 ctx.drawImage(this.spriteSheetAsset, sx, 0, SPRITE_SIZE, SPRITE_SIZE, 0, 0, SPRITE_SIZE, SPRITE_SIZE);
             } else {
-                // Spritesheet not loaded yet, draw a placeholder
-                ctx.fillStyle = '#3B322C';
+                ctx.fillStyle = '#2C2420';
                 ctx.fillRect(0,0,SPRITE_SIZE, SPRITE_SIZE);
                 ctx.fillStyle = 'white';
-                ctx.font = '12px Arial';
+                ctx.font = '10px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('Loading...', SPRITE_SIZE/2, SPRITE_SIZE/2);
@@ -815,6 +614,9 @@ class NpcCreatorUI {
     _createInventoryManager(parent) {
         const label = document.createElement('label');
         label.textContent = "Starting Inventory";
+        label.style.display = 'block';
+        label.style.fontSize = '12px';
+        label.style.color = '#D4C8A0';
         parent.appendChild(label);
 
         this.inventoryContainer = document.createElement('div');
@@ -822,25 +624,220 @@ class NpcCreatorUI {
         this.inventoryContainer.style.display = 'flex';
         this.inventoryContainer.style.flexDirection = 'column';
         this.inventoryContainer.style.gap = '6px';
+        this.inventoryContainer.style.marginTop = '4px';
         parent.appendChild(this.inventoryContainer);
 
         const addButton = document.createElement('button');
         addButton.textContent = '+ Add Item';
-        addButton.style.marginTop = '4px';
+        addButton.className = 'abilities-btn';
+        addButton.style.marginTop = '6px';
+        addButton.style.width = '100%';
+        addButton.style.padding = '5px';
+        addButton.style.fontSize = '11px';
         addButton.onclick = () => this._addInventoryCard();
         parent.appendChild(addButton);
+    }
+
+    _createSlottedAbilitiesManager(parent) {
+        const titleLabel = document.createElement('label');
+        titleLabel.textContent = "Slotted Equipped Abilities (Enemies/Allies/NPCs)";
+        titleLabel.style.marginTop = '12px';
+        titleLabel.style.display = 'block';
+        titleLabel.style.fontSize = '12px';
+        titleLabel.style.color = '#D4C8A0';
+        parent.appendChild(titleLabel);
+
+        this.abilitySlotsContainer = document.createElement('div');
+        this.abilitySlotsContainer.id = 'npc-creator-ability-slots';
+        this.abilitySlotsContainer.style.display = 'flex';
+        this.abilitySlotsContainer.style.flexDirection = 'column';
+        this.abilitySlotsContainer.style.gap = '6px';
+        this.abilitySlotsContainer.style.marginTop = '4px';
+        parent.appendChild(this.abilitySlotsContainer);
+
+        this.fields.abilitySlots = [];
+
+        const addAbilityButton = document.createElement('button');
+        addAbilityButton.textContent = '+ Add Custom Ability/Emitter';
+        addAbilityButton.className = 'abilities-btn';
+        addAbilityButton.style.marginTop = '6px';
+        addAbilityButton.style.width = '100%';
+        addAbilityButton.style.padding = '6px';
+        addAbilityButton.style.fontFamily = 'inherit';
+        addAbilityButton.style.fontSize = '11px';
+        addAbilityButton.style.fontWeight = 'bold';
+        addAbilityButton.onclick = () => {
+            this._addAbilitySlotRow();
+        };
+        parent.appendChild(addAbilityButton);
+
+        const designAbilitiesButton = document.createElement('button');
+        designAbilitiesButton.textContent = '⚙️ Design Custom Ability Blueprints';
+        designAbilitiesButton.style.marginTop = '6px';
+        designAbilitiesButton.style.width = '100%';
+        designAbilitiesButton.style.padding = '4px 6px';
+        designAbilitiesButton.style.fontFamily = 'inherit';
+        designAbilitiesButton.style.fontSize = '10px';
+        designAbilitiesButton.style.backgroundColor = '#4A3D35';
+        designAbilitiesButton.style.color = '#D4C8A0';
+        designAbilitiesButton.style.border = '1px solid #5A4B3E';
+        designAbilitiesButton.style.borderRadius = '4px';
+        designAbilitiesButton.style.cursor = 'pointer';
+        designAbilitiesButton.onclick = () => {
+            if (this.creator.engine && this.creator.engine.editorManager) {
+                this.creator.engine.editorManager.toggle('abilities');
+            }
+        };
+        parent.appendChild(designAbilitiesButton);
+    }
+
+    _addAbilitySlotRow(initialValue = '') {
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'npc-ability-slot-row';
+        slotDiv.style.display = 'flex';
+        slotDiv.style.alignItems = 'center';
+        slotDiv.style.gap = '6px';
+        slotDiv.style.width = '100%';
+
+        const slotLabel = document.createElement('span');
+        slotLabel.className = 'slot-index-label';
+        slotLabel.style.fontSize = '10px';
+        slotLabel.style.color = '#8C6D56';
+        slotLabel.style.width = '42px';
+        slotLabel.style.fontWeight = 'bold';
+        slotLabel.style.fontFamily = 'monospace';
+        slotDiv.appendChild(slotLabel);
+
+        const selectEl = document.createElement('select');
+        selectEl.style.flex = '1';
+        selectEl.style.background = '#2C2420';
+        selectEl.style.color = '#EFEBE0';
+        selectEl.style.border = '1px solid #725C4D';
+        selectEl.style.borderRadius = '3px';
+        selectEl.style.fontSize = '11px';
+        selectEl.style.padding = '3px';
+        selectEl.onfocus = () => this.refreshAbilityOptionDropdowns();
+
+        const abilitiesList = getAllAbilities ? getAllAbilities() : {};
+        selectEl.innerHTML = '<option value="">-- No Ability Slotted --</option>';
+        Object.keys(abilitiesList).forEach(id => {
+            const ab = abilitiesList[id];
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = `${ab.emoji || '☄️'} ${ab.name || id}`;
+            selectEl.appendChild(opt);
+        });
+        selectEl.value = initialValue;
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '✖';
+        delBtn.title = 'Remove Slot';
+        delBtn.style.padding = '2px 6px';
+        delBtn.style.fontSize = '10px';
+        delBtn.style.backgroundColor = '#5C2C28';
+        delBtn.style.color = '#FFDADA';
+        delBtn.style.border = '1px solid #7D3833';
+        delBtn.style.borderRadius = '3px';
+        delBtn.style.cursor = 'pointer';
+        delBtn.style.display = 'flex';
+        delBtn.style.alignItems = 'center';
+        delBtn.style.justifyContent = 'center';
+        delBtn.onclick = () => {
+            slotDiv.remove();
+            this.fields.abilitySlots = this.fields.abilitySlots.filter(s => s !== selectEl);
+            this._updateAbilitySlotLabels();
+        };
+
+        slotDiv.appendChild(selectEl);
+        slotDiv.appendChild(delBtn);
+
+        this.abilitySlotsContainer.appendChild(slotDiv);
+        this.fields.abilitySlots.push(selectEl);
+        
+        this._updateAbilitySlotLabels();
+    }
+
+    _updateAbilitySlotLabels() {
+        const rows = this.abilitySlotsContainer.querySelectorAll('.npc-ability-slot-row');
+        rows.forEach((row, i) => {
+            const labelSpan = row.querySelector('.slot-index-label');
+            if (labelSpan) {
+                labelSpan.textContent = `Slot ${i + 1}`;
+            }
+        });
+    }
+
+    refreshAbilityOptionDropdowns() {
+        if (!this.fields.abilitySlots) return;
+        const abilitiesList = getAllAbilities ? getAllAbilities() : {};
+        this.fields.abilitySlots.forEach((selectEl) => {
+            const currentSelectedValue = selectEl.value;
+            selectEl.innerHTML = '<option value="">-- No Ability Slotted --</option>';
+            Object.keys(abilitiesList).forEach(id => {
+                const ab = abilitiesList[id];
+                const opt = document.createElement('option');
+                opt.value = id;
+                const prefix = ab.hasEmitter ? '[EMITTER]' : '[ABILITY]';
+                opt.textContent = `${ab.emoji || '☄️'} ${prefix} ${ab.name || id}`;
+                selectEl.appendChild(opt);
+            });
+            selectEl.value = currentSelectedValue;
+        });
     }
 
     _addInventoryCard(data = { name: 'Red Potion', type: 'consumable', heal: 20, bonusAtk: 0, bonusDef: 0, cost: 20, value: 14, description: 'Heals some HP', count: 1 }) {
         const card = document.createElement('div');
         card.className = 'npc-inventory-card';
-        card.style.border = '1px solid #725c4d';
+        card.style.border = '1px solid #5A4B3E';
         card.style.padding = '6px';
         card.style.borderRadius = '4px';
-        card.style.background = '#3c322c';
+        card.style.background = '#2C2420';
         card.style.display = 'flex';
         card.style.flexDirection = 'column';
-        card.style.gap = '4px';
+        card.style.gap = '5px';
+
+        const styleCardInput = (el) => {
+            el.style.background = '#3B322C';
+            el.style.color = '#EFEBE0';
+            el.style.border = '1px solid #8C6D56';
+            el.style.borderRadius = '3px';
+            el.style.padding = '3px 4px';
+            el.style.fontSize = '11px';
+            el.style.fontFamily = 'inherit';
+            el.style.boxSizing = 'border-box';
+        };
+
+        // Row 0: Bank Item Selector
+        const row0 = document.createElement('div');
+        row0.style.display = 'flex';
+        row0.style.flexDirection = 'column';
+        row0.style.marginBottom = '2px';
+
+        const bankLabel = document.createElement('label');
+        bankLabel.textContent = 'Or Template from Bank:';
+        bankLabel.style.fontSize = '0.75em';
+        bankLabel.style.color = '#D4C8A0';
+        bankLabel.style.marginBottom = '2px';
+        row0.appendChild(bankLabel);
+
+        const bankSelect = document.createElement('select');
+        bankSelect.style.width = '100%';
+        styleCardInput(bankSelect);
+
+        bankSelect.innerHTML = '<option value="">-- Manual/Custom Item --</option>';
+        const engineCtx = this.creator ? this.creator.engine : window.engine;
+        const db = getGlobalItemDatabase(engineCtx);
+        if (db) {
+            Object.keys(db).forEach(key => {
+                const item = db[key];
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = `${item.emoji || '🎁'} ${item.name} (${item.type})`;
+                bankSelect.appendChild(opt);
+            });
+        }
+        row0.appendChild(bankSelect);
+        card.appendChild(row0);
 
         // Row 1: Name & Trash
         const row1 = document.createElement('div');
@@ -853,8 +850,7 @@ class NpcCreatorUI {
         nameInput.placeholder = 'Item Name';
         nameInput.value = data.name || '';
         nameInput.style.width = '80%';
-        nameInput.style.fontSize = '0.85em';
-        nameInput.style.padding = '2px 4px';
+        styleCardInput(nameInput);
         row1.appendChild(nameInput);
 
         const trashBtn = document.createElement('button');
@@ -876,12 +872,7 @@ class NpcCreatorUI {
 
         const typeSelect = document.createElement('select');
         typeSelect.style.width = '55%';
-        typeSelect.style.background = '#2c2420';
-        typeSelect.style.color = '#efebe0';
-        typeSelect.style.border = '1px solid #725c4d';
-        typeSelect.style.borderRadius = '3px';
-        typeSelect.style.fontSize = '0.8em';
-        typeSelect.style.padding = '2px';
+        styleCardInput(typeSelect);
 
         const optCons = document.createElement('option');
         optCons.value = 'consumable';
@@ -905,12 +896,7 @@ class NpcCreatorUI {
         countInput.value = data.count || 1;
         countInput.min = '1';
         countInput.style.width = '45%';
-        countInput.style.background = '#2c2420';
-        countInput.style.color = '#efebe0';
-        countInput.style.border = '1px solid #725c4d';
-        countInput.style.borderRadius = '3px';
-        countInput.style.fontSize = '0.8em';
-        countInput.style.padding = '2px';
+        styleCardInput(countInput);
         row2.appendChild(countInput);
         card.appendChild(row2);
 
@@ -925,12 +911,7 @@ class NpcCreatorUI {
         const statValue = data.heal || data.bonusAtk || data.bonusDef || 0;
         valInput.value = statValue;
         valInput.style.width = '50%';
-        valInput.style.background = '#2c2420';
-        valInput.style.color = '#efebe0';
-        valInput.style.border = '1px solid #725c4d';
-        valInput.style.borderRadius = '3px';
-        valInput.style.fontSize = '0.8em';
-        valInput.style.padding = '2px';
+        styleCardInput(valInput);
         row3.appendChild(valInput);
 
         const costInput = document.createElement('input');
@@ -938,12 +919,7 @@ class NpcCreatorUI {
         costInput.placeholder = 'Cost';
         costInput.value = data.cost || 0;
         costInput.style.width = '50%';
-        costInput.style.background = '#2c2420';
-        costInput.style.color = '#efebe0';
-        costInput.style.border = '1px solid #725c4d';
-        costInput.style.borderRadius = '3px';
-        costInput.style.fontSize = '0.8em';
-        costInput.style.padding = '2px';
+        styleCardInput(costInput);
         row3.appendChild(costInput);
         card.appendChild(row3);
 
@@ -953,14 +929,20 @@ class NpcCreatorUI {
         descInput.placeholder = 'Description';
         descInput.value = data.description || '';
         descInput.style.width = '100%';
-        descInput.style.borderRadius = '3px';
-        descInput.style.fontSize = '0.8em';
-        descInput.style.padding = '2px';
-        descInput.style.background = '#2c2420';
-        descInput.style.color = '#efebe0';
-        descInput.style.border = '1px solid #725c4d';
-        descInput.style.boxSizing = 'border-box';
+        styleCardInput(descInput);
         card.appendChild(descInput);
+
+        bankSelect.onchange = () => {
+            const val = bankSelect.value;
+            if (val && db && db[val]) {
+                const item = db[val];
+                nameInput.value = item.name;
+                typeSelect.value = item.type || 'consumable';
+                valInput.value = item.heal || item.bonusAtk || item.bonusDef || item.passiveAtk || 0;
+                costInput.value = item.cost || 0;
+                descInput.value = item.description || '';
+            }
+        };
 
         card.inputs = {
             nameInput,
@@ -977,6 +959,9 @@ class NpcCreatorUI {
     _createDialogueBranchesManager(parent) {
         const label = document.createElement('label');
         label.textContent = "Dialogue Branches";
+        label.style.display = 'block';
+        label.style.fontSize = '12px';
+        label.style.color = '#D4C8A0';
         parent.appendChild(label);
 
         this.branchesContainer = document.createElement('div');
@@ -984,11 +969,16 @@ class NpcCreatorUI {
         this.branchesContainer.style.display = 'flex';
         this.branchesContainer.style.flexDirection = 'column';
         this.branchesContainer.style.gap = '6px';
+        this.branchesContainer.style.marginTop = '4px';
         parent.appendChild(this.branchesContainer);
 
         const addButton = document.createElement('button');
         addButton.textContent = '+ Add Choice Option';
-        addButton.style.marginTop = '4px';
+        addButton.className = 'abilities-btn';
+        addButton.style.marginTop = '6px';
+        addButton.style.width = '100%';
+        addButton.style.padding = '5px';
+        addButton.style.fontSize = '11px';
         addButton.onclick = () => this._addBranchCard();
         parent.appendChild(addButton);
     }
@@ -996,13 +986,24 @@ class NpcCreatorUI {
     _addBranchCard(data = { text: 'Ask about path', reply: 'Follow the river to the north.', action: 'none', actionValue: '' }) {
         const card = document.createElement('div');
         card.className = 'npc-branch-card';
-        card.style.border = '1px solid #725c4d';
+        card.style.border = '1px solid #5A4B3E';
         card.style.padding = '6px';
         card.style.borderRadius = '4px';
-        card.style.background = '#40342c';
+        card.style.background = '#2C2420';
         card.style.display = 'flex';
         card.style.flexDirection = 'column';
-        card.style.gap = '4px';
+        card.style.gap = '5px';
+
+        const styleCardInput = (el) => {
+            el.style.background = '#3B322C';
+            el.style.color = '#EFEBE0';
+            el.style.border = '1px solid #8C6D56';
+            el.style.borderRadius = '3px';
+            el.style.padding = '3px 4px';
+            el.style.fontSize = '11px';
+            el.style.fontFamily = 'inherit';
+            el.style.boxSizing = 'border-box';
+        };
 
         // Row 1: Header/Trash
         const row1 = document.createElement('div');
@@ -1022,7 +1023,7 @@ class NpcCreatorUI {
         trashBtn.style.border = 'none';
         trashBtn.style.padding = '0';
         trashBtn.style.color = '#ff8888';
-        trashBtn.style.fontSize = '1em';
+        trashBtn.style.fontSize = '1.1em';
         trashBtn.style.cursor = 'pointer';
         trashBtn.onclick = () => card.remove();
         row1.appendChild(trashBtn);
@@ -1033,19 +1034,18 @@ class NpcCreatorUI {
         textInput.type = 'text';
         textInput.placeholder = 'Choice Text (e.g. Ask for power)';
         textInput.value = data.text || '';
-        textInput.style.fontSize = '0.85em';
-        textInput.style.padding = '2px 4px';
-        textInput.style.boxSizing = 'border-box';
+        styleCardInput(textInput);
+        textInput.style.width = '100%';
         card.appendChild(textInput);
 
         // Row 3: Reply Text
         const replyText = document.createElement('textarea');
         replyText.placeholder = 'NPC Reply Message';
         replyText.value = data.reply || '';
-        replyText.style.fontSize = '0.8em';
-        replyText.style.padding = '2px 4px';
-        replyText.style.minHeight = '35px';
-        replyText.style.boxSizing = 'border-box';
+        styleCardInput(replyText);
+        replyText.style.width = '100%';
+        replyText.style.minHeight = '38px';
+        replyText.style.resize = 'vertical';
         card.appendChild(replyText);
 
         // Row 4: Action & Value
@@ -1056,12 +1056,7 @@ class NpcCreatorUI {
 
         const actionSelect = document.createElement('select');
         actionSelect.style.width = '50%';
-        actionSelect.style.background = '#2c2420';
-        actionSelect.style.color = '#efebe0';
-        actionSelect.style.border = '1px solid #725c4d';
-        actionSelect.style.borderRadius = '3px';
-        actionSelect.style.fontSize = '0.8em';
-        actionSelect.style.padding = '2px';
+        styleCardInput(actionSelect);
 
         const optNone = document.createElement('option');
         optNone.value = 'none';
@@ -1088,12 +1083,7 @@ class NpcCreatorUI {
         valInput.placeholder = 'Item Name';
         valInput.value = data.actionValue || '';
         valInput.style.width = '50%';
-        valInput.style.background = '#2c2420';
-        valInput.style.color = '#efebe0';
-        valInput.style.border = '1px solid #725c4d';
-        valInput.style.borderRadius = '3px';
-        valInput.style.fontSize = '0.8em';
-        valInput.style.padding = '2px';
+        styleCardInput(valInput);
         row4.appendChild(valInput);
 
         card.appendChild(row4);
@@ -1136,7 +1126,6 @@ class NpcCreatorUI {
         // emitter settings
         const emitterConfig = npcData.emitterConfig || {};
 
-        // Populate emitter preset select options dynamically
         const prSelect = this.fields.presetId;
         if (prSelect) {
             prSelect.innerHTML = '<option value="">-- Manual (Raw Fields) --</option>';
@@ -1171,6 +1160,14 @@ class NpcCreatorUI {
         this.inventoryContainer.innerHTML = '';
         (npcData.inventory || []).forEach(it => {
             this._addInventoryCard(it);
+        });
+
+        // load slotted abilities
+        const slotsVal = npcData.equippedAbilities || [];
+        this.abilitySlotsContainer.innerHTML = '';
+        this.fields.abilitySlots = [];
+        slotsVal.forEach(val => {
+            this._addAbilitySlotRow(val);
         });
 
         // branches
@@ -1221,6 +1218,11 @@ class NpcCreatorUI {
             def: parseInt(this.fields.def.value, 10) || 5,
             speed: parseInt(this.fields.speed.value, 10) || 120
         };
+
+        // serialize equipped/slotted abilities
+        if (this.fields.abilitySlots) {
+            data.equippedAbilities = this.fields.abilitySlots.map(selectEl => selectEl.value);
+        }
 
         // collector inventory starting items
         data.inventory = [];

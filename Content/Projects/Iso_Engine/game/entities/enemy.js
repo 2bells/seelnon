@@ -81,6 +81,15 @@ class Enemy extends GameObject {
     }
 
     update(deltaTime) {
+        if (this.engine.dialogueUI && this.engine.dialogueUI.isVisible && this.engine.dialogueUI.participants && this.engine.dialogueUI.participants.length > 0) {
+            const activeNpc = this.engine.dialogueUI.participants[0];
+            const nameLower = activeNpc && activeNpc.name ? activeNpc.name.toLowerCase() : '';
+            if (nameLower.includes('portal merchant') || (activeNpc && activeNpc.id === 'npc_portal_merchant_cleared')) {
+                // Pause enemy AI, updates, and movement completely while talking to Portal Merchant in the rift
+                return;
+            }
+        }
+
         if (this.aiState === AI_STATE.DEAD) {
             this.respawnTimer -= deltaTime;
             if (this.respawnTimer <= 0) {
@@ -785,19 +794,72 @@ class Enemy extends GameObject {
             this.player.currentTarget = null;
         }
 
-        // Reward Gold
-        const goldReward = Math.floor(Math.random() * 8) + 12; // 12-19 gold
-        if (this.player) {
-            this.player.gold = (this.player.gold || 0) + goldReward;
-            
-            // Bring FloatingTextEffect locally
-            const FloatingTextEffectClass = FloatingTextEffect || null;
-            if (FloatingTextEffectClass) {
-                this.engine.addEffect(new FloatingTextEffectClass(this.engine, {
-                    text: `+${goldReward} Gold`,
-                    position: { x: this.currentPixelX, y: this.currentPixelY - 40 },
-                    color: '#FFD700'
-                }));
+        // Reward Gold & XP only for hostile slimes & boss
+        const isSlimeOrWarden = (this.name && (this.name.toLowerCase().includes('slime') || this.name.toLowerCase().includes('warden')));
+        const isHostile = !this.friendly;
+
+        if (this.player && isHostile && isSlimeOrWarden) {
+            const goldReward = Math.floor(Math.random() * 8) + 12; // 12-19 gold
+            const xpReward = Math.floor(Math.random() * 6) + 15; // 15-20 XP
+
+            const itemWorldState = this.engine.activeItemWorld;
+            const isAlreadyFullyCleared = itemWorldState && (itemWorldState.isFinishedAndCleared || itemWorldState.enemiesKilled >= itemWorldState.enemiesTotal);
+
+            if (!isAlreadyFullyCleared) {
+                this.player.gold = (this.player.gold || 0) + goldReward;
+                
+                // Bring FloatingTextEffect locally
+                const FloatingTextEffectClass = FloatingTextEffect || null;
+                if (FloatingTextEffectClass && this.engine) {
+                    this.engine.addEffect(new FloatingTextEffectClass(this.engine, {
+                        text: `+${goldReward} Gold`,
+                        position: { x: this.currentPixelX, y: this.currentPixelY - 40 },
+                        color: '#FFD700'
+                    }));
+                }
+
+                // Grant Character XP
+                if (typeof this.player.gainExp === 'function') {
+                    this.player.gainExp(xpReward);
+                }
+
+                // Core Item World logic integration
+                if (itemWorldState) {
+                    itemWorldState.enemiesKilled++;
+                    
+                    // Grant Item XP
+                    const itemXPReward = Math.floor((Math.random() * 10 + 20) * itemWorldState.itemXPMultiplier);
+                    if (typeof this.player.gainItemExp === 'function') {
+                        this.player.gainItemExp(itemWorldState.slottedItem, itemXPReward);
+                    }
+
+                    // Auto claim victory when all slimes killed or Warden defeated
+                    const isNowCleared = itemWorldState.enemiesKilled >= itemWorldState.enemiesTotal;
+                    const isWarden = this.name && this.name.includes("Warden");
+
+                    if (isNowCleared || isWarden) {
+                        const dev = this.engine.editorManager?.editors.chaos_map_device;
+                        if (dev && typeof dev.onItemWorldCleared === 'function') {
+                            dev.onItemWorldCleared();
+                        }
+                    } else {
+                        // Update HUD status display
+                        const dev = this.engine.editorManager?.editors.chaos_map_device;
+                        if (dev && typeof dev.updateHUDStatus === 'function') {
+                            dev.updateHUDStatus();
+                        }
+                    }
+                }
+            } else {
+                // Diminishing returns: play zero-outcome gray floating indicator
+                const FloatingTextEffectClass = FloatingTextEffect || null;
+                if (FloatingTextEffectClass && this.engine) {
+                    this.engine.addEffect(new FloatingTextEffectClass(this.engine, {
+                        text: `0 XP / 0 Gold (Realm Cleared)`,
+                        position: { x: this.currentPixelX, y: this.currentPixelY - 40 },
+                        color: '#7f8c8d'
+                    }));
+                }
             }
         }
 

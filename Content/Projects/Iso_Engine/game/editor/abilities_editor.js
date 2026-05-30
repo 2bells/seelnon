@@ -26,14 +26,14 @@ class AbilitiesEditor {
 
         const titleButton = document.createElement('button');
         titleButton.id = 'rpg-abilities-editor-toggle';
-        titleButton.textContent = '⚔️ Abilities Creator';
+        titleButton.textContent = 'Abilities Creator';
         titleButton.onclick = () => this.panel.classList.toggle('collapsed');
         this.panel.appendChild(titleButton);
 
         const content = document.createElement('div');
         content.id = 'rpg-abilities-editor-content';
 
-        // --- SECTION 1: Selector / Equip Tool ---
+        // --- SECTION 1: Selector / Create Tool ---
         const selectorSection = document.createElement('div');
         selectorSection.className = 'abilities-editor-section';
         selectorSection.innerHTML = '<h4>Select or Create Ability</h4>';
@@ -65,39 +65,6 @@ class AbilitiesEditor {
         selRow.appendChild(btnNew);
 
         selectorSection.appendChild(selRow);
-
-        // Equip slot row
-        const equipRow = document.createElement('div');
-        equipRow.style.display = 'flex';
-        equipRow.style.flexDirection = 'column';
-        equipRow.style.gap = '6px';
-        equipRow.style.backgroundColor = '#2B231D';
-        equipRow.style.padding = '8px';
-        equipRow.style.borderRadius = '5px';
-        equipRow.style.border = '1px dashed #5A4B3E';
-
-        const equipTitle = document.createElement('div');
-        equipTitle.style.fontSize = '0.85em';
-        equipTitle.style.color = '#D4C8A0';
-        equipTitle.style.fontWeight = 'bold';
-        equipTitle.textContent = 'Equip Selected to Character Slot:';
-        equipRow.appendChild(equipTitle);
-
-        const equipBtns = document.createElement('div');
-        equipBtns.style.display = 'flex';
-        equipBtns.style.gap = '4px';
-
-        for (let i = 1; i <= 4; i++) {
-            const btnEq = document.createElement('button');
-            btnEq.textContent = `Slot ${i}`;
-            btnEq.className = 'abilities-btn-equip';
-            btnEq.style.flex = '1';
-            btnEq.onclick = () => this.equipSelectedOnSlot(i);
-            equipBtns.appendChild(btnEq);
-        }
-        equipRow.appendChild(equipBtns);
-        selectorSection.appendChild(equipRow);
-
         content.appendChild(selectorSection);
 
         // --- SECTION 2: Hitbox Live Preview Canvas ---
@@ -114,6 +81,36 @@ class AbilitiesEditor {
         previewCanvas.style.borderRadius = '4px';
         previewCanvas.style.display = 'block';
         previewSection.appendChild(previewCanvas);
+
+        const indicatorDiv = document.createElement('div');
+        indicatorDiv.id = 'rpg-ability-preview-hud';
+        indicatorDiv.style.display = 'flex';
+        indicatorDiv.style.justifyContent = 'space-between';
+        indicatorDiv.style.alignItems = 'center';
+        indicatorDiv.style.background = '#2C2420';
+        indicatorDiv.style.border = '1px dashed #5A4B3E';
+        indicatorDiv.style.padding = '4px 8px';
+        indicatorDiv.style.marginTop = '4px';
+        indicatorDiv.style.borderRadius = '3px';
+        indicatorDiv.style.fontSize = '9px';
+        indicatorDiv.style.fontWeight = 'bold';
+        indicatorDiv.style.fontFamily = 'monospace';
+        indicatorDiv.style.color = '#EFEBE0';
+        
+        const phaseSpan = document.createElement('span');
+        phaseSpan.id = 'rpg-ability-preview-phase';
+        phaseSpan.textContent = 'PHASE: STANDBY IDLE';
+        phaseSpan.style.color = '#ffaa00';
+        indicatorDiv.appendChild(phaseSpan);
+
+        const timeSpan = document.createElement('span');
+        timeSpan.id = 'rpg-ability-preview-time';
+        timeSpan.textContent = 'TIME: 0.00s';
+        timeSpan.style.color = '#D4C8A0';
+        indicatorDiv.appendChild(timeSpan);
+
+        previewSection.appendChild(indicatorDiv);
+
         this.ctxPreview = previewCanvas.getContext('2d');
         this.previewCanvas = previewCanvas;
 
@@ -252,20 +249,70 @@ class AbilitiesEditor {
 
         const actionBtns = document.createElement('div');
         actionBtns.style.display = 'flex';
-        actionBtns.style.gap = '6px';
+        actionBtns.style.gap = '4px';
         actionBtns.style.marginTop = '4px';
+        actionBtns.style.width = '100%';
+        actionBtns.style.alignItems = 'center';
 
         const btnSave = document.createElement('button');
-        btnSave.textContent = '💾 Save as Custom';
+        btnSave.textContent = '💾 Save';
         btnSave.className = 'abilities-btn';
-        btnSave.style.flex = '1.3';
+        btnSave.style.flex = '1.2';
+        btnSave.style.height = '28px';
+        btnSave.style.padding = '0 6px';
+        btnSave.style.fontSize = '11px';
         btnSave.onclick = () => this.saveCurrentFormToLibrary();
         actionBtns.appendChild(btnSave);
 
+        const btnExport = document.createElement('button');
+        btnExport.textContent = '📤 Export';
+        btnExport.className = 'abilities-btn';
+        btnExport.style.flex = '1';
+        btnExport.style.height = '28px';
+        btnExport.style.padding = '0 6px';
+        btnExport.style.fontSize = '11px';
+        btnExport.style.backgroundColor = '#2980b9';
+        btnExport.style.borderColor = '#1f618d';
+        btnExport.onclick = () => this.exportCurrentAbility();
+        actionBtns.appendChild(btnExport);
+
+        const abFileId = 'rpg-ability-editor-import-input';
+        const fileInput = document.createElement('input');
+        fileInput.id = abFileId;
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+        fileInput.style.display = 'none';
+        fileInput.onchange = (e) => this.importAbilityFile(e);
+        actionBtns.appendChild(fileInput);
+
+        const labelImport = document.createElement('label');
+        labelImport.htmlFor = abFileId;
+        labelImport.textContent = '📥 Import';
+        labelImport.className = 'abilities-btn';
+        labelImport.style.flex = '1';
+        labelImport.style.display = 'inline-block';
+        labelImport.style.textAlign = 'center';
+        labelImport.style.cursor = 'pointer';
+        labelImport.style.backgroundColor = '#8c765c';
+        labelImport.style.borderColor = '#5A4B3E';
+        labelImport.style.lineHeight = '26px';
+        labelImport.style.fontSize = '11px';
+        labelImport.style.height = '28px';
+        labelImport.style.boxSizing = 'border-box';
+        labelImport.style.margin = '0';
+        labelImport.style.padding = '0';
+        actionBtns.appendChild(labelImport);
+
         const btnDel = document.createElement('button');
-        btnDel.textContent = '🗑️ Delete';
+        btnDel.textContent = '🗑️';
         btnDel.className = 'abilities-btn-danger';
-        btnDel.style.flex = '0.9';
+        btnDel.style.flex = '0.4';
+        btnDel.style.height = '28px';
+        btnDel.style.padding = '0';
+        btnDel.style.fontSize = '12px';
+        btnDel.style.display = 'flex';
+        btnDel.style.alignItems = 'center';
+        btnDel.style.justifyContent = 'center';
         btnDel.onclick = () => this.deleteSelectedAbility();
         actionBtns.appendChild(btnDel);
 
@@ -277,7 +324,9 @@ class AbilitiesEditor {
 
         // Draw active outline initially
         this.loadAbilityIntoForm();
-        this.updateFormPreview();
+        if (!this.animationLoopStarted) {
+            this.startPreviewAnimationLoop();
+        }
     }
 
     show() {
@@ -489,6 +538,7 @@ class AbilitiesEditor {
         saveCustomAbility(templ);
         this.refreshAbilityDropdown();
         this.loadAbilityIntoForm();
+        this.notifyNpcSelectorRefresh();
         CustomDialog.alert(`Created new custom template ${templ.name}! Set fields and save!`, "Template Spawned");
     }
 
@@ -505,6 +555,7 @@ class AbilitiesEditor {
         this.selectedAbilityId = config.id;
         this.refreshAbilityDropdown();
         this.loadAbilityIntoForm();
+        this.notifyNpcSelectorRefresh();
 
         // Feed message
         CustomDialog.alert(`Action Ability "${config.name}" saved successfully to campaign settings!`, "Ability Saved");
@@ -522,12 +573,65 @@ class AbilitiesEditor {
             this.selectedAbilityId = 'slime_leap';
             this.refreshAbilityDropdown();
             this.loadAbilityIntoForm();
+            this.notifyNpcSelectorRefresh();
             CustomDialog.alert("Ability deleted successfully.", "Action Complete");
         };
 
         CustomDialog.confirm("Are you sure you want to permanently delete this custom ability from local settings?", "Confirm Delete").then(res => {
             if (res) confirmed();
         });
+    }
+
+    exportCurrentAbility() {
+        const config = this.getSelectedAbilityConfig();
+        const json = JSON.stringify(config, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileName = (config.name || 'custom_ability').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+        a.download = `ability_${fileName}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        CustomDialog.alert(`Export template for "${config.name}" downloaded!`, "Export Succeeded");
+    }
+
+    importAbilityFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!importedData || !importedData.id || !importedData.name) {
+                    CustomDialog.alert("JSON file does not appear to be a valid Custom Ability config. The file must contain both an 'id' and an 'name'.", "Import Failed");
+                    return;
+                }
+
+                saveCustomAbility(importedData);
+                this.selectedAbilityId = importedData.id;
+                this.refreshAbilityDropdown();
+                this.loadAbilityIntoForm();
+                this.notifyNpcSelectorRefresh();
+                
+                CustomDialog.alert(`Successfully imported Custom Ability "${importedData.name}"!`, "Import Complete");
+            } catch (err) {
+                console.error(err);
+                CustomDialog.alert("Could not load ability JSON: format is invalid.", "Import Error");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    notifyNpcSelectorRefresh() {
+        const npcEditor = this.engine.editorManager ? this.engine.editorManager.editors.npc : null;
+        if (npcEditor && npcEditor.ui) {
+            npcEditor.ui.refreshAbilityOptionDropdowns();
+        }
     }
 
     equipSelectedOnSlot(slotIndex) {
@@ -547,7 +651,133 @@ class AbilitiesEditor {
         console.log(`Equipped slot ${slotIndex}:`, this.engine.player.equippedAbilities);
     }
 
-    // Redraws the hitbox shape preview relative to the core anchor point in real time.
+    startPreviewAnimationLoop() {
+        this.animationLoopStarted = true;
+        this.animTime = 0;
+        this.previewParticles = [];
+        this.emitterFired = false;
+        
+        let lastTime = performance.now();
+        const frame = (timestamp) => {
+            if (!this.panel || this.panel.style.display === 'none') {
+                requestAnimationFrame(frame);
+                return;
+            }
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.1); // cap dt to prevent huge jumps
+            lastTime = timestamp;
+
+            this.updatePreviewState(dt);
+            this.updateFormPreview();
+
+            requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+    }
+
+    updatePreviewState(dt) {
+        // Safe form value parsers
+        const getVal = (name, fallback) => {
+            const f = this.fields[name];
+            return f ? parseFloat(f.value) || fallback : fallback;
+        };
+
+        const startup = getVal('startup_duration', 0.4);
+        const active = getVal('active_duration', 0.2);
+        const recovery = getVal('recovery_duration', 0.4);
+        const cooldown = 1.0; // Rest interval
+
+        const totalCycle = startup + active + recovery + cooldown;
+        const prevAnimTime = this.animTime || 0;
+        this.animTime = (prevAnimTime + dt) % totalCycle;
+
+        // Reset particles if cycle restarted
+        if (this.animTime < prevAnimTime) {
+            this.previewParticles = [];
+            this.emitterFired = false;
+        }
+
+        // Handle Projectile Emitter trigger exactly when Active Hitbox matches
+        const hasEmitter = this.fields.emitter_enabled ? this.fields.emitter_enabled.checked : false;
+        if (hasEmitter && !this.emitterFired && this.animTime >= startup && this.animTime < (startup + active)) {
+            this.emitterFired = true;
+            
+            const w = this.previewCanvas.width;
+            const h = this.previewCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2 + 10;
+            const targetOffsetScalar = 35;
+            const tax = cx;
+            const tay = cy - targetOffsetScalar; // impact core point
+
+            const burstCount = parseInt(getVal('emitter_burstCount', 1), 10);
+            const rawSpeed = getVal('emitter_speed', 160);
+            const speed = rawSpeed * 0.45; // Scale speed down to canvas size
+            const emitterType = this.fields.emitter_type ? this.fields.emitter_type.value : 'standard';
+            const color = (this.fields.emitter_color && this.fields.emitter_color.value.trim()) || '#f1c40f';
+
+            for (let i = 0; i < burstCount; i++) {
+                const ang = -Math.PI / 2 + (i * Math.PI * 2 / burstCount);
+                this.previewParticles.push({
+                    startX: tax,
+                    startY: tay,
+                    x: tax,
+                    y: tay,
+                    angle: ang,
+                    speed: speed,
+                    type: emitterType,
+                    color: color,
+                    age: 0,
+                    circularSpeed: 4,
+                    radiusDistance: 0,
+                    sinFrequency: 10,
+                    sinAmplitude: 28
+                });
+            }
+        }
+
+        // Update active particles frame
+        if (this.previewParticles) {
+            this.previewParticles.forEach(p => {
+                p.age += dt;
+                if (p.type === 'standard') {
+                    p.x += Math.cos(p.angle) * p.speed * dt;
+                    p.y += Math.sin(p.angle) * p.speed * dt;
+                } else if (p.type === 'seeking') {
+                    // Drift/seek slightly to center of screen
+                    const targetX = this.previewCanvas.width / 2;
+                    const targetY = this.previewCanvas.height / 2 - 35;
+                    const dx = targetX - p.x;
+                    const dy = targetY - p.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 5) {
+                        const seekAngle = Math.atan2(dy, dx);
+                        p.angle += (seekAngle - p.angle) * 3 * dt;
+                    }
+                    p.x += Math.cos(p.angle) * p.speed * dt;
+                    p.y += Math.sin(p.angle) * p.speed * dt;
+                } else if (p.type === 'circular') {
+                    p.angle += p.circularSpeed * dt;
+                    p.radiusDistance += p.speed * dt;
+                    p.x = p.startX + Math.cos(p.angle) * p.radiusDistance * 0.7;
+                    p.y = p.startY + Math.sin(p.angle) * p.radiusDistance * 0.7;
+                } else if (p.type === 'sinewave') {
+                    p.radiusDistance += p.speed * dt;
+                    const perpAngle = p.angle + Math.PI / 2;
+                    const sineOffset = Math.sin(p.age * p.sinFrequency) * p.sinAmplitude;
+                    const mainX = p.startX + Math.cos(p.angle) * p.radiusDistance;
+                    const mainY = p.startY + Math.sin(p.angle) * p.radiusDistance;
+                    p.x = mainX + Math.cos(perpAngle) * sineOffset * 0.5;
+                    p.y = mainY + Math.sin(perpAngle) * sineOffset * 0.5;
+                } else {
+                    p.x += Math.cos(p.angle) * p.speed * dt;
+                    p.y += Math.sin(p.angle) * p.speed * dt;
+                }
+            });
+            this.previewParticles = this.previewParticles.filter(p => p.age < 1.6);
+        }
+    }
+
+    // Redraws the hitbox shape preview with smooth real time cyclic animation loops
     updateFormPreview() {
         this.updateEmitterFieldsVisibility();
         if (!this.ctxPreview) return;
@@ -556,9 +786,8 @@ class AbilitiesEditor {
         const w = this.previewCanvas.width;
         const h = this.previewCanvas.height;
 
+        // Clear and draw grid
         ctx.clearRect(0, 0, w, h);
-
-        // draw background grids
         ctx.strokeStyle = '#2B231D';
         ctx.lineWidth = 1;
         for (let x = 0; x < w; x += 15) {
@@ -574,69 +803,183 @@ class AbilitiesEditor {
             ctx.stroke();
         }
 
-        // Caster dot (representing the player/enemy epicenter)
+        const getVal = (name, fallback) => {
+            const f = this.fields[name];
+            return f ? parseFloat(f.value) || fallback : fallback;
+        };
+
+        const startup = getVal('startup_duration', 0.4);
+        const active = getVal('active_duration', 0.2);
+        const recovery = getVal('recovery_duration', 0.4);
+
         const cx = w / 2;
         const cy = h / 2 + 10;
+        const targetOffsetScalar = 35;
+        const tax = cx;
+        const tay = cy - targetOffsetScalar; // impact point
 
-        ctx.fillStyle = '#8C6D56';
+        // Compute phases and caster location
+        let phaseText = "STANDBY Idle";
+        let casterX = cx;
+        let casterY = cy;
+        let casterRadius = 6;
+        let casterColor = '#8C6D56';
+        let isHitboxActive = false;
+        let leapOffsetProgress = 0;
+
+        const time = this.animTime || 0;
+
+        // Leap/Jump variables
+        const jumpHeight = getVal('startup_jumpHeight', 0);
+        const dashSpeed = getVal('startup_dashSpeed', 0);
+        const slideSpeed = getVal('recovery_slideSpeed', 0);
+        let verticalJumpOffset = 0;
+
+        if (time < startup) {
+            phaseText = "STARTUP charging";
+            casterColor = '#5D9CEC';
+            const progressRatio = time / startup;
+            
+            // If dash speed is specified, slide closer to the target
+            if (dashSpeed > 0) {
+                leapOffsetProgress = Math.min(progressRatio * (dashSpeed / 100), 1.0);
+                casterX = cx + (tax - cx) * leapOffsetProgress;
+                casterY = cy + (tay - cy) * leapOffsetProgress;
+            }
+
+            // Calc parabole jump offset
+            if (jumpHeight > 0) {
+                verticalJumpOffset = Math.sin(progressRatio * Math.PI) * jumpHeight * 0.45;
+            }
+
+            // Draw a spinning charge aura around caster
+            ctx.strokeStyle = 'rgba(93, 156, 236, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(casterX, casterY, casterRadius + 6, time * 10, time * 10 + Math.PI * 1.5);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else if (time >= startup && time < (startup + active)) {
+            phaseText = "ACTIVE hit release!";
+            casterColor = '#e74c3c';
+            casterX = tax;
+            casterY = tay;
+            isHitboxActive = true;
+        } else if (time >= (startup + active) && time < (startup + active + recovery)) {
+            phaseText = "RECOVERY winddown";
+            casterColor = '#A0D468';
+            const recoveryRatio = (time - (startup + active)) / recovery;
+            
+            // Recovery sliding recoil
+            if (slideSpeed > 0) {
+                const slideDist = (slideSpeed / 10) * recoveryRatio;
+                casterX = tax;
+                casterY = tay + slideDist;
+            } else {
+                casterX = tax;
+                casterY = tay;
+            }
+        }
+
+        // Draw Shadows first at caster base positions
+        if (verticalJumpOffset > 0) {
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(casterX, casterY, casterRadius + 2, casterRadius/2 + 1, 0, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // Draw Caster body (incorporating jump arc height)
+        ctx.fillStyle = casterColor;
         ctx.beginPath();
-        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.arc(casterX, casterY - verticalJumpOffset, casterRadius, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#EFEBE0';
-        ctx.font = '10px sans-serif';
+        ctx.font = '10px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText("CASTER CENTER", cx, cy - 8);
+        ctx.fillText("Caster Code Unit", casterX, casterY - verticalJumpOffset - 10);
 
-        // Fetch current UI forms to render the hitbox shape
-        const shapeType = this.fields.active_hitboxType ? this.fields.active_hitboxType.value : 'ellipse';
-        const rx = parseFloat(this.fields.active_hitboxRX ? this.fields.active_hitboxRX.value : 30);
-        const ry = parseFloat(this.fields.active_hitboxRY ? this.fields.active_hitboxRY.value : 15);
-
-        // draw range limit radius circle
-        const range = parseFloat(this.fields.range ? this.fields.range.value : 100);
-        ctx.strokeStyle = 'rgba(140, 109, 86, 0.4)';
-        ctx.setLineDash([3, 3]);
+        // Draw Target Core Point
+        ctx.fillStyle = 'rgba(231, 76, 60, 0.4)';
         ctx.beginPath();
-        // Scale range to draw nicely
+        ctx.arc(tax, tay, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw skills limit range radius
+        const range = getVal('range', 100);
+        ctx.strokeStyle = 'rgba(140, 109, 86, 0.3)';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
         const drawScale = 0.45; 
         ctx.arc(cx, cy, range * drawScale, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        ctx.fillStyle = 'rgba(140, 109, 86, 0.3)';
-        ctx.fillText(`Max Range: ${range}px`, cx, cy + (range * drawScale) + 12);
+        ctx.fillStyle = '#8C6D56';
+        ctx.fillText(`Range Area Limit Circle: ${range}px`, cx, cy + (range * drawScale) + 12);
 
-        // Target spot: let's draw target center representing impact point 
-        // e.g. leap midpoint offset
-        const targetOffsetScalar = 35; 
-        const tax = cx;
-        const tay = cy - targetOffsetScalar;
+        // Render Hitbox scan overlay if active
+        if (isHitboxActive) {
+            const shapeType = this.fields.active_hitboxType ? this.fields.active_hitboxType.value : 'ellipse';
+            const rx = getVal('active_hitboxRX', 30);
+            const ry = getVal('active_hitboxRY', 15);
 
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.arc(tax, tay, 3, 0, Math.PI * 2);
-        ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#e74c3c';
+            
+            // Add a pulsating scale factor code
+            const pulse = 0.9 + Math.sin(time * 30) * 0.1;
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
 
-        // DRAW HITBOX SCAN AREA
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = '#e74c3c';
-        ctx.fillStyle = 'rgba(231, 76, 60, 0.25)';
-        ctx.beginPath();
+            ctx.beginPath();
+            if (shapeType === 'ellipse') {
+                ctx.ellipse(tax, tay, rx * pulse, ry * pulse, 0, 0, Math.PI * 2);
+            } else if (shapeType === 'circle') {
+                ctx.arc(tax, tay, rx * pulse, 0, Math.PI * 2);
+            } else {
+                ctx.rect(tax - rx * pulse, tay - ry * pulse, rx * pulse * 2, ry * pulse * 2);
+            }
+            ctx.fill();
+            ctx.stroke();
 
-        if (shapeType === 'ellipse') {
-            ctx.ellipse(tax, tay, rx, ry, 0, 0, Math.PI * 2);
-        } else if (shapeType === 'circle') {
-            ctx.arc(tax, tay, rx, 0, Math.PI * 2);
-        } else {
-            // Rectangle
-            ctx.rect(tax - rx, tay - ry, rx * 2, ry * 2);
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText("ACTIVE DAMAGE TRIGGER SCAN", tax, tay - ry * pulse - 8);
+
+            // Obstacles grow visual
+            if (this.fields.active_createObstacle && this.fields.active_createObstacle.checked) {
+                ctx.fillStyle = '#967ADC';
+                ctx.beginPath();
+                ctx.moveTo(tax - 8, tay + 2);
+                ctx.lineTo(tax, tay - 12);
+                ctx.lineTo(tax + 8, tay + 2);
+                ctx.fill();
+            }
         }
-        ctx.fill();
-        ctx.stroke();
 
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillText("ACTIVE HITBOX", tax, tay - ry - 6);
+        // Render projectiles particles
+        if (this.previewParticles) {
+            this.previewParticles.forEach(p => {
+                ctx.fillStyle = p.color || '#f1c40f';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+                ctx.fill();
+                
+                // particle tail
+                ctx.fillStyle = 'rgba(241, 196, 15, 0.2)';
+                ctx.beginPath();
+                ctx.arc(p.x - Math.cos(p.angle)*5, p.y - Math.sin(p.angle)*5, 2.5, 0, Math.PI*2);
+                ctx.fill();
+            });
+        }
+
+        // Update Bottom HUD elements instead of canvas texts to prevent occlusion
+        const phaseUI = document.getElementById('rpg-ability-preview-phase');
+        const timeUI = document.getElementById('rpg-ability-preview-time');
+        if (phaseUI) phaseUI.textContent = `PHASE: ${phaseText.toUpperCase()}`;
+        if (timeUI) timeUI.textContent = `TIME: ${time.toFixed(2)}s / Cycle`;
     }
 
     updateEmitterFieldsVisibility() {

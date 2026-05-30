@@ -199,7 +199,96 @@ export function getAllAbilities() {
     } catch (e) {
         console.error("Error parsing custom abilities:", e);
     }
-    return { ...DEFAULT_ABILITIES, ...custom };
+    const merged = { ...DEFAULT_ABILITIES, ...custom };
+
+    // Inject all standard, custom and inventory emitters as virtual abilities
+    try {
+        const engine = (window && window.engine) ? window.engine : null;
+        const itemDb = {};
+
+        // 1. Standard emitter presets
+        const standardEmitters = [
+            {
+                id: "item_emitter_plasma_orb",
+                name: "Plasma Orb Emitter Core",
+                type: "emitter",
+                emoji: "⚡",
+                emitterConfig: {
+                    projectileType: 'starburst',
+                    cooldown: 1.5,
+                    range: 220,
+                    projectileSpeed: 180,
+                    burstCount: 5,
+                    damage: 18,
+                    projectileColor: '#f1c40f',
+                    renderType: 'glow'
+                }
+            },
+            {
+                id: "item_emitter_sentry_tower",
+                name: "Ancient Sentry Emitter",
+                type: "emitter",
+                emoji: "📡",
+                emitterConfig: {
+                    projectileType: 'seeking',
+                    cooldown: 1.6,
+                    range: 250,
+                    projectileSpeed: 200,
+                    burstCount: 1,
+                    damage: 25,
+                    projectileColor: '#e74c3c',
+                    renderType: 'glow'
+                }
+            }
+        ];
+        standardEmitters.forEach(it => {
+            itemDb[it.id] = it;
+        });
+
+        // 2. Discover custom library items
+        const itemStored = localStorage.getItem('rpg_custom_items');
+        if (itemStored) {
+            const customItems = JSON.parse(itemStored);
+            Object.keys(customItems).forEach(itemId => {
+                const item = customItems[itemId];
+                if (item && item.type === 'emitter') {
+                    itemDb[itemId] = item;
+                }
+            });
+        }
+
+        // 3. Discover active player live inventory emitters
+        if (engine && engine.player && Array.isArray(engine.player.inventory)) {
+            engine.player.inventory.forEach(item => {
+                if (item && item.type === 'emitter') {
+                    itemDb[item.id] = item;
+                }
+            });
+        }
+
+        // Render them as slottable virtual abilities
+        Object.keys(itemDb).forEach(itemId => {
+            const item = itemDb[itemId];
+            if (item && item.emitterConfig && !merged[itemId]) {
+                merged[itemId] = {
+                    id: itemId,
+                    name: item.name,
+                    cooldown: item.emitterConfig.cooldown || 1.5,
+                    range: item.emitterConfig.range || 220,
+                    hasEmitter: true,
+                    emoji: item.emoji || '📡',
+                    emitterConfig: item.emitterConfig,
+                    startup: { duration: 0.01 },
+                    active: { duration: 0.01, damage: item.emitterConfig.damage || 0 },
+                    recovery: { duration: 0.01 }
+                };
+            }
+        });
+    } catch (e) {
+        console.error("Error integrating item emitters into abilities:", e);
+    }
+
+    return merged;
 }
 
 // Save custom abilities to local storage

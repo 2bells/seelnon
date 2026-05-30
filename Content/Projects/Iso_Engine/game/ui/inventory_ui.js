@@ -135,12 +135,22 @@ class InventoryUI {
 
         hotbar = document.createElement('div');
         hotbar.id = 'rpg-mmo-hotbar';
+        hotbar.style.display = 'flex';
+        hotbar.style.flexDirection = 'column';
+        hotbar.style.alignItems = 'stretch';
+        hotbar.style.gap = '6px';
+
+        // Skills outer row wrapper
+        const skillsRow = document.createElement('div');
+        skillsRow.style.display = 'flex';
+        skillsRow.style.alignItems = 'center';
+        skillsRow.style.gap = '12px';
         
         // Label indicator
         const label = document.createElement('div');
         label.className = 'hotbar-label';
         label.textContent = 'HOTBAR & CD';
-        hotbar.appendChild(label);
+        skillsRow.appendChild(label);
 
         const slotKeys = ['Q', 'E', 'R', 'F', 'G'];
         for (let i = 0; i < 5; i++) {
@@ -173,8 +183,31 @@ class InventoryUI {
             name.textContent = 'No Skill';
             slot.appendChild(name);
 
-            hotbar.appendChild(slot);
+            skillsRow.appendChild(slot);
         }
+
+        hotbar.appendChild(skillsRow);
+
+        // Thin XP progress bar container under skills
+        const xpContainer = document.createElement('div');
+        xpContainer.id = 'hotbar-xp-bar-container';
+        xpContainer.style.height = '6px';
+        xpContainer.style.backgroundColor = '#2B231D';
+        xpContainer.style.borderRadius = '3px';
+        xpContainer.style.border = '1.5px solid #5A4B3E';
+        xpContainer.style.overflow = 'hidden';
+        xpContainer.style.position = 'relative';
+        xpContainer.style.marginTop = '2px';
+
+        const xpFill = document.createElement('div');
+        xpFill.id = 'hotbar-xp-bar-fill';
+        xpFill.style.backgroundColor = '#3498db';
+        xpFill.style.width = '0%';
+        xpFill.style.height = '100%';
+        xpFill.style.transition = 'width 0.3s ease';
+
+        xpContainer.appendChild(xpFill);
+        hotbar.appendChild(xpContainer);
 
         container.appendChild(hotbar);
     }
@@ -236,6 +269,15 @@ class InventoryUI {
 
     // Helper to get ability emojis for hotbar display
     getAbilityEmoji(id) {
+        // Query custom items list for matching passive emitter emoji
+        const player = this.engine ? this.engine.player : null;
+        if (player && Array.isArray(player.inventory)) {
+            const matchingItem = player.inventory.find(i => (i.attachedAbility || i.id) === id);
+            if (matchingItem && matchingItem.emoji) {
+                return matchingItem.emoji;
+            }
+        }
+
         if (id === 'slime_leap') return '🐸';
         if (id === 'dash_strike') return '⚔️';
         if (id === 'blood_siphon') return '❤️';
@@ -271,9 +313,19 @@ class InventoryUI {
         statsSub.innerHTML = `
             <h4>👤 Attributes</h4>
             <div class="stats-row">
-                <span class="attrib-label">Character:</span>
-                <span class="attrib-value" style="color: #61b1ff; font-weight: bold;">Hero</span>
+                <span class="attrib-label">Level / Class:</span>
+                <span class="attrib-value" style="color: #61b1ff; font-weight: bold;">Lv ${player.stats.level || 1} Hero</span>
             </div>
+            
+            <div class="stats-row" style="margin-top: 6px;">
+                <span class="attrib-label" style="font-size: 0.82em;">XP Progress:</span>
+                <span class="attrib-value" style="font-size: 0.82em; color: #3498db;">${player.stats.exp || 0} / ${player.stats.nextLevelExp || 100}</span>
+            </div>
+            <!-- Live custom mini XP Visual bar -->
+            <div style="background-color: #3B322C; height: 6px; border-radius: 3px; position: relative; margin-bottom: 8px; border: 1px solid #5A4B3E; overflow: hidden;">
+                <div style="background-color: #3498db; width: ${Math.min(100, Math.floor(((player.stats.exp || 0) / (player.stats.nextLevelExp || 100)) * 100))}%; height: 100%;"></div>
+            </div>
+
             <div class="stats-row">
                 <span class="attrib-label">Health (HP):</span>
                 <span class="attrib-value">${player.stats.hp} / ${player.stats.maxHp}</span>
@@ -422,7 +474,7 @@ class InventoryUI {
             return;
         }
 
-        const isEquippable = ['weapon', 'shield', 'armor', 'ability'].includes(item.type);
+        const isEquippable = ['weapon', 'shield', 'armor', 'ability', 'emitter'].includes(item.type);
         const emoji = this.getItemEmoji(item);
         
         let statsDescriptor = '';
@@ -430,6 +482,19 @@ class InventoryUI {
         else if (item.type === 'shield' && item.bonusDef) statsDescriptor = `🛡️ Boosts Defense Guard by +${item.bonusDef}`;
         else if (item.type === 'armor' && item.bonusDef) statsDescriptor = `👕 Boosts Defense Shield by +${item.bonusDef}`;
         else if (item.type === 'consumable' && item.heal) statsDescriptor = `❤️ Restores HP health by +${item.heal}`;
+        else if (item.type === 'emitter') {
+            const ec = item.emitterConfig || {};
+            const playerAtk = player.getAtk();
+            const playerDmgVal = Math.floor((ec.damage ?? 15) + 1.0 * playerAtk);
+            
+            const scalingText = `📡 Cooldown: <b>${ec.cooldown ?? 1.5}s</b> | Range: <b>${ec.range ?? 220}px</b><br/>` + 
+                                `💥 Sparks dynamically scale on Owner's ATK!<br/>` +
+                                `🔥 Current projectile damage: <strong style="color: #f1c40f;">${playerDmgVal} DMG</strong> (Base ${ec.damage ?? 15} + 100% Owner ATK)`;
+                                
+            statsDescriptor = `📡 <b>Equipped Autonomous Emitter</b><br/>` +
+                              `<span style="color:#e67e22;">${scalingText}</span><br/>` +
+                              `<span style="color:#f1c40f; font-size:0.85em; display:block; margin-top:4px;">🔫 Pattern: ${(ec.projectileType || 'standard').toUpperCase()} | Count: ${ec.burstCount ?? 1} ${ec.emoji ? `| Icon: ${ec.emoji}` : ''}</span>`;
+        }
         else if (item.type === 'ability' && item.attachedAbility) {
             const allAb = getAllAbilities();
             const ab = allAb[item.attachedAbility];
@@ -477,7 +542,12 @@ class InventoryUI {
         }
 
         let attachDescriptor = '';
-        if (item.attachedAbility) {
+        if (item.type === 'emitter') {
+            attachDescriptor = `📡 Emitter Core: Auto-shoots projectiles in battlefield!`;
+            if (item.equipped && item.equippedSlot !== undefined) {
+                attachDescriptor += ` (Equipped to slot ${['Q','E','R','F','G'][item.equippedSlot]})`;
+            }
+        } else if (item.attachedAbility) {
             const allAb = getAllAbilities();
             const details = allAb[item.attachedAbility];
             if (details) {
@@ -507,7 +577,7 @@ class InventoryUI {
             </div>
 
             <div class="details-actions-panel">
-                ${item.type === 'ability' ? `
+                ${(item.type === 'ability' || item.type === 'emitter') ? `
                     <div class="ability-slot-equip-container" style="display:flex; flex-direction:column; gap:6px; width:100%; background:rgba(0,0,0,0.22); padding:6px; border-radius:4px; border:1px solid #5A4B3E; box-sizing:border-box; margin-bottom:8px;">
                         <span style="font-size:0.75em; color:#D4C8A0; margin-bottom:2px; display:block; text-align:center;">Equip into Hotbar Slot:</span>
                         <div style="display:flex; gap:4px; justify-content:space-between; width:100%; box-sizing:border-box;">
@@ -533,6 +603,12 @@ class InventoryUI {
                     </button>
                 ` : ''}
 
+                ${(item.type === 'weapon' || item.type === 'shield' || item.type === 'armor' || item.type === 'ability' || item.type === 'emitter') ? `
+                    <button class="inventory-action-btn upgrade-portal-btn" id="action-upgrade-portal" style="cursor:pointer; background-color: #e67e22; color: white; font-weight: bold; border: 2px solid #ffd700; width: 100%; box-shadow: 0 0 6px rgba(230,126,34,0.5); margin-bottom: 4px;">
+                        🌀 Upgrade in Portal
+                    </button>
+                ` : ''}
+
                 <button class="inventory-action-btn sell-btn" id="action-sell-merchant" style="cursor:pointer;">
                     💰 Sell to Recycler (+${item.value}G)
                 </button>
@@ -540,7 +616,20 @@ class InventoryUI {
         `;
 
         // Direct actions binding
-        if (item.type === 'ability') {
+        const upgradeBtn = document.getElementById('action-upgrade-portal');
+        if (upgradeBtn) {
+            upgradeBtn.onclick = () => {
+                // Close/hide inventory UI
+                this.toggleWindow();
+                // Open Chaos Map Device with current item selected
+                const dev = this.engine.editorManager?.editors.chaos_map_device;
+                if (dev) {
+                    dev.openWithItem(item);
+                }
+            };
+        }
+
+        if (item.type === 'ability' || item.type === 'emitter') {
             document.getElementById('equip-slot-q').onclick = () => this.equipAbilityItemToSlot(item, 0);
             document.getElementById('equip-slot-e').onclick = () => this.equipAbilityItemToSlot(item, 1);
             document.getElementById('equip-slot-r').onclick = () => this.equipAbilityItemToSlot(item, 2);
@@ -616,9 +705,11 @@ class InventoryUI {
             player.equippedAbilities = [null, null, null, null, null];
         }
 
+        const abIdentifier = item.attachedAbility || item.id;
+
         // Unequip this specific ability from any hotbar slots it is already in
         for (let i = 0; i < player.equippedAbilities.length; i++) {
-            if (player.equippedAbilities[i] === item.attachedAbility) {
+            if (player.equippedAbilities[i] === abIdentifier) {
                 player.equippedAbilities[i] = null;
             }
         }
@@ -627,7 +718,8 @@ class InventoryUI {
         const existingAbilityId = player.equippedAbilities[slotIndex];
         if (existingAbilityId) {
             player.inventory.forEach(i => {
-                if (i.attachedAbility === existingAbilityId) {
+                const iId = i.attachedAbility || i.id;
+                if (iId === existingAbilityId) {
                     i.equipped = false;
                     i.equippedSlot = undefined;
                 }
@@ -635,10 +727,14 @@ class InventoryUI {
         }
 
         // Assign the ability to this slot
-        player.equippedAbilities[slotIndex] = item.attachedAbility;
+        player.equippedAbilities[slotIndex] = abIdentifier;
         item.equipped = true;
         item.equippedSlot = slotIndex;
         item.explicitlyUnequipped = false; // reset explicitly unequipped state!
+
+        if (typeof player.rebuildEmitters === 'function') {
+            player.rebuildEmitters();
+        }
 
         this.render();
         this.addLocalFloatText(`Equipped ${item.name} to Hotbar Slot ${['Q','E','R','F','G'][slotIndex]}!`, '#2ecc71');
@@ -649,9 +745,11 @@ class InventoryUI {
         const player = this.engine.player;
         if (!player) return;
 
+        const abIdentifier = item.attachedAbility || item.id;
+
         if (Array.isArray(player.equippedAbilities)) {
             for (let i = 0; i < player.equippedAbilities.length; i++) {
-                if (player.equippedAbilities[i] === item.attachedAbility) {
+                if (player.equippedAbilities[i] === abIdentifier) {
                     player.equippedAbilities[i] = null;
                 }
             }
@@ -659,6 +757,10 @@ class InventoryUI {
         item.equipped = false;
         item.equippedSlot = undefined;
         item.explicitlyUnequipped = true; // explicitly unequipped to prevent automatic re-equipping
+
+        if (typeof player.rebuildEmitters === 'function') {
+            player.rebuildEmitters();
+        }
 
         this.render();
         this.addLocalFloatText(`Unequipped ${item.name} from Hotbar!`, '#ffc107');
@@ -750,6 +852,17 @@ class InventoryUI {
                 cdDiv.style.display = 'none';
             }
         });
+
+        // Live updating of Player XP progress bar below hotbar skills
+        const xpFill = document.getElementById('hotbar-xp-bar-fill');
+        const xpContainer = document.getElementById('hotbar-xp-bar-container');
+        if (xpFill && xpContainer) {
+            const currentExp = player.stats.exp || 0;
+            const nextLvlExp = player.stats.nextLevelExp || 100;
+            const pct = Math.min(100, Math.floor((currentExp / nextLvlExp) * 100));
+            xpFill.style.width = `${pct}%`;
+            xpContainer.title = `Player Level ${player.stats.level || 1} XP: ${currentExp} / ${nextLvlExp} (${pct}%)`;
+        }
     }
 
     // Helper to spawn floating text over hero in the engine

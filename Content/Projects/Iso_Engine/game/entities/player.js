@@ -5,8 +5,9 @@ console.log("rpg/game/entities/player.js loaded");
 import Enemy from './enemy.js';
 import NPC from './npc.js';
 import { GLOBAL_COLLISION_Y_OFFSET } from './gameObject.js'; // Import the constant
-import { FloatingTextEffect } from '../combat/effects.js';
-import { updateAbilityCycle } from '../combat/ability_system.js';
+import { FloatingTextEffect, ParticleSplatterEffect, SwordSlashEffect } from '../combat/effects.js';
+import { updateAbilityCycle, getAllAbilities } from '../combat/ability_system.js';
+import { Emitter } from '../combat/projectiles.js';
 
 // Removed PLAYER_DIAMOND_HALF_WIDTH and PLAYER_DIAMOND_HALF_HEIGHT
 const INTERACTION_RADIUS_SQ = 30 * 30; // Squared radius for interacting with objects/spawn points
@@ -36,6 +37,9 @@ class Player {
             maxHp: 100,
             atk: 10,
             def: 5,
+            level: 1,
+            exp: 0,
+            nextLevelExp: 100
         };
 
         this.gold = 150; // Starting player gold
@@ -55,8 +59,14 @@ class Player {
         this.abilityState = 'none'; // 'none', 'startup', 'active', 'recovery'
         this.visualYOffset = 0;
         this.landingSquashTimer = 0;
+        
+        // Combat lunge animation variables
+        this.lungeTimer = 0;
+        this.lungeTarget = null;
         this.abilityCooldowns = {};
         this.equippedAbilities = [null, null, null, null, null];
+        this.emitters = [];
+        this.rebuildEmitters();
 
         // Knockback properties
         this.knockbackVelocity = { x: 0, y: 0 };
@@ -107,18 +117,44 @@ class Player {
     autoEquipAbilities() {
         if (!Array.isArray(this._inventory) || !Array.isArray(this.equippedAbilities)) return;
         
+        let changed = false;
         this._inventory.forEach(item => {
-            if (item && item.type === 'ability' && item.attachedAbility && !item.equipped && !item.explicitlyUnequipped) {
+            const abIdentifier = item.attachedAbility || (item.type === 'emitter' ? item.id : null);
+            if (item && (item.type === 'ability' || item.type === 'emitter') && abIdentifier && !item.equipped && !item.explicitlyUnequipped) {
                 // Find empty slot
                 const emptySlotIndex = this.equippedAbilities.indexOf(null);
                 if (emptySlotIndex !== -1) {
                     // Equip it!
-                    this.equippedAbilities[emptySlotIndex] = item.attachedAbility;
+                    this.equippedAbilities[emptySlotIndex] = abIdentifier;
                     item.equipped = true;
                     item.equippedSlot = emptySlotIndex;
+                    changed = true;
                 }
             }
         });
+        if (changed) {
+            this.rebuildEmitters();
+        }
+    }
+
+    rebuildEmitters() {
+        this.emitters = [];
+        const abilitiesList = getAllAbilities ? getAllAbilities() : {};
+        
+        if (Array.isArray(this.equippedAbilities)) {
+            this.equippedAbilities.forEach(abId => {
+                if (!abId) return;
+                
+                // Get virtual or actual ability
+                const ab = abilitiesList[abId];
+                if (ab && ab.hasEmitter && ab.emitterConfig) {
+                    const isPassiveEmitter = abId.includes('emitter') || abId.includes('loot_') || abId.startsWith('item_');
+                    if (isPassiveEmitter) {
+                        this.emitters.push(new Emitter(this.engine, this, { ...ab.emitterConfig, presetId: ab.id }));
+                    }
+                }
+            });
+        }
     }
 
     loadCharacterData(data) {
@@ -141,6 +177,66 @@ class Player {
             this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + hpDiff);
         } else {
             this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp);
+        }
+    }
+
+    gainExp(amount) {
+        if (!this.stats.level) {
+            this.stats.level = 1;
+            this.stats.exp = 0;
+            this.stats.nextLevelExp = 100;
+        }
+
+        this.stats.exp += amount;
+
+        // Level up check
+        while (this.stats.exp >= this.stats.nextLevelExp) {
+            this.stats.exp -= this.stats.nextLevelExp;
+            this.stats.level++;
+            this.stats.nextLevelExp = Math.floor(this.stats.nextLevelExp * 1.5);
+            this.stats.maxHp = Math.floor(this.stats.maxHp * 1.15) + 15;
+            this.stats.hp = this.stats.maxHp; // Heal to full on level up
+            this.stats.atk = Math.floor(this.stats.atk * 1.12) + 2;
+            this.stats.def = Math.floor(this.stats.def * 1.10) + 1;
+
+            const FloatingTextEffectClass = FloatingTextEffect || null;
+            if (FloatingTextEffectClass && this.engine) {
+                this.engine.addEffect(new FloatingTextEffectClass(this.engine, {
+                    text: `⭐ LEVEL UP! Lvl ${this.stats.level} ⭐`,
+                    position: { x: this.currentPixelX, y: this.currentPixelY - 60 },
+                    color: '#f1c40f'
+                }));
+            }
+        }
+    }
+
+    gainItemExp(item, amount) {
+        if (!item) return;
+        if (!item.level) item.level = 1;
+        if (item.xp === undefined) item.xp = 0;
+        if (!item.nextLevelXp) item.nextLevelXp = 100;
+
+        item.xp += amount;
+
+        // Level up item
+        while (item.xp >= item.nextLevelXp) {
+            item.xp -= item.nextLevelXp;
+            item.level++;
+            item.nextLevelXp = Math.floor(item.nextLevelXp * 1.6);
+
+            // Scale item metrics
+            if (item.bonusAtk) item.bonusAtk = Math.floor(item.bonusAtk * 1.2) + 1;
+            if (item.bonusDef) item.bonusDef = Math.floor(item.bonusDef * 1.2) + 1;
+            if (item.heal) item.heal = Math.floor(item.heal * 1.2) + 5;
+
+            const FloatingTextEffectClass = FloatingTextEffect || null;
+            if (FloatingTextEffectClass && this.engine) {
+                this.engine.addEffect(new FloatingTextEffectClass(this.engine, {
+                    text: `⚔️ ITEM LEVEL UP: ${item.name} Lv ${item.level}! ⚔️`,
+                    position: { x: this.currentPixelX, y: this.currentPixelY - 80 },
+                    color: '#e67e22'
+                }));
+            }
         }
     }
 
@@ -298,8 +394,18 @@ class Player {
 
 
     update(deltaTime, input) {
+        // Update physical lunge timer
+        if (this.lungeTimer && this.lungeTimer > 0) {
+            this.lungeTimer = Math.max(0, this.lungeTimer - deltaTime);
+        }
+
         // Run ability ticks
         updateAbilityCycle(this, deltaTime);
+
+        // Update passive background emitters
+        if (this.emitters && this.emitters.length > 0) {
+            this.emitters.forEach(em => em.update(deltaTime));
+        }
 
         // Update landing squash decay
         if (this.landingSquashTimer > 0) {
@@ -463,11 +569,55 @@ class Player {
         if (typeof target.applyKnockback === 'function') {
             target.applyKnockback(direction, PLAYER_KNOCKBACK_FORCE);
         }
+
+        // Trigger physical lunge animation
+        this.lungeTimer = 0.2;
+        this.lungeTarget = target;
+
+        // Calculate attack sweep angle
+        const targetAngle = Math.atan2(direction.y, direction.x);
+        
+        // Spawn sweeping sword slash visual effect
+        const slashPos = {
+            x: (this.currentPixelX + target.currentPixelX) / 2,
+            y: (this.currentPixelY - 16 + target.currentPixelY - 16) / 2
+        };
+        this.engine.addEffect(new SwordSlashEffect(this.engine, {
+            position: slashPos,
+            angle: targetAngle,
+            radius: 35
+        }));
+
+        // Spawn golden impact sparks
+        this.engine.addEffect(new ParticleSplatterEffect(this.engine, {
+            position: { x: target.currentPixelX, y: target.currentPixelY },
+            color: '#ffd83b',
+            count: 5
+        }));
     }
 
     render(ctx, viewOriginX, viewOriginY) {
-        const drawX = this.currentPixelX - viewOriginX; // This is the circle center on canvas
-        const drawY = (this.currentPixelY + (this.visualYOffset || 0)) - viewOriginY; // This is the circle center on canvas
+        // Draw emitter range circles if present
+        if (this.emitters && this.emitters.length > 0) {
+            this.emitters.forEach(em => em.renderRangeArea(ctx, viewOriginX, viewOriginY));
+        }
+
+        let lungeX = 0;
+        let lungeY = 0;
+        if (this.lungeTimer && this.lungeTimer > 0 && this.lungeTarget) {
+            const pct = this.lungeTimer / 0.2; // 1.0 down to 0.0
+            const dx = this.lungeTarget.currentPixelX - this.currentPixelX;
+            const dy = this.lungeTarget.currentPixelY - this.currentPixelY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 1) {
+                const currentLunge = Math.sin(pct * Math.PI) * 5; // 5px lunge
+                lungeX = (dx / dist) * currentLunge;
+                lungeY = (dy / dist) * currentLunge;
+            }
+        }
+
+        const drawX = this.currentPixelX + lungeX - viewOriginX; // This is the circle center on canvas
+        const drawY = (this.currentPixelY + lungeY + (this.visualYOffset || 0)) - viewOriginY; // This is the circle center on canvas
         
         // Compute organic squash and stretch scaling
         let scaleX = 1.0;

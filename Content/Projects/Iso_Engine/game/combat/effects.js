@@ -301,4 +301,68 @@ class ParticleSplatterEffect {
     }
 }
 
-export { TelegraphEffect, FloatingTextEffect, TowerOrbEffect, ParticleSplatterEffect };
+class SwordSlashEffect {
+    constructor(engine, options) {
+        this.engine = engine;
+        this.id = `slash_${Date.now()}_${Math.random()}`;
+        this.isHighZ = true;
+        this.position = { ...options.position };
+        this.angle = options.angle;
+        this.color = options.color || 'rgba(235, 245, 255, 0.85)';
+        this.radius = options.radius || 35;
+        this.duration = options.duration || 0.16;
+        this.lifeTimer = this.duration;
+    }
+
+    update(deltaTime) {
+        this.lifeTimer -= deltaTime;
+        if (this.lifeTimer <= 0) {
+            this.engine.removeEffect(this);
+        }
+    }
+
+    render(ctx, viewOriginX, viewOriginY) {
+        const drawX = this.position.x - viewOriginX;
+        const drawY = this.position.y - viewOriginY;
+
+        ctx.save();
+        const progress = this.lifeTimer / this.duration; // 1 down to 0
+        const alpha = Math.max(0, progress);
+        
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.shadowColor = '#80d0ff';
+        ctx.shadowBlur = 10;
+
+        // Elegant sweeping arc
+        const spread = Math.PI * 0.75;
+        const startAngle = this.angle - (spread / 2) * (1.1 - progress);
+        const endAngle = this.angle + (spread / 2) * (1.1 - progress);
+
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, this.radius, startAngle, endAngle);
+        ctx.stroke();
+
+        // Secondary inner sharp blade streak
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, this.radius - 2, startAngle + 0.1, endAngle - 0.1);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    getSortY() {
+        return this.position.y;
+    }
+
+    getCollisionBounds() {
+        return null;
+    }
+}
+
+export { TelegraphEffect, FloatingTextEffect, TowerOrbEffect, ParticleSplatterEffect, SwordSlashEffect };

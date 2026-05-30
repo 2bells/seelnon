@@ -191,7 +191,32 @@ class EditorMapOperations {
     _downloadMapFile() {
         try {
             const mapData = this.editor.map.serialize();
-            const mapJson = JSON.stringify(mapData, getCircularReplacer(), 2);
+            
+            // Backup the original tiles
+            const originalTiles = mapData.tiles;
+            if (Array.isArray(originalTiles)) {
+                mapData.tiles = originalTiles.map(row => {
+                    return `__COMPACT_ROW_START__${JSON.stringify(row)}__COMPACT_ROW_END__`;
+                });
+            }
+            
+            let mapJson = JSON.stringify(mapData, getCircularReplacer(), 2);
+            
+            // Revert mapData.tiles back just in case
+            if (Array.isArray(originalTiles)) {
+                mapData.tiles = originalTiles;
+            }
+            
+            // Post-process the JSON string to flatten compact rows into a single line
+            mapJson = mapJson.replace(/"__COMPACT_ROW_START__([\s\S]*?)__COMPACT_ROW_END__"/g, (match, captured) => {
+                try {
+                    const parsedRow = JSON.parse(captured.replace(/\\"/g, '"'));
+                    return JSON.stringify(parsedRow);
+                } catch (e) {
+                    return captured;
+                }
+            });
+
             const blob = new Blob([mapJson], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -201,7 +226,7 @@ class EditorMapOperations {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            CustomDialog.alert("Map download initiated.", "Success");
+            CustomDialog.alert("Map download initiated with compact tile arrays.", "Success");
         } catch (error) {
             console.error("Error downloading map file:", error);
             CustomDialog.alert(`Error downloading map: ${error.message}`, "Download Error");
