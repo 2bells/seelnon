@@ -3,17 +3,19 @@ console.log("rpg/game/editor/chaos_map_device.js loaded");
 
 import CustomDialog from '../ui/custom_dialog.js';
 import NPC from '../entities/npc.js';
+import { ensureItemAbilityStats } from '../combat/ability_system.js';
 
 // Random funny map modifier generator
 const MAP_MODIFIERS = [
     { text: "👹 Boss is Colossal (+50% Boss HP, +20% Boss Size)", key: "colossal_boss", value: 1.5, type: "boss_hp" },
     { text: "⚡ Hasteful Leylines (+25% Player Speed)", key: "player_speed", value: 1.25, type: "player_speed" },
-    { text: "🧲 Gravity Anomalies (-15% Player Speed, +30% Item XP)", key: "gravity", value: 1.3, type: "item_xp" },
-    { text: "🪙 Tome of Midas (+100% Gold reward drops)", key: "gold_fever", value: 2.0, type: "gold" },
+    { text: "🌀 Gravity Anomalies (-15% Player Speed, +30% Item XP)", key: "gravity", value: 1.3, type: "item_xp" },
+    { text: "💰 Tome of Midas (+100% Gold reward drops)", key: "gold_fever", value: 2.0, type: "gold" },
     { text: "🔥 Volatile Sludge (Monsters explode on death dealing 5 damage)", key: "volatile_sludge", value: 1.2, type: "volatile" },
     { text: "🛡️ Hardened Scales (Monsters have +5 Defense)", key: "hardened_scales", value: 5, type: "monster_def" },
     { text: "☄️ Meteor Fallouts (Random meteors falling periodically)", key: "meteors", value: 1.4, type: "meteors" },
-    { text: "🔮 Overflowing Mana (+50% Skill damage / shorter cooldowns)", key: "mana_overflow", value: 1.5, type: "cooldown_mod" }
+    { text: "🔮 Overflowing Mana (+50% Skill damage / shorter cooldowns)", key: "mana_overflow", value: 1.5, type: "cooldown_mod" },
+    { text: "🌑 Pitch Black Leylines (-2 Fog of War visibility, but +25% Item XP)", key: "pitch_black", value: 1.25, type: "item_xp" }
 ];
 
 export default class ChaosMapDevice {
@@ -317,6 +319,11 @@ export default class ChaosMapDevice {
         if (item.bonusAtk) bonusSpec = `<span style="color:#e74c3c; font-weight:bold;">⚔️ +${item.bonusAtk} Weapon ATK</span>`;
         if (item.bonusDef) bonusSpec = `<span style="color:#3498db; font-weight:bold;">🛡️ +${item.bonusDef} Shield DEF</span>`;
         if (item.heal) bonusSpec = `<span style="color:#2ecc71; font-weight:bold;">💚 +${item.heal} HP Recovery</span>`;
+        if (item.type === 'ability' || item.attachedAbility) {
+            ensureItemAbilityStats(item);
+            bonusSpec = `<span style="color:#e74c3c; font-weight:bold;">💥 ${item.baseDmg} Base + ${Math.round((item.atkScale || 0) * 100)}% ATK DMG</span>` +
+                        `<br/><span style="color:#3498db; font-size:0.95em;">⏱️ Cooldown: ${item.cooldown}s &nbsp;|&nbsp; 📏 Range: ${item.range}px</span>`;
+        }
 
         card.innerHTML = `
             <div style="font-weight: bold; font-size: 1.1em; color: #ffd700; margin-bottom: 4px;">
@@ -369,11 +376,16 @@ export default class ChaosMapDevice {
         else if (this.mapTier === 'rare') { count = 3; baseMult = 1.85; }
         else if (this.mapTier === 'legendary') { count = 5; baseMult = 3.0; }
 
-        this.itemXPMultiplier = baseMult;
-
         // Shuffle modifiers list internally and pick
         const shuffled = [...MAP_MODIFIERS].sort(() => 0.5 - Math.random());
         this.activeModifiers = shuffled.slice(0, count);
+
+        this.activeModifiers.forEach(mod => {
+            if (mod.type === 'item_xp' && typeof mod.value === 'number') {
+                baseMult *= mod.value;
+            }
+        });
+        this.itemXPMultiplier = Number(baseMult.toFixed(2));
 
         const listDiv = document.getElementById('chaos-map-device-modifiers-list');
         if (!listDiv) return;
@@ -447,59 +459,138 @@ export default class ChaosMapDevice {
             tilesGrid.push(row);
         }
 
-        // Define a set of "blobs" (rooms) covering the map
-        const blobs = [
-            { cx: 8,  cy: 8,  r: 4.5, name: 'player_hub' },       // Near top-left (Starting area)
-            { cx: 32, cy: 32, r: 6.0, name: 'boss_arena' },       // Opposite corner (Boss arena)
-            { cx: 32, cy: 8,  r: 4.0, name: 'treasure_cavern' },  // Top-right (Chests & loot)
-            { cx: 8,  cy: 32, r: 4.0, name: 'monster_den' },      // Bottom-left (Monster nest)
-            { cx: 20, cy: 20, r: 5.0, name: 'nexus_crossroad' }  // Central crossroad
+        // Define our 5 core "blob" centers (randomize assignment of the 4 corner layouts)
+        const corners = [
+            { cx: 8,  cy: 8,  r: 4.5 },       // Top-Left
+            { cx: 31, cy: 31, r: 5.5 },       // Bottom-Right
+            { cx: 31, cy: 9,  r: 4.0 },       // Top-Right
+            { cx: 9,  cy: 31, r: 4.0 }        // Bottom-Left
         ];
 
-        // Draw organic blobs
+        // Shuffle corners array
+        for (let i = corners.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const temp = corners[i];
+            corners[i] = corners[j];
+            corners[j] = temp;
+        }
+
+        const blobs = [
+            { ...corners[0], name: 'player_hub' },       // blobs[0] is starting area (randomized corner)
+            { ...corners[1], name: 'boss_arena' },       // blobs[1] is boss arena (randomized corner)
+            { ...corners[2], name: 'treasure_cavern' },  // blobs[2] is treasure cavern (randomized corner)
+            { ...corners[3], name: 'monster_den' },      // blobs[3] is monster nest (randomized corner)
+            { cx: 20, cy: 20, r: 5.0, name: 'nexus_crossroad' } // blobs[4] is central nexus
+        ];
+
+        // Seed initial positive noise values or circular seeds
+        const noiseGrid = [];
+        for (let y = 0; y < pSize; y++) {
+            const row = [];
+            for (let x = 0; x < pSize; x++) {
+                // Keep a margin of 3 tiles to prevent touching absolute limits
+                if (x < 3 || x >= pSize - 3 || y < 3 || y >= pSize - 3) {
+                    row.push(0);
+                } else {
+                    // Start with ~38% chance of floor (1)
+                    row.push(Math.random() < 0.38 ? 1 : 0);
+                }
+            }
+            noiseGrid.push(row);
+        }
+
+        // Overwrite seeded core blob regions to guarantee they start with solid floor
         blobs.forEach(blob => {
-            // Draw central circle with satellite overlapping blobs to create organic shapes
-            const satellites = [
-                { dx: 0, dy: 0, r: blob.r }, // Central circle
-                { dx: Math.floor(Math.random() * 3) - 1, dy: Math.floor(Math.random() * 3) - 1, r: blob.r * 0.8 },
-                { dx: Math.floor(Math.random() * 3) - 1, dy: Math.floor(Math.random() * 3) - 1, r: blob.r * 0.7 }
-            ];
-
-            satellites.forEach(sat => {
-                const centerGridX = blob.cx + sat.dx;
-                const centerGridY = blob.cy + sat.dy;
-                const radiusSq = sat.r * sat.r;
-
-                for (let y = Math.floor(centerGridY - sat.r - 1); y <= Math.ceil(centerGridY + sat.r + 1); y++) {
-                    for (let x = Math.floor(centerGridX - sat.r - 1); x <= Math.ceil(centerGridX + sat.r + 1); x++) {
-                        if (x > 0 && x < pSize - 1 && y > 0 && y < pSize - 1) {
-                            const dx = x - centerGridX;
-                            const dy = y - centerGridY;
-                            if (dx * dx + dy * dy <= radiusSq) {
-                                // 85% chance for standard floor (1), 15% for speckled floor (2) to give nice organic variation
-                                tilesGrid[y][x] = Math.random() < 0.85 ? 1 : 2;
-                            }
+            const rSq = blob.r * blob.r;
+            for (let y = Math.floor(blob.cy - blob.r - 1); y <= Math.ceil(blob.cy + blob.r + 1); y++) {
+                for (let x = Math.floor(blob.cx - blob.r - 1); x <= Math.ceil(blob.cx + blob.r + 1); x++) {
+                    if (x > 0 && x < pSize - 1 && y > 0 && y < pSize - 1) {
+                        const dx = x - blob.cx;
+                        const dy = y - blob.cy;
+                        if (dx * dx + dy * dy <= rSq) {
+                            noiseGrid[y][x] = 1;
                         }
                     }
                 }
-            });
+            }
         });
 
-        // Helper function to carve a corridor between two coordinates
-        const carveCorridor = (x1, y1, x2, y2) => {
+        // Run 2 blur-smoothing passes (Cellular Automata) to turn noise into blobs of space!
+        for (let pass = 0; pass < 2; pass++) {
+            const tempGrid = [];
+            for (let y = 0; y < pSize; y++) {
+                const tempRow = [];
+                for (let x = 0; x < pSize; x++) {
+                    if (x < 2 || x >= pSize - 2 || y < 2 || y >= pSize - 2) {
+                        tempRow.push(0);
+                    } else {
+                        // Count 8-neighbors of walkable space
+                        let count = 0;
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                if (noiseGrid[y + dy][x + dx] === 1) {
+                                    count++;
+                                }
+                            }
+                        }
+                        // Box filter thresholding
+                        tempRow.push(count >= 5 ? 1 : 0);
+                    }
+                }
+                tempGrid.push(tempRow);
+            }
+            // Copy back
+            for (let y = 0; y < pSize; y++) {
+                for (let x = 0; x < pSize; x++) {
+                    noiseGrid[y][x] = tempGrid[y][x];
+                }
+            }
+        }
+
+        // Apply our smoothed grass floor tiles onto tilesGrid!
+        // Also seed the blobs always as floor to guarantee.
+        for (let y = 0; y < pSize; y++) {
+            for (let x = 0; x < pSize; x++) {
+                if (noiseGrid[y][x] === 1) {
+                    tilesGrid[y][x] = 1; // Mark as floor placeholder
+                }
+            }
+        }
+        blobs.forEach(b => {
+             // Re-verify core center circles are walkable to prevent any excessive smoothing erosion
+             for (let y = Math.floor(b.cy - 2); y <= Math.ceil(b.cy + 2); y++) {
+                 for (let x = Math.floor(b.cx - 2); x <= Math.ceil(b.cx + 2); x++) {
+                     if (x > 1 && x < pSize - 2 && y > 1 && y < pSize - 2) {
+                         tilesGrid[y][x] = 1;
+                     }
+                 }
+             }
+        });
+
+        // Helper function to carve a corridor of variable size between two points!
+        // "minimal being 2 spaces (+ outline of trees) max being 'not bigger than a blob it connects to'."
+        const carveCorridor = (x1, y1, x2, y2, rA, rB) => {
             let cx = x1;
             let cy = y1;
 
+            // Determine randomized width based on connecting blob sizes
+            // Min width = 2, Max width = min of the blob diameters, capped for aesthetic purposes at 3
+            const minW = 2;
+            const maxW = Math.min(3, Math.floor(Math.min(rA * 2, rB * 2)));
+            // Choose a random corridor width in that range
+            const corrWidth = Math.max(minW, Math.floor(Math.random() * (maxW - minW + 1)) + minW);
+
             const carveTile = (tx, ty) => {
-                // Carve a 3x3 brush around (tx, ty) to ensure columns/passageways are wide and walkable
-                for (let dy = -1; dy <= 1; dy++) {
-                    for (let dx = -1; dx <= 1; dx++) {
+                const half = Math.floor(corrWidth / 2);
+                const offsetStart = -half;
+                const offsetEnd = corrWidth % 2 === 0 ? half - 1 : half;
+
+                for (let dy = offsetStart; dy <= offsetEnd; dy++) {
+                    for (let dx = offsetStart; dx <= offsetEnd; dx++) {
                         const nx = tx + dx;
                         const ny = ty + dy;
-                        if (nx > 0 && nx < pSize - 1 && ny > 0 && ny < pSize - 1) {
-                            if (tilesGrid[ny][nx] === 0) {
-                                tilesGrid[ny][nx] = Math.random() < 0.85 ? 1 : 2;
-                            }
+                        if (nx > 1 && nx < pSize - 2 && ny > 1 && ny < pSize - 2) {
+                            tilesGrid[ny][nx] = 1; // Mark as floor
                         }
                     }
                 }
@@ -517,85 +608,370 @@ export default class ChaosMapDevice {
             carveTile(cx, cy); // Final step
         };
 
-        // Connect the blobs to form a guaranteed fully traversable network:
-        // Connect player hub to nexus crossroad
-        carveCorridor(blobs[0].cx, blobs[0].cy, blobs[4].cx, blobs[4].cy);
-        // Connect boss arena to nexus crossroad
-        carveCorridor(blobs[1].cx, blobs[1].cy, blobs[4].cx, blobs[4].cy);
-        // Connect treasure cavern to nexus crossroad
-        carveCorridor(blobs[2].cx, blobs[2].cy, blobs[4].cx, blobs[4].cy);
-        // Connect monster den to nexus crossroad
-        carveCorridor(blobs[3].cx, blobs[3].cy, blobs[4].cx, blobs[4].cy);
+        // Fully connect the 5 main seed regions with multi-width corridors:
+        // Connect Starting hub to Central nexus
+        carveCorridor(blobs[0].cx, blobs[0].cy, blobs[4].cx, blobs[4].cy, blobs[0].r, blobs[4].r);
+        // Connect Boss arena to Central nexus
+        carveCorridor(blobs[1].cx, blobs[1].cy, blobs[4].cx, blobs[4].cy, blobs[1].r, blobs[4].r);
+        // Connect Treasure cavern to Central nexus
+        carveCorridor(blobs[2].cx, blobs[2].cy, blobs[4].cx, blobs[4].cy, blobs[2].r, blobs[4].r);
+        // Connect Monster den to Central nexus
+        carveCorridor(blobs[3].cx, blobs[3].cy, blobs[4].cx, blobs[4].cy, blobs[3].r, blobs[4].r);
 
-        // Build objects layer
-        const objectsLayer = [];
+        // Also occasionally add some extra loop corridors to create interesting multi-path layouts (e.g. hub to den)
+        if (Math.random() < 0.5) {
+            carveCorridor(blobs[0].cx, blobs[0].cy, blobs[3].cx, blobs[3].cy, blobs[0].r, blobs[3].r);
+        }
+        if (Math.random() < 0.5) {
+            carveCorridor(blobs[2].cx, blobs[2].cy, blobs[1].cx, blobs[1].cy, blobs[2].r, blobs[1].r);
+        }
 
-        // Build solid tree/wall boundary sprites around all carved floor tiles!
-        // To make it beautiful and "bounded" (preventing players walking into abyss, but also letting them see the edge),
-        // we can place a tree at any COORDINATE (x,y) that is 0 (abyss) but ADJACENT to a walkable tile (1 or 2).
+        // Paint the floor tile IDs onto the tilesGrid!
+        // We will map our placeholders to random grass variations, stone paths, and wood plank sections.
+        const GRASS_TILES = [
+            19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            5, 5, 5, 5, 5, 5 // Weigh standard clean grass (5) higher so it's smooth
+        ];
+        const STONE_TILES = [1, 2, 3, 4];
+        const WOOD_TILES = [17, 18];
+
+        // Choose a floor style theme for this map run
+        // 70% chance of purely grassy forest path, 15% stone pavings, 15% wood planks pathing
+        const mapTheme = Math.random() < 0.70 ? 'grass' : (Math.random() < 0.50 ? 'stone' : 'wood');
+
+        for (let y = 0; y < pSize; y++) {
+            for (let x = 0; x < pSize; x++) {
+                if (tilesGrid[y][x] === 1) {
+                    if (mapTheme === 'stone' && Math.random() < 0.25) {
+                        tilesGrid[y][x] = STONE_TILES[Math.floor(Math.random() * STONE_TILES.length)];
+                    } else if (mapTheme === 'wood' && Math.random() < 0.25) {
+                        tilesGrid[y][x] = WOOD_TILES[Math.floor(Math.random() * WOOD_TILES.length)];
+                    } else {
+                        tilesGrid[y][x] = GRASS_TILES[Math.floor(Math.random() * GRASS_TILES.length)];
+                    }
+                }
+            }
+        }
+
+        // Build solid tree/wall boundary obstacles at any tiles that are empty (0), but adjacent to a floor tile.
+        // Also pave those tiles beneath the trees with a grass tile so trees do not stand on empty background!
+        const object1Layer = [];
+        const object2Layer = [];
+
+        // Identify boundary coordinates where tilesGrid is 0, but adjacent to walkable floor space
+        const borderTiles = [];
         for (let y = 0; y < pSize; y++) {
             for (let x = 0; x < pSize; x++) {
                 if (tilesGrid[y][x] === 0) {
-                    // Check neighbors to see if this is an edge
                     let hasWalkableNeighbor = false;
                     for (let dy = -1; dy <= 1 && !hasWalkableNeighbor; dy++) {
                         for (let dx = -1; dx <= 1; dx++) {
                             const nx = x + dx;
                             const ny = y + dy;
                             if (nx >= 0 && nx < pSize && ny >= 0 && ny < pSize) {
-                                if (tilesGrid[ny][nx] === 1 || tilesGrid[ny][nx] === 2) {
+                                if (tilesGrid[ny][nx] !== 0) {
                                     hasWalkableNeighbor = true;
-                                    break;
                                 }
                             }
                         }
                     }
 
                     if (hasWalkableNeighbor) {
-                        objectsLayer.push({
-                            id: `border_tree_${x}_${y}`,
-                            mapX: x,
-                            mapY: y,
-                            assetName: 'tree',
-                            collidable: true,
+                        borderTiles.push({ x, y });
+                    }
+                }
+            }
+        }
+
+        // Assign a grass tile to ALL border tiles under trees and obstacles
+        borderTiles.forEach(tile => {
+            tilesGrid[tile.y][tile.x] = GRASS_TILES[Math.floor(Math.random() * GRASS_TILES.length)];
+        });
+
+        // --- 2nd Path: Enclose all remaining empty / abyss holes with water tiles ---
+        for (let y = 0; y < pSize; y++) {
+            for (let x = 0; x < pSize; x++) {
+                if (tilesGrid[y][x] === 0) {
+                    const roll = Math.random();
+                    if (roll < 0.70) {
+                        tilesGrid[y][x] = 39; // Main clear water tile
+                    } else if (roll < 0.85) {
+                        tilesGrid[y][x] = 14; // Coloring water tile (reeds in corner)
+                    } else if (roll < 0.94) {
+                        tilesGrid[y][x] = 13; // Stone detail water tile
+                    } else {
+                        tilesGrid[y][x] = 40; // Detail water tile from time to time
+                    }
+
+                    // Render decorative logs (37 and 38) as non-collidable object1Layer sprites on top of water tiles!
+                    if (Math.random() < 0.08) {
+                        const logRoll = Math.random();
+                        const is37Log = logRoll < 0.5;
+                        object1Layer.push({
+                            type: "spriteObject",
+                            displayName: is37Log ? "Water Log A" : "Water Log B",
+                            id: `water_log_${x}_${y}_${Math.random().toString(36).substr(2, 5)}`,
+                            mapX: x + 0.5,
+                            mapY: y + 0.5,
+                            assetName: 'buildingSpritesheet',
+                            spritesheetIndex: 1,
+                            spriteSourceRect: {
+                                x: is37Log ? 264 : 330,
+                                y: 792,
+                                width: 64,
+                                height: 64
+                            },
                             visualWidth: 64,
                             visualHeight: 64,
                             anchorOffsetX: 32,
-                            anchorOffsetY: 64
+                            anchorOffsetY: 64,
+                            collidable: false,
+                            collisionShape: null,
+                            disableYSorting: false,
+                            zIndex: 0,
+                            layerKey: "object1"
                         });
                     }
                 }
             }
         }
 
-        // Scatter some optional decorative inner obstacles (trees/pillars) inside the blobs, but avoid spawns!
-        for (let n = 0; n < 20; n++) {
-            const rx = Math.floor(Math.random() * (pSize - 4)) + 2;
-            const ry = Math.floor(Math.random() * (pSize - 4)) + 2;
+        // Now place overlapping dense boundary obstacles (Trees and bushes/rocks) on top of the border tiles
+        borderTiles.forEach((tile, index) => {
+            const x = tile.x;
+            const y = tile.y;
 
-            // Make sure it is a walkable tile and NOT too close to any blob center point (safety margin for spawns)
-            if (tilesGrid[ry][rx] === 1 || tilesGrid[ry][rx] === 2) {
+            const roll = Math.random();
+            if (roll < 0.40) {
+                // Spawn a large scale-2 Tree on object2 Layer
+                object2Layer.push({
+                    type: "tree",
+                    displayName: `Tree (${x},${y})`,
+                    id: `border_tree_${x}_${y}_${index}`,
+                    mapX: x + 0.5,
+                    mapY: y + 0.5,
+                    assetName: 'tree',
+                    scale: 2,
+                    anchorOffsetXFactor: 0.5,
+                    anchorOffsetYFactor: 0.95,
+                    collidable: true,
+                    visualWidth: 128,
+                    visualHeight: 128,
+                    anchorOffsetX: 64,
+                    anchorOffsetY: 121.6,
+                    collisionShape: {
+                        type: "polygon",
+                        vertices: [
+                            { x: 0, y: -8 },
+                            { x: 20, y: 0 },
+                            { x: 0, y: 8 },
+                            { x: -20, y: 0 }
+                        ]
+                    },
+                    disableYSorting: false,
+                    zIndex: 0,
+                    spritesheetIndex: 0,
+                    layerKey: "object2"
+                });
+            } else if (roll < 0.75) {
+                // Spawn a solid Rock/Boulder on object2 Layer! (wall some stuff off with rocks)
+                const rockOptions = [
+                    { x: 0, y: 330, name: "Boulder A" },
+                    { x: 66, y: 330, name: "Boulder B" },
+                    { x: 132, y: 330, name: "Boulder C" },
+                    { x: 198, y: 330, name: "Boulder D" }
+                ];
+                const rock = rockOptions[Math.floor(Math.random() * rockOptions.length)];
+                object2Layer.push({
+                    type: "spriteObject",
+                    displayName: `${rock.name} (${x},${y})`,
+                    id: `border_rock_${x}_${y}_${index}`,
+                    mapX: x + 0.5,
+                    mapY: y + 0.5,
+                    assetName: 'buildingSpritesheet',
+                    spritesheetIndex: 1,
+                    spriteSourceRect: {
+                        x: rock.x,
+                        y: rock.y,
+                        width: 64,
+                        height: 64
+                    },
+                    visualWidth: 64,
+                    visualHeight: 64,
+                    anchorOffsetX: 32,
+                    anchorOffsetY: 64,
+                    collidable: true,
+                    collisionShape: {
+                        type: "polygon",
+                        vertices: [
+                            { x: 0, y: -10 },
+                            { x: 20, y: 0 },
+                            { x: 0, y: 10 },
+                            { x: -20, y: 0 }
+                        ]
+                    },
+                    disableYSorting: false,
+                    zIndex: 0,
+                    layerKey: "object2"
+                });
+            } else {
+                // Spawn small/medium bushes, rocks, or fallen log on object1 Layer (purely scenery, non-collidable)
+                const spriteOptions = [
+                    { x: 0, y: 792, name: "Small Bush" },     // Small Green Bush
+                    { x: 66, y: 792, name: "Fern Bush" },     // Fern green clump
+                    { x: 0, y: 462, name: "Flowery Bush" },   // Large leafy flower bush
+                    { x: 264, y: 792, name: "Fallen Log" },   // Log
+                    { x: 330, y: 792, name: "Mossy Rock" },   // Rock boulder
+                    { x: 396, y: 396, name: "Slab Boulder" }, // Big flat rock boulder
+                    { x: 594, y: 396, name: "Dead Bush" }     // Dry plant
+                ];
+
+                const sprite = spriteOptions[Math.floor(Math.random() * spriteOptions.length)];
+
+                object1Layer.push({
+                    type: "spriteObject",
+                    displayName: `${sprite.name} (${x},${y})`,
+                    id: `border_sprite_${x}_${y}_${index}`,
+                    mapX: x + 0.5,
+                    mapY: y + 0.5,
+                    assetName: 'buildingSpritesheet',
+                    spritesheetIndex: 1,
+                    spriteSourceRect: {
+                        x: sprite.x,
+                        y: sprite.y,
+                        width: 64,
+                        height: 64
+                    },
+                    visualWidth: 64,
+                    visualHeight: 64,
+                    anchorOffsetX: 32,
+                    anchorOffsetY: 64,
+                    collidable: false,
+                    collisionShape: null,
+                    disableYSorting: false,
+                    zIndex: 0,
+                    layerKey: "object1"
+                });
+            }
+        });
+
+        // Scatter some optional decorative obstacles inside the walkable space to add detail (but NOT near seeded spawn centers!)
+        // Detailed beautifully with 65 scattering items (trees, bushes, water puddles) to add texture depth.
+        for (let n = 0; n < 65; n++) {
+            const rx = Math.floor(Math.random() * (pSize - 6)) + 3;
+            const ry = Math.floor(Math.random() * (pSize - 6)) + 3;
+
+            // Make sure the tile is a walkable tile (not a water tile)
+            const tileVal = tilesGrid[ry][rx];
+            if (tileVal !== 0 && tileVal !== 13 && tileVal !== 14 && tileVal !== 38 && tileVal !== 40) {
                 let tooClose = false;
                 blobs.forEach(b => {
                     const dx = rx - b.cx;
                     const dy = ry - b.cy;
-                    if (dx * dx + dy * dy < 9) { // At least 3 tiles away from any center point
+                    if (dx * dx + dy * dy < 16) {
                         tooClose = true;
                     }
                 });
 
                 if (!tooClose) {
-                    objectsLayer.push({
-                        id: `interior_pillar_${n}`,
-                        mapX: rx,
-                        mapY: ry,
-                        assetName: 'tree',
-                        collidable: true,
-                        visualWidth: 64,
-                        visualHeight: 64,
-                        anchorOffsetX: 32,
-                        anchorOffsetY: 64
-                    });
+                    const roll = Math.random();
+                    if (roll < 0.22) {
+                        // Interior tree (collidable)
+                        object2Layer.push({
+                            type: "tree",
+                            displayName: `Interior Tree (${rx},${ry})`,
+                            id: `interior_tree_${rx}_${ry}_${n}`,
+                            mapX: rx + 0.5,
+                            mapY: ry + 0.5,
+                            assetName: 'tree',
+                            scale: 2,
+                            anchorOffsetXFactor: 0.5,
+                            anchorOffsetYFactor: 0.95,
+                            collidable: true,
+                            visualWidth: 128,
+                            visualHeight: 128,
+                            anchorOffsetX: 64,
+                            anchorOffsetY: 121.6,
+                            collisionShape: {
+                                type: "polygon",
+                                vertices: [
+                                    { x: 0, y: -8 },
+                                    { x: 20, y: 0 },
+                                    { x: 0, y: 8 },
+                                    { x: -20, y: 0 }
+                                ]
+                            },
+                            disableYSorting: false,
+                            zIndex: 0,
+                            spritesheetIndex: 0,
+                            layerKey: "object2"
+                        });
+                    } else if (roll < 0.44) {
+                        // Spawn blue puddle on object1 layer (collidable: false) in the middle of walkable landscape
+                        object1Layer.push({
+                            type: "spriteObject",
+                            displayName: `Puddle (${rx},${ry})`,
+                            id: `interior_puddle_${rx}_${ry}_${n}`,
+                            mapX: rx + 0.5,
+                            mapY: ry + 0.5,
+                            assetName: 'buildingSpritesheet',
+                            spritesheetIndex: 1,
+                            spriteSourceRect: {
+                                x: 66,
+                                y: 660,
+                                width: 64,
+                                height: 64
+                            },
+                            visualWidth: 64,
+                            visualHeight: 64,
+                            anchorOffsetX: 32,
+                            anchorOffsetY: 64,
+                            collidable: false,
+                            collisionShape: null,
+                            disableYSorting: true,
+                            zIndex: 0,
+                            layerKey: "object1"
+                        });
+                    } else {
+                        // Interior bush/rock and bottom-row scenery bushes
+                        const spriteOptions = [
+                            { x: 0, y: 792, name: "Small Bush" },
+                            { x: 66, y: 792, name: "Fern Bush" },
+                            { x: 264, y: 792, name: "Fallen Log" },
+                            { x: 330, y: 792, name: "Mossy Rock" },
+                            { x: 396, y: 792, name: "Slab Bush" },
+                            { x: 462, y: 792, name: "Fringe Bush" },
+                            { x: 528, y: 792, name: "Gravel Moss" },
+                            { x: 594, y: 792, name: "Flowery Bush" },
+                            { x: 594, y: 396, name: "Dead Bush" }
+                        ];
+                        const sprite = spriteOptions[Math.floor(Math.random() * spriteOptions.length)];
+
+                        object1Layer.push({
+                            type: "spriteObject",
+                            displayName: `${sprite.name} (${rx},${ry})`,
+                            id: `interior_sprite_${rx}_${ry}_${n}`,
+                            mapX: rx + 0.5,
+                            mapY: ry + 0.5,
+                            assetName: 'buildingSpritesheet',
+                            spritesheetIndex: 1,
+                            spriteSourceRect: {
+                                x: sprite.x,
+                                y: sprite.y,
+                                width: 64,
+                                height: 64
+                            },
+                            visualWidth: 64,
+                            visualHeight: 64,
+                            anchorOffsetX: 32,
+                            anchorOffsetY: 64,
+                            collidable: false,
+                            collisionShape: null,
+                            disableYSorting: false,
+                            zIndex: 0,
+                            layerKey: "object1"
+                        });
+                    }
                 }
             }
         }
@@ -615,19 +991,16 @@ export default class ChaosMapDevice {
         // Spawn Chests in the 'treasure_cavern' Blob 2 and some random spots
         const treasureChestsCount = (this.mapTier === 'rare' || this.mapTier === 'legendary' ? 4 : 2);
         for (let chest = 0; chest < treasureChestsCount; chest++) {
-            // Chest 0 is always in the center of the Treasure Cavern
             let cx = blobs[2].cx;
             let cy = blobs[2].cy;
             
             if (chest > 0) {
-                // Other chests are scattered around the Treasure Cavern or the Monster Den
                 const rOffset = () => Math.floor(Math.random() * 3) - 1;
                 cx = blobs[2].cx + rOffset();
                 cy = blobs[2].cy + rOffset();
             }
 
-            // Ensure tile is inside map and walkable
-            if (cx > 0 && cx < pSize - 1 && cy > 0 && cy < pSize - 1 && (tilesGrid[cy][cx] === 1 || tilesGrid[cy][cx] === 2)) {
+            if (cx > 0 && cx < pSize - 1 && cy > 0 && cy < pSize - 1 && tilesGrid[cy][cx] !== 0) {
                 const screen = this.mapToScreenCoords(cx, cy);
                 spawnPoints.push({
                     id: `chest_${chest}`,
@@ -645,16 +1018,14 @@ export default class ChaosMapDevice {
 
         for (let mob = 0; mob < mobCount; mob++) {
             const area = spawnAreas[mob % spawnAreas.length];
-            // Random offset within the area's radius
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * (area.r - 1.5);
             const ex = Math.floor(area.cx + Math.cos(angle) * dist);
             const ey = Math.floor(area.cy + Math.sin(angle) * dist);
 
-            // Verify tile is walkable and not blocking the center of the player hub
-            const isNearPlayerStart = (Math.abs(ex - blobs[0].cx) < 3 && Math.abs(ey - blobs[0].cy) < 3);
+            const isNearPlayerStart = (Math.abs(ex - blobs[0].cx) < 8 && Math.abs(ey - blobs[0].cy) < 8);
 
-            if (ex > 0 && ex < pSize - 1 && ey > 0 && ey < pSize - 1 && !isNearPlayerStart && (tilesGrid[ey][ex] === 1 || tilesGrid[ey][ex] === 2)) {
+            if (ex > 0 && ex < pSize - 1 && ey > 0 && ey < pSize - 1 && !isNearPlayerStart && tilesGrid[ey][ex] !== 0) {
                 const screen = this.mapToScreenCoords(ex, ey);
                 spawnPoints.push({
                     id: `mob_slime_${mob}`,
@@ -683,16 +1054,123 @@ export default class ChaosMapDevice {
             mapName: `ItemWorld_${slottedItem.id}`,
             tiles: tilesGrid,
             tileDefinitions: {
-                "1": { sourceRect: { x: 0, y: 330, width: 64, height: 64 }, spritesheetIndex: 0, zIndex: 0 },
-                "2": { sourceRect: { x: 66, y: 330, width: 64, height: 64 }, spritesheetIndex: 0, zIndex: 0 }
+                // Grey cobblestone path
+                "1": { "sourceRect": { "x": 132, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 0, "zIndex": 0 },
+                "2": { "sourceRect": { "x": 198, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 0, "zIndex": 0 },
+                "3": { "sourceRect": { "x": 264, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 0, "zIndex": 0 },
+                "4": { "sourceRect": { "x": 0, "y": 330, "width": 64, "height": 64 }, "spritesheetIndex": 0, "zIndex": 0 },
+                
+                // Wood planks path
+                "17": { "sourceRect": { "x": 264, "y": 396, "width": 64, "height": 64 }, "spritesheetIndex": 0, "zIndex": 0 },
+                "18": { "sourceRect": { "x": 330, "y": 396, "width": 64, "height": 64 }, "spritesheetIndex": 0, "zIndex": 0 },
+                
+                // Standard and custom outdoors grass/dirt
+                "5": { "sourceRect": { "x": 0, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "6": { "sourceRect": { "x": 0, "y": 132, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "10": { "sourceRect": { "x": 132, "y": 132, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                
+                // Grass variations (19-32)
+                "19": { "sourceRect": { "x": 66, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "20": { "sourceRect": { "x": 132, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "21": { "sourceRect": { "x": 198, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "22": { "sourceRect": { "x": 264, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "23": { "sourceRect": { "x": 330, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "24": { "sourceRect": { "x": 396, "y": 0, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "25": { "sourceRect": { "x": 0, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "26": { "sourceRect": { "x": 66, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "27": { "sourceRect": { "x": 132, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "28": { "sourceRect": { "x": 198, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "29": { "sourceRect": { "x": 264, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "30": { "sourceRect": { "x": 330, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "31": { "sourceRect": { "x": 396, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "32": { "sourceRect": { "x": 462, "y": 66, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "33": { "sourceRect": { "x": 66, "y": 132, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "34": { "sourceRect": { "x": 198, "y": 132, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                
+                // Water tiles (Enclosed holes / Outer sea)
+                "13": { "sourceRect": { "x": 0, "y": 660, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "14": { "sourceRect": { "x": 264, "y": 528, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "37": { "sourceRect": { "x": 264, "y": 792, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "38": { "sourceRect": { "x": 330, "y": 792, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "39": { "sourceRect": { "x": 330, "y": 528, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 },
+                "40": { "sourceRect": { "x": 396, "y": 594, "width": 64, "height": 64 }, "spritesheetIndex": 1, "zIndex": 0 }
             },
-            nextTileId: 3,
+            nextTileId: 41,
             objectLayersData: {
-                "object1": objectsLayer,
-                "object2": []
+                "object1": object1Layer,
+                "object2": object2Layer
             },
             spawnPointsData: spawnPoints,
-            lightingData: { masks: [] }
+            lightingData: (() => {
+                // Choose mood lighting color based on rolled active modifiers or Map Tier!
+                const pSizeObj = pSize || 24;
+                const mapPixelSize = pSizeObj * 64; 
+                const padding = 2000;
+                const globalVertices = [
+                    { x: -padding, y: -padding },
+                    { x: mapPixelSize + padding, y: -padding },
+                    { x: mapPixelSize + padding, y: mapPixelSize + padding },
+                    { x: -padding, y: mapPixelSize + padding }
+                ];
+
+                let moodColor = '#000000';
+                let moodIntensity = 0.15;
+                let moodBlendMode = 'color';
+                let moodName = "B&W Noir";
+
+                const hasGold = Array.isArray(this.activeModifiers) && this.activeModifiers.some(m => m.key === 'gold_fever');
+                const hasMeteors = Array.isArray(this.activeModifiers) && this.activeModifiers.some(m => m.key === 'meteors');
+                const hasVolatile = Array.isArray(this.activeModifiers) && this.activeModifiers.some(m => m.key === 'volatile_sludge');
+                const hasMana = Array.isArray(this.activeModifiers) && this.activeModifiers.some(m => m.key === 'mana_overflow');
+
+                if (hasMeteors || hasVolatile) {
+                    moodColor = '#d35400'; // Dark fire orange
+                    moodIntensity = 0.20;
+                    moodBlendMode = 'color-burn';
+                    moodName = "Fiery Fallout";
+                } else if (hasGold) {
+                    moodColor = '#f39c12'; // Rich Golden yellow
+                    moodIntensity = 0.16;
+                    moodBlendMode = 'overlay';
+                    moodName = "Midas Gold";
+                } else if (hasMana) {
+                    moodColor = '#1abc9c'; // Teal magic leylines
+                    moodIntensity = 0.12;
+                    moodBlendMode = 'hard-light';
+                    moodName = "Mana Overflow";
+                } else if (this.mapTier === 'rare') {
+                    moodColor = '#8e44ad'; // Purple eerie
+                    moodIntensity = 0.15;
+                    moodBlendMode = 'hard-light';
+                    moodName = "Eerie Purple";
+                } else if (this.mapTier === 'legendary') {
+                    moodColor = '#c0392b'; // Apocalyptic blood red
+                    moodIntensity = 0.22;
+                    moodBlendMode = 'color-burn';
+                    moodName = "Apocalyptic Crimson";
+                } else if (this.mapTier === 'magic') {
+                    moodColor = '#2980b9'; // Cool magical blue
+                    moodIntensity = 0.12;
+                    moodBlendMode = 'overlay';
+                    moodName = "Arcane Tint";
+                }
+
+                const globalLightingMask = {
+                    id: 'global_mood_mask',
+                    name: `Mood: ${moodName}`,
+                    type: 'shadow',
+                    visible: true,
+                    color: moodColor,
+                    intensity: moodIntensity,
+                    blendMode: moodBlendMode,
+                    vertices: globalVertices,
+                    blur: 0,
+                    smoothing: false,
+                    flicker: false
+                };
+
+                return { masks: [ globalLightingMask ] };
+            })()
         };
 
         // Populate active Item World state inside the engine
@@ -705,7 +1183,8 @@ export default class ChaosMapDevice {
             enemiesKilled: 0,
             hasDefeatedBoss: false,
             chestsLooted: 0,
-            originalHp: player.stats.hp
+            originalHp: player.stats.hp,
+            exploredTiles: {}
         };
 
         // Load the procedural map

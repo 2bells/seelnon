@@ -534,8 +534,9 @@
 }
 
 .rpg-editor-tool-selection button.active {
-    background-color: #A07D65; /* Highlight active tool */
-    border-color: #EFEBE0;
+    background-color: #413328 !important; /* Visual pressed-down active toggle style */
+    border-color: #D4C8A0 !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
     font-weight: bold;
 }
 

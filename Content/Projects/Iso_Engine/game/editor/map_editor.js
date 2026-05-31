@@ -4,6 +4,7 @@ console.log("rpg/game/editor/map_editor.js loaded");
 import EditorUIManager from './editor_ui_manager.js';
 import EditorMapOperations from './editor_map_operations.js';
 import { enemy_types } from '../../data/enemy-list.js';
+import { db, STORES } from '../utils/db.js';
 // GameObject is not directly instantiated here anymore by editor, but by Map
 // import GameObject from '../entities/gameObject.js';
 
@@ -57,6 +58,9 @@ class MapEditor {
 
         this.selectedTileBrush = null; 
         this.selectedObjectBrush = null; // Stores config for placing object like { type: 'tree', assetName: 'tree', ... }
+        this.selectedElements = []; // Items in the bulk selection grouping
+        this.isSelectingDrag = false; // Mouse drag select active flag
+        this.dragStartWorldPos = null; // World starting coordinates of drag select
 
         // Spritesheet management
         this.spritesheets = []; // { name, image, dataUrl?, isCustom }
@@ -81,6 +85,8 @@ class MapEditor {
         this._boundHandleSpritesheetClick = this.handleSpritesheetClick.bind(this);
         this._boundHandleMapClick = this.handleMapClick.bind(this);
         this._boundHandleMouseMove = this.handleMouseMove.bind(this);
+        this._boundHandleMouseDown = this.handleMouseDown.bind(this);
+        this._boundHandleMouseUp = this.handleMouseUp.bind(this);
         this._boundHandleKeyDown = this.handleKeyDown.bind(this);
         this._boundNextLayer = this.nextLayer.bind(this);
         this._boundPrevLayer = this.prevLayer.bind(this);
@@ -356,6 +362,23 @@ class MapEditor {
             .map(s => ({ name: s.name, dataUrl: s.dataUrl }));
     }
 
+    async loadCustomPrefabsFromDB() {
+        try {
+            const list = await db.getAll(STORES.PREFABS);
+            this.map.customPaletteDefinitions = this.map.customPaletteDefinitions || {};
+            list.forEach(prefab => {
+                if (prefab && prefab.assetName) {
+                    this.map.customPaletteDefinitions[prefab.assetName] = prefab;
+                }
+            });
+            if (this.uiManager) {
+                this.uiManager.refreshObjectPalette();
+            }
+        } catch (e) {
+            console.error("Failed to load prefabs from DB:", e);
+        }
+    }
+
     show() {
         if (!this.uiManager.toolsPanel || !this.uiManager.operationsPanel) {
             this.initUI();
@@ -363,12 +386,26 @@ class MapEditor {
         this.uiManager.showPanels();
         this.isActive = true;
         
+        // Load custom prefabs from IndexedDB
+        this.loadCustomPrefabsFromDB();
+        
         if (this.uiManager.spritesheetCanvas) {
             this.uiManager.spritesheetCanvas.addEventListener('click', this._boundHandleSpritesheetClick);
         }
         this.engine.canvas.addEventListener('click', this._boundHandleMapClick);
         this.engine.canvas.addEventListener('mousemove', this._boundHandleMouseMove);
+        this.engine.canvas.addEventListener('mousedown', this._boundHandleMouseDown);
+        this.engine.canvas.addEventListener('mouseup', this._boundHandleMouseUp);
         window.addEventListener('keydown', this._boundHandleKeyDown);
+
+        if (this.engine && this.engine.canvas) {
+            const toolName = this.currentTool;
+            if (toolName === 'select' || toolName === 'deselect' || toolName === 'erase') {
+                this.engine.canvas.style.cursor = 'crosshair';
+            } else {
+                this.engine.canvas.style.cursor = 'default';
+            }
+        }
     }
 
     hide() {
@@ -381,7 +418,13 @@ class MapEditor {
         }
         this.engine.canvas.removeEventListener('click', this._boundHandleMapClick);
         this.engine.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
+        this.engine.canvas.removeEventListener('mousedown', this._boundHandleMouseDown);
+        this.engine.canvas.removeEventListener('mouseup', this._boundHandleMouseUp);
         window.removeEventListener('keydown', this._boundHandleKeyDown);
+
+        if (this.engine && this.engine.canvas) {
+            this.engine.canvas.style.cursor = 'default';
+        }
     }
 
     handleSpritesheetClick(event) {
@@ -516,10 +559,90 @@ class MapEditor {
         // Tile and Object1 layers have their selection highlighted on the spritesheet canvas itself.
 
         if (this.selectedObjectBrush && this.currentLayer === 'object2') {
-            let asset;
+            if (this.selectedObjectBrush.isCustomBaked && this.selectedObjectBrush.customData) {
+                const elements = this.selectedObjectBrush.customData.elements || [];
+                const midX = this.uiManager.previewCanvas.width / 2;
+                const midY = this.uiManager.previewCanvas.height / 2;
+
+                // Draw nice background
+                this.uiManager.previewCtx.fillStyle = '#2c241d';
+                this.uiManager.previewCtx.fillRect(0, 0, this.uiManager.previewCanvas.width, this.uiManager.previewCanvas.height);
+                
+                // Draw a nice golden border
+                this.uiManager.previewCtx.strokeStyle = '#f1c40f';
+                this.uiManager.previewCtx.lineWidth = 1;
+                this.uiManager.previewCtx.strokeRect(0, 0, this.uiManager.previewCanvas.width, this.uiManager.previewCanvas.height);
+
+                let minRX = Infinity, maxRX = -Infinity, minRY = Infinity, maxRY = -Infinity;
+                elements.forEach(el => {
+                    if (el.type === 'tile' || el.type === 'object') {
+                        minRX = Math.min(minRX, el.relX || 0);
+                        maxRX = Math.max(maxRX, el.relX || 0);
+                        minRY = Math.min(minRY, el.relY || 0);
+                        maxRY = Math.max(maxRY, el.relY || 0);
+                    }
+                });
+
+                if (isFinite(minRX)) {
+                    // Draw each tile
+                    elements.forEach(el => {
+                        if (el.type === 'tile') {
+                            const xOffset = el.relX - (minRX + maxRX)/2;
+                            const yOffset = el.relY - (minRY + maxRY)/2;
+                            
+                            const miniW = 24;
+                            const miniH = 12;
+                            
+                            const cx = midX + (xOffset - yOffset) * (miniW / 2);
+                            const cy = midY + (xOffset + yOffset) * (miniH / 2);
+
+                            this.uiManager.previewCtx.fillStyle = '#8C6D56'; 
+                            this.uiManager.previewCtx.strokeStyle = '#5A4B3E';
+                            this.uiManager.previewCtx.beginPath();
+                            this.uiManager.previewCtx.moveTo(cx, cy - miniH/2);
+                            this.uiManager.previewCtx.lineTo(cx + miniW/2, cy);
+                            this.uiManager.previewCtx.lineTo(cx, cy + miniH/2);
+                            this.uiManager.previewCtx.lineTo(cx - miniW/2, cy);
+                            this.uiManager.previewCtx.closePath();
+                            this.uiManager.previewCtx.fill();
+                            this.uiManager.previewCtx.stroke();
+                        }
+                    });
+
+                    // Draw objects on top
+                    elements.forEach(el => {
+                        if (el.type === 'object') {
+                            const xOffset = el.relX - (minRX + maxRX)/2;
+                            const yOffset = el.relY - (minRY + maxRY)/2;
+                            
+                            const miniW = 24;
+                            const miniH = 12;
+                            
+                            const cx = midX + (xOffset - yOffset) * (miniW / 2);
+                            const cy = midY + (xOffset + yOffset) * (miniH / 2);
+
+                            this.uiManager.previewCtx.fillStyle = '#e74c3c';
+                            this.uiManager.previewCtx.fillRect(cx - 3, cy - 10, 6, 10);
+                            this.uiManager.previewCtx.strokeStyle = '#fff';
+                            this.uiManager.previewCtx.strokeRect(cx - 3, cy - 10, 6, 10);
+                        }
+                    });
+                } else {
+                    // Fallback
+                    this.uiManager.previewCtx.fillStyle = '#ffffff';
+                    this.uiManager.previewCtx.font = 'bold 8px monospace';
+                    this.uiManager.previewCtx.textAlign = 'center';
+                    this.uiManager.previewCtx.fillText('BAKED', midX, midY + 3);
+                }
+                return;
+            }
+
+            let asset = null;
             if (this.selectedObjectBrush.spritesheetIndex !== undefined && this.spritesheets[this.selectedObjectBrush.spritesheetIndex]) {
                  asset = this.spritesheets[this.selectedObjectBrush.spritesheetIndex].image;
-            } else {
+            } else if (this.map?.runtimeSpritesheets && this.selectedObjectBrush.spritesheetIndex !== undefined && this.map.runtimeSpritesheets[this.selectedObjectBrush.spritesheetIndex]) {
+                 asset = this.map.runtimeSpritesheets[this.selectedObjectBrush.spritesheetIndex];
+            } else if (this.selectedObjectBrush.assetName) {
                  asset = this.assets[this.selectedObjectBrush.assetName];
             }
             if (asset && asset.complete) {
@@ -593,6 +716,11 @@ class MapEditor {
         let worldX = clickX + viewOriginX;
         let worldY = clickY + viewOriginY;
         
+        if (this.currentTool === 'select' || this.currentTool === 'deselect') {
+            this.handlePointSelection(worldX, worldY);
+            return;
+        }
+        
         if (this.currentLayer === 'tile') {
             const mapCoords = this.map.screenToMap(worldX, worldY);
             const roundedMapX = Math.floor(mapCoords.x);
@@ -628,11 +756,20 @@ class MapEditor {
             let placementMapY = mapCoords.y;
 
             if (this.snapToGrid) {
-                placementMapX = Math.floor(mapCoords.x) + 1;
-                placementMapY = Math.floor(mapCoords.y) + 1; 
+                if (this.selectedObjectBrush && this.selectedObjectBrush.isCustomBaked) {
+                    placementMapX = Math.floor(mapCoords.x);
+                    placementMapY = Math.floor(mapCoords.y);
+                } else {
+                    placementMapX = Math.floor(mapCoords.x) + 1;
+                    placementMapY = Math.floor(mapCoords.y) + 1; 
+                }
             }
 
             if (this.currentTool === 'place' && this.selectedObjectBrush) {
+                if (this.selectedObjectBrush.isCustomBaked) {
+                    this.placeCustomBakedPrefab(this.selectedObjectBrush, placementMapX, placementMapY);
+                    return;
+                }
                 let finalObjectConfig = { ...this.selectedObjectBrush };
                 finalObjectConfig.collidable = this.uiManager.collidableCheckbox.checked;
                 finalObjectConfig.disableYSorting = this.uiManager.disableYSortCheckbox ? this.uiManager.disableYSortCheckbox.checked : false;
@@ -855,6 +992,12 @@ class MapEditor {
         const rawWorldX = moveX + viewOriginX;
         const rawWorldY = moveY + viewOriginY;
 
+        if (this.currentTool === 'select') {
+            this.currentMouseWorldPos.x = rawWorldX;
+            this.currentMouseWorldPos.y = rawWorldY;
+            return;
+        }
+
         if (this.currentTool === 'place' && this.snapToGrid) {
             const mapCoords = this.map.screenToMap(rawWorldX, rawWorldY);
             let snappedMapX, snappedMapY;
@@ -869,8 +1012,14 @@ class MapEditor {
                 snappedMapX = Math.floor(mapCoords.x);
                 snappedMapY = Math.floor(mapCoords.y);
             } else if (this.currentLayer === 'object1' || this.currentLayer === 'object2') {
-                snappedMapX = Math.floor(mapCoords.x) + 1;
-                snappedMapY = Math.floor(mapCoords.y) + 1;
+                const brush = this.selectedObjectBrush;
+                if (brush && brush.isCustomBaked) {
+                    snappedMapX = Math.floor(mapCoords.x);
+                    snappedMapY = Math.floor(mapCoords.y);
+                } else {
+                    snappedMapX = Math.floor(mapCoords.x) + 1;
+                    snappedMapY = Math.floor(mapCoords.y) + 1;
+                }
             } else {
                  this.currentMouseWorldPos.x = rawWorldX;
                  this.currentMouseWorldPos.y = rawWorldY;
@@ -943,6 +1092,15 @@ class MapEditor {
         if (this.uiManager) {
             this.uiManager.updateToolButtonsState();
         }
+        this.updateLayerDisplay();
+
+        if (this.engine && this.engine.canvas) {
+            if (toolName === 'select' || toolName === 'deselect' || toolName === 'erase') {
+                this.engine.canvas.style.cursor = 'crosshair';
+            } else {
+                this.engine.canvas.style.cursor = 'default';
+            }
+        }
     }
 
     toggleSnapToGrid(isSnapping) {
@@ -961,7 +1119,94 @@ class MapEditor {
         if (this.currentTool === 'place' && (this.currentLayer === 'tile' || this.currentLayer === 'object1' || this.currentLayer === 'object2')) {
             const brush = (this.currentLayer === 'tile') ? this.selectedTileBrush : this.selectedObjectBrush;
             
-            if (brush) {
+            if (brush && brush.isCustomBaked && brush.customData && Array.isArray(brush.customData.elements)) {
+                ctx.save();
+                ctx.globalAlpha = 0.5;
+
+                const parentMapCoords = this.map.screenToMap(this.currentMouseWorldPos.x, this.currentMouseWorldPos.y);
+                const parentMapX = Math.floor(parentMapCoords.x);
+                const parentMapY = Math.floor(parentMapCoords.y);
+                const parentWorldPos = this.map.mapToScreen(parentMapX, parentMapY);
+
+                brush.customData.elements.forEach(el => {
+                    if (el.type === 'tile') {
+                        const tileWorldPos = this.map.mapToScreen(parentMapX + el.relX, parentMapY + el.relY);
+                        const halfW = this.map.halfTileWidth;
+                        const halfH = this.map.halfTileHeight;
+
+                        // Draw actual tile sprite preview if sourceRect is present
+                        const sourceRect = el.sourceRect || this.map.tileDefinitions[el.tileId]?.sourceRect;
+                        const spritesheetIndex = el.spritesheetIndex !== undefined ? el.spritesheetIndex : (this.map.tileDefinitions[el.tileId]?.spritesheetIndex || 0);
+                        if (sourceRect) {
+                            const subAsset = this.spritesheets[spritesheetIndex]?.image || this.map.runtimeSpritesheets[spritesheetIndex];
+                            if (subAsset && subAsset.complete) {
+                                const imgRenderWidth = sourceRect.width;
+                                const imgRenderHeight = sourceRect.height;
+                                
+                                const imgDrawX = tileWorldPos.x - halfW;
+                                let imgDrawY = tileWorldPos.y;
+                                if (imgRenderHeight > this.map.tileHeight) {
+                                    imgDrawY = tileWorldPos.y - (imgRenderHeight - this.map.tileHeight);
+                                }
+                                ctx.drawImage(
+                                    subAsset,
+                                    sourceRect.x, sourceRect.y, sourceRect.width, sourceRect.height,
+                                    imgDrawX, imgDrawY,
+                                    imgRenderWidth, imgRenderHeight
+                                );
+                            }
+                        }
+
+                        ctx.strokeStyle = '#00f0ff';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(tileWorldPos.x, tileWorldPos.y);
+                        ctx.lineTo(tileWorldPos.x + halfW, tileWorldPos.y + halfH);
+                        ctx.lineTo(tileWorldPos.x, tileWorldPos.y + halfH * 2);
+                        ctx.lineTo(tileWorldPos.x - halfW, tileWorldPos.y + halfH);
+                        ctx.closePath();
+                        ctx.stroke();
+                    } else if (el.type === 'object') {
+                        const targetWorldPos = this.map.mapToScreen(parentMapX + el.relX, parentMapY + el.relY);
+                        const oConfig = el.config || {};
+                        let subAsset = null;
+                        if (oConfig.spritesheetIndex !== undefined && this.map.runtimeSpritesheets[oConfig.spritesheetIndex]) {
+                            subAsset = this.map.runtimeSpritesheets[oConfig.spritesheetIndex];
+                        }
+                        if (!subAsset && oConfig.spritesheetIndex !== undefined && this.spritesheets[oConfig.spritesheetIndex]) {
+                            subAsset = this.spritesheets[oConfig.spritesheetIndex].image;
+                        }
+                        if (!subAsset && oConfig.assetName) {
+                            subAsset = this.assets[oConfig.assetName];
+                        }
+                        if (subAsset && subAsset.complete) {
+                            const rect = oConfig.spriteSourceRect;
+                            const drawX = targetWorldPos.x - (oConfig.anchorOffsetX || ((oConfig.visualWidth || 32) / 2));
+                            const drawY = targetWorldPos.y - (oConfig.anchorOffsetY || (oConfig.visualHeight || 32));
+                            if (rect) {
+                                ctx.drawImage(subAsset, rect.x, rect.y, rect.width, rect.height, drawX, drawY, oConfig.visualWidth || rect.width, oConfig.visualHeight || rect.height);
+                            } else {
+                                ctx.drawImage(subAsset, drawX, drawY, oConfig.visualWidth || 32, oConfig.visualHeight || 32);
+                            }
+                        }
+                    } else if (el.type === 'collision' || el.type === 'occlusion' || el.type === 'light_mask') {
+                        ctx.strokeStyle = el.type === 'collision' ? '#ff3333' : (el.type === 'occlusion' ? '#999999' : '#ffea00');
+                        ctx.lineWidth = 1.5;
+                        if (el.vertices && el.vertices.length > 0) {
+                            ctx.beginPath();
+                            const v0 = el.vertices[0];
+                            ctx.moveTo(parentWorldPos.x + v0.x, parentWorldPos.y + v0.y);
+                            for (let i = 1; i < el.vertices.length; i++) {
+                                const vi = el.vertices[i];
+                                ctx.lineTo(parentWorldPos.x + vi.x, parentWorldPos.y + vi.y);
+                            }
+                            ctx.closePath();
+                            ctx.stroke();
+                        }
+                    }
+                });
+                ctx.restore();
+            } else if (brush) {
                 ctx.save();
                 ctx.globalAlpha = 0.5;
                 
@@ -993,6 +1238,75 @@ class MapEditor {
             }
         }
         // --- END Ghost Preview ---
+
+        // --- Selection Elements Outline Highlight ---
+        if (this.selectedElements && this.selectedElements.length > 0) {
+            ctx.save();
+            ctx.lineWidth = 2;
+            
+            this.selectedElements.forEach(el => {
+                ctx.strokeStyle = '#f1c40f';
+                ctx.fillStyle = 'rgba(241, 196, 15, 0.15)';
+                
+                if (el.type === 'tile') {
+                    const screenPos = this.map.mapToScreen(el.mapX, el.mapY);
+                    const halfW = this.map.halfTileWidth;
+                    const halfH = this.map.halfTileHeight;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(screenPos.x, screenPos.y);
+                    ctx.lineTo(screenPos.x + halfW, screenPos.y + halfH);
+                    ctx.lineTo(screenPos.x, screenPos.y + halfH * 2);
+                    ctx.lineTo(screenPos.x - halfW, screenPos.y + halfH);
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.fill();
+                } else if (el.type === 'object') {
+                    const liveObj = this.map.runtimeGameObjects.find(o => o.id === el.id);
+                    if (liveObj) {
+                        const rectX = liveObj.currentPixelX - (liveObj.anchorOffsetX || (liveObj.visualWidth / 2));
+                        const rectY = liveObj.currentPixelY - (liveObj.anchorOffsetY || liveObj.visualHeight);
+                        ctx.strokeRect(rectX, rectY, liveObj.visualWidth, liveObj.visualHeight);
+                        ctx.fillRect(rectX, rectY, liveObj.visualWidth, liveObj.visualHeight);
+                    }
+                } else if (el.type === 'collision' || el.type === 'occlusion' || el.type === 'light_mask') {
+                    if (el.vertices && el.vertices.length > 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(el.vertices[0].x, el.vertices[0].y);
+                        for (let i = 1; i < el.vertices.length; i++) {
+                            ctx.lineTo(el.vertices[i].x, el.vertices[i].y);
+                        }
+                        ctx.closePath();
+                        ctx.stroke();
+                        ctx.fill();
+                    }
+                } else if (el.type === 'spawn') {
+                    ctx.beginPath();
+                    ctx.arc(el.x, el.y, SPAWN_POINT_RADIUS + 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fill();
+                }
+            });
+            ctx.restore();
+        }
+
+        // --- Drag Marquee Selection Box ---
+        if ((this.currentTool === 'select' || this.currentTool === 'deselect') && this.isSelectingDrag && this.dragStartWorldPos) {
+            ctx.save();
+            ctx.strokeStyle = this.currentTool === 'deselect' ? '#e74c3c' : '#f1c40f';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.fillStyle = this.currentTool === 'deselect' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
+            
+            const rx = this.dragStartWorldPos.x;
+            const ry = this.dragStartWorldPos.y;
+            const rw = this.currentMouseWorldPos.x - rx;
+            const rh = this.currentMouseWorldPos.y - ry;
+            
+            ctx.strokeRect(rx, ry, rw, rh);
+            ctx.fillRect(rx, ry, rw, rh);
+            ctx.restore();
+        }
 
         // --- Eraser Preview ---
         if (this.currentTool === 'erase') {
@@ -1238,6 +1552,46 @@ class MapEditor {
             }
         }
 
+        // --- Custom Cursor badges for selection and deselection ---
+        if (this.currentTool === 'select' || this.currentTool === 'deselect' || this.currentTool === 'erase') {
+            ctx.save();
+            const cx = this.currentMouseWorldPos.x + 14 / this.engine.zoomLevel;
+            const cy = this.currentMouseWorldPos.y + 14 / this.engine.zoomLevel;
+            
+            // Draw a subtle dark pill container
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.strokeStyle = this.currentTool === 'select' ? '#2ecc71' : (this.currentTool === 'deselect' ? '#e74c3c' : '#95a5a6');
+            ctx.lineWidth = 1 / this.engine.zoomLevel;
+            
+            const pWidth = 56 / this.engine.zoomLevel;
+            const pHeight = 16 / this.engine.zoomLevel;
+            const radius = 4 / this.engine.zoomLevel;
+            
+            // Draw rounded rect
+            ctx.beginPath();
+            ctx.moveTo(cx + radius, cy);
+            ctx.lineTo(cx + pWidth - radius, cy);
+            ctx.quadraticCurveTo(cx + pWidth, cy, cx + pWidth, cy + radius);
+            ctx.lineTo(cx + pWidth, cy + pHeight - radius);
+            ctx.quadraticCurveTo(cx + pWidth, cy + pHeight, cx + pWidth - radius, cy + pHeight);
+            ctx.lineTo(cx + radius, cy + pHeight);
+            ctx.quadraticCurveTo(cx, cy + pHeight, cx, cy + pHeight - radius);
+            ctx.lineTo(cx, cy + radius);
+            ctx.quadraticCurveTo(cx, cy, cx + radius, cy);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw text indicator
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `${8.5 / this.engine.zoomLevel}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const labelText = this.currentTool === 'select' ? '🔍 SEL+' : (this.currentTool === 'deselect' ? '❌ DES-' : '🗑️ DEL');
+            ctx.fillText(labelText, cx + pWidth / 2, cy + pHeight / 2);
+            ctx.restore();
+        }
+
         ctx.restore();
     }
 
@@ -1319,6 +1673,993 @@ class MapEditor {
             event.preventDefault();
             this.redo();
         }
+    }
+
+    handleMouseDown(event) {
+        if (!this.isActive || (this.currentTool !== 'select' && this.currentTool !== 'deselect')) return;
+
+        const canvasRect = this.engine.canvas.getBoundingClientRect();
+        const mouseX = (event.clientX - canvasRect.left) / this.engine.zoomLevel;
+        const mouseY = (event.clientY - canvasRect.top) / this.engine.zoomLevel;
+
+        const effectiveCanvasWidth = this.engine.canvas.width / this.engine.zoomLevel;
+        const effectiveCanvasHeight = this.engine.canvas.height / this.engine.zoomLevel;
+        const viewOriginX = this.map.cameraX - effectiveCanvasWidth / 2;
+        const viewOriginY = this.map.cameraY - effectiveCanvasHeight / 2;
+
+        this.dragStartWorldPos = {
+            x: mouseX + viewOriginX,
+            y: mouseY + viewOriginY
+        };
+        this.isSelectingDrag = true;
+    }
+
+    handleMouseUp(event) {
+        if (!this.isActive || !this.isSelectingDrag || !this.dragStartWorldPos) return;
+        this.isSelectingDrag = false;
+
+        const canvasRect = this.engine.canvas.getBoundingClientRect();
+        const mouseX = (event.clientX - canvasRect.left) / this.engine.zoomLevel;
+        const mouseY = (event.clientY - canvasRect.top) / this.engine.zoomLevel;
+
+        const effectiveCanvasWidth = this.engine.canvas.width / this.engine.zoomLevel;
+        const effectiveCanvasHeight = this.engine.canvas.height / this.engine.zoomLevel;
+        const viewOriginX = this.map.cameraX - effectiveCanvasWidth / 2;
+        const viewOriginY = this.map.cameraY - effectiveCanvasHeight / 2;
+
+        const dragEndWorldPos = {
+            x: mouseX + viewOriginX,
+            y: mouseY + viewOriginY
+        };
+
+        const dx = Math.abs(dragEndWorldPos.x - this.dragStartWorldPos.x);
+        const dy = Math.abs(dragEndWorldPos.y - this.dragStartWorldPos.y);
+
+        if (dx > 5 || dy > 5) {
+            // It's a drag area selection! Let's collect all elements in the box
+            this.handleAreaSelection(this.dragStartWorldPos, dragEndWorldPos);
+        }
+
+        this.dragStartWorldPos = null;
+    }
+
+    handlePointSelection(worldX, worldY) {
+        const found = [];
+
+        // 1. Tile Check (under mouse screen position)
+        const mapCoords = this.map.screenToMap(worldX, worldY);
+        const tx = Math.floor(mapCoords.x);
+        const ty = Math.floor(mapCoords.y);
+        if (tx >= 0 && tx < this.map.width && ty >= 0 && ty < this.map.height) {
+            const tileId = this.map.getTileId(tx, ty);
+            if (tileId > 0) {
+                found.push({
+                    type: 'tile',
+                    mapX: tx,
+                    mapY: ty,
+                    tileId: tileId
+                });
+            }
+        }
+
+        // 2. Game Objects
+        this.map.runtimeGameObjects.forEach(obj => {
+            const dx = worldX - obj.currentPixelX;
+            const dy = worldY - obj.currentPixelY;
+            if (Math.abs(dx) < (obj.visualWidth || 32) / 2 && dy < 0 && dy > -(obj.visualHeight || 32)) {
+                found.push({
+                    type: 'object',
+                    id: obj.id,
+                    layerKey: obj.layerKey,
+                    mapX: obj.mapX,
+                    mapY: obj.mapY,
+                    displayName: obj.type,
+                    assetName: obj.assetName,
+                    config: {
+                        type: obj.type,
+                        assetName: obj.assetName,
+                        spritesheetIndex: obj.spritesheetIndex,
+                        spriteSourceRect: obj.spriteSourceRect,
+                        visualWidth: obj.visualWidth,
+                        visualHeight: obj.visualHeight,
+                        anchorOffsetX: obj.anchorOffsetX,
+                        anchorOffsetY: obj.anchorOffsetY,
+                        collidable: obj.collidable,
+                        collisionShape: obj.originalCollisionShape || obj.collisionShape,
+                        zIndex: obj.zIndex,
+                        disableYSorting: obj.disableYSorting,
+                        customData: obj.customData
+                    }
+                });
+            }
+        });
+
+        // 3. Collision boundary curves
+        const collisionShape = this.map.findCustomCollisionShapeAt(worldX, worldY);
+        if (collisionShape) {
+            found.push({
+                type: 'collision',
+                id: collisionShape.id,
+                vertices: collisionShape.vertices
+            });
+        }
+
+        // 4. Overpass occlusion shapes
+        const occlusionShape = this.map.findOcclusionShapeAt(worldX, worldY);
+        if (occlusionShape) {
+            found.push({
+                type: 'occlusion',
+                id: occlusionShape.id,
+                vertices: occlusionShape.vertices
+            });
+        }
+
+        // 5. Spawn points
+        this.map.spawnPointsData.forEach(pt => {
+            const dx = worldX - pt.x;
+            const dy = worldY - pt.y;
+            if (dx * dx + dy * dy < SPAWN_POINT_RADIUS * SPAWN_POINT_RADIUS) {
+                found.push({
+                    type: 'spawn',
+                    id: pt.id,
+                    x: pt.x,
+                    y: pt.y,
+                    spawnType: pt.type,
+                    targetMap: pt.targetMap,
+                    npcData: pt.npcData,
+                    enemyId: pt.enemyId
+                });
+            }
+        });
+
+        // 6. Lighting / Darkness layers
+        const lightMask = this._getLightMaskAt(worldX, worldY);
+        if (lightMask) {
+            found.push({
+                type: 'light_mask',
+                id: lightMask.id,
+                maskType: lightMask.type,
+                vertices: lightMask.vertices,
+                color: lightMask.color,
+                intensity: lightMask.intensity,
+                blur: lightMask.blur,
+                blendMode: lightMask.blendMode,
+                smoothing: lightMask.smoothing,
+                flicker: lightMask.flicker
+            });
+        }
+
+        if (this.currentTool === 'deselect') {
+            found.forEach(item => {
+                this.selectedElements = this.selectedElements.filter(el => {
+                    if (el.type === 'tile' && item.type === 'tile') {
+                        return !(el.mapX === item.mapX && el.mapY === item.mapY);
+                    }
+                    if (el.id && item.id && el.id === item.id) {
+                        return false;
+                    }
+                    return true;
+                });
+            });
+        } else {
+            found.forEach(item => {
+                const exists = this.selectedElements.some(el => {
+                    if (el.type === 'tile' && item.type === 'tile') {
+                        return el.mapX === item.mapX && el.mapY === item.mapY;
+                    }
+                    return el.id && item.id && el.id === item.id;
+                });
+                if (!exists) {
+                    this.selectedElements.push(item);
+                }
+            });
+        }
+
+        this.uiManager.updateSelectionListUI(this.selectedElements);
+    }
+
+    handleAreaSelection(start, end) {
+        const xMin = Math.min(start.x, end.x);
+        const xMax = Math.max(start.x, end.x);
+        const yMin = Math.min(start.y, end.y);
+        const yMax = Math.max(start.y, end.y);
+
+        if (this.currentTool === 'deselect') {
+            this.selectedElements = this.selectedElements.filter(el => {
+                if (el.type === 'tile') {
+                    const screen = this.map.mapToScreen(el.mapX + 0.5, el.mapY + 0.5);
+                    const inside = (screen.x >= xMin && screen.x <= xMax && screen.y >= yMin && screen.y <= yMax);
+                    return !inside;
+                }
+                if (el.type === 'object') {
+                    const obj = this.map.runtimeGameObjects.find(o => o.id === el.id);
+                    if (obj) {
+                        const inside = (obj.currentPixelX >= xMin && obj.currentPixelX <= xMax && obj.currentPixelY >= yMin && obj.currentPixelY <= yMax);
+                        return !inside;
+                    }
+                    return true;
+                }
+                if (el.type === 'collision' || el.type === 'occlusion' || el.type === 'light_mask') {
+                    const inside = el.vertices && el.vertices.some(v => v.x >= xMin && v.x <= xMax && v.y >= yMin && v.y <= yMax);
+                    return !inside;
+                }
+                if (el.type === 'spawn') {
+                    const inside = (el.x >= xMin && el.x <= xMax && el.y >= yMin && el.y <= yMax);
+                    return !inside;
+                }
+                return true;
+            });
+            this.uiManager.updateSelectionListUI(this.selectedElements);
+            return;
+        }
+
+        // 1. Scan tiles which reside inside box coordinates
+        for (let x = 0; x < this.map.width; x++) {
+            for (let y = 0; y < this.map.height; y++) {
+                const screen = this.map.mapToScreen(x + 0.5, y + 0.5);
+                if (screen.x >= xMin && screen.x <= xMax && screen.y >= yMin && screen.y <= yMax) {
+                    const tileId = this.map.getTileId(x, y);
+                    if (tileId > 0) {
+                        const exists = this.selectedElements.some(el => el.type === 'tile' && el.mapX === x && el.mapY === y);
+                        if (!exists) {
+                            this.selectedElements.push({
+                                type: 'tile',
+                                mapX: x,
+                                mapY: y,
+                                tileId: tileId
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Objects
+        this.map.runtimeGameObjects.forEach(obj => {
+            if (obj.currentPixelX >= xMin && obj.currentPixelX <= xMax && obj.currentPixelY >= yMin && obj.currentPixelY <= yMax) {
+                const exists = this.selectedElements.some(el => el.type === 'object' && el.id === obj.id);
+                if (!exists) {
+                    this.selectedElements.push({
+                        type: 'object',
+                        id: obj.id,
+                        layerKey: obj.layerKey,
+                        mapX: obj.mapX,
+                        mapY: obj.mapY,
+                        displayName: obj.type,
+                        assetName: obj.assetName,
+                        config: {
+                            type: obj.type,
+                            assetName: obj.assetName,
+                            spritesheetIndex: obj.spritesheetIndex,
+                            spriteSourceRect: obj.spriteSourceRect,
+                            visualWidth: obj.visualWidth,
+                            visualHeight: obj.visualHeight,
+                            anchorOffsetX: obj.anchorOffsetX,
+                            anchorOffsetY: obj.anchorOffsetY,
+                            collidable: obj.collidable,
+                            collisionShape: obj.originalCollisionShape || obj.collisionShape,
+                            zIndex: obj.zIndex,
+                            disableYSorting: obj.disableYSorting,
+                            customData: obj.customData
+                        }
+                    });
+                }
+            }
+        });
+
+        // 3. Custom Physics polygon collisions
+        this.map.collisionLayerData.forEach(shape => {
+            const anyVertexIn = shape.vertices.some(v => v.x >= xMin && v.x <= xMax && v.y >= yMin && v.y <= yMax);
+            if (anyVertexIn) {
+                const exists = this.selectedElements.some(el => el.type === 'collision' && el.id === shape.id);
+                if (!exists) {
+                    this.selectedElements.push({
+                        type: 'collision',
+                        id: shape.id,
+                        vertices: shape.vertices
+                    });
+                }
+            }
+        });
+
+        // 4. Occlusion Shapes
+        this.map.occlusionLayerData.forEach(shape => {
+            const anyVertexIn = shape.vertices.some(v => v.x >= xMin && v.x <= xMax && v.y >= yMin && v.y <= yMax);
+            if (anyVertexIn) {
+                const exists = this.selectedElements.some(el => el.type === 'occlusion' && el.id === shape.id);
+                if (!exists) {
+                    this.selectedElements.push({
+                        type: 'occlusion',
+                        id: shape.id,
+                        vertices: shape.vertices
+                    });
+                }
+            }
+        });
+
+        // 5. Spawners
+        this.map.spawnPointsData.forEach(pt => {
+            if (pt.x >= xMin && pt.x <= xMax && pt.y >= yMin && pt.y <= yMax) {
+                const exists = this.selectedElements.some(el => el.type === 'spawn' && el.id === pt.id);
+                if (!exists) {
+                    this.selectedElements.push({
+                        type: 'spawn',
+                        id: pt.id,
+                        x: pt.x,
+                        y: pt.y,
+                        spawnType: pt.type,
+                        targetMap: pt.targetMap,
+                        npcData: pt.npcData,
+                        enemyId: pt.enemyId
+                    });
+                }
+            }
+        });
+
+        // 6. Lighting polylines
+        if (this.map.lightingData && Array.isArray(this.map.lightingData.masks)) {
+            this.map.lightingData.masks.forEach(mask => {
+                const anyVertexIn = mask.vertices.some(v => v.x >= xMin && v.x <= xMax && v.y >= yMin && v.y <= yMax);
+                if (anyVertexIn) {
+                    const exists = this.selectedElements.some(el => el.type === 'light_mask' && el.id === mask.id);
+                    if (!exists) {
+                        this.selectedElements.push({
+                            type: 'light_mask',
+                            id: mask.id,
+                            maskType: mask.type,
+                            vertices: mask.vertices,
+                            color: mask.color,
+                            intensity: mask.intensity,
+                            blur: mask.blur,
+                            blendMode: mask.blendMode,
+                            smoothing: mask.smoothing,
+                            flicker: mask.flicker
+                        });
+                    }
+                }
+            });
+        }
+
+        this.uiManager.updateSelectionListUI(this.selectedElements);
+    }
+
+    _getLightMaskAt(worldX, worldY) {
+        if (!this.map.lightingData || !Array.isArray(this.map.lightingData.masks)) return null;
+        for (let i = this.map.lightingData.masks.length - 1; i >= 0; i--) {
+            const mask = this.map.lightingData.masks[i];
+            if (mask.vertices && this._pointInPolygon({ x: worldX, y: worldY }, mask.vertices)) {
+                return mask;
+            }
+        }
+        return null;
+    }
+
+    _pointInPolygon(point, vs) {
+        if (!vs || vs.length < 3) return false;
+        const x = point.x, y = point.y;
+        let inside = false;
+        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+            const xi = vs[i].x, yi = vs[i].y;
+            const xj = vs[j].x, yj = vs[j].y;
+            const intersect = ((yi > y) !== (yj > y))
+                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    clearSelection() {
+        this.selectedElements = [];
+        this.uiManager.updateSelectionListUI(this.selectedElements);
+    }
+
+    deselectElement(index) {
+        if (index >= 0 && index < this.selectedElements.length) {
+            this.selectedElements.splice(index, 1);
+            this.uiManager.updateSelectionListUI(this.selectedElements);
+        }
+    }
+
+    async bakeSelectionToPrefab() {
+        if (this.selectedElements.length === 0) {
+            CustomDialog.alert("Please select elements first using the Selection Tool (🔍).", "No Selection");
+            return;
+        }
+
+        const rawName = await CustomDialog.prompt("Enter name for custom Object2 Room Prefab:", "cozy_dungeon_room", "Bake Prefab");
+        if (!rawName || rawName.trim() === '') return;
+
+        const prefabName = rawName.trim();
+        const prefabKey = `baked_prefab_${prefabName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+
+        // Find min/max coordinate ranges of selected elements
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+        this.selectedElements.forEach(el => {
+            if (el.type === 'tile' || el.type === 'object') {
+                const screen = this.map.mapToScreen(el.mapX, el.mapY);
+                minX = Math.min(minX, screen.x);
+                maxX = Math.max(maxX, screen.x);
+                minY = Math.min(minY, screen.y);
+                maxY = Math.max(maxY, screen.y);
+            } else if (el.type === 'spawn') {
+                minX = Math.min(minX, el.x);
+                maxX = Math.max(maxX, el.x);
+                minY = Math.min(minY, el.y);
+                maxY = Math.max(maxY, el.y);
+            } else if (el.type === 'collision' || el.type === 'occlusion' || el.type === 'light_mask') {
+                el.vertices.forEach(v => {
+                    minX = Math.min(minX, v.x);
+                    maxX = Math.max(maxX, v.x);
+                    minY = Math.min(minY, v.y);
+                    maxY = Math.max(maxY, v.y);
+                });
+            }
+        });
+
+        // Find parent grid anchor mapping by calculating the exact average map coordinates of building blocks
+        let sumMapX = 0, sumMapY = 0, countGrid = 0;
+        this.selectedElements.forEach(el => {
+            if (el.type === 'tile' || el.type === 'object') {
+                sumMapX += el.mapX;
+                sumMapY += el.mapY;
+                countGrid++;
+            }
+        });
+
+        let snappedGridX = 0;
+        let snappedGridY = 0;
+        if (countGrid > 0) {
+            snappedGridX = Math.round(sumMapX / countGrid);
+            snappedGridY = Math.round(sumMapY / countGrid);
+        } else {
+            // Fallback grid mapping anchor using visual screen coordinates
+            const midWorldX = (minX + maxX) / 2;
+            const midWorldY = (minY + maxY) / 2;
+            const gridAnchor = this.map.screenToMap(midWorldX, midWorldY);
+            snappedGridX = Math.round(gridAnchor.x);
+            snappedGridY = Math.round(gridAnchor.y);
+        }
+        const anchorWorldPos = this.map.mapToScreen(snappedGridX, snappedGridY);
+
+        const elementsData = [];
+
+        this.selectedElements.forEach(el => {
+            if (el.type === 'tile') {
+                const tileDef = this.map.tileDefinitions[el.tileId] || {};
+                elementsData.push({
+                    type: 'tile',
+                    relX: el.mapX - snappedGridX,
+                    relY: el.mapY - snappedGridY,
+                    tileId: el.tileId,
+                    sourceRect: tileDef.sourceRect || null,
+                    spritesheetIndex: tileDef.spritesheetIndex !== undefined ? tileDef.spritesheetIndex : 0,
+                    zIndex: tileDef.zIndex !== undefined ? tileDef.zIndex : 0
+                });
+            } else if (el.type === 'object') {
+                elementsData.push({
+                    type: 'object',
+                    layerKey: el.layerKey,
+                    relX: el.mapX - snappedGridX,
+                    relY: el.mapY - snappedGridY,
+                    config: el.config
+                });
+            } else if (el.type === 'spawn') {
+                elementsData.push({
+                    type: 'spawn',
+                    relX: el.x - anchorWorldPos.x,
+                    relY: el.y - anchorWorldPos.y,
+                    pointType: el.spawnType,
+                    targetMap: el.targetMap,
+                    npcData: el.npcData,
+                    enemyId: el.enemyId
+                });
+            } else if (el.type === 'collision') {
+                elementsData.push({
+                    type: 'collision',
+                    vertices: el.vertices.map(v => ({
+                        x: v.x - anchorWorldPos.x,
+                        y: v.y - anchorWorldPos.y
+                    }))
+                });
+            } else if (el.type === 'occlusion') {
+                elementsData.push({
+                    type: 'occlusion',
+                    vertices: el.vertices.map(v => ({
+                        x: v.x - anchorWorldPos.x,
+                        y: v.y - anchorWorldPos.y
+                    }))
+                });
+            } else if (el.type === 'light_mask') {
+                elementsData.push({
+                    type: 'light_mask',
+                    maskType: el.maskType,
+                    vertices: el.vertices.map(v => ({
+                        x: v.x - anchorWorldPos.x,
+                        y: v.y - anchorWorldPos.y
+                    })),
+                    color: el.color,
+                    intensity: el.intensity,
+                    blur: el.blur,
+                    blendMode: el.blendMode,
+                    smoothing: el.smoothing,
+                    flicker: el.flicker
+                });
+            }
+        });
+
+        const bakedDefinition = {
+            type: 'baked_prefab',
+            displayName: prefabName,
+            assetName: prefabKey,
+            isCustomBaked: true,
+            customData: {
+                elements: elementsData
+            }
+        };
+
+        this.map.customPaletteDefinitions = this.map.customPaletteDefinitions || {};
+        this.map.customPaletteDefinitions[prefabKey] = bakedDefinition;
+
+        // Auto-save to IndexedDB (STORES.PREFABS)
+        try {
+            await db.set(STORES.PREFABS, prefabKey, bakedDefinition);
+            console.log(`Saved baked prefab "${prefabName}" to IndexedDB.`);
+        } catch (dbErr) {
+            console.error("Failed to save baked prefab to DB:", dbErr);
+        }
+
+        // Clear selection, update list and reload ui
+        this.clearSelection();
+        this.uiManager.refreshObjectPalette();
+
+        CustomDialog.alert(`Prefab "${prefabName}" crafted securely containing ${elementsData.length} stacked elements. Saved to database! Ready to build on Object2 layer.`, "Bake Complete");
+    }
+
+    placeCustomBakedPrefab(prefab, placementMapX, placementMapY) {
+        if (!prefab || !prefab.customData || !Array.isArray(prefab.customData.elements)) return;
+        
+        this.saveState();
+        
+        const parentMapX = Math.floor(placementMapX);
+        const parentMapY = Math.floor(placementMapY);
+        const parentWorldPos = this.map.mapToScreen(parentMapX, parentMapY);
+
+        prefab.customData.elements.forEach(el => {
+            try {
+                if (el.type === 'tile') {
+                    const targetX = parentMapX + el.relX;
+                    const targetY = parentMapY + el.relY;
+                    if (targetX >= 0 && targetX < this.map.width && targetY >= 0 && targetY < this.map.height) {
+                        let tileIdToSet = el.tileId;
+                        if (el.sourceRect) {
+                            tileIdToSet = this.map.ensureTileDefinition(
+                                el.sourceRect,
+                                el.spritesheetIndex || 0,
+                                el.zIndex || 0
+                            );
+                        }
+                        this.map.setTileId(targetX, targetY, tileIdToSet);
+                    }
+                } else if (el.type === 'object') {
+                    const targetX = parentMapX + el.relX;
+                    const targetY = parentMapY + el.relY;
+                    if (targetX >= 0 && targetX < this.map.width && targetY >= 0 && targetY < this.map.height) {
+                        const originalConfig = el.config || {};
+                        const config = { ...originalConfig, id: `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` };
+                        const finalLayerKey = el.layerKey || this.currentLayer || 'object2';
+                        this.map.addGameObject(finalLayerKey, config, targetX, targetY);
+                    }
+                } else if (el.type === 'collision') {
+                    if (Array.isArray(el.vertices)) {
+                        const offsetVertices = el.vertices.map(v => ({
+                            x: parentWorldPos.x + v.x,
+                            y: parentWorldPos.y + v.y
+                        }));
+                        this.map.addCustomCollisionShape({
+                            id: `custom_coll_poly_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            vertices: offsetVertices
+                        });
+                    }
+                } else if (el.type === 'occlusion') {
+                    if (Array.isArray(el.vertices)) {
+                        const offsetVertices = el.vertices.map(v => ({
+                            x: parentWorldPos.x + v.x,
+                            y: parentWorldPos.y + v.y
+                        }));
+                        this.map.addOcclusionShape({
+                            id: `occlusion_poly_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            vertices: offsetVertices
+                        });
+                    }
+                } else if (el.type === 'spawn') {
+                    const targetX = parentWorldPos.x + el.relX;
+                    const targetY = parentWorldPos.y + el.relY;
+                    this.map.spawnPointsData.push({
+                        id: `spawn_pt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        x: targetX,
+                        y: targetY,
+                        type: el.pointType,
+                        targetMap: el.targetMap || null,
+                        npcData: el.npcData || null,
+                        enemyId: el.enemyId || null
+                    });
+                } else if (el.type === 'light_mask') {
+                    if (Array.isArray(el.vertices)) {
+                        const offsetVertices = el.vertices.map(v => ({
+                            x: parentWorldPos.x + v.x,
+                            y: parentWorldPos.y + v.y
+                        }));
+                        this.map.addLightMask({
+                            type: el.maskType,
+                            vertices: offsetVertices,
+                            color: el.color,
+                            intensity: el.intensity,
+                            blur: el.blur,
+                            blendMode: el.blendMode,
+                            smoothing: el.smoothing,
+                            flicker: el.flicker
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Error placing custom element in prefab:", el, err);
+            }
+        });
+        
+        // Refresh game view
+        this.engine.gameObjects = this.map.getRuntimeGameObjects();
+        this.engine.lightSystem.updateData(this.map.getLightingData());
+        this.updateBrushVisuals();
+    }
+
+    explodeAndEditCustomPrefab(prefab) {
+        if (!prefab || !prefab.customData || !Array.isArray(prefab.customData.elements)) {
+            CustomDialog.alert("Invalid prefab data", "Error");
+            return;
+        }
+
+        // 1. Compute view center in map coordinates
+        const centerMapCoords = this.map.screenToMap(this.map.cameraX, this.map.cameraY);
+        const spawnX = Math.floor(centerMapCoords.x);
+        const spawnY = Math.floor(centerMapCoords.y);
+        const centerWorldPos = this.map.mapToScreen(spawnX, spawnY);
+
+        this.saveState();
+        this.clearSelection();
+
+        const addedElements = [];
+
+        // 2. Transcribe elements into active layers centered at view location
+        prefab.customData.elements.forEach(el => {
+            try {
+                if (el.type === 'tile') {
+                    const targetX = spawnX + el.relX;
+                    const targetY = spawnY + el.relY;
+                    if (targetX >= 0 && targetX < this.map.width && targetY >= 0 && targetY < this.map.height) {
+                        let tileIdToSet = el.tileId;
+                        if (el.sourceRect) {
+                            tileIdToSet = this.map.ensureTileDefinition(
+                                el.sourceRect,
+                                el.spritesheetIndex || 0,
+                                el.zIndex || 0
+                            );
+                        }
+                        this.map.setTileId(targetX, targetY, tileIdToSet);
+                        addedElements.push({
+                            type: 'tile',
+                            mapX: targetX,
+                            mapY: targetY,
+                            tileId: tileIdToSet
+                        });
+                    }
+                } else if (el.type === 'object') {
+                    const targetX = spawnX + el.relX;
+                    const targetY = spawnY + el.relY;
+                    if (targetX >= 0 && targetX < this.map.width && targetY >= 0 && targetY < this.map.height) {
+                        const originalConfig = el.config || {};
+                        const finalLayerKey = el.layerKey || 'object2';
+                        const addedObj = this.map.addGameObject(finalLayerKey, originalConfig, targetX, targetY);
+                        
+                        if (addedObj) {
+                            addedElements.push({
+                                type: 'object',
+                                layerKey: finalLayerKey,
+                                id: addedObj.id,
+                                displayName: addedObj.displayName || addedObj.name || addedObj.type,
+                                assetName: addedObj.assetName,
+                                mapX: targetX,
+                                mapY: targetY,
+                                config: originalConfig
+                            });
+                        }
+                    }
+                } else if (el.type === 'collision') {
+                    if (Array.isArray(el.vertices)) {
+                        const collId = `custom_coll_poly_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        const offsetVertices = el.vertices.map(v => ({
+                            x: centerWorldPos.x + v.x,
+                            y: centerWorldPos.y + v.y
+                        }));
+                        this.map.addCustomCollisionShape({
+                            id: collId,
+                            vertices: offsetVertices
+                        });
+                        addedElements.push({
+                            type: 'collision',
+                            id: collId,
+                            vertices: offsetVertices
+                        });
+                    }
+                } else if (el.type === 'occlusion') {
+                    if (Array.isArray(el.vertices)) {
+                        const occId = `occlusion_poly_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        const offsetVertices = el.vertices.map(v => ({
+                            x: centerWorldPos.x + v.x,
+                            y: centerWorldPos.y + v.y
+                        }));
+                        this.map.addOcclusionShape({
+                            id: occId,
+                            vertices: offsetVertices
+                        });
+                        addedElements.push({
+                            type: 'occlusion',
+                            id: occId,
+                            vertices: offsetVertices
+                        });
+                    }
+                } else if (el.type === 'spawn') {
+                    const spawnId = `spawn_pt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const targetX = centerWorldPos.x + el.relX;
+                    const targetY = centerWorldPos.y + el.relY;
+                    const ptData = {
+                        id: spawnId,
+                        x: targetX,
+                        y: targetY,
+                        type: el.pointType,
+                        targetMap: el.targetMap || null,
+                        npcData: el.npcData || null,
+                        enemyId: el.enemyId || null
+                    };
+                    this.map.spawnPointsData.push(ptData);
+                    addedElements.push({
+                        type: 'spawn',
+                        id: spawnId,
+                        x: targetX,
+                        y: targetY,
+                        spawnType: el.pointType,
+                        targetMap: el.targetMap,
+                        npcData: el.npcData,
+                        enemyId: el.enemyId
+                    });
+                } else if (el.type === 'light_mask') {
+                    if (Array.isArray(el.vertices)) {
+                        const offsetVertices = el.vertices.map(v => ({
+                            x: centerWorldPos.x + v.x,
+                            y: centerWorldPos.y + v.y
+                        }));
+                        const maskId = `light_mask_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        const maskData = {
+                            id: maskId,
+                            type: el.maskType,
+                            vertices: offsetVertices,
+                            color: el.color,
+                            intensity: el.intensity,
+                            blur: el.blur,
+                            blendMode: el.blendMode,
+                            smoothing: el.smoothing,
+                            flicker: el.flicker
+                        };
+                        this.map.addLightMask(maskData);
+                        addedElements.push({
+                            type: 'light_mask',
+                            id: maskId,
+                            maskType: el.maskType,
+                            vertices: offsetVertices,
+                            color: el.color,
+                            intensity: el.intensity,
+                            blur: el.blur,
+                            blendMode: el.blendMode,
+                            smoothing: el.smoothing,
+                            flicker: el.flicker
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Error reconstituting element:", el, err);
+            }
+        });
+
+        // 3. Update the editor's selected grouping and set tool to Select
+        this.selectedElements = addedElements;
+        this.currentTool = 'select';
+        
+        if (this.uiManager) {
+            this.uiManager.updateSelectionListUI(this.selectedElements);
+            this.uiManager.updateToolButtonsState();
+            this.uiManager.updateToolPanelVisibility();
+        }
+
+        // Recompile working sprites
+        this.engine.gameObjects = this.map.getRuntimeGameObjects();
+        this.engine.lightSystem.updateData(this.map.getLightingData());
+        this.updateBrushVisuals();
+
+        CustomDialog.alert(`💥 Prefab elements exploded at map coordinates (${spawnX}, ${spawnY}) and automatically selected! All vertices across all layers (collisions, lights, spawn triggers) are fully alive and editable.`, "Prefab Exploded");
+    }
+
+    async updateExistingPrefab(prefabKey) {
+        if (this.selectedElements.length === 0) {
+            CustomDialog.alert("Please make a selection first using the Selection Tool (🔍) to update the prefab with.", "No Selection");
+            return;
+        }
+
+        this.map.customPaletteDefinitions = this.map.customPaletteDefinitions || {};
+        const prefab = this.map.customPaletteDefinitions[prefabKey];
+        if (!prefab) {
+            CustomDialog.alert("Prefab not find.", "Error");
+            return;
+        }
+
+        // Standard bounds compilation
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        this.selectedElements.forEach(el => {
+            if (el.type === 'tile' || el.type === 'object') {
+                const screen = this.map.mapToScreen(el.mapX, el.mapY);
+                minX = Math.min(minX, screen.x);
+                maxX = Math.max(maxX, screen.x);
+                minY = Math.min(minY, screen.y);
+                maxY = Math.max(maxY, screen.y);
+            } else if (el.type === 'spawn') {
+                minX = Math.min(minX, el.x);
+                maxX = Math.max(maxX, el.x);
+                minY = Math.min(minY, el.y);
+                maxY = Math.max(maxY, el.y);
+            } else if (el.type === 'collision' || el.type === 'occlusion' || el.type === 'light_mask') {
+                el.vertices.forEach(v => {
+                    minX = Math.min(minX, v.x);
+                    maxX = Math.max(maxX, v.x);
+                    minY = Math.min(minY, v.y);
+                    maxY = Math.max(maxY, v.y);
+                });
+            }
+        });
+
+        let sumMapX = 0, sumMapY = 0, countGrid = 0;
+        this.selectedElements.forEach(el => {
+            if (el.type === 'tile' || el.type === 'object') {
+                sumMapX += el.mapX;
+                sumMapY += el.mapY;
+                countGrid++;
+            }
+        });
+
+        let snappedGridX = 0;
+        let snappedGridY = 0;
+        if (countGrid > 0) {
+            snappedGridX = Math.round(sumMapX / countGrid);
+            snappedGridY = Math.round(sumMapY / countGrid);
+        } else {
+            const midWorldX = (minX + maxX) / 2;
+            const midWorldY = (minY + maxY) / 2;
+            const gridAnchor = this.map.screenToMap(midWorldX, midWorldY);
+            snappedGridX = Math.round(gridAnchor.x);
+            snappedGridY = Math.round(gridAnchor.y);
+        }
+        const anchorWorldPos = this.map.mapToScreen(snappedGridX, snappedGridY);
+
+        const elementsData = [];
+
+        this.selectedElements.forEach(el => {
+            if (el.type === 'tile') {
+                const tileDef = this.map.tileDefinitions[el.tileId] || {};
+                elementsData.push({
+                    type: 'tile',
+                    relX: el.mapX - snappedGridX,
+                    relY: el.mapY - snappedGridY,
+                    tileId: el.tileId,
+                    sourceRect: tileDef.sourceRect || null,
+                    spritesheetIndex: tileDef.spritesheetIndex !== undefined ? tileDef.spritesheetIndex : 0,
+                    zIndex: tileDef.zIndex !== undefined ? tileDef.zIndex : 0
+                });
+            } else if (el.type === 'object') {
+                elementsData.push({
+                    type: 'object',
+                    layerKey: el.layerKey,
+                    relX: el.mapX - snappedGridX,
+                    relY: el.mapY - snappedGridY,
+                    config: el.config
+                });
+            } else if (el.type === 'spawn') {
+                elementsData.push({
+                    type: 'spawn',
+                    relX: el.x - anchorWorldPos.x,
+                    relY: el.y - anchorWorldPos.y,
+                    pointType: el.spawnType,
+                    targetMap: el.targetMap,
+                    npcData: el.npcData,
+                    enemyId: el.enemyId
+                });
+            } else if (el.type === 'collision') {
+                elementsData.push({
+                    type: 'collision',
+                    vertices: el.vertices.map(v => ({
+                        x: v.x - anchorWorldPos.x,
+                        y: v.y - anchorWorldPos.y
+                    }))
+                });
+            } else if (el.type === 'occlusion') {
+                elementsData.push({
+                    type: 'occlusion',
+                    vertices: el.vertices.map(v => ({
+                        x: v.x - anchorWorldPos.x,
+                        y: v.y - anchorWorldPos.y
+                    }))
+                });
+            } else if (el.type === 'light_mask') {
+                elementsData.push({
+                    type: 'light_mask',
+                    maskType: el.maskType,
+                    vertices: el.vertices.map(v => ({
+                        x: v.x - anchorWorldPos.x,
+                        y: v.y - anchorWorldPos.y
+                    })),
+                    color: el.color,
+                    intensity: el.intensity,
+                    blur: el.blur,
+                    blendMode: el.blendMode,
+                    smoothing: el.smoothing,
+                    flicker: el.flicker
+                });
+            }
+        });
+
+        prefab.customData = { elements: elementsData };
+
+        try {
+            await db.set(STORES.PREFABS, prefabKey, prefab);
+            console.log(`Updated custom prefab "${prefab.displayName}" in IndexedDB.`);
+        } catch (dbErr) {
+            console.error("Failed to update prefab in DB:", dbErr);
+        }
+
+        this.clearSelection();
+        if (this.uiManager) {
+            this.uiManager.refreshObjectPalette();
+            this.uiManager.hideSelectedPrefabDetails();
+        }
+        CustomDialog.alert(`Prefab "${prefab.displayName}" updated successfully containing ${elementsData.length} new elements!`, "Update Success");
+    }
+
+    async deleteCustomPrefabByKey(prefabKey) {
+        if (!this.map.customPaletteDefinitions || !this.map.customPaletteDefinitions[prefabKey]) return;
+        
+        const prefab = this.map.customPaletteDefinitions[prefabKey];
+        const confirmResult = await CustomDialog.confirm(`Are you sure you want to delete the custom prefab "${prefab.displayName}"?`);
+        if (!confirmResult) return;
+
+        // Eliminate from RAM
+        delete this.map.customPaletteDefinitions[prefabKey];
+
+        // Eliminate from DB
+        try {
+            await db.delete(STORES.PREFABS, prefabKey);
+            console.log(`Deleted custom prefab "${prefabKey}" from IndexedDB.`);
+        } catch (dbErr) {
+            console.error("Failed to delete prefab from DB:", dbErr);
+        }
+
+        // Safely unset active brush
+        if (this.selectedObjectBrush && this.selectedObjectBrush.assetName === prefabKey) {
+            this.selectedObjectBrush = null;
+        }
+
+        // Re-draw
+        if (this.uiManager) {
+            this.uiManager.refreshObjectPalette();
+            this.uiManager.hideSelectedPrefabDetails();
+        }
+        CustomDialog.alert(`Prefab "${prefab.displayName}" deleted successfully.`, "Delete Complete");
     }
 }
 

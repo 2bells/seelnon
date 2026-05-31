@@ -2,7 +2,7 @@
 console.log("game/ui/inventory_ui.js loaded");
 
 import { FloatingTextEffect } from '../combat/effects.js';
-import { getAllAbilities } from '../combat/ability_system.js';
+import { getAllAbilities, ensureItemAbilityStats } from '../combat/ability_system.js';
 
 class InventoryUI {
     constructor(engine) {
@@ -499,32 +499,32 @@ class InventoryUI {
             const allAb = getAllAbilities();
             const ab = allAb[item.attachedAbility];
             
-            // Build a gorgeous statistical description based on player's attributes!
+            // Ensure the item has its stats initialized
+            ensureItemAbilityStats(item);
+            
             const playerAtk = player.getAtk();
             const playerDef = player.getDef();
-            let dmgVal = 0;
+            const baseDmg = item.baseDmg ?? 12;
+            const atkScale = item.atkScale ?? 1.2;
+            const cooldown = item.cooldown ?? ((ab && ab.cooldown) || 2.0);
+            const range = item.range ?? ((ab && ab.range) || 120);
+
+            let dmgVal = Math.floor(baseDmg + atkScale * playerAtk);
             let scalingText = '';
             
             if (item.attachedAbility === 'slime_leap') {
-                dmgVal = Math.floor(12 + 1.2 * playerAtk);
-                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (12 Base + 120% ATK)`;
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (${baseDmg} Base + ${Math.round(atkScale * 100)}% ATK)`;
             } else if (item.attachedAbility === 'dash_strike') {
-                dmgVal = Math.floor(15 + 1.5 * playerAtk);
-                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (15 Base + 150% ATK)`;
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (${baseDmg} Base + ${Math.round(atkScale * 100)}% ATK)`;
             } else if (item.attachedAbility === 'blood_siphon') {
-                dmgVal = Math.floor(28 + 2.0 * playerAtk);
-                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (28 Base + 200% ATK).<br/>🧪 Costs 15 HP to cast, resolves ❤️ <b>+30 HP heal</b> on hit.`;
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (${baseDmg} Base + ${Math.round(atkScale * 100)}% ATK).<br/>🧪 Costs 15 HP to cast, resolves ❤️ <b>+30 HP heal</b> on hit.`;
             } else if (item.attachedAbility === 'earth_wall') {
-                dmgVal = Math.floor(6 + 0.5 * playerAtk + 0.8 * playerDef);
-                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (6 Base + 50% ATK + 80% DEF).<br/>⛰️ Summons temporary obstacle.`;
+                const defScale = item.defScale ?? 0.8;
+                dmgVal = Math.floor(baseDmg + atkScale * playerAtk + defScale * playerDef);
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (${baseDmg} Base + ${Math.round(atkScale * 100)}% ATK + ${Math.round(defScale * 100)}% DEF).<br/>⛰️ Summons temporary obstacle.`;
             } else {
-                const baseDmg = (ab && ab.active && ab.active.damage) || 0;
-                dmgVal = Math.floor(baseDmg + 1.0 * playerAtk);
-                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (${baseDmg} Base + 100% ATK)`;
+                scalingText = `💥 Deals <b>${dmgVal} base DMG</b> (${baseDmg} Base + ${Math.round(atkScale * 100)}% ATK)`;
             }
-            
-            const cooldown = (ab && ab.cooldown) || 3;
-            const range = (ab && ab.range) || 120;
             
             statsDescriptor = `🔮 <b>Grants Skill: ${ab ? ab.name : item.attachedAbility}</b><br/>` +
                               `<span style="color:#e74c3c;">${scalingText}</span><br/>` +

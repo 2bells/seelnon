@@ -2,6 +2,7 @@
 console.log("rpg/game/editor/editor_map_operations.js loaded");
 
 import CustomDialog from '../ui/custom_dialog.js';
+import { db, STORES } from '../utils/db.js';
 
 function getCircularReplacer() {
     const seen = new WeakSet();
@@ -85,41 +86,64 @@ class EditorMapOperations {
 
             const mapData = this.editor.map.serialize();
             mapData.mapName = mapName; // Store the name within the map data itself too
-            localStorage.setItem(`${RPG_EDITOR_MAP_PREFIX}${mapName}`, JSON.stringify(mapData, getCircularReplacer()));
+            
+            // Save to IndexedDB (STORES.MAPS)
+            await db.set(STORES.MAPS, mapName, mapData);
+            
+            // Also clean from legacy localStorage to avoid taking excessive space
+            localStorage.removeItem(`${RPG_EDITOR_MAP_PREFIX}${mapName}`);
+
             this.editor.map.currentMapName = mapName; // Update current map's name
-            CustomDialog.alert(`Map "${mapName}" saved to local storage!`, "Map Saved");
+            CustomDialog.alert(`Map "${mapName}" saved securely in IndexedDB!`, "Map Saved");
 
         } catch (error) {
-            if (error.name === 'QuotaExceededError') {
-                console.error("Error saving map:", error);
-                CustomDialog.alert(`Error: Could not save map. The browser's local storage quota has been exceeded. Please delete some saved maps to free up space.`, "Quota Exceeded");
-            } else {
-                console.error("Error saving map to local storage:", error);
-                CustomDialog.alert(`Error saving map: ${error.message}`, "Save Error");
-            }
+            console.error("Error saving map to IndexedDB:", error);
+            CustomDialog.alert(`Error saving map: ${error.message}`, "Save Error");
         }
     }
 
     async _loadMapFromLocal() {
         try {
             const savedMaps = [];
+            
+            // 1. Fetch maps from IndexedDB
+            try {
+                const dbKeys = await db.getAllKeys(STORES.MAPS);
+                for (const key of dbKeys) {
+                    const mapData = await db.get(STORES.MAPS, key);
+                    const mapSize = mapData ? JSON.stringify(mapData).length : 0;
+                    savedMaps.push({
+                        name: key,
+                        size: mapSize,
+                        source: 'IndexedDB'
+                    });
+                }
+            } catch (dbError) {
+                console.error("Error loading maps from IndexedDB:", dbError);
+            }
+
+            // 2. Fetch legacy maps from localStorage
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key.startsWith(RPG_EDITOR_MAP_PREFIX)) {
-                    const mapString = localStorage.getItem(key);
-                    if (mapString) {
+                    const mapName = key.substring(RPG_EDITOR_MAP_PREFIX.length);
+                    // Avoid duplicating if it is already in IndexedDB
+                    if (!savedMaps.some(m => m.name === mapName)) {
+                        const mapString = localStorage.getItem(key);
                         savedMaps.push({
-                            name: key.substring(RPG_EDITOR_MAP_PREFIX.length),
-                            size: mapString.length // Size in bytes
+                            name: mapName,
+                            size: mapString ? mapString.length : 0,
+                            source: 'localStorage'
                         });
                     }
                 }
             }
+
             // Sort maps by name for consistent ordering
             savedMaps.sort((a, b) => a.name.localeCompare(b.name));
 
             if (savedMaps.length === 0) {
-                CustomDialog.alert("No saved maps found in local storage.", "Load Maps");
+                CustomDialog.alert("No saved maps found in storage.", "Load Maps");
                 if (this.editor.uiManager && this.editor.uiManager.loadMapsListContainer) {
                      this.editor.uiManager.loadMapsListContainer.remove(); // Clear list if shown
                 }
@@ -147,43 +171,62 @@ class EditorMapOperations {
             }
 
         } catch (error) {
-            console.error("Error listing maps from local storage:", error);
+            console.error("Error listing maps:", error);
             CustomDialog.alert(`Error listing maps: ${error.message}`, "Error");
         }
     }
 
-    _deleteMapFromLocal(mapName) {
+    async _deleteMapFromLocal(mapName) {
         try {
-            const mapKey = `${RPG_EDITOR_MAP_PREFIX}${mapName}`;
-            localStorage.removeItem(mapKey);
-            // alert(`Map "${mapName}" deleted successfully.`); // Optional: can be annoying
+            // Delete from IndexedDB and legacy localStorage
+            await db.delete(STORES.MAPS, mapName);
+            localStorage.removeItem(`${RPG_EDITOR_MAP_PREFIX}${mapName}`);
+            
             // Refresh the list of maps
             this._loadMapFromLocal();
         } catch (error) {
-            console.error(`Error deleting map "${mapName}" from local storage:`, error);
+            console.error(`Error deleting map "${mapName}":`, error);
             CustomDialog.alert(`Error deleting map: ${error.message}`, "Delete Error");
         }
     }
 
     async _performLoadFromLocal(mapName) {
         try {
-            const mapString = localStorage.getItem(`${RPG_EDITOR_MAP_PREFIX}${mapName}`);
-            if (!mapString) {
-                CustomDialog.alert(`Map "${mapName}" not found in local storage.`, "Error");
+            // Try loading from IndexedDB first
+            let mapData = await db.get(STORES.MAPS, mapName);
+            let mapSourceStr = 'IndexedDB';
+
+            // Fallback to legacy localStorage if not in IndexedDB
+            if (!mapData) {
+                const mapString = localStorage.getItem(`${RPG_EDITOR_MAP_PREFIX}${mapName}`);
+                if (mapString) {
+                    mapData = JSON.parse(mapString);
+                    mapSourceStr = 'legacy local storage';
+                    // Auto-migrate to IndexedDB for safety
+                    try {
+                        await db.set(STORES.MAPS, mapName, mapData);
+                        console.log(`Auto-migrated map "${mapName}" into IndexedDB.`);
+                    } catch (mErr) {
+                        console.error("Migration warning:", mErr);
+                    }
+                }
+            }
+
+            if (!mapData) {
+                CustomDialog.alert(`Map "${mapName}" not found in storage.`, "Error");
                 return;
             }
-            const mapData = JSON.parse(mapString);
 
-            // Use the engine's new loadMap function
+            // Use the engine's loadMap function
             const success = await this.engine.loadMap(mapData); // When loading from editor, we use default spawn point logic
 
             if (success) {
-                CustomDialog.alert(`Map "${this.engine.map.currentMapName}" loaded from local storage!`, "Success");
+                CustomDialog.alert(`Map "${this.engine.map.currentMapName}" loaded successfully from ${mapSourceStr}!`, "Success");
             } else {
-                CustomDialog.alert(`Failed to load map "${mapName}" from local storage. Data might be corrupt. Check console.`, "Load Error");
+                CustomDialog.alert(`Failed to load map "${mapName}". Data might be corrupt. Check console.`, "Load Error");
             }
         } catch (error) {
-            console.error(`Error loading map "${mapName}" from local storage:`, error);
+            console.error(`Error loading map "${mapName}":`, error);
             CustomDialog.alert(`Error loading map "${mapName}": ${error.message}`, "Load Error");
         }
     }

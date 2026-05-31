@@ -15,7 +15,8 @@ import { extractCharacterDataFromPng } from './utils/char_card_importer.js';
 import QuestSystem from './quest_system.js';
 import { FloatingTextEffect, TowerOrbEffect } from './combat/effects.js';
 import CustomDialog from './ui/custom_dialog.js';
-import { executeAbility, getAllAbilities } from './combat/ability_system.js';
+import { db, STORES } from './utils/db.js';
+import { executeAbility, getAllAbilities, ensureItemAbilityStats } from './combat/ability_system.js';
 import InventoryUI from './ui/inventory_ui.js';
 import { updateARAMSystems, isARAMMap, checkAndSpawnARAMNPCs, scaleARAMEnemyStats } from './world/aram.js';
 
@@ -258,11 +259,28 @@ class GameEngine {
         const abilityId = this.player.equippedAbilities[slotIndex];
         if (!abilityId) return;
 
+        // Find matching equipped item to read customized stats
+        let equippedItem = null;
+        if (this.player.inventory) {
+            equippedItem = this.player.inventory.find(i => i.type === 'ability' && i.equipped && (i.attachedAbility === abilityId || i.id === abilityId));
+        }
+
+        const all = getAllAbilities();
+        const baseAbility = all[abilityId];
+        if (!baseAbility) return;
+
+        const ability = { ...baseAbility };
+        if (equippedItem) {
+            ensureItemAbilityStats(equippedItem);
+            if (equippedItem.range !== undefined) ability.range = equippedItem.range;
+            if (equippedItem.cooldown !== undefined) ability.cooldown = equippedItem.cooldown;
+        }
+
         // Resolve target position based on ability preferences
-        const getTargetPos = (ability) => {
-            if (ability.targetType === 'closest_enemy') {
+        const getTargetPos = (ab) => {
+            if (ab.targetType === 'closest_enemy') {
                 let closest = null;
-                let minDist = ability.range || 120;
+                let minDist = ab.range || 120;
                 
                 const isHostileToPlayer = (obj) => {
                     if (!obj || obj === this.player) return false;
@@ -320,7 +338,7 @@ class GameEngine {
             const dx = mouseWorldX - this.player.currentPixelX;
             const dy = mouseWorldY - this.player.currentPixelY;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            const maxRange = ability.range || 120;
+            const maxRange = ab.range || 120;
 
             if (dist > maxRange) {
                 return {
@@ -331,7 +349,7 @@ class GameEngine {
             return { x: mouseWorldX, y: mouseWorldY };
         };
 
-        executeAbility(this.player, abilityId, getTargetPos);
+        executeAbility(this.player, abilityId, () => getTargetPos(ability));
     }
 
     checkForInteractables() {
@@ -390,6 +408,16 @@ class GameEngine {
             if (obj instanceof NPC) {
                 const broadType = obj.broadType || (obj.characterData && obj.characterData.broadType) || 'villager';
                 if (broadType === 'turret') continue; // Turrets are non-interactable emitters!
+
+                // Fog of War: Skip if standing on unexplained tile in Item World
+                if (this.activeItemWorld) {
+                    const tx = Math.floor(obj.mapX);
+                    const ty = Math.floor(obj.mapY);
+                    const explored = this.activeItemWorld.exploredTiles || {};
+                    if (!explored[`${tx},${ty}`]) {
+                        continue;
+                    }
+                }
 
                 const dx = this.player.currentPixelX - obj.currentPixelX;
                 const dy = this.player.currentPixelY - obj.currentPixelY;
@@ -760,6 +788,43 @@ class GameEngine {
         // and map.collisionLayerData
         this.player.update(deltaTime, this.inputState);
 
+        // Update Fog of War explored tiles if we are in an Item World active chaos map
+        if (this.activeItemWorld) {
+            const aiw = this.activeItemWorld;
+            if (!aiw.exploredTiles) {
+                aiw.exploredTiles = {};
+            }
+            const px = Math.round(this.player.mapX);
+            const py = Math.round(this.player.mapY);
+            
+            // Fog of war is 5 by default, but affected by the dungeon mapTier and pitch_black modifier to be less
+            let radius = 5;
+            if (aiw.mapTier === 'magic') {
+                radius = 4;
+            } else if (aiw.mapTier === 'rare') {
+                radius = 3;
+            } else if (aiw.mapTier === 'legendary') {
+                radius = 2;
+            }
+            
+            const activeModifiers = aiw.activeModifiers || [];
+            if (activeModifiers.some(mod => mod.key === 'pitch_black')) {
+                radius = Math.max(1, radius - 2);
+            }
+
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    if (dx * dx + dy * dy <= radius * radius) {
+                        const tx = px + dx;
+                        const ty = py + dy;
+                        if (tx >= 0 && tx < this.map.width && ty >= 0 && ty < this.map.height) {
+                            aiw.exploredTiles[`${tx},${ty}`] = true;
+                        }
+                    }
+                }
+            }
+        }
+
         this.checkForInteractables();
 
         // If a dialogue window is active, check if the player moved too far away
@@ -807,6 +872,193 @@ class GameEngine {
 
         // Update custom procedural spawners from the editor Map
         this.updateProceduralSpawners(deltaTime);
+
+        // NEW: Update periodic item world meteor events!
+        this.updateMeteorFallouts(deltaTime);
+    }
+
+    updateMeteorFallouts(deltaTime) {
+        if (!this.activeItemWorld || !this.activeItemWorld.activeModifiers) return;
+        const hasMeteors = this.activeItemWorld.activeModifiers.some(mod => mod.key === 'meteors');
+        if (!hasMeteors) return;
+
+        if (this.meteorTimer === undefined) {
+            this.meteorTimer = 0.0;
+        }
+
+        this.meteorTimer -= deltaTime;
+        if (this.meteorTimer <= 0) {
+            // Set next meteor time between 3 and 7 seconds
+            this.meteorTimer = 3.0 + Math.random() * 4.0;
+
+            // Spawn meteor at a random location near the player!
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 30 + Math.random() * 120; // 30-150 pixels from player
+            const targetX = this.player.currentPixelX + Math.cos(angle) * dist;
+            const targetY = this.player.currentPixelY + Math.sin(angle) * dist;
+
+            const warningEffect = {
+                engine: this,
+                time: 0,
+                duration: 1.2, // 1.2 second warning before impact
+                targetX,
+                targetY,
+                isFinished: false,
+                update(dt) {
+                    this.time += dt;
+                    if (this.time >= this.duration) {
+                        if (this.hasImpacted) return;
+                        this.hasImpacted = true;
+                        this.isFinished = true;
+                        // METEOR IMPACT ACTION!
+                        // Create massive splash/particle explosion
+                        
+                        // Handle particle impact locally for safety
+                        const pCount = 20;
+                        const spread = 2.5;
+                        for (let i = 0; i < pCount; i++) {
+                            const pAngle = Math.random() * Math.PI * 2;
+                            const pDist = Math.random() * 15;
+                            const px = this.targetX + Math.cos(pAngle) * pDist;
+                            const py = this.targetY + Math.sin(pAngle) * pDist;
+                            
+                            const particle = {
+                                engine: this.engine,
+                                x: px,
+                                y: py,
+                                vx: (Math.random() - 0.5) * 150,
+                                vy: (Math.random() - 0.5) * 150 - 45,
+                                color: Math.random() < 0.65 ? '#ff6600' : '#ffcc00',
+                                alpha: 1.0,
+                                size: 2 + Math.random() * 4,
+                                decay: 2.0 + Math.random() * 1.5,
+                                isFinished: false,
+                                update(pdt) {
+                                    this.x += this.vx * pdt;
+                                    this.y += this.vy * pdt;
+                                    this.vy += 220 * pdt; // gravity pulling down particles
+                                    this.alpha -= this.decay * pdt;
+                                    if (this.alpha <= 0) this.isFinished = true;
+                                },
+                                render(pctx, viewX, viewY) {
+                                    if (this.isFinished) return;
+                                    pctx.save();
+                                    pctx.globalAlpha = Math.max(0, this.alpha);
+                                    pctx.fillStyle = this.color;
+                                    pctx.beginPath();
+                                    pctx.arc(this.x - viewX, this.y - viewY, this.size, 0, Math.PI * 2);
+                                    pctx.fill();
+                                    pctx.restore();
+                                }
+                            };
+                            this.engine.addEffect(particle);
+                        }
+
+                        // Play local screen-shake details
+                        const textEffect = {
+                            engine: this.engine,
+                            text: "💥 METEOR IMPACT!",
+                            x: this.targetX,
+                            y: this.targetY - 22,
+                            alpha: 1.0,
+                            isFinished: false,
+                            update(pdt) {
+                                this.y -= 15 * pdt;
+                                this.alpha -= 1.1 * pdt;
+                                if (this.alpha <= 0) this.isFinished = true;
+                            },
+                            render(pctx, viewX, viewY) {
+                                if (this.isFinished) return;
+                                pctx.save();
+                                pctx.globalAlpha = Math.max(0, this.alpha);
+                                pctx.fillStyle = '#ff3c00';
+                                pctx.font = 'bold 9px Courier';
+                                pctx.textAlign = 'center';
+                                pctx.fillText(this.text, this.x - viewX, this.y - viewY);
+                                pctx.restore();
+                            }
+                        };
+                        this.engine.addEffect(textEffect);
+
+                        // Deal 20 damage to player or 40 damage to slimes we hit!
+                        const playerDx = this.engine.player.currentPixelX - this.targetX;
+                        const playerDy = this.engine.player.currentPixelY - this.targetY;
+                        const playerDistSq = playerDx*playerDx + playerDy*playerDy;
+                        if (playerDistSq < 48 * 48 && this.engine.player.stats && this.engine.player.stats.hp > 0) {
+                            this.engine.player.takeDamage(15); // deal 15 damage to player
+                            
+                            const playerOuchText = {
+                                engine: this.engine,
+                                text: "Ouch! Meteor Strike! -15 HP",
+                                x: this.engine.player.currentPixelX,
+                                y: this.engine.player.currentPixelY - 40,
+                                alpha: 1.0,
+                                isFinished: false,
+                                update(pdt) {
+                                    this.y -= 12 * pdt;
+                                    this.alpha -= 0.9 * pdt;
+                                    if (this.alpha <= 0) this.isFinished = true;
+                                },
+                                render(pctx, viewX, viewY) {
+                                    if (this.isFinished) return;
+                                    pctx.save();
+                                    pctx.globalAlpha = Math.max(0, this.alpha);
+                                    pctx.fillStyle = '#ff0000';
+                                    pctx.font = 'bold 10px Courier';
+                                    pctx.textAlign = 'center';
+                                    pctx.fillText(this.text, this.x - viewX, this.y - viewY);
+                                    pctx.restore();
+                                }
+                            };
+                            this.engine.addEffect(playerOuchText);
+                        }
+
+                        // Also deal heavy damage to slimes in range!
+                        for (const obj of this.engine.gameObjects) {
+                            if (obj && (obj.constructor.name === 'Enemy' || obj.type === 'enemy') && typeof obj.takeDamage === 'function') {
+                                const enemyDx = obj.currentPixelX - this.targetX;
+                                const enemyDy = obj.currentPixelY - this.targetY;
+                                const enemyDistSq = enemyDx*enemyDx + enemyDy*enemyDy;
+                                if (enemyDistSq < 48 * 48 && obj.stats.hp > 0) {
+                                    obj.takeDamage(40); // high meteor damage to enemies!
+                                }
+                            }
+                        }
+                    }
+                },
+                render(ctx, viewX, viewY) {
+                    if (this.isFinished) return;
+                    ctx.save();
+                    // Draw blinking warning circle on the ground
+                    const dx = this.targetX - viewX;
+                    const dy = this.targetY - viewY;
+                    ctx.beginPath();
+                    ctx.ellipse(dx, dy, 40, 20, 0, 0, Math.PI * 2);
+                    const pulse = Math.sin(this.time * 20) * 0.4 + 0.6;
+                    ctx.strokeStyle = `rgba(231, 76, 60, ${pulse})`;
+                    ctx.lineWidth = 2.5;
+                    ctx.stroke();
+                    ctx.fillStyle = `rgba(230, 115, 0, ${0.15 * (this.time/this.duration)})`;
+                    ctx.fill();
+
+                    // Draw falling red rock lines if it is nearing impact
+                    const progress = this.time / this.duration; // 0 to 1
+                    const rockY = dy - (1.0 - progress) * 250; // falls from top
+                    const rockX = dx - (1.0 - progress) * 120; // falls in slant
+                    ctx.beginPath();
+                    ctx.arc(rockX, rockY, 8 * (0.5 + progress * 0.5), 0, Math.PI * 2);
+                    ctx.fillStyle = '#e65c00';
+                    ctx.fill();
+                    ctx.strokeStyle = '#ff9900';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
+            };
+
+            this.addEffect(warningEffect);
+        }
     }
 
     updateARAMSystems(deltaTime) {
@@ -927,7 +1179,23 @@ class GameEngine {
             }
         }
 
-        const renderables = [this.player, ...this.gameObjects, ...groundEffects]; // gameObjects from map, plus effects
+        // Proximity Camera Culling: Only render map gameObjects that are in or very close to the visible screen area to maximize performance!
+        const margin = 192; // Pre-render 192px buffer outside screen edges to prevent sudden popping
+        const culledGameObjects = this.gameObjects.filter(entity => {
+            if (entity.currentPixelX === undefined || entity.currentPixelY === undefined) {
+                return true;
+            }
+            const px = entity.currentPixelX;
+            const py = entity.currentPixelY;
+            const w = entity.visualWidth || 64;
+            const h = entity.visualHeight || 64;
+            return (px + w + margin >= viewOriginX && 
+                    px - w - margin <= viewOriginX + effectiveCanvasWidth &&
+                    py + h + margin >= viewOriginY && 
+                    py - h * 2 - margin <= viewOriginY + effectiveCanvasHeight);
+        });
+
+        const renderables = [this.player, ...culledGameObjects, ...groundEffects]; // culled gameObjects from map, plus effects
 
         renderables.sort((a, b) => {
             // Sort by zIndex first (default 0)
@@ -959,6 +1227,18 @@ class GameEngine {
         const currentEditorLayer = (activeEditor && activeEditor.currentLayer) ? activeEditor.currentLayer : null;
 
         for (const entity of renderables) {
+            // Fog of War rendering filter
+            if (this.activeItemWorld && entity !== this.player) {
+                if (entity.mapX !== undefined && entity.mapY !== undefined) {
+                    const tx = Math.floor(entity.mapX);
+                    const ty = Math.floor(entity.mapY);
+                    const explored = this.activeItemWorld.exploredTiles || {};
+                    if (!explored[`${tx},${ty}`]) {
+                        continue; // Hidden in Fog of War!
+                    }
+                }
+            }
+
             this.ctx.save();
             let applyAlpha = false;
             if (activeEditor && entity !== this.player) { // Don't fade player
@@ -984,6 +1264,7 @@ class GameEngine {
             }
             this.ctx.restore(); // Restore alpha for next entity
         }
+
 
         // Render custom Event interactive symbols
         if (this.map && this.map.spawnPointsData) {
@@ -1480,18 +1761,36 @@ class GameEngine {
     }
 
     async loadMapByName(mapName) {
-        // For now, only loads from localStorage. Future: could check server, etc.
+        // Load primarily from our Unlimited IndexedDB Store
+        try {
+            const mapData = await db.get(STORES.MAPS, mapName);
+            if (mapData) {
+                return mapData;
+            }
+        } catch (dbErr) {
+            console.error("Error reading map from IndexedDB:", dbErr);
+        }
+
+        // Legacy fallback
         const mapKey = `rpgEditor_map_${mapName}`; // Matches EditorMapOperations prefix
         const mapString = localStorage.getItem(mapKey);
         if (mapString) {
             try {
-                return JSON.parse(mapString);
+                const mapData = JSON.parse(mapString);
+                // Auto-migrate to IndexedDB for seamless transitions
+                try {
+                    await db.set(STORES.MAPS, mapName, mapData);
+                    console.log(`Auto-migrated legacy map "${mapName}" into IndexedDB during game load.`);
+                } catch (mErr) {
+                    console.error("Migration warning during game load:", mErr);
+                }
+                return mapData;
             } catch (e) {
                 console.error(`Error parsing map data from localStorage for ${mapName}:`, e);
                 return null;
             }
         } else {
-            console.warn(`Map ${mapName} not found in localStorage.`);
+            console.warn(`Map ${mapName} not found in IndexedDB or localStorage fallback.`);
             return null;
         }
     }
@@ -1604,6 +1903,83 @@ class GameEngine {
             npc.loadCharacterData(characterData);
             this.gameObjects.push(npc);
             console.log(`Spawned permanent NPC '${npc.name}' at map coords (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}).`);
+        }
+
+        // 2.5 Spawn chests inside Item World maps programmatically!
+        const chestSpawns = this.map.spawnPointsData.filter(sp => sp.type === 'chest_gold_spawner');
+        console.log(`Procedural Item World Setup: Found ${chestSpawns.length} chest spawners.`);
+        for (const spawnPoint of chestSpawns) {
+            let mapCoords = this.map.screenToMap(spawnPoint.x, spawnPoint.y);
+            let chestRotation = 0;
+            // 60% chance of standard but slightly tilted (-0.12 to +0.12 radians)
+            // 20% chance of being on its side (90 deg or 270 deg with some tilt)
+            // 20% chance of being completely upside down! (180 deg) - humorous caveman style!
+            const rotRand = Math.random();
+            if (rotRand < 0.60) {
+                chestRotation = (Math.random() * 0.24 - 0.12); // subtle tilt
+            } else if (rotRand < 0.80) {
+                chestRotation = (Math.random() < 0.5 ? 1 : -1) * (Math.PI / 2 + (Math.random() * 0.2 - 0.1)); // side-ways!
+            } else {
+                chestRotation = Math.PI + (Math.random() * 0.2 - 0.1); // completely upside-down!
+            }
+
+            let npcOptions = {
+                id: `npc_chest_${spawnPoint.id}`,
+                name: "Precious Chest",
+                assetName: 'npcSpritesheet',
+                spriteSourceRect: { x: 5 * 64, y: 0, width: 64, height: 64 }, // Frame 5 of npcSpritesheet is the chest!
+                broadType: 'chest',
+                collidable: true,
+                collisionShape: {
+                    type: 'rectangle',
+                    width: 24,
+                    height: 12,
+                },
+                flippedX: Math.random() < 0.5,
+                rotation: chestRotation
+            };
+            
+            // Build a very juicy custom inventory/loot-table for this chest
+            const potentialLoot = [
+                { id: 'std_red_potion', name: 'Red Potion', type: 'consumable', emoji: '❤️', heal: 40, value: 14, description: 'Restores 40 Health Points.' },
+                { id: 'std_gold_elixir', name: 'Gold Elixir', type: 'consumable', emoji: '🍵', heal: 100, value: 42, description: 'A golden elixir that fully restores health and vitality.' },
+                { id: 'std_green_herb', name: 'Green Herb', type: 'consumable', emoji: '🌿', heal: 15, value: 5, description: 'Restores 15 Health Points.' },
+                { id: 'std_iron_sword', name: 'Iron Sword', type: 'weapon', emoji: '🗡️', bonusAtk: 5, value: 84, description: '+5 Weapon attack power.' },
+                { id: 'std_steel_shield', name: 'Steel Shield', type: 'shield', emoji: '🛡️', bonusDef: 4, value: 70, description: '+4 Defense combat gear.' },
+                { id: 'std_lucky_ring', name: 'Lucky Charm Ring', type: 'passive', emoji: '💍', passiveAtk: 2, passiveDef: 2, passiveHp: 20, value: 150, description: 'Grants +2 ATK, +2 DEF, and +20 HP passively while resting in inventory.' },
+                // Ability Tomes!
+                { id: 'item_slime_leap', name: 'Tome of Slime Leap', emoji: '🐸', type: 'ability', attachedAbility: 'slime_leap', description: 'Equips Slime Leap skill into a Hotbar slot.', value: 50 },
+                { id: 'item_dash_strike', name: 'Ring of Dash Strike', emoji: '⚔️', type: 'ability', attachedAbility: 'dash_strike', description: 'Equips Dash Strike skill into a Hotbar slot.', value: 50 },
+                { id: 'item_blood_siphon', name: 'Amulet of Blood Siphon', emoji: '❤️', type: 'ability', attachedAbility: 'blood_siphon', description: 'Equips Blood Siphon skill into a Hotbar slot.', value: 50 },
+                { id: 'item_earth_wall', name: 'Rune of Earth Wall', emoji: '⛰️', type: 'ability', attachedAbility: 'earth_wall', description: 'Equips Earth Wall skill into a Hotbar slot.', value: 50 },
+                { id: 'item_plasma_orb', name: 'Tome of Plasma Orb', emoji: '⚡', type: 'ability', attachedAbility: 'plasma_orb', description: 'Equips Plasma Orb skill to discharge a multi-shot sine wave.', value: 75 }
+            ];
+            
+            // Randomly select 2-3 items for the chest's inventory
+            const chestInventory = [];
+            const numItems = Math.floor(Math.random() * 2) + 1; // 1 to 2 items
+            for (let i = 0; i < numItems; i++) {
+                const randomItem = { ...potentialLoot[Math.floor(Math.random() * potentialLoot.length)] };
+                // Ensure unique ID inside chest
+                randomItem.id = `chest_loot_${spawnPoint.id}_${i}`;
+                randomItem.count = 1;
+                ensureItemAbilityStats(randomItem); // Seed stats uniquely at instantiation
+                chestInventory.push(randomItem);
+            }
+            
+            const chestNPC = new NPC(this, this.map, mapCoords.x, mapCoords.y, npcOptions);
+            chestNPC.broadType = 'chest';
+            chestNPC.name = 'Treasure Chest';
+            chestNPC.characterData = {
+                name: 'Treasure Chest',
+                broadType: 'chest',
+                description: 'A glowing container full of premium loot.',
+                first_mes: 'The ancient padlock opens with a heavy creak! Inside, you find some items left behind by previous explorers.',
+                inventory: chestInventory
+            };
+            chestNPC.inventory = chestInventory;
+            this.gameObjects.push(chestNPC);
+            console.log(`Spawned procedural treasure chest at (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}) with ${chestInventory.length} items.`);
         }
 
         // Post-process ARAM specific NPCs and adjustments safely in aram.js
@@ -1727,6 +2103,129 @@ class GameEngine {
 
                     const enemy = new Enemy(this, this.map, mapCoords.x, mapCoords.y, enemyInstanceData);
                     enemy.spawnerId = spawnPoint.id || `spawner_${spawnPoint.x}_${spawnPoint.y}`;
+
+                    // NEW: Apply Item World stats adjustments and PoE modifiers!
+                    if (isItemWorld && this.activeItemWorld) {
+                        const slottedItem = this.activeItemWorld.slottedItem;
+                        const mapTier = this.activeItemWorld.mapTier;
+                        const activeModifiers = this.activeItemWorld.activeModifiers || [];
+
+                        enemy.stats.level = slottedItem.level;
+
+                        // Calculate simulated player reference stats
+                        let simulatedHp = 100;
+                        let simulatedAtk = 10;
+                        let simulatedDef = 5;
+                        for (let i = 1; i < slottedItem.level; i++) {
+                            simulatedHp = Math.floor(simulatedHp * 1.15) + 15;
+                            simulatedAtk = Math.floor(simulatedAtk * 1.12) + 2;
+                            simulatedDef = Math.floor(simulatedDef * 1.10) + 1;
+                        }
+
+                        let hpMult = 1.0;
+                        let atkMult = 1.0;
+                        let defAddition = 0;
+
+                        // Add tier multiplier
+                        if (mapTier === 'magic') { hpMult += 0.2; atkMult += 0.15; }
+                        else if (mapTier === 'rare') { hpMult += 0.5; atkMult += 0.4; }
+                        else if (mapTier === 'legendary') { hpMult += 1.0; atkMult += 0.8; }
+
+                        // Generate PoE Rare modifiers for non-bosses with 25% chance in Rare maps, 45% in Legendary maps
+                        enemy.poeModifiers = [];
+                        const rolledRareChance = Math.random();
+                        const targetRareChance = (mapTier === 'rare' ? 0.25 : (mapTier === 'legendary' ? 0.45 : 0.05));
+                        const isBoss = (enemy.spawnerId && enemy.spawnerId.includes('warden'));
+
+                        if (isBoss || rolledRareChance < targetRareChance) {
+                            enemy.isPoERare = true;
+                            // Pick 1-2 PoE-style modifiers
+                            const availablePoeMods = [
+                                { name: "Flame-touched", aura: "rgba(231, 76, 60, 0.35)", border: "#e74c3c", filter: "hue-rotate(-45deg) saturate(3.5)", particle: "#ff5722" },
+                                { name: "Frostweaver", aura: "rgba(52, 152, 219, 0.35)", border: "#3498db", filter: "hue-rotate(130deg) saturate(3) brightness(1.2)", particle: "#00bcd4" },
+                                { name: "Stormbringer", aura: "rgba(241, 196, 15, 0.35)", border: "#f1c40f", filter: "hue-rotate(45deg) saturate(3) brightness(1.1)", particle: "#ffeb3b" },
+                                { name: "Vampirish", aura: "rgba(155, 89, 182, 0.35)", border: "#9b59b6", filter: "hue-rotate(-110deg) saturate(2.5) brightness(0.8)", particle: "#e91e63" },
+                                { name: "Gargantuan", aura: "rgba(230, 126, 34, 0.35)", border: "#e67e22", scale: 1.5 },
+                                { name: "Steel-infused", aura: "rgba(149, 165, 166, 0.35)", border: "#95a5a6", filter: "grayscale(1) brightness(1.3)", particle: "#bdc3c7" }
+                            ];
+
+                            const count = isBoss ? 2 : (Math.random() < 0.3 ? 2 : 1);
+                            const shuffledPoe = [...availablePoeMods].sort(() => Math.random() - 0.5);
+                            const selectedPoe = shuffledPoe.slice(0, count);
+
+                            selectedPoe.forEach(pm => {
+                                enemy.poeModifiers.push(pm.name);
+                                if (pm.filter) enemy.colorTintFilter = pm.filter;
+                                if (pm.aura) enemy.poeAuraColor = pm.aura;
+                                if (pm.border) enemy.poeAuraBorderColor = pm.border;
+                                if (pm.particle) enemy.poeParticleColor = pm.particle;
+                                if (pm.scale) {
+                                    enemy.poeScale = pm.scale;
+                                    enemy.visualWidth = Math.round(enemy.visualWidth * pm.scale);
+                                    enemy.visualHeight = Math.round(enemy.visualHeight * pm.scale);
+                                    enemy.anchorOffsetX = Math.round(enemy.anchorOffsetX * pm.scale);
+                                    enemy.anchorOffsetY = Math.round(enemy.anchorOffsetY * pm.scale);
+                                    hpMult += 1.0;
+                                    defAddition += 3;
+                                }
+                            });
+                        }
+
+                        // Apply standard global Map Modifiers (from chaos_map_device.js)
+                        activeModifiers.forEach(mod => {
+                            if (mod.key === 'colossal_boss' && isBoss) {
+                                hpMult += 0.5;
+                                enemy.visualWidth = Math.round(enemy.visualWidth * 1.3);
+                                enemy.visualHeight = Math.round(enemy.visualHeight * 1.3);
+                                enemy.anchorOffsetX = Math.round(enemy.anchorOffsetX * 1.3);
+                                enemy.anchorOffsetY = Math.round(enemy.anchorOffsetY * 1.3);
+                                if (!enemy.poeModifiers.includes("Colossal")) {
+                                    enemy.poeModifiers.push("Colossal");
+                                }
+                            }
+                            if (mod.key === 'hardened_scales') {
+                                defAddition += mod.value; // +5 Def
+                            }
+                            if (mod.key === 'volatile_sludge') {
+                                if (enemy.poeModifiers.length === 0) {
+                                    enemy.poeModifiers.push("Volatile");
+                                }
+                                if (!enemy.poeAuraColor) {
+                                    enemy.poeAuraColor = "rgba(211, 84, 0, 0.2)";
+                                    enemy.poeAuraBorderColor = "#d35400";
+                                    enemy.poeParticleColor = "#ff5722";
+                                }
+                            }
+                        });
+
+                        enemy.stats.maxHp = Math.floor(simulatedHp * hpMult);
+                        enemy.stats.hp = enemy.stats.maxHp;
+                        enemy.stats.atk = Math.floor(simulatedAtk * atkMult);
+                        enemy.stats.def = Math.floor(simulatedDef + defAddition);
+
+                        // Customize Boss specific details
+                        if (isBoss) {
+                            enemy.name = `👹 Item Warden: ${slottedItem.name}`;
+                            enemy.stats.maxHp = Math.floor(enemy.stats.maxHp * 3.5);
+                            enemy.stats.hp = enemy.stats.maxHp;
+                            enemy.stats.atk = Math.floor(enemy.stats.atk * 1.5);
+                            enemy.stats.def = Math.floor(enemy.stats.def * 2.0);
+                            
+                            // Give boss giant visual presence
+                            enemy.visualWidth = 96;
+                            enemy.visualHeight = 96;
+                            enemy.anchorOffsetX = 48;
+                            enemy.anchorOffsetY = 96;
+                            enemy.poeScale = 1.5;
+                            enemy.poeAuraColor = "rgba(192, 57, 43, 0.5)";
+                            enemy.poeAuraBorderColor = "#c0392b";
+                            enemy.poeParticleColor = "#9b59b6";
+                            if (!enemy.colorTintFilter) {
+                                enemy.colorTintFilter = "hue-rotate(320deg) brightness(0.9) saturate(2)";
+                            }
+                        }
+                    }
+
                     this.gameObjects.push(enemy);
                     console.log(`Spawned enemy '${enemy.name}' from key '${enemyKey}' at map coords (${mapCoords.x.toFixed(2)}, ${mapCoords.y.toFixed(2)}).`);
                 }

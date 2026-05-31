@@ -59,19 +59,25 @@ class GameObject {
 
         // Deep clone options.collisionShape to prevent modifying the original object in the brush/template.
         this.collisionShape = options.collisionShape ? JSON.parse(JSON.stringify(options.collisionShape)) : null;
+        this.originalCollisionShape = options.collisionShape ? JSON.parse(JSON.stringify(options.collisionShape)) : null;
         
+        const isCustomSprite = (this.assetName && this.assetName.startsWith('pixel_sprite_')) || 
+                               (this.type && this.type.startsWith('pixel_sprite_')) ||
+                               (this.spritesheetIndex > 0 && this.map && this.map.runtimeSpritesheets && this.map.runtimeSpritesheets[this.spritesheetIndex] && this.map.runtimeSpritesheets[this.spritesheetIndex].isCustom);
+        const yOffsetToApply = isCustomSprite ? 0 : GLOBAL_COLLISION_Y_OFFSET;
+
         if (this.collisionShape) {
             if (this.collisionShape.type === 'rectangle') {
                 // If xOffset/yOffset are not provided in collisionShape, default to center horizontally & bottom align for feet-level collision.
                 this.collisionShape.xOffset = this.collisionShape.xOffset !== undefined ? this.collisionShape.xOffset : -this.collisionShape.width / 2;
                 // Default yOffset places top of collision box at anchor's Y. Then apply global offset.
-                this.collisionShape.yOffset = (this.collisionShape.yOffset !== undefined ? this.collisionShape.yOffset : -this.collisionShape.height) - GLOBAL_COLLISION_Y_OFFSET; 
+                this.collisionShape.yOffset = (this.collisionShape.yOffset !== undefined ? this.collisionShape.yOffset : -this.collisionShape.height) - yOffsetToApply; 
             } else if (this.collisionShape.type === 'polygon') {
                 // Apply global offset to all polygon vertices' y-coordinates.
                 // .map creates a new array, so this is safe for the cloned this.collisionShape.vertices
                 this.collisionShape.vertices = this.collisionShape.vertices.map(v => ({
                     x: v.x,
-                    y: v.y - GLOBAL_COLLISION_Y_OFFSET
+                    y: v.y - yOffsetToApply
                 }));
             }
         }
@@ -84,6 +90,8 @@ class GameObject {
 
         this.zIndex = options.zIndex !== undefined ? Number(options.zIndex) : 0;
         this.disableYSorting = options.disableYSorting !== undefined ? Boolean(options.disableYSorting) : false;
+        this.flippedX = options.flippedX !== undefined ? Boolean(options.flippedX) : false;
+        this.rotation = options.rotation !== undefined ? Number(options.rotation) : 0;
     }
 
     update(deltaTime) {
@@ -116,9 +124,15 @@ class GameObject {
         const anchorCanvasX = this.currentPixelX - viewOriginX;
         const anchorCanvasY = this.currentPixelY - viewOriginY;
 
-        // Calculate top-left for drawing the sprite based on its anchor point and visual dimensions
-        const spriteDrawX = anchorCanvasX - this.anchorOffsetX;
-        const spriteDrawY = anchorCanvasY - this.anchorOffsetY;
+        ctx.save();
+        ctx.translate(anchorCanvasX, anchorCanvasY);
+
+        if (this.rotation) {
+            ctx.rotate(this.rotation);
+        }
+        if (this.flippedX) {
+            ctx.scale(-1, 1);
+        }
 
         if (this.spriteSourceRect) {
             // Draw a portion of a spritesheet
@@ -128,8 +142,8 @@ class GameObject {
                 this.spriteSourceRect.y,    // Source Y from spritesheet
                 this.spriteSourceRect.width,// Source width from spritesheet
                 this.spriteSourceRect.height,// Source height from spritesheet
-                spriteDrawX,                // Destination X on canvas
-                spriteDrawY,                // Destination Y on canvas
+                -this.anchorOffsetX,        // Destination X relative to anchor
+                -this.anchorOffsetY,        // Destination Y relative to anchor
                 this.visualWidth,           // Destination width on canvas (can be scaled)
                 this.visualHeight           // Destination height on canvas (can be scaled)
             );
@@ -137,12 +151,14 @@ class GameObject {
             // Draw a full sprite (not from a spritesheet part, e.g. hero, standalone tree)
             ctx.drawImage(
                 this.sprite,
-                spriteDrawX,
-                spriteDrawY,
+                -this.anchorOffsetX,
+                -this.anchorOffsetY,
                 this.visualWidth,
                 this.visualHeight
             );
         }
+
+        ctx.restore();
 
         // Debug: Draw collision bounds
         // if (this.collidable && this.collisionShape) {

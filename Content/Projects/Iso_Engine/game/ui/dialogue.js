@@ -2,6 +2,7 @@
 // Supports pure bottom dialogue, floating slide-up panes, in-sync vendor inventories, gear inspect, and JSON quest lines.
 import NPC from '../entities/npc.js';
 import Enemy from '../entities/enemy.js';
+import { ensureItemAbilityStats } from '../combat/ability_system.js';
 
 // Global item definitions
 const BASE_ITEMS = {
@@ -979,22 +980,17 @@ class DialogueUI {
 
                     // Deliver to player bag
                     if (!player.inventory) player.inventory = [];
-                    const playerExisting = player.inventory.find(invIt => invIt.name === it.name);
+                    const isStackable = (it.type === 'consumable');
+                    const playerExisting = isStackable ? player.inventory.find(invIt => invIt.name === it.name) : null;
                     if (playerExisting) {
                         playerExisting.count++;
                     } else {
-                        player.inventory.push({
-                             id: `item_${Date.now()}_bought`,
-                             name: it.name,
-                             type: it.type,
-                             heal: it.heal || 0,
-                             bonusAtk: it.bonusAtk || 0,
-                             bonusDef: it.bonusDef || 0,
-                             description: it.description,
-                             value: it.value || Math.floor(it.cost * 0.7),
-                             count: 1,
-                             equipped: false
-                        });
+                        const newItem = { ...it };
+                        newItem.id = `item_${Date.now()}_bought_${Math.floor(Math.random() * 1000)}`;
+                        newItem.count = 1;
+                        newItem.equipped = false;
+                        ensureItemAbilityStats(newItem); // Instantiate stats
+                        player.inventory.push(newItem);
                     }
 
                     if (it.count <= 0) {
@@ -1039,10 +1035,14 @@ class DialogueUI {
             const statSpan = document.createElement('span');
             statSpan.style.fontSize = '0.9em';
             statSpan.style.color = '#2ecc71';
+            ensureItemAbilityStats(selVendorItem);
             let statText = '';
             if (selVendorItem.bonusAtk) statText = `+${selVendorItem.bonusAtk} ATK`;
             else if (selVendorItem.bonusDef) statText = `+${selVendorItem.bonusDef} DEF`;
             else if (selVendorItem.heal) statText = `+${selVendorItem.heal} HP`;
+            else if (selVendorItem.type === 'ability' || selVendorItem.attachedAbility) {
+                statText = `⏳ ${selVendorItem.cooldown}s CD | 📏 ${selVendorItem.range}px`;
+            }
             statSpan.textContent = statText;
 
             dNameRow.appendChild(nameSpan);
@@ -1082,22 +1082,17 @@ class DialogueUI {
 
                 // Deliver to player bag
                 if (!player.inventory) player.inventory = [];
-                const playerExisting = player.inventory.find(invIt => invIt.name === selVendorItem.name);
+                const isStackable = (selVendorItem.type === 'consumable');
+                const playerExisting = isStackable ? player.inventory.find(invIt => invIt.name === selVendorItem.name) : null;
                 if (playerExisting) {
                     playerExisting.count++;
                 } else {
-                    player.inventory.push({
-                         id: `item_${Date.now()}_bought`,
-                         name: selVendorItem.name,
-                         type: selVendorItem.type,
-                         heal: selVendorItem.heal || 0,
-                         bonusAtk: selVendorItem.bonusAtk || 0,
-                         bonusDef: selVendorItem.bonusDef || 0,
-                         description: selVendorItem.description,
-                         value: selVendorItem.value || Math.floor(selVendorItem.cost * 0.7),
-                         count: 1,
-                         equipped: false
-                    });
+                    const newItem = { ...selVendorItem };
+                    newItem.id = `item_${Date.now()}_bought_${Math.floor(Math.random() * 1000)}`;
+                    newItem.count = 1;
+                    newItem.equipped = false;
+                    ensureItemAbilityStats(newItem); // Instantiate stats
+                    player.inventory.push(newItem);
                 }
 
                 if (selVendorItem.count <= 0) {
@@ -1475,10 +1470,14 @@ class DialogueUI {
             const statSpan = document.createElement('span');
             statSpan.style.fontSize = '0.9em';
             statSpan.style.color = '#2ecc71';
+            ensureItemAbilityStats(selInspectItem);
             let statText = '';
             if (selInspectItem.bonusAtk) statText = `+${selInspectItem.bonusAtk} ATK`;
             else if (selInspectItem.bonusDef) statText = `+${selInspectItem.bonusDef} DEF`;
             else if (selInspectItem.heal) statText = `+${selInspectItem.heal} HP`;
+            else if (selInspectItem.type === 'ability' || selInspectItem.attachedAbility) {
+                statText = `⏳ ${selInspectItem.cooldown}s CD | 📏 ${selInspectItem.range}px`;
+            }
             statSpan.textContent = statText;
 
             dNameRow.appendChild(nameSpan);
@@ -1646,10 +1645,14 @@ class DialogueUI {
             const statSpan = document.createElement('span');
             statSpan.style.fontSize = '0.9em';
             statSpan.style.color = '#2ecc71';
+            ensureItemAbilityStats(selNpcItem);
             let statText = '';
             if (selNpcItem.bonusAtk) statText = `+${selNpcItem.bonusAtk} ATK`;
             else if (selNpcItem.bonusDef) statText = `+${selNpcItem.bonusDef} DEF`;
             else if (selNpcItem.heal) statText = `+${selNpcItem.heal} HP`;
+            else if (selNpcItem.type === 'ability' || selNpcItem.attachedAbility) {
+                statText = `⏳ ${selNpcItem.cooldown}s CD | 📏 ${selNpcItem.range}px`;
+            }
             statSpan.textContent = statText;
 
             dNameRow.appendChild(nameSpan);
@@ -1681,7 +1684,8 @@ class DialogueUI {
                     
                     // Add item to player inventory or increase its count
                     if (!player.inventory) player.inventory = [];
-                    const playerExisting = player.inventory.find(invIt => invIt.name === selNpcItem.name);
+                    const isStackable = (selNpcItem.type === 'consumable');
+                    const playerExisting = isStackable ? player.inventory.find(invIt => invIt.name === selNpcItem.name) : null;
                     
                     const itemToGive = { ...selNpcItem };
                     if (playerExisting) {
@@ -1690,6 +1694,7 @@ class DialogueUI {
                         itemToGive.id = 'chest_item_' + Date.now() + Math.floor(Math.random() * 1000);
                         itemToGive.count = 1;
                         itemToGive.equipped = false;
+                        ensureItemAbilityStats(itemToGive); // Instantiate stats
                         player.inventory.push(itemToGive);
                     }
                     

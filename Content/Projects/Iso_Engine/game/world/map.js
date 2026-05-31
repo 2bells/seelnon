@@ -31,6 +31,7 @@ class GameMap {
         // Spritesheet data
         this.customSpritesheets = []; // Stores {name, dataUrl} for serialization
         this.runtimeSpritesheets = []; // Stores loaded HTMLImageElements
+        this.customPaletteDefinitions = {}; // Stores custom created sprites & room prefabs
 
         // Layer data for custom shapes
         this.collisionLayerData = []; // Polygons: [{ id: string, vertices: [{x,y}, ...] }, ...]
@@ -293,6 +294,30 @@ class GameMap {
                 if (drawX + this.tileWidth < 0 || drawX - this.tileWidth > cullCanvasWidth || 
                     drawY + this.tileHeight * 4 < 0 || drawY - this.tileHeight > cullCanvasHeight) {
                     continue; 
+                }
+
+                // --- Fog of War check ---
+                let isExplored = true;
+                if (this.engine.activeItemWorld) {
+                    const aiw = this.engine.activeItemWorld;
+                    const explored = aiw.exploredTiles || {};
+                    isExplored = explored[`${x},${y}`] === true;
+                }
+
+                if (!isExplored) {
+                    // Draw a solid dark isometric diamond block over unexplored tiles representing fog of war
+                    ctx.save();
+                    ctx.translate(drawX, drawY);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-this.halfTileWidth, this.halfTileHeight);
+                    ctx.lineTo(0, this.tileHeight);
+                    ctx.lineTo(this.halfTileWidth, this.halfTileHeight);
+                    ctx.closePath();
+                    ctx.fillStyle = '#0f0c0a'; // pitch black void diamond
+                    ctx.fill();
+                    ctx.restore();
+                    continue; // Skip the standard sprite layer rendering of tile!
                 }
 
                 // --- Tile Drawing ---
@@ -773,8 +798,12 @@ class GameMap {
         if (tileX < 0 || tileX >= this.width || tileY < 0 || tileY >= this.height) {
             return true; // Out of bounds
         }
-        if (this.tiles[tileY] === undefined || this.tiles[tileY][tileX] === undefined || this.tiles[tileY][tileX] === 0) {
-            return true; // Abyss / Empty tile
+        if (this.tiles[tileY] === undefined || this.tiles[tileY][tileX] === undefined) {
+            return true; // Out of bounds
+        }
+        const tVal = this.tiles[tileY][tileX];
+        if (tVal === 0 || tVal === 13 || tVal === 14 || tVal === 37 || tVal === 38 || tVal === 39 || tVal === 40) {
+            return true; // Abyss / Empty tile or Water
         }
 
         // 2. Check against custom collision layer polygons
@@ -838,13 +867,14 @@ class GameMap {
     isValTile(tx, ty) {
         if (tx < 0 || tx >= this.width || ty < 0 || ty >= this.height) return false;
         if (this.tiles[ty] === undefined || this.tiles[ty][tx] === undefined) return false;
-        if (this.tiles[ty][tx] === 0) return false;
+        const tVal = this.tiles[ty][tx];
+        if (tVal === 0 || tVal === 13 || tVal === 14 || tVal === 37 || tVal === 38 || tVal === 39 || tVal === 40) return false; // Abyss or Water
 
         // Block static collidables standing on this exact tile (like Towers)
         if (this.engine && this.engine.gameObjects) {
             for (const obj of this.engine.gameObjects) {
                 if (obj.collidable && obj.type !== 'player' && obj.type !== 'enemy' && obj.constructor.name !== 'Player' && obj.constructor.name !== 'Enemy') {
-                    if (Math.round(obj.mapX) === tx && Math.round(obj.mapY) === ty) {
+                    if (Math.floor(obj.mapX) === tx && Math.floor(obj.mapY) === ty) {
                         return false;
                     }
                 }
@@ -933,6 +963,15 @@ class GameMap {
                 const ny = current.y + dir.y;
 
                 if (nx < 0 || nx >= this.width || ny < 0 || ny >= this.height) continue;
+
+                // Prevent diagonal corner cutting (inner corner clipping) to avoid getting stuck on adjacent obstacle corners
+                if (dir.x !== 0 && dir.y !== 0) {
+                    const cardinal1Val = this.isValTile(current.x + dir.x, current.y);
+                    const cardinal2Val = this.isValTile(current.x, current.y + dir.y);
+                    if (!cardinal1Val || !cardinal2Val) {
+                        continue; // Block if either of the shared cardinal neighbors is non-walkable
+                    }
+                }
 
                 const isEnd = (nx === endTX && ny === endTY);
                 if (!isEnd && !this.isValTile(nx, ny)) continue;
@@ -1040,6 +1079,7 @@ class GameMap {
             height: this.height,
             tiles: cleanObj(this.tiles), 
             customSpritesheets: cleanObj(this.customSpritesheets),
+            customPaletteDefinitions: cleanObj(this.customPaletteDefinitions || {}),
             tileDefinitions: cleanObj(this.tileDefinitions), 
             nextTileId: this.nextTileId,
             objectLayersData: serializableObjectLayersData, 
@@ -1107,6 +1147,7 @@ class GameMap {
             this.height = data.height;
             this.tiles = JSON.parse(JSON.stringify(data.tiles)); 
             this.currentMapName = data.mapName || null; 
+            this.customPaletteDefinitions = data.customPaletteDefinitions || {}; 
 
             this.tileDefinitions = {};
             this.nextTileId = 1; 

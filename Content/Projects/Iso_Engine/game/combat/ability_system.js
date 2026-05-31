@@ -186,6 +186,74 @@ export const DEFAULT_ABILITIES = {
     }
 };
 
+export function ensureItemAbilityStats(item) {
+    if (!item) return;
+    if (item.type !== 'ability' && !item.attachedAbility) return;
+    
+    // Default values
+    let defaultBaseDmg = 12;
+    let defaultAtkScale = 1.2;
+    let defaultCooldown = 2.0;
+    let defaultRange = 120;
+    let defaultDefScale = 0;
+    
+    const abId = item.attachedAbility || item.id;
+    if (abId === 'slime_leap') {
+        defaultBaseDmg = 12;
+        defaultAtkScale = 1.2;
+        defaultCooldown = 2.0;
+        defaultRange = 120;
+    } else if (abId === 'dash_strike') {
+        defaultBaseDmg = 15;
+        defaultAtkScale = 1.5;
+        defaultCooldown = 3.0;
+        defaultRange = 150;
+    } else if (abId === 'blood_siphon') {
+        defaultBaseDmg = 28;
+        defaultAtkScale = 2.0;
+        defaultCooldown = 5.0;
+        defaultRange = 100;
+    } else if (abId === 'earth_wall') {
+        defaultBaseDmg = 6;
+        defaultAtkScale = 0.5;
+        defaultCooldown = 6.0;
+        defaultRange = 100;
+        defaultDefScale = 0.8;
+    } else if (abId === 'plasma_orb') {
+        defaultBaseDmg = 15;
+        defaultAtkScale = 1.0;
+        defaultCooldown = 1.5;
+        defaultRange = 220;
+    } else {
+        // Fallback for custom creator abilities
+        const all = getAllAbilities();
+        const ab = all[abId];
+        if (ab) {
+            defaultBaseDmg = (ab.active && ab.active.damage) || 12;
+            defaultAtkScale = 1.0;
+            defaultCooldown = ab.cooldown || 3.0;
+            defaultRange = ab.range || 120;
+        }
+    }
+    
+    if (item.baseDmg === undefined) item.baseDmg = defaultBaseDmg;
+    if (item.atkScale === undefined) item.atkScale = defaultAtkScale;
+    if (item.cooldown === undefined) {
+        // Looted differently! Add some variance: -20% to +10% cooldown (lower = better)
+        const mult = 0.8 + Math.random() * 0.3; // 0.8 to 1.1
+        item.cooldown = Number((defaultCooldown * mult).toFixed(1));
+    }
+    if (item.range === undefined) {
+        // Looted differently! Add variance: +0% to +30% range
+        const mult = 1.0 + Math.random() * 0.3; // 1.0 to 1.3
+        item.range = Math.floor(defaultRange * mult);
+    }
+    if (defaultDefScale && item.defScale === undefined) {
+        item.defScale = defaultDefScale;
+    }
+    if (!item.level) item.level = 1;
+}
+
 const RPG_ABILITY_STORAGE_KEY = 'rpg_custom_abilities';
 
 // Get all custom + default abilities
@@ -430,7 +498,23 @@ export function executeAbility(caster, abilityId, getTargetPosFn) {
     }
 
     // Put on cooldown
-    caster.abilityCooldowns[abilityId] = ability.cooldown;
+    let finalCooldown = ability.cooldown;
+    if (caster === caster.engine.player && caster.inventory) {
+        const equippedItem = caster.inventory.find(i => i.type === 'ability' && i.equipped && (i.attachedAbility === abilityId || i.id === abilityId));
+        if (equippedItem) {
+            ensureItemAbilityStats(equippedItem);
+            if (equippedItem.cooldown !== undefined) {
+                finalCooldown = equippedItem.cooldown;
+            }
+        }
+    }
+    if (caster === caster.engine.player && caster.engine.activeItemWorld && caster.engine.activeItemWorld.activeModifiers) {
+        const hasMana = caster.engine.activeItemWorld.activeModifiers.some(mod => mod.key === 'mana_overflow');
+        if (hasMana) {
+            finalCooldown *= 0.5; // 50% shorter cooldowns from Overflowing Mana!
+        }
+    }
+    caster.abilityCooldowns[abilityId] = finalCooldown;
 
     // Set caster variables
     caster.activeAbility = ability;
@@ -758,16 +842,40 @@ function triggerHitboxScanAndResolve(caster, ability) {
             }
 
             const abId = ability.id;
-            if (abId === 'slime_leap') {
-                dmg = Math.floor(12 + 1.2 * casterAtk);
-            } else if (abId === 'dash_strike') {
-                dmg = Math.floor(15 + 1.5 * casterAtk);
-            } else if (abId === 'blood_siphon') {
-                dmg = Math.floor(28 + 2.0 * casterAtk);
-            } else if (abId === 'earth_wall') {
-                dmg = Math.floor(6 + 0.5 * casterAtk + 0.8 * casterDef);
+            let equippedItem = null;
+            if (caster === caster.engine.player && caster.inventory) {
+                equippedItem = caster.inventory.find(i => i.type === 'ability' && i.equipped && (i.attachedAbility === abId || i.id === abId));
+            }
+
+            if (equippedItem) {
+                ensureItemAbilityStats(equippedItem);
+                const baseD = equippedItem.baseDmg !== undefined ? equippedItem.baseDmg : (abId === 'slime_leap' ? 12 : abId === 'dash_strike' ? 15 : abId === 'blood_siphon' ? 28 : abId === 'earth_wall' ? 6 : (ability.active.damage || 10));
+                const scaleA = equippedItem.atkScale !== undefined ? equippedItem.atkScale : (abId === 'slime_leap' ? 1.2 : abId === 'dash_strike' ? 1.5 : abId === 'blood_siphon' ? 2.0 : abId === 'earth_wall' ? 0.5 : 1.0);
+                dmg = Math.floor(baseD + scaleA * casterAtk);
+                if (abId === 'earth_wall') {
+                    const scaleD = equippedItem.defScale !== undefined ? equippedItem.defScale : 0.8;
+                    dmg += Math.floor(scaleD * casterDef);
+                }
             } else {
-                dmg = Math.floor(dmg + 1.0 * casterAtk);
+                if (abId === 'slime_leap') {
+                    dmg = Math.floor(12 + 1.2 * casterAtk);
+                } else if (abId === 'dash_strike') {
+                    dmg = Math.floor(15 + 1.5 * casterAtk);
+                } else if (abId === 'blood_siphon') {
+                    dmg = Math.floor(28 + 2.0 * casterAtk);
+                } else if (abId === 'earth_wall') {
+                    dmg = Math.floor(6 + 0.5 * casterAtk + 0.8 * casterDef);
+                } else {
+                    dmg = Math.floor(dmg + 1.0 * casterAtk);
+                }
+            }
+
+            // Apply scale multiplier for Overflowing Mana (+50% skill damage!)
+            if (caster === caster.engine.player && caster.engine.activeItemWorld && caster.engine.activeItemWorld.activeModifiers) {
+                const hasMana = caster.engine.activeItemWorld.activeModifiers.some(mod => mod.key === 'mana_overflow');
+                if (hasMana) {
+                    dmg = Math.floor(dmg * 1.5);
+                }
             }
 
             if (typeof victim.takeDamage === 'function') {

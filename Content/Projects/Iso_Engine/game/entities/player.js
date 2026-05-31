@@ -6,7 +6,7 @@ import Enemy from './enemy.js';
 import NPC from './npc.js';
 import { GLOBAL_COLLISION_Y_OFFSET } from './gameObject.js'; // Import the constant
 import { FloatingTextEffect, ParticleSplatterEffect, SwordSlashEffect } from '../combat/effects.js';
-import { updateAbilityCycle, getAllAbilities } from '../combat/ability_system.js';
+import { updateAbilityCycle, getAllAbilities, ensureItemAbilityStats } from '../combat/ability_system.js';
 import { Emitter } from '../combat/projectiles.js';
 
 // Removed PLAYER_DIAMOND_HALF_WIDTH and PLAYER_DIAMOND_HALF_HEIGHT
@@ -228,6 +228,16 @@ class Player {
             if (item.bonusAtk) item.bonusAtk = Math.floor(item.bonusAtk * 1.2) + 1;
             if (item.bonusDef) item.bonusDef = Math.floor(item.bonusDef * 1.2) + 1;
             if (item.heal) item.heal = Math.floor(item.heal * 1.2) + 5;
+
+            // Ability progression (12 Base + 120% ATK boosted with levels)
+            if (item.type === 'ability' || item.attachedAbility) {
+                ensureItemAbilityStats(item);
+                item.baseDmg = Math.floor(item.baseDmg * 1.15) + 2;
+                item.atkScale = Number((item.atkScale + 0.05).toFixed(2));
+                if (item.defScale !== undefined) {
+                    item.defScale = Number((item.defScale + 0.05).toFixed(2));
+                }
+            }
 
             const FloatingTextEffectClass = FloatingTextEffect || null;
             if (FloatingTextEffectClass && this.engine) {
@@ -464,8 +474,21 @@ class Player {
                 inputMovementY /= length;
             }
 
-            totalMovementX += inputMovementX * this.pixelSpeed * deltaTime;
-            totalMovementY += inputMovementY * this.pixelSpeed * deltaTime;
+            let activeSpeed = this.pixelSpeed;
+            if (this.engine.activeItemWorld && this.engine.activeItemWorld.activeModifiers) {
+                let speedMult = 1.0;
+                const activeMods = this.engine.activeItemWorld.activeModifiers;
+                if (activeMods.some(mod => mod.key === 'player_speed')) {
+                    speedMult += 0.25;
+                }
+                if (activeMods.some(mod => mod.key === 'gravity')) {
+                    speedMult -= 0.15;
+                }
+                activeSpeed *= speedMult;
+            }
+
+            totalMovementX += inputMovementX * activeSpeed * deltaTime;
+            totalMovementY += inputMovementY * activeSpeed * deltaTime;
         }
 
         if (totalMovementX !== 0 || totalMovementY !== 0) {

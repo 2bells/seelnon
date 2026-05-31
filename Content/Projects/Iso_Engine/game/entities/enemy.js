@@ -86,9 +86,6 @@ class Enemy extends GameObject {
         // Custom ability paint flash timers
         this.selfDamageFlashTimer = 0;
         this.healingFlashTimer = 0;
-
-        // Grace period on spawn to avoid taking early overlapping ticks / stray auto-attack hits
-        this.spawnGraceTimer = 0.5;
     }
 
     update(deltaTime) {
@@ -123,9 +120,6 @@ class Enemy extends GameObject {
 
         // Update timers
         this.attackTimer = Math.max(0, this.attackTimer - deltaTime);
-        if (this.spawnGraceTimer > 0) {
-            this.spawnGraceTimer = Math.max(0, this.spawnGraceTimer - deltaTime);
-        }
         if (this.landingSquashTimer > 0) {
             this.landingSquashTimer = Math.max(0, this.landingSquashTimer - deltaTime);
         }
@@ -156,13 +150,12 @@ class Enemy extends GameObject {
             if (this.aiState !== AI_STATE.RETURNING && this.aiState !== AI_STATE.DEAD) {
                 this.aiState = AI_STATE.RETURNING;
                  // If returning, ensure collidable is true (in case it was mid-jump)
-                 if (this.attackSubState !== 'none') {
-                     this.collidable = true;
-                     this.visualYOffset = 0;
-                     this.attackSubState = 'none';
-                     this.attackAction.targetPos = null;
-                     this.attackTimer = 1.0; // Cooldown on cancellation
-                 }
+                if (this.attackSubState !== 'none') {
+                    this.collidable = true;
+                    this.visualYOffset = 0;
+                    this.attackSubState = 'none';
+                    this.attackAction.targetPos = null;
+                }
             }
         } else {
              const dx = target.currentPixelX - this.currentPixelX;
@@ -292,7 +285,6 @@ class Enemy extends GameObject {
                 this.attackAction.targetPos = null;
                 this.collidable = true; // Ensure collision is re-enabled if attack is cancelled
                 this.visualYOffset = 0;
-                this.attackTimer = 1.0; // Cooldown on cancellation
             }
             return; // Don't run other state transition checks
         }
@@ -301,9 +293,7 @@ class Enemy extends GameObject {
             case AI_STATE.IDLE:
             case AI_STATE.RETURNING:
                 if (targetDistSq < this.stats.aggroRange ** 2) {
-                    if (distToSpawnSq <= this.leashRangeSq) {
-                        this.aiState = AI_STATE.CHASING;
-                    }
+                    this.aiState = AI_STATE.CHASING;
                 }
                 break;
             case AI_STATE.CHASING:
@@ -770,7 +760,6 @@ class Enemy extends GameObject {
     
     takeDamage(amount) {
         if (this.aiState === AI_STATE.DEAD) return; // Can't take damage while dead
-        if (this.spawnGraceTimer && this.spawnGraceTimer > 0) return; // Immune during spawn grace
 
         this.stats.hp -= amount;
         
@@ -804,6 +793,44 @@ class Enemy extends GameObject {
     }
 
     die() {
+        // Volatile Sludge modifier: explode on death!
+        const itemWorldState = this.engine.activeItemWorld;
+        if (itemWorldState && Array.isArray(itemWorldState.activeModifiers)) {
+            const hasVolatile = itemWorldState.activeModifiers.some(mod => mod.key === 'volatile_sludge');
+            if (hasVolatile) {
+                // Spawn a gorgeous fire ring effect
+                if (typeof ParticleSplatterEffect !== 'undefined') {
+                    this.engine.addEffect(new ParticleSplatterEffect(this.engine, {
+                        position: { x: this.currentPixelX, y: this.currentPixelY },
+                        color: '#ff4500', // Fire orange
+                        count: 36,
+                        duration: 0.9,
+                        spread: 4.0
+                    }));
+                }
+                
+                // Deal 5 damage to player if they are close!
+                if (this.player && this.player.stats && this.player.stats.hp > 0) {
+                    const dx = this.player.currentPixelX - this.currentPixelX;
+                    const dy = this.player.currentPixelY - this.currentPixelY;
+                    const distSq = dx*dx + dy*dy;
+                    const explosionRadius = 90; // pixels
+                    if (distSq < explosionRadius * explosionRadius) {
+                        this.player.takeDamage(5); // Deal 5 volatile explosion damage!
+                        
+                        // Add floating red text for feedback
+                        if (typeof FloatingTextEffect !== 'undefined') {
+                            this.engine.addEffect(new FloatingTextEffect(this.engine, {
+                                text: "💥 Volatile Sludge! -5 HP",
+                                position: { x: this.player.currentPixelX, y: this.player.currentPixelY - 40 },
+                                color: '#e74c3c'
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+
         this.aiState = AI_STATE.DEAD;
         this.collidable = false; // Become non-collidable
         this.respawnTimer = this.RESPAWN_TIME;
@@ -834,10 +861,19 @@ class Enemy extends GameObject {
         const isHostile = !this.friendly;
 
         if (this.player && isHostile && isSlimeOrWarden) {
-            const goldReward = Math.floor(Math.random() * 8) + 12; // 12-19 gold
+            let finalGoldReward = Math.floor(Math.random() * 8) + 12; // 12-19 gold
+            
+            const itemWorldState = this.engine.activeItemWorld;
+            if (itemWorldState && Array.isArray(itemWorldState.activeModifiers)) {
+                const hasGoldFever = itemWorldState.activeModifiers.some(mod => mod.key === 'gold_fever');
+                if (hasGoldFever) {
+                    finalGoldReward *= 2; // Tome of Midas double gold drops!
+                }
+            }
+
+            const goldReward = finalGoldReward;
             const xpReward = Math.floor(Math.random() * 6) + 15; // 15-20 XP
 
-            const itemWorldState = this.engine.activeItemWorld;
             const isAlreadyFullyCleared = itemWorldState && (itemWorldState.isFinishedAndCleared || itemWorldState.enemiesKilled >= itemWorldState.enemiesTotal);
 
             if (!isAlreadyFullyCleared) {
@@ -914,7 +950,6 @@ class Enemy extends GameObject {
         this.aiState = AI_STATE.IDLE;
         this.collidable = true; // Make sure it's collidable on respawn
         this.visualYOffset = 0;
-        this.spawnGraceTimer = 0.5; // Re-apply spawn grace on respawn
     }
 
     applyKnockback(direction, force) {
@@ -940,6 +975,42 @@ class Enemy extends GameObject {
     
         const anchorCanvasX = this.currentPixelX - viewOriginX;
         const anchorCanvasY = (this.currentPixelY + this.visualYOffset) - viewOriginY;
+
+        // Draw PoE-style colored ground circlet/aura
+        if (this.poeAuraColor) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(anchorCanvasX, anchorCanvasY - 4, 18 * (this.poeScale || 1.0), 9 * (this.poeScale || 1.0), 0, 0, Math.PI * 2);
+            ctx.fillStyle = this.poeAuraColor;
+            ctx.fill();
+            ctx.strokeStyle = this.poeAuraBorderColor || '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Draw trailing PoE elemental particle orbits!
+        if (this.poeModifiers && this.poeModifiers.length > 0) {
+            ctx.save();
+            const numParticles = 3;
+            const radiusX = 14 * (this.poeScale || 1.0);
+            const radiusY = 7 * (this.poeScale || 1.0);
+            const time = (this.engine.lastTimestamp || Date.now()) / 400; // time factor
+            
+            for (let i = 0; i < numParticles; i++) {
+                const angle = time + (i * Math.PI * 2 / numParticles);
+                const px = anchorCanvasX + Math.cos(angle) * radiusX;
+                const py = anchorCanvasY - 12 - Math.sin(angle) * radiusY + Math.sin(time * 3 + i) * 3; // orbit slightly above floor
+                
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fillStyle = this.poeParticleColor || '#ffd700';
+                ctx.shadowColor = this.poeParticleColor || '#ffd700';
+                ctx.shadowBlur = 4;
+                ctx.fill();
+            }
+            ctx.restore();
+        }
     
         let scaleX = 1.0;
         let scaleY = 1.0;
@@ -982,6 +1053,8 @@ class Enemy extends GameObject {
         ctx.save();
         if (this.friendly === true) {
             ctx.filter = 'hue-rotate(240deg)';
+        } else if (this.colorTintFilter) {
+            ctx.filter = this.colorTintFilter;
         }
         if (this.spriteSourceRect) {
             ctx.drawImage(
@@ -1113,6 +1186,15 @@ class Enemy extends GameObject {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText(this.name, drawX, drawY - nameYOffset);
+
+        // Render PoE golden sub-details
+        if (this.poeModifiers && this.poeModifiers.length > 0) {
+            ctx.save();
+            ctx.fillStyle = '#f1c40f'; // Golden rare color
+            ctx.font = 'bold 8px Arial';
+            ctx.fillText(this.poeModifiers.join(', '), drawX, drawY - nameYOffset - 11);
+            ctx.restore();
+        }
     }
 }
 

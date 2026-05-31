@@ -14,7 +14,8 @@
 #rpg-item-editor-panel,
 #rpg-event-editor-panel,
 #rpg-bank-editor-panel,
-#rpg-chaos-map-device-panel {
+#rpg-chaos-map-device-panel,
+#rpg-sprite-configurator-panel {
     position: absolute;
     background-color: rgba(50, 40, 30, 0.90);
     border: 1px solid #8C6D56;
@@ -132,6 +133,18 @@
     width: 350px;
     height: 480px;
     max-height: calc(100% - 70px);
+}
+
+#rpg-sprite-configurator-panel {
+    left: 10px;
+    top: 50px;
+    width: 350px;
+    max-height: calc(100% - 70px);
+    z-index: 40005;
+}
+
+#rpg-sprite-configurator-panel select {
+    width: 100%;
 }
 
 #rpg-projectile-editor-panel {
@@ -320,7 +333,8 @@
 #rpg-projectile-editor-panel select,
 #rpg-item-editor-panel select,
 #rpg-event-editor-panel select,
-#rpg-bank-editor-panel select {
+#rpg-bank-editor-panel select,
+#rpg-sprite-configurator-panel select {
     background-color: #3B322C;
     color: #EFEBE0;
     border: 1px solid #8C6D56;
@@ -342,7 +356,8 @@
 #rpg-projectile-editor-panel select:hover,
 #rpg-item-editor-panel select:hover,
 #rpg-event-editor-panel select:hover,
-#rpg-bank-editor-panel select:hover {
+#rpg-bank-editor-panel select:hover,
+#rpg-sprite-configurator-panel select:hover {
     border-color: #A07D65;
     background-color: #4A3C30;
 }
@@ -365,7 +380,9 @@
 #rpg-abilities-editor-panel textarea,
 #rpg-projectile-editor-panel input[type="text"],
 #rpg-projectile-editor-panel input[type="number"],
-#rpg-projectile-editor-panel textarea {
+#rpg-projectile-editor-panel textarea,
+#rpg-sprite-configurator-panel input[type="text"],
+#rpg-sprite-configurator-panel input[type="number"] {
     background-color: #3B322C !important;
     color: #EFEBE0 !important;
     border: 1px solid #8C6D56 !important;
@@ -375,6 +392,7 @@
     font-size: 0.9em !important;
     box-sizing: border-box !important;
     outline: none !important;
+    width: 100%;
 }
 
 #rpg-quest-editor-panel input[type="text"]:focus,
