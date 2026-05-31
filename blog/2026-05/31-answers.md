@@ -1,7 +1,7 @@
 # Answers
 
-My previous entry had featured a fun one, because I felt like this will be a fun topic, but didn't have energy to type it out, so I did a 'magician's out'. 
-But in reality even if answers are subjective, why not tell them anyway.
+My previous entry featured a fun one, because I felt like this will be an interesting topic, but didn't have energy to type it out, so I did a 'magician's out'. 
+But in reality, even if all answers are subjective, why not tell them anyway.
 
 ![img](https://i.pinimg.com/736x/d1/f5/7b/d1f57b3982291e226080ca263782fea9.jpg)
 
