@@ -76,7 +76,7 @@ So... it sounds cheesy but... Actual meaning of life is to make universe to fall
 
 Yeah... I know I know... it is very... romantic and cheesy... but listen... let me explain with logic and how I understand it myself. 
 
-Disclaimer: I have no idea how much iteration of 'creation levels' it goes upward: my way of saying 'universe' could be just a tiny box that runs my personal simulation. So it could be VERY distant God-like creation entity, but could be just 'your girl watching a livestream while eating doritos and your task it so give her good content, because you are in her box'
+Disclaimer: I have no idea how much iteration of 'creation levels' it goes upward: my way of saying 'universe' could be just a tiny box that runs my personal simulation. So it could be VERY distant God-like creation entity, but could be just 'your girl watching a livestream while eating doritos and your task is to give her good content, because you are in her box'
 
 But stages are separated on:
 - playing hide and seek with the universe
