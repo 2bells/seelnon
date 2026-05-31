@@ -1,6 +1,6 @@
 # Answers
 
-My previous entry featured a fun one, because I felt like this will be an interesting topic, but didn't have energy to type it out, so I did a 'magician's out'. 
+My previous entry featured a fun one, because I felt like this will be an interesting topic, but didn't have the energy to type it out, so I did a 'magician's out'. 
 But in reality, even if all answers are subjective, why not tell them anyway.
 
 ![img](https://i.pinimg.com/736x/d1/f5/7b/d1f57b3982291e226080ca263782fea9.jpg)
@@ -108,7 +108,7 @@ So more or less additional meanings of human life include:
 
 ## Reshaping
 
-This is relatively a big one. While having a physical vessel that is bound and alive, a lot of big changes could be done to the soul. One of those even includes full destruction of the soul, because your body will still have memories, so you will be able to renew it [kind of like going to hell to wash yourself, but reversed]. Same happens when your soul progresses too much and harbors too much concepts for your own good and you need to hit reset, but you can't really do it without a proper vessel. So depending on your idea of your 'identity' as it saves within the soul, you will be reincarnated, live a VERY VERY specific life that will get you to a point when you destroy your own soul. It is like ego, but a spiritual one. Because, in some cases it could be a big bottleneck for your soul progression. So going back to the concept of 'debugging', because you are not here to debug stuff for someone... that 'someone' is 'you'. Also you might not have fun anymore, because you've been there, seen everything, so you nuke your soul to start a new playthrough++ to feel like 'oh shit... once again I'm surrounded by joy'.
+This is relatively a big one. While having a physical vessel that is bound and alive, a lot of big changes could be done to the soul. One of those even includes full destruction of the soul, because your body will still have imprinted memories of your soul, so you will be able to renew it. [Kind of like going to hell to wash yourself, but reversed]. Same happens when your soul progresses too much and harbors too much concepts for your own good and you need to hit reset, but you can't really do it without a proper vessel. So depending on your idea of your 'identity' as it saves within the soul, you will be reincarnated, live a VERY VERY specific life that will get you to a point when you destroy your own soul. It is like ego, but a spiritual one. Because, in some cases it could be a big bottleneck for your soul progression. So going back to the concept of 'debugging', because you are not here to debug stuff for someone... that 'someone' is 'you'. Also you might not have fun anymore, because you've been there, seen everything, so you nuke your soul to start a new playthrough++ to feel like 'oh shit... once again I'm surrounded by joy'.
 
 TL:DR - don't be an asshole.
 
