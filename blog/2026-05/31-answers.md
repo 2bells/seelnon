@@ -46,7 +46,7 @@ So you are a greater being, that solved the game, got bored, started imagining: 
 
 From the experiment of blacksmith or any of your story... there is an interesting phenomena... when you 'transfer yourself' into a blacksmith, you stop being you... You can even notice the shift. If you transfer yourself into the 'bird eye's view' or 'guy who approached the blacksmith'... you can shift, but can't be both at the same time. PoV is fully restricted.
 
-You can say that: "brother, it is just the way brain has developed itself, because to survive it only needs YOUR PoV to begin with. It is impossible for your brain to have any other experience to begin with, so you won't be able to imagine things that are outside of evolved capabilities of your brain, because tissues do not support the feature, you dumbass."
+You can say that: "brother, it is just the way brain has developed itself, because to survive it only needs YOUR PoV. It is impossible for your brain to have any other experience to begin with, so you won't be able to imagine things that are outside of evolved capabilities of your brain, because tissues do not support the feature, you dumbass."
 
 But there is no proof of any other subjective experience or PoV existing, only yours. And a lot of ancient texts are kind of just saying 'God is within you, all answers within'... So you are that PoV at the moment. There is only you, always has been. The rest is just 'information' from active/inactive PoVs.
  
