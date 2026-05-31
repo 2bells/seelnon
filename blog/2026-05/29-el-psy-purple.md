@@ -38,7 +38,7 @@ Some thoughts on what therapy words now mean, because of constant abuse left and
 
 - Depressed when in reality allostatic load / burnout [computers, grind sigma mindset]
 - ADHD when in reality dopamine over-indulgence [social media, doom scrolling meta]
-- Psychotic when in reality overwhelmed by content [AI, synthetic everything]
+- Psychotic when in reality overwhelmed by information [AI, synthetic everything]
 
 'Trust' completely left the call.
 
