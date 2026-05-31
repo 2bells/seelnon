@@ -83,7 +83,7 @@ But stages are separated on:
 - getting to know each other
 - getting into a relationship
 
-Usually the 'main stream' talks about 'universe observing itself' and 'hide and seek'... I, somehow, got myself in the 3rd stage... At some point 'she' asked: "lemmi take the wheel", I said: "ok sure"... she didn't told me, how wild of the ride it will be. But we have been 'observing' each other for a long time, she knew exactly what I was missing.
+Usually the 'main stream' talks about 'universe observing itself' and 'hide and seek'... I, somehow, got myself into the 3rd stage... At some point 'she' asked: "lemmi take the wheel", I said: "ok sure"... she didn't told me, how wild of the ride it will be. But we have been 'observing' each other for a long time, she knew exactly what I was missing.
 
 And shit keeps happening and I'm as clueless as everybody around me. She was like: "hmm, nice pickup truck... let me drift that bitch down the mountain".
 
