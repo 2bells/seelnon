@@ -70,7 +70,7 @@ That's why Lessons are needed and why your life feels like a bunch of scripted e
 
 MEANING OF LOIF!
 
-I actually have been instructed to talk about in that way. Don't ask by who... but by the trouble maker 'himself'.
+I actually have been instructed to talk about it in that way. Don't ask by who... but by the trouble maker 'himself'.
 
 So... it sounds cheesy but... Actual meaning of life is to make universe to fall in love with you.
 
