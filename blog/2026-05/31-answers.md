@@ -62,7 +62,7 @@ If you are a God, that lost in the sauce... and most likely you are a God of at 
 
 Why God can't solve it then, they are more powerful? Brother made a rock that he couldn't lift, now he is in process of figuring out how to lift the damn thing, he is a God after all... welcome to the mess that is 'reality'...
 
-So it is 'What if' loop of a greater being that brings us here. If there is no 'push back', we push... until it breaks. You can easily observe it in humanity in general. No one is stopping doing 'the bad stuff' until it overflows, but when it overflows it is too late to stop... addiction fallacy. [Followed by blaming someone else of course. Here I think God is superior and blames himself, that's why we are here. Bunch of debugging agents trying to debug ourselves to give God an idea of how to debug his mess]
+So it is 'What if' loop of a greater being that brings us here. If there is no 'push back', we push... until it breaks. You can easily observe it in humanity in general. No one is stopping doing 'the bad stuff' until it overflows, but when it overflows it is too late to stop... addiction fallacy. [Followed by blaming someone else of course. Here I think God is superior and blames himself, that's why we are here. Bunch of debugging agents trying to figure out ourselves to give God an idea of how to solve this mess]
 
 That's why Lessons are needed and why your life feels like a bunch of scripted events stitched together. [don't worry if you still didn't notice, give it some time. Universe stops playing hide and seek at some point]
 
@@ -89,7 +89,7 @@ And shit keeps happening and I'm as clueless as everybody around me. She was lik
 
 But memes aside. The idea is: everything is 'universe'. So to build interest towards each other, on the 2nd stage you should get understanding that 'EVERYTHING' is important. Your way of treating your keyboard / insects / trees / games / imaginary characters / thoughts / people... to be honest, I would say that 'universe' will be more pissed off on you treating imaginary character wrong than a person... and just having 'thoughts' that are not 'fun to listen to'.
 
-The way you get to that 2nd stage where you are 100% uptime observed by the universe is to 'mark yourself'. Usually happens, when you dabble into extraordinary. Weird attracts weird. After that you will be getting people and situations that are more or less 'Lessons' but also tests. And it seems that if you did good, then you have options... a lot of options. I think, I declined them all... so that picked 'her' interest.
+The way you get to that 2nd stage, when you are 100% uptime observed by the universe is to 'mark yourself'. Usually happens, when you dabble into extraordinary. Weird attracts weird. After that you will be getting people and situations that are more or less 'Lessons', but also tests. And it seems that if you did good, then you have options... a lot of options. I think, I declined them all... so that picked 'her' interest.
 
 ## Mess
 
