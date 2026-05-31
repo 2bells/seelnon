@@ -50,16 +50,24 @@ class Enemy extends GameObject {
         this.landingSquashTimer = 0; // Elastic squash & stretch rebound on landing
         this.hasDealtDamage = false; // Per-attack flag
 
+        const isItemWorld = this.map && this.map.currentMapName && this.map.currentMapName.startsWith('ItemWorld');
+        this.isItemWorld = isItemWorld;
+
         // Ensure stats have defaults
         this.stats.aggroRange = this.stats.aggroRange || 200;
+        if (isItemWorld) {
+            // Cap aggro range on procedural maps so they act as territory-based guardians
+            this.stats.aggroRange = Math.min(this.stats.aggroRange, 160);
+        }
+        
         this.stats.attackRange = 120; // 120px allows launching beautiful, dynamic leaps
         this.stats.attackCooldown = this.stats.attackCooldown || 2;
         this.stats.speed = this.stats.speed || 80;
 
         this.spawnPoint = { x: this.currentPixelX, y: this.currentPixelY };
-        this.leashRangeSq = Infinity; // Standard waves on ARAM never leash!
+        this.leashRangeSq = isItemWorld ? (240 * 240) : Infinity; // Leash to spawn territory on ItemWorld maps
         
-        this.collisionRadius = 12; // For dynamic collision checks
+        this.collisionRadius = isItemWorld ? 9 : 12; // For dynamic collision checks
 
         // Stuck detection and rough pathfinding
         this.stuckTimer = 0;
@@ -78,6 +86,9 @@ class Enemy extends GameObject {
         // Custom ability paint flash timers
         this.selfDamageFlashTimer = 0;
         this.healingFlashTimer = 0;
+
+        // Grace period on spawn to avoid taking early overlapping ticks / stray auto-attack hits
+        this.spawnGraceTimer = 0.5;
     }
 
     update(deltaTime) {
@@ -98,8 +109,23 @@ class Enemy extends GameObject {
             return; // Do nothing else if dead
         }
 
+        // Proximity Wake-Up Optimization:
+        // Skip AI tick, pathfinding, and expensive static collision checks (which iterate through all map gameObjects)
+        // when the enemy is outside the active screen wake-up radius of the player (700px).
+        if (this.player) {
+            const pdx = this.player.currentPixelX - this.currentPixelX;
+            const pdy = this.player.currentPixelY - this.currentPixelY;
+            const distSq = pdx * pdx + pdy * pdy;
+            if (distSq > 700 * 700) {
+                return; // Sleep
+            }
+        }
+
         // Update timers
         this.attackTimer = Math.max(0, this.attackTimer - deltaTime);
+        if (this.spawnGraceTimer > 0) {
+            this.spawnGraceTimer = Math.max(0, this.spawnGraceTimer - deltaTime);
+        }
         if (this.landingSquashTimer > 0) {
             this.landingSquashTimer = Math.max(0, this.landingSquashTimer - deltaTime);
         }
@@ -130,12 +156,13 @@ class Enemy extends GameObject {
             if (this.aiState !== AI_STATE.RETURNING && this.aiState !== AI_STATE.DEAD) {
                 this.aiState = AI_STATE.RETURNING;
                  // If returning, ensure collidable is true (in case it was mid-jump)
-                if (this.attackSubState !== 'none') {
-                    this.collidable = true;
-                    this.visualYOffset = 0;
-                    this.attackSubState = 'none';
-                    this.attackAction.targetPos = null;
-                }
+                 if (this.attackSubState !== 'none') {
+                     this.collidable = true;
+                     this.visualYOffset = 0;
+                     this.attackSubState = 'none';
+                     this.attackAction.targetPos = null;
+                     this.attackTimer = 1.0; // Cooldown on cancellation
+                 }
             }
         } else {
              const dx = target.currentPixelX - this.currentPixelX;
@@ -265,6 +292,7 @@ class Enemy extends GameObject {
                 this.attackAction.targetPos = null;
                 this.collidable = true; // Ensure collision is re-enabled if attack is cancelled
                 this.visualYOffset = 0;
+                this.attackTimer = 1.0; // Cooldown on cancellation
             }
             return; // Don't run other state transition checks
         }
@@ -273,7 +301,9 @@ class Enemy extends GameObject {
             case AI_STATE.IDLE:
             case AI_STATE.RETURNING:
                 if (targetDistSq < this.stats.aggroRange ** 2) {
-                    this.aiState = AI_STATE.CHASING;
+                    if (distToSpawnSq <= this.leashRangeSq) {
+                        this.aiState = AI_STATE.CHASING;
+                    }
                 }
                 break;
             case AI_STATE.CHASING:
@@ -302,13 +332,12 @@ class Enemy extends GameObject {
         // Performance & Combat Clustering Optimization:
         // Skip pathfinding and wiggling/stuck-recalculations entirely when chasing and close to target.
         // Slimes in combat have leaps and abilities to get out and can slide around each other cleanly.
-        if (this.aiState === AI_STATE.CHASING && this.currentTarget) {
+        if (this.aiState === AI_STATE.CHASING && this.currentTarget && !this.currentPath) {
             const tdx = targetX - this.currentPixelX;
             const tdy = targetY - this.currentPixelY;
             const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
-            if (distToTarget < 180) {
+            if (distToTarget < 80) {
                 this.stuckTimer = 0;
-                this.currentPath = null;
                 return { tx: targetX, ty: targetY };
             }
         }
@@ -453,6 +482,11 @@ class Enemy extends GameObject {
 
         switch (this.aiState) {
             case AI_STATE.IDLE:
+                if (this.isItemWorld) {
+                    // On ItemWorld maps, idle monsters just stay near their spawn point and guard it
+                    this.currentPath = null;
+                    break;
+                }
                 let marchX = -320;
                 let marchY = 528;
                 if (this.engine && this.engine.map && this.engine.map.spawnPointsData) {
@@ -736,6 +770,7 @@ class Enemy extends GameObject {
     
     takeDamage(amount) {
         if (this.aiState === AI_STATE.DEAD) return; // Can't take damage while dead
+        if (this.spawnGraceTimer && this.spawnGraceTimer > 0) return; // Immune during spawn grace
 
         this.stats.hp -= amount;
         
@@ -879,6 +914,7 @@ class Enemy extends GameObject {
         this.aiState = AI_STATE.IDLE;
         this.collidable = true; // Make sure it's collidable on respawn
         this.visualYOffset = 0;
+        this.spawnGraceTimer = 0.5; // Re-apply spawn grace on respawn
     }
 
     applyKnockback(direction, force) {

@@ -50,7 +50,8 @@ class GameObject {
         this.anchorOffsetX = options.anchorOffsetX !== undefined ? options.anchorOffsetX : this.visualWidth / 2;
         this.anchorOffsetY = options.anchorOffsetY !== undefined ? options.anchorOffsetY : this.visualHeight;
 
-        this.collidable = options.collidable || false;
+        this.layerKey = options.layerKey || null;
+        this.collidable = !!options.collidable;
         
         // collisionShape: 
         // { type: 'rectangle', width, height, xOffset, yOffset } (offsets relative to anchor)
