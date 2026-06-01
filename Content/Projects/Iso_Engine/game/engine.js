@@ -6,6 +6,7 @@ import GameMap from './world/map.js';
 import Player from './entities/player.js';
 import NPC from './entities/npc.js'; // Future
 import Enemy from './entities/enemy.js';
+import { PsychologicalEnemy } from './entities/psychological_enemy.js';
 import { GLOBAL_COLLISION_Y_OFFSET } from './entities/gameObject.js';
 import EditorManager from './editor/editor_manager.js';
 import { SPAWN_TYPES } from './editor/map_editor.js';
@@ -69,6 +70,7 @@ class GameEngine {
             npcSpritesheet: './game/assets/npc_spritesheet_64x64_6frames.png',
             note_icon: './game/assets/note_icon.png',
             enemy_slime: './game/assets/enemy_slime.png',
+            enemy_sprite: './game/assets/enemy_sprite.png',
         };
         this.assetsLoaded = false;
         this.gameObjects = []; // This will now be populated by the map's runtimeGameObjects
@@ -87,7 +89,13 @@ class GameEngine {
         this.gameLoop = this.gameLoop.bind(this);
         this._handleKeyDown = this._handleKeyDown.bind(this);
         this._handleKeyUp = this._handleKeyUp.bind(this);
+        this.rivalActive = false;
+        this.rivalHudCollapsed = false;
+        this.savedRivalStats = null;
+        this.rivalInstance = null;
+
         window.engine = this;
+        this.setupRivalBackpackButton();
     }
 
     addEffect(effect) {
@@ -130,6 +138,7 @@ class GameEngine {
                 loadImage(this.assetPaths.npcSpritesheet),
                 loadImage(this.assetPaths.note_icon),
                 loadImage(this.assetPaths.enemy_slime),
+                loadImage(this.assetPaths.enemy_sprite),
             ]);
             this.assets.hero = loadedAssets[0];
             this.assets.tree = loadedAssets[1];
@@ -140,6 +149,7 @@ class GameEngine {
             this.assets.npcSpritesheet = loadedAssets[6];
             this.assets.note_icon = loadedAssets[7];
             this.assets.enemy_slime = loadedAssets[8];
+            this.assets.enemy_sprite = loadedAssets[9];
 
             this.assetsLoaded = true;
             console.log("All game assets loaded successfully.");
@@ -169,6 +179,199 @@ class GameEngine {
 
     zoomOut() {
         this.setZoom(this.zoomLevel - 0.1);
+    }
+
+    setupRivalBackpackButton() {
+        let btn = document.getElementById('rpg-rival-backpack-btn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'rpg-rival-backpack-btn';
+            btn.title = "Rival Champion Spawner / Stats";
+            
+            // Brutalist medieval styling matching other HUD elements
+            btn.style.position = 'absolute';
+            btn.style.top = '15px';
+            btn.style.right = '15px';
+            btn.style.width = '42px';
+            btn.style.height = '42px';
+            btn.style.backgroundColor = '#8C6D56';
+            btn.style.border = '3px solid #5A4B3E';
+            btn.style.borderRadius = '6px';
+            btn.style.fontSize = '20px';
+            btn.style.cursor = 'pointer';
+            btn.style.boxShadow = '3px 3px 0px rgba(0,0,0,0.4)';
+            btn.style.zIndex = '40003';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.color = '#EFEBE0';
+            btn.style.userSelect = 'none';
+            btn.innerHTML = '💀';
+            
+            const container = document.getElementById('rpg-canvas-container');
+            if (container) {
+                container.appendChild(btn);
+            }
+        }
+
+        // Hook click handler
+        const self = this;
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+
+            // Check if there is an active/alive rival in the game world
+            const rival = self.gameObjects.find(obj => obj instanceof PsychologicalEnemy);
+            const alive = rival && rival.stats && rival.stats.hp > 0 && rival.aiState !== 'dead';
+
+            if (!alive) {
+                self.spawnRival();
+            } else {
+                // Toggle collapsed state
+                self.rivalHudCollapsed = !self.rivalHudCollapsed;
+                // Redraw or hide/toggle display of the stats part on the HUD
+                rival.showRivalHUD();
+                rival.syncRivalHUD();
+            }
+        };
+
+        this.updateRivalButtonState();
+    }
+
+    updateRivalButtonState() {
+        const btn = document.getElementById('rpg-rival-backpack-btn');
+        if (!btn) return;
+
+        // Check if there is an active/alive rival in the game world
+        const rival = this.gameObjects.find(obj => obj instanceof PsychologicalEnemy);
+        const alive = rival && rival.stats && rival.stats.hp > 0 && rival.aiState !== 'dead';
+
+        if (alive) {
+            this.rivalActive = true;
+            this.rivalInstance = rival;
+            
+            // Pressed/active state: red bg with a skull or pressed with dark brown
+            btn.style.backgroundColor = '#a82c2c';
+            btn.style.borderColor = '#2C1D16';
+            btn.style.boxShadow = 'inset 2px 2px 5px rgba(0,0,0,0.6)';
+        } else {
+            this.rivalActive = false;
+            this.rivalInstance = null;
+            
+            // Un-toggled/inactive state: standard leather brown
+            btn.style.backgroundColor = '#8C6D56';
+            btn.style.borderColor = '#5A4B3E';
+            btn.style.boxShadow = '3px 3px 0px rgba(0,0,0,0.4)';
+        }
+    }
+
+    spawnRival() {
+        // Double check no active rival exists
+        const oldRival = this.gameObjects.find(obj => obj instanceof PsychologicalEnemy);
+        if (oldRival && oldRival.stats && oldRival.stats.hp > 0 && oldRival.aiState !== 'dead') {
+            return;
+        }
+
+        // Clean up any old dead rival instances first
+        this.gameObjects = this.gameObjects.filter(obj => !(obj instanceof PsychologicalEnemy));
+
+        let spawnX = 10.0;
+        let spawnY = 4.5;
+        
+        // Find his tower to spawn him near/mirror the player
+        const enemyTower = this.gameObjects.find(obj => obj.id === 'tower_enemy_2') || 
+                           this.gameObjects.find(obj => obj.id === 'tower_enemy_1') || 
+                           this.gameObjects.find(obj => obj.type === 'tower_enemy' || (obj.id && obj.id.includes('tower_enemy')));
+        
+        if (enemyTower) {
+            // Spawn next to his tower. 1.5 map range avoids being stuck in the 1.3 tower collision radius.
+            spawnX = enemyTower.mapX - 1.5;
+            spawnY = enemyTower.mapY;
+        } else if (this.player) {
+            if (this.map && this.map.name !== 'aram') {
+                spawnX = this.player.mapX + 2;
+                spawnY = this.player.mapY;
+            } else {
+                // If ARAM but player is far away from default spawn, spawn near the player
+                const dx = this.player.mapX - spawnX;
+                const dy = this.player.mapY - spawnY;
+                if (dx * dx + dy * dy > 12 * 12) {
+                    spawnX = this.player.mapX + 2;
+                    spawnY = this.player.mapY;
+                }
+            }
+        }
+
+        let rivalData;
+        if (this.savedRivalStats) {
+            rivalData = {
+                name: "Rival Champion",
+                stats: {
+                    level: this.savedRivalStats.level,
+                    hp: this.savedRivalStats.maxHp,
+                    maxHp: this.savedRivalStats.maxHp,
+                    atk: this.savedRivalStats.atk,
+                    def: this.savedRivalStats.def,
+                    speed: this.savedRivalStats.speed || 82,
+                    exp: this.savedRivalStats.exp || 0,
+                    nextLevelExp: this.savedRivalStats.nextLevelExp || 100
+                }
+            };
+        } else {
+            const diffLevel = this.aramDifficultyLevel || 1;
+            const playerLvl = this.player && this.player.stats ? this.player.stats.level : 1;
+            let scaleFactor;
+            if (diffLevel >= 2) {
+                scaleFactor = 1 + (diffLevel - 1) * 0.70 + (playerLvl - 1) * 0.30;
+            } else {
+                scaleFactor = 1 + (diffLevel - 1) * 0.35 + (playerLvl - 1) * 0.15;
+            }
+
+            rivalData = {
+                name: "Rival Champion",
+                stats: {
+                    level: Math.round(playerLvl + 1 + (diffLevel - 1) * 2),
+                    hp: Math.round(180 * scaleFactor),
+                    maxHp: Math.round(180 * scaleFactor),
+                    atk: Math.round(13 * scaleFactor),
+                    def: Math.round(6 * scaleFactor),
+                    speed: 82,
+                    exp: 0,
+                    nextLevelExp: 100
+                }
+            };
+        }
+
+        const rival = new PsychologicalEnemy(this, this.map, spawnX, spawnY, rivalData);
+        rival.friendly = false;
+
+        // Restore saved levels and stats and exp
+        if (this.savedRivalStats) {
+            rival.stats.level = this.savedRivalStats.level;
+            rival.stats.exp = this.savedRivalStats.exp || 0;
+            rival.stats.nextLevelExp = this.savedRivalStats.nextLevelExp || 100;
+        }
+
+        this.gameObjects.push(rival);
+        this.rivalActive = true;
+        this.rivalInstance = rival;
+
+        // Show HUD
+        rival.showRivalHUD();
+        rival.syncRivalHUD();
+
+        // Update button visual
+        this.updateRivalButtonState();
+
+        // Spawn announcement FloatingText
+        if (typeof FloatingTextEffect !== 'undefined') {
+            this.addEffect(new FloatingTextEffect(this, {
+                text: "💀 RIVAL CHAMPION APPEARS! 💀",
+                position: { x: rival.currentPixelX, y: rival.currentPixelY - 70 },
+                color: '#e74c3c'
+            }));
+        }
+        console.log(`Spawned Psychological Rival Champion programmatically at coords (${spawnX}, ${spawnY}).`);
     }
 
     _initInputHandlers() {
@@ -255,13 +458,19 @@ class GameEngine {
     }
 
     castPlayerAbility(slotIndex) {
-        if (!this.player || this.isPausedForEditor || this.isEditing) return;
+        if (!this.player || this.isPausedForEditor || this.isEditing || this.player.isDead) return;
         const abilityId = this.player.equippedAbilities[slotIndex];
         if (!abilityId) return;
 
         // Find matching equipped item to read customized stats
         let equippedItem = null;
-        if (this.player.inventory) {
+        if (this.player.inventory && Array.isArray(this.player.equippedCustomItemIds)) {
+            const instId = this.player.equippedCustomItemIds[slotIndex];
+            if (instId) {
+                equippedItem = this.player.inventory.find(i => i.instanceId === instId);
+            }
+        }
+        if (!equippedItem && this.player.inventory) {
             equippedItem = this.player.inventory.find(i => i.type === 'ability' && i.equipped && (i.attachedAbility === abilityId || i.id === abilityId));
         }
 
@@ -302,6 +511,7 @@ class GameEngine {
                         obj.type === 'tower_enemy' ||
                         obj.broadType === 'enemy' ||
                         obj.broadType === 'turret' ||
+                        obj instanceof Enemy ||
                         (obj.constructor && obj.constructor.name === 'Enemy') ||
                         (obj.name && (
                             obj.name.toLowerCase().includes('scruffy') ||
@@ -349,7 +559,7 @@ class GameEngine {
             return { x: mouseWorldX, y: mouseWorldY };
         };
 
-        executeAbility(this.player, abilityId, () => getTargetPos(ability));
+        executeAbility(this.player, abilityId, () => getTargetPos(ability), slotIndex);
     }
 
     checkForInteractables() {
@@ -777,6 +987,7 @@ class GameEngine {
         if (this.inventoryUI) {
             this.inventoryUI.updateHotbar(deltaTime);
         }
+        this.updateRivalButtonState();
         this.render();
 
         requestAnimationFrame(this.gameLoop);
@@ -812,13 +1023,24 @@ class GameEngine {
                 radius = Math.max(1, radius - 2);
             }
 
-            for (let dy = -radius; dy <= radius; dy++) {
-                for (let dx = -radius; dx <= radius; dx++) {
-                    if (dx * dx + dy * dy <= radius * radius) {
+            const outerRadius = radius + 1.5;
+
+            for (let dy = -Math.ceil(outerRadius); dy <= Math.ceil(outerRadius); dy++) {
+                for (let dx = -Math.ceil(outerRadius); dx <= Math.ceil(outerRadius); dx++) {
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq <= outerRadius * outerRadius) {
                         const tx = px + dx;
                         const ty = py + dy;
                         if (tx >= 0 && tx < this.map.width && ty >= 0 && ty < this.map.height) {
-                            aiw.exploredTiles[`${tx},${ty}`] = true;
+                            const key = `${tx},${ty}`;
+                            const isInner = distSq <= radius * radius;
+                            if (isInner) {
+                                aiw.exploredTiles[key] = 2; // Fully Explored (bright)
+                            } else {
+                                if (aiw.exploredTiles[key] !== 2) {
+                                    aiw.exploredTiles[key] = 1; // Semi-Explored falloff (50% opacity shadow)
+                                }
+                            }
                         }
                     }
                 }
@@ -1399,6 +1621,35 @@ class GameEngine {
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(`HP: ${this.player.stats.hp} / ${this.player.stats.maxHp}`, hpBarX + hpBarWidth / 2, hpBarY + hpBarHeight / 2);
 
+        // If dead, draw full-screen overlay banner
+        if (this.player.isDead) {
+            this.ctx.save();
+            
+            // Translucent dark red screen overlay
+            this.ctx.fillStyle = 'rgba(12, 0, 0, 0.65)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // Large pulsing brutalist RED text
+            this.ctx.fillStyle = '#ff7675';
+            this.ctx.font = '900 36px Arial, sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            const pulse = 1.0 + Math.sin(performance.now() / 150) * 0.04;
+            this.ctx.save();
+            this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2 - 25);
+            this.ctx.scale(pulse, pulse);
+            this.ctx.fillText("DEFEATED", 0, 0);
+            this.ctx.restore();
+
+            // Subtitle countdown
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = 'bold 15px Courier New, monospace';
+            const remaining = Math.max(0, this.player.respawnTimer).toFixed(1);
+            this.ctx.fillText(`RESPAWNING IN ${remaining}s`, this.canvas.width / 2, this.canvas.height / 2 + 25);
+
+            this.ctx.restore();
+        }
     }
 
     renderInteractPrompt() {
@@ -1687,6 +1938,17 @@ class GameEngine {
             return false;
         }
 
+        // Clean up any stale rival psychology HUD overlays from previous active maps
+        const staleRivalHud = document.getElementById('rival-psychology-hud');
+        if (staleRivalHud) {
+            staleRivalHud.remove();
+        }
+
+        // Remove old PsychologicalEnemy from gameObjects list since we are changing maps to avoid duplicates and references to stale maps
+        this.gameObjects = this.gameObjects.filter(obj => !(obj instanceof PsychologicalEnemy));
+        this.rivalActive = false;
+        this.rivalInstance = null;
+
         // --- MAP IS LOADED, NOW UPDATE ENGINE/PLAYER STATE ---
 
         // Find spawn point and determine new player coordinates
@@ -1757,6 +2019,7 @@ class GameEngine {
         await this._initializeEnemies();
 
         console.log(`Successfully loaded map: ${this.map.currentMapName}`);
+        this.setupRivalBackpackButton();
         return true;
     }
 
@@ -2037,13 +2300,22 @@ class GameEngine {
             return;
         }
 
-        // Clear existing enemies before spawning new ones
-        this.gameObjects = this.gameObjects.filter(obj => !(obj instanceof Enemy));
+        // Clear existing enemies before spawning new ones, but keep any programmatically spawned PsychologicalEnemy (Rival Champion)
+        this.gameObjects = this.gameObjects.filter(obj => {
+            if (obj instanceof PsychologicalEnemy) return true;
+            return !(obj instanceof Enemy);
+        });
 
         const enemySpawns = this.map.spawnPointsData.filter(sp => sp.type === SPAWN_TYPES.ENEMY);
         console.log(`Found ${enemySpawns.length} enemy spawn points.`);
         
         const isItemWorld = this.map && this.map.currentMapName && this.map.currentMapName.startsWith('ItemWorld');
+
+        // Skip spawning default map enemies from spawn points on ARAM maps as they are spawned dynamically by waves
+        if (isARAMMap(this.map)) {
+            console.log("ARAM map detected: Skipping default/preset enemy spawning from map spawn points.");
+            return;
+        }
 
         const doSpawn = () => {
             // Verify current map hasn't changed during the delay

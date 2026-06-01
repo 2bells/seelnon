@@ -2,13 +2,14 @@
 
 import NPC from '../entities/npc.js';
 import Enemy from '../entities/enemy.js';
+import { PsychologicalEnemy } from '../entities/psychological_enemy.js';
 import { FloatingTextEffect, TowerOrbEffect } from '../combat/effects.js';
 import { enemy_types } from '../../data/enemy-list.js';
 
 export function isARAMMap(map) {
     if (!map) return false;
     const name = (map.currentMapName || "").toLowerCase();
-    return name === "2_2_map" || name === "aram_level2_map";
+    return name === "2_2_map" || name === "aram_level2_map" || name.includes("2_2_map") || name.includes("aram");
 }
 
 export function checkAndSpawnARAMNPCs(engine) {
@@ -88,6 +89,10 @@ export function checkAndSpawnARAMNPCs(engine) {
         engine.gameObjects.push(scruffyNpc);
         console.log(`Spawned Merchant Scruffy programmatically at map coords (${scruffyMapCoords.x}, ${scruffyMapCoords.y}).`);
     }
+
+    // 3. Programmatically spawn the rival champion (PsychologicalEnemy) on the Red Faction side of the ARAM bridge
+    // DISABLED: Player plays alone by default. Spawning is fully controlled by the player using the top-right backpack/skull button.
+    console.log("Rival auto-spawning disabled. Press skull button to spawn him manually.");
 }
 
 export function scaleARAMEnemyStats(engine, enemyInstanceData) {

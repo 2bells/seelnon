@@ -228,20 +228,25 @@ class GameMap {
 
     // Center camera on a specific world pixel coordinate with optional smoothing interpolation
     centerOn(targetWorldX, targetWorldY, effectiveCanvasWidth, effectiveCanvasHeight, instant = false) {
+        // Shift camera targetY upwards so that the player is drawn at 6/10th (60%) from the top of the viewport instead of dead center (50%)
+        // This is done by focusing the camera slightly further up (subtracting 1/10th of effectiveCanvasHeight from the targetWorldY)
+        const offsetByHeight = effectiveCanvasHeight ? (effectiveCanvasHeight * 0.1) : 0;
+        const adjustedTargetWorldY = targetWorldY - offsetByHeight;
+
         if (instant || (this.cameraX === 0 && this.cameraY === 0)) {
             this.cameraX = targetWorldX;
-            this.cameraY = targetWorldY;
+            this.cameraY = adjustedTargetWorldY;
         } else {
             // Apply a nice smooth interpolation (lerp).
             // This dampens high frequency jittering and sudden collision-resolver snaps.
             const lerpFactor = 0.12; // 12% toward target per frame (very smooth feel)
             const dx = targetWorldX - this.cameraX;
-            const dy = targetWorldY - this.cameraY;
+            const dy = adjustedTargetWorldY - this.cameraY;
             
             // If the jump is extremely large (e.g. teleports/respawns), snap instantly to avoid massive scrolling
             if (Math.abs(dx) > 300 || Math.abs(dy) > 300) {
                 this.cameraX = targetWorldX;
-                this.cameraY = targetWorldY;
+                this.cameraY = adjustedTargetWorldY;
             } else {
                 this.cameraX += dx * lerpFactor;
                 this.cameraY += dy * lerpFactor;
@@ -298,10 +303,24 @@ class GameMap {
 
                 // --- Fog of War check ---
                 let isExplored = true;
+                let fogOpacity = 0.0;
                 if (this.engine.activeItemWorld) {
                     const aiw = this.engine.activeItemWorld;
                     const explored = aiw.exploredTiles || {};
-                    isExplored = explored[`${x},${y}`] === true;
+                    const tileVal = explored[`${x},${y}`];
+                    if (tileVal === 2) {
+                        isExplored = true;
+                        fogOpacity = 0.0;
+                    } else if (tileVal === 1) {
+                        isExplored = true;
+                        fogOpacity = 0.5; // 50% opacity falloff
+                    } else if (tileVal === true) {
+                        isExplored = true;
+                        fogOpacity = 0.0;
+                    } else {
+                        isExplored = false;
+                        fogOpacity = 1.0;
+                    }
                 }
 
                 if (!isExplored) {
@@ -357,6 +376,21 @@ class GameMap {
                         imgRenderWidth, imgRenderHeight 
                     );
                 }
+
+                // --- Shadow Overlay for semi-explored tile ---
+                if (fogOpacity > 0 && fogOpacity < 1.0) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-this.halfTileWidth, this.halfTileHeight);
+                    ctx.lineTo(0, this.tileHeight);
+                    ctx.lineTo(this.halfTileWidth, this.halfTileHeight);
+                    ctx.closePath();
+                    ctx.fillStyle = `rgba(15, 12, 10, ${fogOpacity})`;
+                    ctx.fill();
+                    ctx.restore();
+                }
+
                 ctx.restore(); 
             }
         }
@@ -874,7 +908,12 @@ class GameMap {
         if (this.engine && this.engine.gameObjects) {
             for (const obj of this.engine.gameObjects) {
                 if (obj.collidable && obj.type !== 'player' && obj.type !== 'enemy' && obj.constructor.name !== 'Player' && obj.constructor.name !== 'Enemy') {
-                    if (Math.floor(obj.mapX) === tx && Math.floor(obj.mapY) === ty) {
+                    if (obj.type && obj.type.includes('tower')) {
+                        // Sentry towers are large; block 1.3 grid coordinate neighborhood around them
+                        if (Math.abs(obj.mapX - tx) < 1.3 && Math.abs(obj.mapY - ty) < 1.3) {
+                            return false;
+                        }
+                    } else if (Math.floor(obj.mapX) === tx && Math.floor(obj.mapY) === ty) {
                         return false;
                     }
                 }

@@ -65,6 +65,7 @@ class Player {
         this.lungeTarget = null;
         this.abilityCooldowns = {};
         this.equippedAbilities = [null, null, null, null, null];
+        this.equippedCustomItemIds = [null, null, null, null, null];
         this.emitters = [];
         this.rebuildEmitters();
 
@@ -87,6 +88,9 @@ class Player {
         
         // Circular collision
         this.collisionRadius = 10; // Radius of the player's circular collision
+
+        this.isDead = false;
+        this.respawnTimer = 0;
 
         this.hookInventoryPush();
     }
@@ -117,18 +121,28 @@ class Player {
     autoEquipAbilities() {
         if (!Array.isArray(this._inventory) || !Array.isArray(this.equippedAbilities)) return;
         
+        if (!Array.isArray(this.equippedCustomItemIds)) {
+            this.equippedCustomItemIds = [null, null, null, null, null];
+        }
+        
         let changed = false;
         this._inventory.forEach(item => {
-            const abIdentifier = item.attachedAbility || (item.type === 'emitter' ? item.id : null);
-            if (item && (item.type === 'ability' || item.type === 'emitter') && abIdentifier && !item.equipped && !item.explicitlyUnequipped) {
-                // Find empty slot
-                const emptySlotIndex = this.equippedAbilities.indexOf(null);
-                if (emptySlotIndex !== -1) {
-                    // Equip it!
-                    this.equippedAbilities[emptySlotIndex] = abIdentifier;
-                    item.equipped = true;
-                    item.equippedSlot = emptySlotIndex;
-                    changed = true;
+            if (item && (item.type === 'ability' || item.type === 'emitter')) {
+                if (!item.instanceId) {
+                    item.instanceId = 'inst_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                }
+                const abIdentifier = item.attachedAbility || (item.type === 'emitter' ? item.id : null);
+                if (abIdentifier && !item.equipped && !item.explicitlyUnequipped) {
+                    // Find empty slot
+                    const emptySlotIndex = this.equippedAbilities.indexOf(null);
+                    if (emptySlotIndex !== -1) {
+                        // Equip it!
+                        this.equippedAbilities[emptySlotIndex] = abIdentifier;
+                        this.equippedCustomItemIds[emptySlotIndex] = item.instanceId;
+                        item.equipped = true;
+                        item.equippedSlot = emptySlotIndex;
+                        changed = true;
+                    }
                 }
             }
         });
@@ -317,9 +331,66 @@ class Player {
 
     die() {
         console.log("Player has been defeated.");
-        CustomDialog.alert("You have been defeated!", "Defeat");
-        // TODO: Respawn logic
-        this.stats.hp = this.stats.maxHp; // For now, just reset hp
+        this.isDead = true;
+        this.respawnTimer = 5.0; // 5 seconds respawn countdown
+        this.stats.hp = 0;
+        this.currentTarget = null;
+        
+        // Add a dramatic red slime explosion splatter upon defeat
+        this.engine.addEffect(new ParticleSplatterEffect(this.engine, {
+            position: { x: this.currentPixelX, y: this.currentPixelY },
+            color: '#e74c3c',
+            count: 25,
+            duration: 0.6
+        }));
+    }
+
+    respawn() {
+        console.log("Player is respawning...");
+        this.stats.hp = this.stats.maxHp;
+        this.isDead = false;
+        this.currentTarget = null;
+        this.knockbackVelocity = { x: 0, y: 0 };
+        this.activeAbility = null;
+        this.abilityState = 'none';
+        this.visualYOffset = 0;
+
+        let entrySpawn = null;
+        if (this.map && this.map.spawnPointsData) {
+            entrySpawn = this.map.spawnPointsData.find(sp => sp.type === 'player_entry');
+            if (!entrySpawn) {
+                entrySpawn = this.map.spawnPointsData.find(sp => sp.id && sp.id.includes('player_entry'));
+            }
+        }
+
+        if (entrySpawn) {
+            this.currentPixelX = entrySpawn.x;
+            this.currentPixelY = entrySpawn.y;
+            this.updateMapCoordsFromPixels();
+        } else {
+            // fallback: map center
+            const screenPos = this.map.mapToScreen(this.map.width / 2, this.map.height / 2);
+            this.currentPixelX = screenPos.x;
+            this.currentPixelY = screenPos.y;
+            this.updateMapCoordsFromPixels();
+        }
+
+        // Add fun respawn visual effect
+        this.engine.addEffect(new ParticleSplatterEffect(this.engine, {
+            position: { x: this.currentPixelX, y: this.currentPixelY },
+            color: '#3498db',
+            count: 30,
+            duration: 0.8
+        }));
+
+        // Reset hit or flash states
+        this.isHit = false;
+        this.hitFlashTimer = 0;
+
+        // Recenter camera
+        const effectiveCanvasWidth = this.engine.canvas.width / this.engine.zoomLevel;
+        const effectiveCanvasHeight = this.engine.canvas.height / this.engine.zoomLevel;
+        this.map.centerOn(this.currentPixelX, this.currentPixelY, effectiveCanvasWidth, effectiveCanvasHeight, true);
     }
 
     applyKnockback(direction, force) {
@@ -404,6 +475,25 @@ class Player {
 
 
     update(deltaTime, input) {
+        if (this.isDead) {
+            this.respawnTimer -= deltaTime;
+            this.stats.hp = 0; // force HP to stays 0 while dead
+            this.currentTarget = null;
+            if (this.respawnTimer <= 0) {
+                this.respawnTimer = 0;
+                this.isDead = false;
+                this.respawn();
+            }
+            // Update custom ability flash timers so they decay
+            if (this.selfDamageFlashTimer && this.selfDamageFlashTimer > 0) {
+                this.selfDamageFlashTimer = Math.max(0, this.selfDamageFlashTimer - deltaTime);
+            }
+            if (this.healingFlashTimer && this.healingFlashTimer > 0) {
+                this.healingFlashTimer = Math.max(0, this.healingFlashTimer - deltaTime);
+            }
+            return;
+        }
+
         // Update physical lunge timer
         if (this.lungeTimer && this.lungeTimer > 0) {
             this.lungeTimer = Math.max(0, this.lungeTimer - deltaTime);
@@ -743,6 +833,11 @@ class Player {
         const spriteDrawX = drawX - drawW / 2;
         const spriteDrawY = drawY - drawH;
 
+        ctx.save();
+        if (this.isDead) {
+            ctx.globalAlpha = 0.35;
+        }
+
         if (this.sprite && this.sprite.complete) {
             ctx.drawImage(this.sprite, spriteDrawX, spriteDrawY, drawW, drawH);
 
@@ -750,6 +845,7 @@ class Player {
             if (this.selfDamageFlashTimer && this.selfDamageFlashTimer > 0) {
                 ctx.save();
                 ctx.globalAlpha = 0.65 * (this.selfDamageFlashTimer / 0.4);
+                if (this.isDead) ctx.globalAlpha *= 0.35;
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = Math.ceil(drawW) || 1;
                 tempCanvas.height = Math.ceil(drawH) || 1;
@@ -766,6 +862,7 @@ class Player {
             if (this.healingFlashTimer && this.healingFlashTimer > 0) {
                 ctx.save();
                 ctx.globalAlpha = 0.65 * (this.healingFlashTimer / 0.45);
+                if (this.isDead) ctx.globalAlpha *= 0.35;
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = Math.ceil(drawW) || 1;
                 tempCanvas.height = Math.ceil(drawH) || 1;
@@ -793,9 +890,21 @@ class Player {
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
             ctx.globalAlpha = 0.8 * (this.hitFlashTimer / 0.15); // Fade the flash
+            if (this.isDead) ctx.globalAlpha *= 0.35;
             if (this.sprite && this.sprite.complete) {
                 ctx.drawImage(this.sprite, spriteDrawX, spriteDrawY, drawW, drawH);
             }
+            ctx.restore();
+        }
+
+        ctx.restore();
+
+        if (this.isDead) {
+            ctx.save();
+            ctx.fillStyle = '#ff7675';
+            ctx.font = 'bold 11px "JetBrains Mono", Courier, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`💀 DEFEATED (${Math.max(0, this.respawnTimer).toFixed(1)}s)`, drawX, drawY - this.playerVisualHeight - 35);
             ctx.restore();
         }
 

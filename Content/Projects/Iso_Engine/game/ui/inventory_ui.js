@@ -237,6 +237,7 @@ class InventoryUI {
     render() {
         if (!this.isOpen || !this.engine.player) return;
 
+        this.updateInventoryEquippedStates();
         this.renderStatsPanel();
         this.renderInventoryGrid();
         this.renderDetailsPanel();
@@ -430,7 +431,10 @@ class InventoryUI {
                 if (item.equipped) {
                     const eqBadge = document.createElement('span');
                     eqBadge.className = 'item-equipped-indicator';
-                    if (item.type === 'ability' && item.equippedSlot !== undefined) {
+                    if ((item.type === 'ability' || item.type === 'emitter') && item.equippedSlots && item.equippedSlots.length > 0) {
+                        eqBadge.textContent = item.equippedSlots.map(sIdx => ['Q','E','R','F','G'][sIdx]).join(',');
+                        eqBadge.style.backgroundColor = '#2980b9'; // Blue accent for slotted spells!
+                    } else if (item.type === 'ability' && item.equippedSlot !== undefined) {
                         eqBadge.textContent = ['Q','E','R','F','G'][item.equippedSlot] || 'E';
                         eqBadge.style.backgroundColor = '#2980b9'; // Blue accent for slotted spells!
                     } else {
@@ -544,16 +548,24 @@ class InventoryUI {
         let attachDescriptor = '';
         if (item.type === 'emitter') {
             attachDescriptor = `📡 Emitter Core: Auto-shoots projectiles in battlefield!`;
-            if (item.equipped && item.equippedSlot !== undefined) {
-                attachDescriptor += ` (Equipped to slot ${['Q','E','R','F','G'][item.equippedSlot]})`;
+            if (item.equipped) {
+                if (item.equippedSlots && item.equippedSlots.length > 0) {
+                    attachDescriptor += ` (Equipped to slot(s) ${item.equippedSlots.map(sIdx => ['Q','E','R','F','G'][sIdx]).join(', ')})`;
+                } else if (item.equippedSlot !== undefined) {
+                    attachDescriptor += ` (Equipped to slot ${['Q','E','R','F','G'][item.equippedSlot]})`;
+                }
             }
         } else if (item.attachedAbility) {
             const allAb = getAllAbilities();
             const details = allAb[item.attachedAbility];
             if (details) {
                 attachDescriptor = `🔮 Spell: Unlocks casting spell "${details.name}"!`;
-                if (item.equipped && item.equippedSlot !== undefined) {
-                    attachDescriptor += ` (Equipped to slot ${['Q','E','R','F','G'][item.equippedSlot]})`;
+                if (item.equipped) {
+                    if (item.equippedSlots && item.equippedSlots.length > 0) {
+                        attachDescriptor += ` (Equipped to slot(s) ${item.equippedSlots.map(sIdx => ['Q','E','R','F','G'][sIdx]).join(', ')})`;
+                    } else if (item.equippedSlot !== undefined) {
+                        attachDescriptor += ` (Equipped to slot ${['Q','E','R','F','G'][item.equippedSlot]})`;
+                    }
                 }
             }
         }
@@ -695,6 +707,52 @@ class InventoryUI {
         this.addLocalFloatText(`Unequipped: ${item.name}`, '#ffc107');
     }
 
+    updateInventoryEquippedStates() {
+        const player = this.engine.player;
+        if (!player || !Array.isArray(player.inventory) || !Array.isArray(player.equippedAbilities)) return;
+
+        // Ensure equippedCustomItemIds is initialized
+        if (!Array.isArray(player.equippedCustomItemIds)) {
+            player.equippedCustomItemIds = [null, null, null, null, null];
+            // Backfill from equippedAbilities if some are already configured
+            player.equippedAbilities.forEach((abId, idx) => {
+                if (abId) {
+                    const matchedItem = player.inventory.find(i => (i.type === 'ability' || i.type === 'emitter') && (i.attachedAbility === abId || i.id === abId) && !i.equipped);
+                    if (matchedItem) {
+                        if (!matchedItem.instanceId) {
+                            matchedItem.instanceId = 'inst_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                        }
+                        player.equippedCustomItemIds[idx] = matchedItem.instanceId;
+                    }
+                }
+            });
+        }
+
+        player.inventory.forEach(item => {
+            if (item.type === 'ability' || item.type === 'emitter') {
+                if (!item.instanceId) {
+                    item.instanceId = 'inst_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                }
+                const equippedSlots = [];
+                player.equippedCustomItemIds.forEach((eqInstId, sIdx) => {
+                    if (eqInstId === item.instanceId) {
+                        equippedSlots.push(sIdx);
+                    }
+                });
+
+                if (equippedSlots.length > 0) {
+                    item.equipped = true;
+                    item.equippedSlot = equippedSlots[0];
+                    item.equippedSlots = equippedSlots;
+                } else {
+                    item.equipped = false;
+                    item.equippedSlot = undefined;
+                    item.equippedSlots = [];
+                }
+            }
+        });
+    }
+
     // Equip an ability item to a hotbar slot
     equipAbilityItemToSlot(item, slotIndex) {
         const player = this.engine.player;
@@ -704,33 +762,30 @@ class InventoryUI {
         if (!Array.isArray(player.equippedAbilities)) {
             player.equippedAbilities = [null, null, null, null, null];
         }
+        if (!Array.isArray(player.equippedCustomItemIds)) {
+            player.equippedCustomItemIds = [null, null, null, null, null];
+        }
 
-        const abIdentifier = item.attachedAbility || item.id;
+        if (!item.instanceId) {
+            item.instanceId = 'inst_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        }
 
-        // Unequip this specific ability from any hotbar slots it is already in
-        for (let i = 0; i < player.equippedAbilities.length; i++) {
-            if (player.equippedAbilities[i] === abIdentifier) {
+        // Dereference this instance from any other slot first
+        for (let i = 0; i < player.equippedCustomItemIds.length; i++) {
+            if (player.equippedCustomItemIds[i] === item.instanceId) {
+                player.equippedCustomItemIds[i] = null;
                 player.equippedAbilities[i] = null;
             }
         }
 
-        // Search if other items are equipped on this slot, and mark them as unequipped
-        const existingAbilityId = player.equippedAbilities[slotIndex];
-        if (existingAbilityId) {
-            player.inventory.forEach(i => {
-                const iId = i.attachedAbility || i.id;
-                if (iId === existingAbilityId) {
-                    i.equipped = false;
-                    i.equippedSlot = undefined;
-                }
-            });
-        }
+        const abIdentifier = item.attachedAbility || item.id;
 
         // Assign the ability to this slot
         player.equippedAbilities[slotIndex] = abIdentifier;
-        item.equipped = true;
-        item.equippedSlot = slotIndex;
+        player.equippedCustomItemIds[slotIndex] = item.instanceId;
         item.explicitlyUnequipped = false; // reset explicitly unequipped state!
+
+        this.updateInventoryEquippedStates();
 
         if (typeof player.rebuildEmitters === 'function') {
             player.rebuildEmitters();
@@ -745,18 +800,23 @@ class InventoryUI {
         const player = this.engine.player;
         if (!player) return;
 
-        const abIdentifier = item.attachedAbility || item.id;
+        if (!item.instanceId) {
+            item.instanceId = 'inst_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        }
 
-        if (Array.isArray(player.equippedAbilities)) {
-            for (let i = 0; i < player.equippedAbilities.length; i++) {
-                if (player.equippedAbilities[i] === abIdentifier) {
-                    player.equippedAbilities[i] = null;
+        if (Array.isArray(player.equippedCustomItemIds)) {
+            for (let i = 0; i < player.equippedCustomItemIds.length; i++) {
+                if (player.equippedCustomItemIds[i] === item.instanceId) {
+                    player.equippedCustomItemIds[i] = null;
+                    if (Array.isArray(player.equippedAbilities)) {
+                        player.equippedAbilities[i] = null;
+                    }
                 }
             }
         }
-        item.equipped = false;
-        item.equippedSlot = undefined;
         item.explicitlyUnequipped = true; // explicitly unequipped to prevent automatic re-equipping
+
+        this.updateInventoryEquippedStates();
 
         if (typeof player.rebuildEmitters === 'function') {
             player.rebuildEmitters();
@@ -838,8 +898,9 @@ class InventoryUI {
                 iconSpan.textContent = this.getAbilityEmoji(abId);
                 nameSpan.textContent = name;
 
-                // Cooldown logic
-                const remaining = player.abilityCooldowns[abId] || 0;
+                // Cooldown logic (checks slot-based cooldown key first, then falls back to ability ID)
+                const slotCdKey = `slot_${idx}`;
+                const remaining = player.abilityCooldowns[slotCdKey] !== undefined ? player.abilityCooldowns[slotCdKey] : (player.abilityCooldowns[abId] || 0);
                 if (remaining > 0) {
                     cdDiv.style.display = 'flex';
                     cdDiv.textContent = `${remaining.toFixed(1)}s`;

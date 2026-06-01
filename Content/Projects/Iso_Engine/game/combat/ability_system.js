@@ -29,7 +29,7 @@ export const DEFAULT_ABILITIES = {
             knockbackForce: 150,
             hpChange: 0,
             healing: 0,
-            hitboxShape: { type: 'ellipse', radiusX: 40, radiusY: 20 },
+            hitboxShape: { type: 'ellipse', radiusX: 60, radiusY: 30 },
             createObstacle: false
         },
         recovery: {
@@ -452,13 +452,14 @@ class TemporaryObstacle extends GameObject {
 }
 
 // Trigger ability casting
-export function executeAbility(caster, abilityId, getTargetPosFn) {
+export function executeAbility(caster, abilityId, getTargetPosFn, slotIndex = null) {
     if (!caster || !abilityId) return false;
 
-    // Fast cooldown validation
+    // Fast cooldown validation (use slot index for players to allow independent cooldowns per slot)
     caster.abilityCooldowns = caster.abilityCooldowns || {};
-    if (caster.abilityCooldowns[abilityId] && caster.abilityCooldowns[abilityId] > 0) {
-        console.log(`Ability "${abilityId}" is still on cooldown.`);
+    const cdKey = (slotIndex !== null && caster === caster.engine.player) ? `slot_${slotIndex}` : abilityId;
+    if (caster.abilityCooldowns[cdKey] && caster.abilityCooldowns[cdKey] > 0) {
+        console.log(`Ability "${abilityId}" (key: ${cdKey}) is still on cooldown.`);
         return false;
     }
 
@@ -514,7 +515,7 @@ export function executeAbility(caster, abilityId, getTargetPosFn) {
             finalCooldown *= 0.5; // 50% shorter cooldowns from Overflowing Mana!
         }
     }
-    caster.abilityCooldowns[abilityId] = finalCooldown;
+    caster.abilityCooldowns[cdKey] = finalCooldown;
 
     // Set caster variables
     caster.activeAbility = ability;
@@ -562,14 +563,16 @@ export function executeAbility(caster, abilityId, getTargetPosFn) {
         caster.collidable = false;
     }
 
-    // Add Telegraph Ring
-    caster.engine.addEffect(new TelegraphEffect(caster.engine, {
-        type: 'telegraph',
-        position: caster.abilityTargetPos,
-        shape: ability.active.hitboxShape || { type: 'ellipse', radiusX: 30, radiusY: 15 },
-        duration: ability.startup.duration,
-        owner: caster
-    }));
+    // Add Telegraph Ring (skip for plasma_orb)
+    if (abilityId !== 'plasma_orb') {
+        caster.engine.addEffect(new TelegraphEffect(caster.engine, {
+            type: 'telegraph',
+            position: caster.abilityTargetPos,
+            shape: ability.active.hitboxShape || { type: 'ellipse', radiusX: 30, radiusY: 15 },
+            duration: ability.startup.duration,
+            owner: caster
+        }));
+    }
 
     console.log(`${caster.name || 'Caster'} is casting ability "${ability.name}"`);
     return true;
@@ -650,14 +653,16 @@ export function updateAbilityCycle(caster, deltaTime) {
             caster.abilityState = 'active';
             caster.abilityTimer = ability.active.duration;
 
-            // Trigger visual hit effect
-            caster.engine.addEffect(new TelegraphEffect(caster.engine, {
-                type: 'active_aoe',
-                position: caster.abilityTargetPos,
-                shape: ability.active.hitboxShape || { type: 'ellipse', radiusX: 30, radiusY: 15 },
-                duration: ability.active.duration,
-                owner: caster
-            }));
+            // Trigger visual hit effect (skip for plasma_orb)
+            if (ability.id !== 'plasma_orb') {
+                caster.engine.addEffect(new TelegraphEffect(caster.engine, {
+                    type: 'active_aoe',
+                    position: caster.abilityTargetPos,
+                    shape: ability.active.hitboxShape || { type: 'ellipse', radiusX: 30, radiusY: 15 },
+                    duration: ability.active.duration,
+                    owner: caster
+                }));
+            }
 
             // Deal Hit Damage/Knockback on victims
             triggerHitboxScanAndResolve(caster, ability);

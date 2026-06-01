@@ -86,6 +86,21 @@ class Enemy extends GameObject {
         // Custom ability paint flash timers
         this.selfDamageFlashTimer = 0;
         this.healingFlashTimer = 0;
+
+        // Patrol and Leash/Deaggro properties
+        this.patrolTarget = null;
+        this.patrolWaitTimer = Math.random() * 3.0;
+        this.patrolRadius = 50;
+        this.isLeashed = false;
+        this.leashGraceTimer = 0;
+        this.LEASH_GRACE_MAX = 4.0;
+        this.ignorePlayerUntilIdle = false;
+    }
+
+    onInteraction() {
+        if (this.isLeashed) {
+            this.leashGraceTimer = this.LEASH_GRACE_MAX;
+        }
     }
 
     update(deltaTime) {
@@ -161,7 +176,7 @@ class Enemy extends GameObject {
              const dx = target.currentPixelX - this.currentPixelX;
              const dy = target.currentPixelY - this.currentPixelY;
              const distSq = dx * dx + dy * dy;
-             this.updateAIState(distSq);
+             this.updateAIState(distSq, deltaTime);
         }
 
         this.executeAIState(deltaTime);
@@ -273,42 +288,64 @@ class Enemy extends GameObject {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    updateAIState(targetDistSq) {
+    updateAIState(targetDistSq, deltaTime) {
         if (this.aiState === AI_STATE.DEAD) return;
         const distToSpawnSq = (this.currentPixelX - this.spawnPoint.x)**2 + (this.currentPixelY - this.spawnPoint.y)**2;
 
-        // If locked in an attack, only check for leashing (which is Infinity for Waves)
+        // If locked in an attack, only check for leashing (which is Infinity for Waves/standard matches)
         if (this.aiState === AI_STATE.ATTACKING && this.attackSubState !== 'none') {
-            if (distToSpawnSq > this.leashRangeSq) {
-                this.aiState = AI_STATE.RETURNING;
-                this.attackSubState = 'none'; // Cancel attack
-                this.attackAction.targetPos = null;
-                this.collidable = true; // Ensure collision is re-enabled if attack is cancelled
-                this.visualYOffset = 0;
+            if (this.leashRangeSq !== Infinity && distToSpawnSq > this.leashRangeSq) {
+                if (!this.isLeashed) {
+                    this.isLeashed = true;
+                    this.leashGraceTimer = this.LEASH_GRACE_MAX;
+                }
             }
             return; // Don't run other state transition checks
+        }
+
+        // Ticking the leash grace timer if leashed
+        if (this.leashRangeSq !== Infinity && distToSpawnSq > this.leashRangeSq) {
+            if (!this.isLeashed) {
+                this.isLeashed = true;
+                this.leashGraceTimer = this.LEASH_GRACE_MAX;
+            }
+        } else {
+            this.isLeashed = false;
+            this.leashGraceTimer = 0;
+        }
+
+        // Handle leash deaggro transitions
+        if (this.isLeashed) {
+            this.leashGraceTimer -= deltaTime;
+            if (this.leashGraceTimer <= 0) {
+                this.aiState = AI_STATE.RETURNING;
+                this.ignorePlayerUntilIdle = true;
+                this.attackSubState = 'none';
+                this.attackAction.targetPos = null;
+                this.collidable = true;
+                this.visualYOffset = 0;
+                return;
+            }
         }
 
         switch (this.aiState) {
             case AI_STATE.IDLE:
             case AI_STATE.RETURNING:
-                if (targetDistSq < this.stats.aggroRange ** 2) {
-                    this.aiState = AI_STATE.CHASING;
+                if (!this.ignorePlayerUntilIdle) {
+                    if (targetDistSq < this.stats.aggroRange ** 2) {
+                        this.aiState = AI_STATE.CHASING;
+                        this.patrolTarget = null;
+                    }
                 }
                 break;
             case AI_STATE.CHASING:
-                if (distToSpawnSq > this.leashRangeSq) {
-                    this.aiState = AI_STATE.RETURNING;
-                } else if (targetDistSq < this.stats.attackRange ** 2 && this.attackTimer <= 0) {
+                if (targetDistSq < this.stats.attackRange ** 2 && this.attackTimer <= 0) {
                     this.aiState = AI_STATE.ATTACKING;
                 }
                 break;
             case AI_STATE.ATTACKING:
                 if (targetDistSq > (this.stats.attackRange * 1.5) ** 2) { // Give leeway to chase
                     this.aiState = AI_STATE.CHASING;
-                }
-                 if (distToSpawnSq > this.leashRangeSq) {
-                    this.aiState = AI_STATE.RETURNING;
                 }
                 break;
         }
@@ -322,7 +359,8 @@ class Enemy extends GameObject {
         // Performance & Combat Clustering Optimization:
         // Skip pathfinding and wiggling/stuck-recalculations entirely when chasing and close to target.
         // Slimes in combat have leaps and abilities to get out and can slide around each other cleanly.
-        if (this.aiState === AI_STATE.CHASING && this.currentTarget && !this.currentPath) {
+        // PsychologicalEnemy should NEVER skip stuck detection, since it needs to navigate towers/obstacles intelligently.
+        if (this.aiState === AI_STATE.CHASING && this.currentTarget && !this.currentPath && this.constructor.name !== 'PsychologicalEnemy') {
             const tdx = targetX - this.currentPixelX;
             const tdy = targetY - this.currentPixelY;
             const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
@@ -348,7 +386,7 @@ class Enemy extends GameObject {
         this.lastPixelPos.y = this.currentPixelY;
 
         const expectedMoveDist = this.stats.speed * deltaTime;
-        const wantsToMove = (this.aiState === AI_STATE.CHASING || this.aiState === AI_STATE.RETURNING || this.aiState === AI_STATE.IDLE);
+        const wantsToMove = (this.aiState === AI_STATE.CHASING || this.aiState === AI_STATE.RETURNING || this.aiState === AI_STATE.IDLE || this.aiState === AI_STATE.ATTACKING || this.constructor.name === 'PsychologicalEnemy');
 
         if (wantsToMove && distMoved < expectedMoveDist * 0.2) {
             this.stuckTimer += deltaTime;
@@ -473,8 +511,37 @@ class Enemy extends GameObject {
         switch (this.aiState) {
             case AI_STATE.IDLE:
                 if (this.isItemWorld) {
-                    // On ItemWorld maps, idle monsters just stay near their spawn point and guard it
-                    this.currentPath = null;
+                    this.patrolWaitTimer -= deltaTime;
+                    
+                    if (this.patrolTarget) {
+                        const pdx = this.patrolTarget.x - this.currentPixelX;
+                        const pdy = this.patrolTarget.y - this.currentPixelY;
+                        const distToPatrol = Math.sqrt(pdx * pdx + pdy * pdy);
+                        
+                        if (distToPatrol < 10 || this.patrolWaitTimer <= 0) {
+                            // Reached target or timed out, pause now
+                            this.patrolTarget = null;
+                            this.patrolWaitTimer = 1.0 + Math.random() * 3.0; // Rest for 1-4 seconds
+                        } else {
+                            // Move sluggishly/casually towards patrol target
+                            const returnTarget = this.updatePathfinding(deltaTime, this.patrolTarget.x, this.patrolTarget.y);
+                            this.moveTowards(deltaTime, returnTarget.tx - this.currentPixelX, returnTarget.ty - this.currentPixelY, this.stats.speed * 0.35);
+                        }
+                    } else {
+                        if (this.patrolWaitTimer <= 0) {
+                            // Pick a casual next coordinate near spawnPoint
+                            const angle = Math.random() * Math.PI * 2;
+                            const dist = 20 + Math.random() * (this.patrolRadius - 20);
+                            this.patrolTarget = {
+                                x: this.spawnPoint.x + Math.cos(angle) * dist,
+                                y: this.spawnPoint.y + Math.sin(angle) * dist
+                            };
+                            this.patrolWaitTimer = 4.0; // Max time allowed to reach the patrol point
+                        } else {
+                            // Stand happily still!
+                            this.currentPath = null;
+                        }
+                    }
                     break;
                 }
                 let marchX = -320;
@@ -514,6 +581,9 @@ class Enemy extends GameObject {
                     this.aiState = AI_STATE.IDLE;
                     this.stats.hp = this.stats.maxHp; // Reset HP when returning
                     this.currentPath = null;
+                    this.ignorePlayerUntilIdle = false; // Reset deaggro ignoring!
+                    this.isLeashed = false;
+                    this.leashGraceTimer = 0;
                 } else {
                     const returnTarget = this.updatePathfinding(deltaTime, targetX, targetY);
                     this.moveTowards(deltaTime, returnTarget.tx - this.currentPixelX, returnTarget.ty - this.currentPixelY, this.stats.speed * 0.7);
@@ -650,6 +720,7 @@ class Enemy extends GameObject {
                         if (((vdx * vdx) / (radiusX * radiusX) + (vdy * vdy) / (radiusY * radiusY)) <= 1.25) {
                             if (victim === this.player) {
                                 this.player.takeDamage(this.stats.atk, this);
+                                this.onInteraction();
                                 // Apply knockback to player
                                 const knockbackDirection = {
                                     x: this.player.currentPixelX - this.currentPixelX,
@@ -755,6 +826,7 @@ class Enemy extends GameObject {
     attack() {
         if (this.player && this.player.stats.hp > 0) {
             this.player.takeDamage(this.stats.atk, this);
+            this.onInteraction();
         }
     }
     
@@ -762,6 +834,14 @@ class Enemy extends GameObject {
         if (this.aiState === AI_STATE.DEAD) return; // Can't take damage while dead
 
         this.stats.hp -= amount;
+        this.onInteraction();
+
+        // If taking damage while returning, wake them up to chase again!
+        if (this.aiState === AI_STATE.RETURNING) {
+            this.ignorePlayerUntilIdle = false;
+            this.aiState = AI_STATE.CHASING;
+            this.patrolTarget = null;
+        }
         
         // Trigger hit flash
         this.isHit = true;
