@@ -12,6 +12,7 @@ Also wanted to paint her today as well, but in Concept Brute. See if my own soft
 ## Poetry
 
 hmm... also wanted to do some 'summer' thingy... let me think...
+
 ---
 
 The flow of time. The flow of weather. The middle of the cycle summons warmth to partake in joy and festive. To bless the earth, to bless the sky. Shower self in blessings of the summer as it is that time to have such joy.
