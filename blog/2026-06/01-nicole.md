@@ -7,7 +7,7 @@ yooo... I did her back in the day, I think it was 21st January and I finished he
 
 [View Her](https://www.dropbox.com/scl/fi/03cab11u767v6746gc16d/nicole_gi_21-091.jpg?rlkey=o7mfz2f1hj7ubmrftojmrmpvp&st=id4srk4o&raw=1)
 
-Also wanted to paint her today as well, but in Concept Brute. See if my own software can handle a bit more of a 'production quality piece'... will be back in a few with her...
+Also wanted to paint her today as well, but in Concept Brute. See if my own software can handle a bit more of a 'production quality piece'... will be back in a few...
 
 ## Poetry
 
