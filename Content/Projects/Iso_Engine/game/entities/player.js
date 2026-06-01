@@ -176,8 +176,17 @@ class Player {
         console.log("Player character data loaded:", this.characterData.name);
     }
 
+    getBaseMaxHpForLevel(level) {
+        let hp = 100;
+        for (let i = 1; i < (level || 1); i++) {
+            hp = Math.floor(hp * 1.15) + 15;
+        }
+        return hp;
+    }
+
     updateDynamicStats() {
-        let baseMaxHp = 100;
+        const currentLevel = (this.stats && this.stats.level) ? this.stats.level : 1;
+        let baseMaxHp = this.getBaseMaxHpForLevel(currentLevel);
         if (Array.isArray(this.inventory)) {
             this.inventory.forEach(item => {
                 if (item.passiveHp) {
