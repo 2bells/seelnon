@@ -62,6 +62,7 @@
     flex-direction: row; /* Changed */
     overflow: visible; /* Allows absolutely positioned nametag to float over top border */
     pointer-events: auto; /* Re-enable pointer events for the box */
+    z-index: 40030; /* Ensure dialog box and child name tags stack above slideup windows */
 }
 
 #rpg-dialogue-main-content {

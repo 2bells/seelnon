@@ -682,12 +682,13 @@
 /* JRPG Slide-up Windows */
 .rpg-slideup-window {
     position: absolute;
-    bottom: 300px; /* Sits right above the dialogue box */
+    bottom: calc(20px + min(35%, 300px)); /* Sits right above the dialogue box */
     left: 50%;
     transform: translateX(-50%) translateY(30px);
     width: calc(100% - 40px); /* Exactly matching the width of the dialogue box */
     max-width: 900px; /* Exactly matching the max-width of the dialogue box */
     height: 400px; /* Much more compact and robust layout */
+    max-height: calc(100% - 45px - min(35%, 300px)); /* Prevents overlapping top bar/overflow on small viewports */
     background-color: rgba(65, 52, 42, 0.98); /* Original warm RPG wood/bronze theme */
     border: 3px solid #3B322C;
     border-radius: 12px;
@@ -1086,19 +1087,6 @@
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* Custom file labels that act as native trusted trigger buttons overlaying file inputs */
 .rpg-file-label {
     display: inline-block;
@@ -1122,11 +1110,5 @@
 .rpg-file-label:active {
     background-color: #785C4A;
 }
-
-
-/* Handled by editor_ui_manager.css */
-
-
-
 
 
