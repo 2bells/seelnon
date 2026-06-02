@@ -24,7 +24,7 @@ It is in a state of 'needs testing'. Meaning I don't have any big ideas to add a
 
 ![img c](https://www.dropbox.com/scl/fi/0dn3mfrofa3sccstv8ccd/amount_of_enemies.jpg?rlkey=y3iarg92lphtw0syun50gy6f7&st=9kk25fg5&raw=1)
 
-most of things are stored as an item, so it is fully OOP and modular to the point that an event is an item that has reference to event and item dictates the event. Abilities are also consider as item and could be equipped. Emitters are an item that could be equipped, making NPC as a turret or having passive shooting abilities (ex. Vampire Survivors). NPC could be used to create chests
+most of things are stored as an item, so it is fully OOP and modular to the point that code of an event is an item that has reference to that event. Abilities are also considered as items and could be equipped. Emitters could be part of an ability or could equipped as a standalone, making NPC as a turret or having passive shooting abilities (ex. Vampire Survivors). NPC could be used to create chests and doors, so you can have a full dialogue with a door, that has inventory and so on. So most intractables are 'NPC's, even objects. You have option to design an event that is just 'press button to do', so here you can make just a 'press to loot', without a need to summon a dialogue window.
 
 ![img c](https://www.dropbox.com/scl/fi/cuvqxyhknjr94ycimqkn5/portals_1.jpg?rlkey=f74h2sjwn1he9r3xjq2xxa43c&st=vvod4cl1&raw=1)
 
