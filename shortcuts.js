@@ -22,5 +22,13 @@ export const desktopShortcuts = [
     align: "center-top",
     offsetX: 100,
     offsetY: 10
-  }
+  },
+  {
+    name: "Iso Engine",
+    icon: "Content/Projects/Iso_Engine/thumbnail_ISO_ENGINE.jpg",
+    targetPath: "/Projects/Iso-Engine",
+    align: "center-top",
+    offsetX: 200,
+    offsetY: 10
+  }  
 ];
