@@ -107,7 +107,8 @@ export const FS = (() => {
   html('CONCEPT_BRUTE', 'Content/Projects/Concept_Brute/index.html', '/Projects', { icon: 'Content/Projects/Concept_Brute/img/concept_brute_thmb.jpg', description: 'A way to paint images.' });  
   html('Fri-ren Notes', 'Content/Projects/Fri-ren_Notes/index.html', '/Projects', { icon: 'Content/Projects/Fri-ren_Notes/fri-ren_notes_thmb.jpg', description: 'A way to take notes.' });   
   html('Tetri-Shot', 'Content/Projects/Tetri-Shot/', '/Projects', { icon: '  Content/Projects/Tetri-Shot/tetri-shot_thmb.jpg', description: 'A way to tetris.' });   
-
+  html('Iso-Engine', 'Content/Projects/Iso_Engine/', '/Projects', { icon: '  Content/Projects/Iso_Engine/thumbnail_ISO_ENGINE.jpg', description: 'A way to make isometric games.' });     
+  
 
 
   // Wonderlands
