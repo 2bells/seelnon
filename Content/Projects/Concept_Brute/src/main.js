@@ -2245,52 +2245,80 @@ class App {
       const h = parseInt(document.getElementById('export-height').value);
       const alpha = document.getElementById('export-alpha').checked;
       
+      const rect = this.currentExportRect;
+      
+      // Calculate perfect integer bounding box around the export rect
+      // to align all adjacent chunks 100% perfectly to the pixel grid.
+      const xStart = Math.floor(rect.x);
+      const yStart = Math.floor(rect.y);
+      const xEnd = Math.ceil(rect.x + rect.w);
+      const yEnd = Math.ceil(rect.y + rect.h);
+      const exactW = Math.max(1, xEnd - xStart);
+      const exactH = Math.max(1, yEnd - yStart);
+      
+      // Create a temporary unscaled layout canvas.
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = exactW;
+      tempCanvas.height = exactH;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) return;
+      
+      // Since everything is rendered 1:1, drawing adjacent chunks on exact integer coordinates has absolutely ZERO seams.
+      // Draw reference images first (Layer 0)
+      tempCtx.save();
+      tempCtx.translate(-xStart, -yStart);
+      this.engine.referenceImages.forEach(ref => {
+          tempCtx.save();
+          tempCtx.translate(ref.x, ref.y);
+          tempCtx.rotate(ref.rotation);
+          tempCtx.scale(ref.scale, ref.scale);
+          if (ref.mirrorX) tempCtx.scale(-1, 1);
+          if (ref.mirrorY) tempCtx.scale(1, -1);
+          tempCtx.globalAlpha = ref.opacity;
+          tempCtx.drawImage(ref.img, -ref.img.width/2, -ref.img.height/2);
+          tempCtx.restore();
+      });
+      tempCtx.restore();
+      
+      // Draw painty chunks cleanly at exact, seam-free, 1:1 integer coordinates
+      this.engine.chunks.forEach(chunk => {
+          const chunkX = chunk.cx * this.engine.chunkSize;
+          const chunkY = chunk.cy * this.engine.chunkSize;
+          
+          if (chunkX < xEnd && chunkX + this.engine.chunkSize > xStart &&
+              chunkY < yEnd && chunkY + this.engine.chunkSize > yStart) {
+              
+              for (let i = 1; i < LAYERS_COUNT; i++) {
+                  // Direct clean write 1:1. No overlap offsets needed since we map pixel-to-pixel perfectly.
+                  tempCtx.drawImage(chunk.canvases[i], chunkX - xStart, chunkY - yStart, this.engine.chunkSize, this.engine.chunkSize);
+              }
+          }
+      });
+      
+      // Create final export canvas at user's desired dimensions
       const exportCanvas = document.createElement('canvas');
       exportCanvas.width = w;
       exportCanvas.height = h;
       const exCtx = exportCanvas.getContext('2d');
+      if (!exCtx) return;
       
       if (!alpha) {
           exCtx.fillStyle = this.engine.canvasBg;
           exCtx.fillRect(0, 0, w, h);
       }
       
-      const rect = this.currentExportRect;
-      const scaleX = w / rect.w;
-      const scaleY = h / rect.h;
+      // Now draw the crop from the flattened seam-free temporary canvas scale-mapped onto the destination canvas
+      const cropX = rect.x - xStart;
+      const cropY = rect.y - yStart;
       
-      exCtx.save();
-      exCtx.scale(scaleX, scaleY);
-      exCtx.translate(-rect.x, -rect.y);
+      exCtx.imageSmoothingEnabled = true;
+      exCtx.imageSmoothingQuality = 'high';
       
-      // Draw reference images (Layer 0)
-      this.engine.referenceImages.forEach(ref => {
-          exCtx.save();
-          exCtx.translate(ref.x, ref.y);
-          exCtx.rotate(ref.rotation);
-          exCtx.scale(ref.scale, ref.scale);
-          if (ref.mirrorX) exCtx.scale(-1, 1);
-          if (ref.mirrorY) exCtx.scale(1, -1);
-          exCtx.globalAlpha = ref.opacity;
-          exCtx.drawImage(ref.img, -ref.img.width/2, -ref.img.height/2);
-          exCtx.restore();
-      });
-      
-      this.engine.chunks.forEach(chunk => {
-          const chunkX = chunk.cx * this.engine.chunkSize;
-          const chunkY = chunk.cy * this.engine.chunkSize;
-          
-          // Check overlap
-          if (chunkX < rect.x + rect.w && chunkX + this.engine.chunkSize > rect.x &&
-              chunkY < rect.y + rect.h && chunkY + this.engine.chunkSize > rect.y) {
-              
-              for (let i = 1; i < LAYERS_COUNT; i++) {
-                  // Use a tiny 1px overlap to hide seams when drawing scaled chunks
-                  exCtx.drawImage(chunk.canvases[i], chunkX, chunkY, this.engine.chunkSize + 1, this.engine.chunkSize + 1);
-              }
-          }
-      });
-      exCtx.restore();
+      exCtx.drawImage(
+          tempCanvas,
+          cropX, cropY, rect.w, rect.h, // Source rectangle
+          0, 0, w, h                    // Destination rectangle (fully fills target resolution)
+      );
       
       // Download
       const link = document.createElement('a');
