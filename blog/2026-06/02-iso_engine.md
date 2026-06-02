@@ -34,7 +34,7 @@ Leveling up of an item is bound to a dungeon that you can explore and after clea
 
 Abilities are lootables and you can have a build featuring 5 same abilities if you want to.
 
-![img c](https://www.dropbox.com/scl/fi/zr359g0ndatek89xkgaaq/iso_prefabs_.jpg?rlkey=gjo6xpzedzt7447d7immz7jj0&st=v7cxljsj&dl=0)
+![img c](https://www.dropbox.com/scl/fi/zr359g0ndatek89xkgaaq/iso_prefabs_.jpg?rlkey=gjo6xpzedzt7447d7immz7jj0&st=v7cxljsj&raw=1)
 
 So even if something is not possible to do 'by hand' it is possible to make your templates, save as .json, upload the whole thing into AI and tell AI what you want to get. I do think that you can easily design a bunch of enemies, abilities and items on your own -> drop into AI and just say 'stitch it all together into Vampire Survivor' and you one shot a very nice game.
 
@@ -52,7 +52,7 @@ And it should be very possible to just make visual novels.
 
 Animations are not in, I was planning to do .gif and .png sprite sheet support, but it is already additional features for polish, because usually if it looks and feels playable with static sprites, it will be just better with animations. Then the effect maker which is also 'juice' ideas which are later if the engine makes sense to continue more.
 
-I usually do those so when suddenly I have an inspiration to do something, I can just load my own engine up and start prototyping something that is VERY playable and serviceable as a game. Think of FF7 and FF7 Remake: this type of vibes. [actually makes it interesting, I don't have turn based approach here, but should be easy to do. + turn based is better in RPG Maker, I feel like.
+I usually do those so when suddenly I have an inspiration to do something, I can just load my own engine up and start prototyping something that is VERY playable and serviceable as a game. Think of FF7 and FF7 Remake: this type of vibes. [Makes me think: I don't have turn based approach here, but should be easy to do. + turn based is better in RPG Maker, I feel like.]
 
 ```
 thought of the day
