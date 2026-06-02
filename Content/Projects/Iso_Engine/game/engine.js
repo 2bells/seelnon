@@ -200,7 +200,7 @@ class GameEngine {
             btn.style.fontSize = '20px';
             btn.style.cursor = 'pointer';
             btn.style.boxShadow = '3px 3px 0px rgba(0,0,0,0.4)';
-            btn.style.zIndex = '40003';
+            btn.style.zIndex = '30000';
             btn.style.display = 'flex';
             btn.style.alignItems = 'center';
             btn.style.justifyContent = 'center';

@@ -734,7 +734,7 @@ export class PsychologicalEnemy extends Enemy {
             hud.style.fontFamily = 'monospace';
             hud.style.fontSize = '12px';
             hud.style.boxShadow = '6px 6px 0px rgba(0,0,0,0.5)';
-            hud.style.zIndex = '100';
+            hud.style.zIndex = '29999';
 
             const container = document.getElementById('rpg-canvas-container');
             if (container) {
