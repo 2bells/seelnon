@@ -888,7 +888,7 @@ class EditorUIManager {
         if (isSpawnLayer) {
             const selectedSpawnType = this.getSelectedSpawnType();
             if (this.spawnTargetMapInput && this.spawnTargetMapInput.parentElement) {
-                 this.spawnTargetMapInput.parentElement.style.display = (selectedSpawnType === SPAWN_TYPES.PLAYER_EXIT) ? 'block' : 'none';
+                 this.spawnTargetMapInput.parentElement.style.display = (selectedSpawnType === SPAWN_TYPES.PLAYER_EXIT) ? 'flex' : 'none';
             }
             if (this.spawnPermanentNpcContainer) {
                 this.spawnPermanentNpcContainer.style.display = (selectedSpawnType === SPAWN_TYPES.NPC_PERMANENT) ? 'block' : 'none';
@@ -906,9 +906,9 @@ class EditorUIManager {
                     this.populateEventSelect();
                 }
                 const isExit = (selectedSpawnType === SPAWN_TYPES.PLAYER_EXIT);
-                if (this.spawnEventModeRow) this.spawnEventModeRow.style.display = isExit ? 'none' : 'block';
-                if (this.spawnEventMessageRow) this.spawnEventMessageRow.style.display = isExit ? 'none' : 'block';
-                if (this.spawnEventEmojiRow) this.spawnEventEmojiRow.style.display = isExit ? 'none' : 'block';
+                if (this.spawnEventModeRow) this.spawnEventModeRow.style.display = isExit ? 'none' : 'flex';
+                if (this.spawnEventMessageRow) this.spawnEventMessageRow.style.display = isExit ? 'none' : 'flex';
+                if (this.spawnEventEmojiRow) this.spawnEventEmojiRow.style.display = isExit ? 'none' : 'flex';
             }
         }
 

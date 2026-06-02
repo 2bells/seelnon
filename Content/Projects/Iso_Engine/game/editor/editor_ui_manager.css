@@ -382,7 +382,9 @@
 #rpg-projectile-editor-panel input[type="number"],
 #rpg-projectile-editor-panel textarea,
 #rpg-sprite-configurator-panel input[type="text"],
-#rpg-sprite-configurator-panel input[type="number"] {
+#rpg-sprite-configurator-panel input[type="number"],
+#rpg-editor-tools-panel input[type="text"],
+#rpg-editor-tools-panel input[type="number"] {
     background-color: #3B322C !important;
     color: #EFEBE0 !important;
     border: 1px solid #8C6D56 !important;
@@ -405,7 +407,9 @@
 #rpg-item-editor-panel input[type="number"]:focus,
 #rpg-item-editor-panel textarea:focus,
 #rpg-event-editor-panel input[type="text"]:focus,
-#rpg-event-editor-panel textarea:focus {
+#rpg-event-editor-panel textarea:focus,
+#rpg-editor-tools-panel input[type="text"]:focus,
+#rpg-editor-tools-panel input[type="number"]:focus {
     border-color: #A07D65 !important;
     background-color: #4A3C30 !important;
 }
