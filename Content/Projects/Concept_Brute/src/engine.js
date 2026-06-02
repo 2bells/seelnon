@@ -549,6 +549,8 @@ export class Engine {
       canv.style.imageRendering = 'auto'; 
       canv.style.backfaceVisibility = 'hidden';
       canv.style.webkitBackfaceVisibility = 'hidden';
+      canv.style.transform = 'translate3d(0, 0, 0)';
+      canv.style.willChange = 'transform';
       chunk.element.appendChild(canv);
       chunk.canvases.push(canv);
       chunk.ctxs.push(canv.getContext('2d', { alpha: true }));
@@ -567,6 +569,8 @@ export class Engine {
     strokeCanv.style.imageRendering = 'auto';
     strokeCanv.style.backfaceVisibility = 'hidden';
     strokeCanv.style.webkitBackfaceVisibility = 'hidden';
+    strokeCanv.style.transform = 'translate3d(0, 0, 0)';
+    strokeCanv.style.willChange = 'transform';
     strokeCanv.style.opacity = '0';
     chunk.element.appendChild(strokeCanv);
     chunk.strokeCanvas = strokeCanv;

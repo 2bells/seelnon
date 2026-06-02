@@ -2075,8 +2075,17 @@ class App {
                         // Chunk is empty, remove from sector
                         delete sector.chunks[chunkKey];
                     } else {
-                        // Serialize chunk to PNG which is lossless and won't leave artifacts at edges
-                        const dataUrl = chunk.canvases[l].toDataURL('image/png'); 
+                        // GPU-friendly readback: Copy the main on-screen canvas to a temporary offscreen canvas first.
+                        // This prevents mobile Safari/WebKit from demoting the on-screen canvas to CPU rasterization,
+                        // which would trigger fractional rendering seams on the UI.
+                        const tempCanv = document.createElement('canvas');
+                        tempCanv.width = chunk.canvases[l].width;
+                        tempCanv.height = chunk.canvases[l].height;
+                        const tempCtx = tempCanv.getContext('2d');
+                        if (tempCtx) {
+                            tempCtx.drawImage(chunk.canvases[l], 0, 0);
+                        }
+                        const dataUrl = tempCanv.toDataURL('image/png'); 
                         sector.chunks[chunkKey] = dataUrl;
                     }
                 }
