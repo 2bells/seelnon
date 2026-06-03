@@ -596,6 +596,130 @@ export function setupUI(app) {
     app._makeDraggable(app.settingsPanel, document.getElementById('handle-settings'));
     app._makeDraggable(document.getElementById('panel-brush-tips'), document.getElementById('handle-brush-tips'));
     app._makeDraggable(document.getElementById('panel-advanced-brush'), document.getElementById('handle-advanced-brush'));
+    app._makeDraggable(document.getElementById('panel-touch-shortcuts'), document.getElementById('handle-touch-shortcuts'));
+
+    // Toggle Touch Shortcuts Panel
+    const toggleShortcutsBtn = document.getElementById('btn-toggle-shortcuts');
+    const touchShortcutsPanel = document.getElementById('panel-touch-shortcuts');
+    if (toggleShortcutsBtn && touchShortcutsPanel) {
+        toggleShortcutsBtn.onclick = () => {
+            const isHidden = touchShortcutsPanel.classList.toggle('hidden');
+            if (isHidden) {
+                toggleShortcutsBtn.classList.remove('active');
+            } else {
+                toggleShortcutsBtn.classList.add('active');
+                // Sync current active brush size with the touch slider when opened
+                const activeSizeSlider = document.getElementById('touch-brush-size');
+                if (activeSizeSlider && app.activeTool) {
+                    const currentSize = app.brushSettings[app.activeTool].size;
+                    activeSizeSlider.value = app._mapSizeToSlider(currentSize);
+                    const touchSizeValDisplay = document.getElementById('touch-size-val');
+                    if (touchSizeValDisplay) touchSizeValDisplay.innerText = currentSize;
+                }
+            }
+        };
+    }
+
+    const closeShortcutsBtn = document.getElementById('btn-close-shortcuts');
+    if (closeShortcutsBtn && touchShortcutsPanel && toggleShortcutsBtn) {
+        closeShortcutsBtn.onclick = () => {
+            touchShortcutsPanel.classList.add('hidden');
+            toggleShortcutsBtn.classList.remove('active');
+        };
+    }
+
+    // Touch Tools Execution Hooks
+    const btnTouchUndo = document.getElementById('btn-touch-undo');
+    if (btnTouchUndo) {
+        btnTouchUndo.onclick = () => {
+            if (app.engine) app.engine.undo();
+        };
+    }
+
+    const btnTouchRedo = document.getElementById('btn-touch-redo');
+    if (btnTouchRedo) {
+        btnTouchRedo.onclick = () => {
+            if (app.engine) app.engine.redo();
+        };
+    }
+
+    const btnTouchTransform = document.getElementById('btn-touch-transform');
+    if (btnTouchTransform) {
+        btnTouchTransform.onclick = () => {
+            if (app.engine) {
+                if (app.engine.activeSelectionPath) {
+                    app.engine.startTransform();
+                } else if (!app.engine.floatingSelection) {
+                    app._status('SELECT WITH LASSO FIRST');
+                    setTimeout(() => app._status(app.activeTool), 1500);
+                }
+            }
+        };
+    }
+
+    const btnTouchApply = document.getElementById('btn-touch-apply');
+    if (btnTouchApply) {
+        btnTouchApply.onclick = () => {
+            if (app.engine && app.engine.floatingSelection) {
+                app.engine._applySelection();
+            }
+        };
+    }
+
+    const btnTouchDeselect = document.getElementById('btn-touch-deselect');
+    if (btnTouchDeselect) {
+        btnTouchDeselect.onclick = () => {
+            if (app.engine) app.engine.clearSelection();
+        };
+    }
+
+    const btnTouchPicker = document.getElementById('btn-touch-picker');
+    if (btnTouchPicker) {
+        btnTouchPicker.onclick = () => {
+            if (app.activeTool === TOOLS.PICKER) {
+                app.setTool(app.lastBrush || TOOLS.BRUSH);
+            } else {
+                app.setTool(TOOLS.PICKER);
+            }
+        };
+    }
+
+    const touchBrushSize = document.getElementById('touch-brush-size');
+    if (touchBrushSize) {
+        touchBrushSize.oninput = (e) => {
+            const sliderVal = parseInt(e.target.value);
+            const size = app._mapSliderToSize(sliderVal);
+            
+            if (app.activeTool) {
+                app.brushSettings[app.activeTool].size = size;
+                app.engine.brush.size = size;
+                app._saveBrushSettings();
+                
+                // Sync main size inputs
+                const mainSizeInput = document.getElementById('brush-size');
+                if (mainSizeInput) mainSizeInput.value = sliderVal;
+                const mainSizeVal = document.getElementById('size-val');
+                if (mainSizeVal) mainSizeVal.innerText = size;
+                
+                const touchSizeValDisplay = document.getElementById('touch-size-val');
+                if (touchSizeValDisplay) touchSizeValDisplay.innerText = size;
+            }
+        };
+    }
+
+    const btnTouchSizeDown = document.getElementById('btn-touch-size-down');
+    if (btnTouchSizeDown) {
+        btnTouchSizeDown.onclick = () => {
+            app._adjSize(-5);
+        };
+    }
+
+    const btnTouchSizeUp = document.getElementById('btn-touch-size-up');
+    if (btnTouchSizeUp) {
+        btnTouchSizeUp.onclick = () => {
+            app._adjSize(5);
+        };
+    }
 
     document.getElementById('btn-advanced-brush').onclick = () => {
         document.getElementById('panel-advanced-brush').classList.toggle('hidden');

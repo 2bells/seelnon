@@ -266,7 +266,10 @@
         <div id="panel-layers" class="ui-panel">
            <div id="handle-layers" class="panel-handle">
             <span class="panel-title">LAYERS</span>
-            <div id="status" class="status-indicator">READY</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button id="btn-toggle-shortcuts" class="shortcut-toggle-btn" title="Toggle Touch Toolkit" aria-label="Toggle Touch Toolkit"></button>
+              <div id="status" class="status-indicator">READY</div>
+            </div>
           </div>
           <div id="layer-stack"></div>
           
@@ -278,6 +281,46 @@
                 <button id="btn-zoom-in" class="mini-btn">+</button>
                 <div style="width: 8px;"></div>
                 <button id="btn-zoom-fit" class="mini-btn" style="height: 16px; padding: 0 4px;">FIT</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TOUCH TOOLKIT PANEL -->
+        <div id="panel-touch-shortcuts" class="ui-panel hidden" style="width: 170px;">
+          <div id="handle-touch-shortcuts" class="panel-handle">
+            <span class="panel-title">TOUCH KIT</span>
+            <button id="btn-close-shortcuts" class="mini-btn">X</button>
+          </div>
+          <div class="panel-content" style="padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+            <!-- Undo / Redo in 1 row -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+              <button id="btn-touch-undo" class="brutal-btn" style="height: 28px; font-size: 9px; font-weight: 900; box-shadow: 2px 2px 0px 0px black; padding: 0;" title="Undo">UNDO</button>
+              <button id="btn-touch-redo" class="brutal-btn" style="height: 28px; font-size: 9px; font-weight: 900; box-shadow: 2px 2px 0px 0px black; padding: 0;" title="Redo">REDO</button>
+            </div>
+
+            <!-- Selection Tools: Transform, Apply, Deselect -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <button id="btn-touch-transform" class="brutal-btn" style="height: 28px; font-size: 9px; font-weight: 900; box-shadow: 2px 2px 0px 0px black; display: flex; align-items: center; justify-content: center; padding: 0;" title="Start Transforming Selected Area">TRANSFORM</button>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                <button id="btn-touch-apply" class="brutal-btn" style="height: 28px; font-size: 9px; font-weight: 900; box-shadow: 2px 2px 0px 0px black; padding: 0;" title="Bake selection back to drawing surface">APPLY</button>
+                <button id="btn-touch-deselect" class="brutal-btn" style="height: 28px; font-size: 9px; font-weight: 900; box-shadow: 2px 2px 0px 0px black; padding: 0;" title="Clear Lasso Selection / Floating Workspace">DESELECT</button>
+              </div>
+            </div>
+
+            <!-- Color picker state toggle -->
+            <button id="btn-touch-picker" class="brutal-btn" style="height: 28px; font-size: 9px; font-weight: 900; box-shadow: 2px 2px 0px 0px black; padding: 0;" title="Temporary Eyedropper Color Picker Tool">EYEDROPPER</button>
+
+            <!-- Touch Resize Slider -->
+            <div style="border-top: 2px dashed black; padding-top: 8px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; justify-content: space-between; font-size: 9px; font-weight: 900; text-transform: uppercase;">
+                <span>BRUSH SIZE</span>
+                <span id="touch-size-val" style="font-weight: 900;">40</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 24px 1fr 24px; gap: 4px; align-items: center;">
+                <button id="btn-touch-size-down" class="mini-btn" style="height: 20px; font-weight: 900; padding: 0;">-</button>
+                <input type="range" id="touch-brush-size" min="0" max="400" value="214" class="brutal-range main-range" style="width: 100%;">
+                <button id="btn-touch-size-up" class="mini-btn" style="height: 20px; font-weight: 900; padding: 0;">+</button>
+              </div>
             </div>
           </div>
         </div>

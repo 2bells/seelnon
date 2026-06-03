@@ -618,6 +618,11 @@ class App {
     
     if (el) el.value = this._mapSizeToSlider(newSize);
     if (valEl) valEl.innerText = newSize;
+
+    const touchSizeInput = document.getElementById('touch-brush-size');
+    if (touchSizeInput) touchSizeInput.value = this._mapSizeToSlider(newSize);
+    const touchSizeRangeVal = document.getElementById('touch-size-val');
+    if (touchSizeRangeVal) touchSizeRangeVal.innerText = newSize;
     
     this._saveBrushSettings();
   }
@@ -856,6 +861,11 @@ class App {
         // Update UI Sliders
         document.getElementById('brush-size').value = this._mapSizeToSlider(settings.size);
         document.getElementById('size-val').innerText = settings.size;
+
+        const touchSizeInput = document.getElementById('touch-brush-size');
+        if (touchSizeInput) touchSizeInput.value = this._mapSizeToSlider(settings.size);
+        const touchSizeRangeVal = document.getElementById('touch-size-val');
+        if (touchSizeRangeVal) touchSizeRangeVal.innerText = settings.size;
         
         const opacEl = document.getElementById('brush-opacity');
         if (opacEl) {
@@ -1092,6 +1102,16 @@ class App {
       btn.classList.add('active-tool');
     }
 
+    // Update Touch Eyedropper highlight
+    const touchPickerBtn = document.getElementById('btn-touch-picker');
+    if (touchPickerBtn) {
+        if (tool === TOOLS.PICKER) {
+            touchPickerBtn.classList.add('active-tool');
+        } else {
+            touchPickerBtn.classList.remove('active-tool');
+        }
+    }
+
     if (tool) this._status(tool);
   }
 
@@ -1110,8 +1130,8 @@ class App {
     this._updateColorUI();
 
     // Smart Switch check: if color picked while using non-painting tools, switch to last brush
-    if (this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.LASSO || this.activeTool === TOOLS.SMUDGE) {
-        this.setTool(this.lastBrush);
+    if (this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.LASSO || this.activeTool === TOOLS.SMUDGE || this.activeTool === TOOLS.PICKER) {
+        this.setTool(this.lastBrush || TOOLS.BRUSH);
     }
   }
 
