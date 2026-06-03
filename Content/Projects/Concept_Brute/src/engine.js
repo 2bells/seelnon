@@ -2516,38 +2516,35 @@ export class Engine {
                             ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
                         }
 
+                        const origAlpha = ctx.globalAlpha;
+                        const origGCO = ctx.globalCompositeOperation;
+
                         // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
                         if (height > 0) {
-                            ctx.save();
                             ctx.globalCompositeOperation = 'multiply';
-                            ctx.translate(1, 1);
-                            ctx.globalAlpha = height * 0.22;
-                            ctx.drawImage(this._reliefCache.shadow, -curR, -curR, curSize, curSize);
-                            ctx.restore();
+                            ctx.globalAlpha = origAlpha * height * 0.22;
+                            ctx.drawImage(this._reliefCache.shadow, -curR + 1, -curR + 1, curSize, curSize);
                         }
 
                         // 2. Base Highlight Pass - Using screen for volumetric height stability
                         const baseHighlightOpacity = height * 0.15;
                         if (baseHighlightOpacity > 0) {
-                            ctx.save();
-                            ctx.globalCompositeOperation = 'multiply';
-                            ctx.translate(-1, -1);
-                            ctx.globalAlpha = Math.min(1.0, baseHighlightOpacity);
-                            ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
-                            ctx.restore();
+                            ctx.globalCompositeOperation = 'screen';
+                            ctx.globalAlpha = origAlpha * Math.min(1.0, baseHighlightOpacity);
+                            ctx.drawImage(this._reliefCache.highlight, -curR - 1, -curR - 1, curSize, curSize);
                         }
 
                         // 3. Wet/Oil Pass - Using overlay or dodge for that high-specular shiny look
                         const oilOpacity = oil * 0.35;
                         if (oilOpacity > 0) {
-                            ctx.save();
-                            // overlay provides rich contrast without blowing out blacks
                             ctx.globalCompositeOperation = 'overlay'; 
-                            ctx.translate(-1.5, -1.5); // Slightly different offset for "thickness"
-                            ctx.globalAlpha = Math.min(0.8, oilOpacity);
-                            ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
-                            ctx.restore();
+                            ctx.globalAlpha = origAlpha * Math.min(0.8, oilOpacity);
+                            ctx.drawImage(this._reliefCache.highlight, -curR - 1.5, -curR - 1.5, curSize, curSize);
                         }
+
+                        // Restore original properties directly
+                        ctx.globalAlpha = origAlpha;
+                        ctx.globalCompositeOperation = origGCO;
                     } else {
                         if (jHue > 0 || jSize > 0) {
                              ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
@@ -2929,7 +2926,19 @@ export class Engine {
 
   setZoom(z, cursorX = null, cursorY = null) {
     const oldZoom = this.zoom;
-    this.zoom = Math.max(0.01, Math.min(50, z));
+    let targetZoom = Math.max(0.01, Math.min(50, z));
+
+    // Magnetic snapping to integer and common fractional zoom levels (100%, 50%, 200%, etc.)
+    // to keep pixel alignment crisp and eliminate subpixel seams.
+    const snapThreshold = 0.04;
+    const snaps = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 12.0, 16.0];
+    for (const s of snaps) {
+        if (Math.abs(targetZoom - s) < snapThreshold * Math.min(1.2, s)) {
+            targetZoom = s;
+            break;
+        }
+    }
+    this.zoom = targetZoom;
 
     const rect = this.container.getBoundingClientRect();
     const cx = Math.floor(rect.width / 2);

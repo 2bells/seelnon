@@ -338,6 +338,15 @@ export async function saveProject(app) {
                         }
                         const dataUrl = tempCanv.toDataURL('image/png'); 
                         sector.chunks[chunkKey] = dataUrl;
+
+                        // FORCE Promotion back to GPU hardware acceleration
+                        // Browser flushes GPU buffers on toDataURL (readback), demoting the layer composition. 
+                        // We write a microscopic transparent pixel to immediately re-promote to GPU.
+                        const chunkCtx = chunk.ctxs[l];
+                        if (chunkCtx) {
+                            chunkCtx.fillStyle = 'rgba(0,0,0,0.004)'; // 1/255 opaque, completely invisible
+                            chunkCtx.fillRect(0, 0, 1, 1);
+                        }
                     }
                 }
             }

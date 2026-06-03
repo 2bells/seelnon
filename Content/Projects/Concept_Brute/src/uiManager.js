@@ -317,12 +317,20 @@ export function setupUI(app) {
     }
 
     // Zoom controls
+    const ZOOM_LEVELS = [0.05, 0.1, 0.15, 0.2, 0.25, 0.33, 0.4, 0.5, 0.66, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 16.0, 20.0, 24.0, 32.0, 40.0, 50.0];
+
     document.getElementById('btn-zoom-in').onclick = () => {
-        app.engine.setZoom(app.engine.zoom * 1.2);
+        const cur = app.engine.zoom;
+        let nextZoom = ZOOM_LEVELS.find(z => z > cur + 0.005);
+        if (nextZoom === undefined) nextZoom = cur * 1.2;
+        app.engine.setZoom(nextZoom);
         app._updateZoomUI();
     };
     document.getElementById('btn-zoom-out').onclick = () => {
-        app.engine.setZoom(app.engine.zoom / 1.2);
+        const cur = app.engine.zoom;
+        let prevZoom = [...ZOOM_LEVELS].reverse().find(z => z < cur - 0.005);
+        if (prevZoom === undefined) prevZoom = cur / 1.2;
+        app.engine.setZoom(prevZoom);
         app._updateZoomUI();
     };
     document.getElementById('btn-zoom-fit').onclick = () => {
