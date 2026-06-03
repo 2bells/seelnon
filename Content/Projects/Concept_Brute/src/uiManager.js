@@ -577,6 +577,18 @@ export function setupUI(app) {
         }
     };
 
+    // Wire up speed sliders reset arrows to snap back to 0
+    document.querySelectorAll('.slider-reset-arrow').forEach(btn => {
+        btn.onclick = () => {
+            const targetId = btn.getAttribute('data-target');
+            const targetInput = document.getElementById(targetId);
+            if (targetInput) {
+                targetInput.value = 0;
+                targetInput.dispatchEvent(new Event('input'));
+            }
+        };
+    });
+
     // Draggable Panels
     app._makeDraggable(document.getElementById('panel-color'), document.getElementById('handle-color'));
     app._makeDraggable(document.getElementById('panel-images'), document.getElementById('handle-images'));
