@@ -40,7 +40,7 @@ Even if something is not possible to do 'by hand' it is possible to make your te
 
 I think that you can easily design a bunch of enemies, abilities and items on your own -> drop into AI and say: 'Mr. AI, please stitch it all together into Vampire Survivor style game' and you can one shot a very nice experience.
 
-Also it should be possible to make ARPG. It already has procedural generation, so as usual: make you own rooms / dungeons -> .json export of prefabs -> tell AI to stitch it together and you can have everything you need. (you do need to plan ahead, but I do think if you going for like Gemini 3.5, should be fine. It is free as well on aistudio.google.com)
+Also it should be possible to make ARPG. It already has procedural generation, so: make your own rooms / dungeons -> .json export of prefabs -> tell AI to stitch it together and you can have everything you need. (you do need to plan ahead, but I do think if you are going for... let's say Gemini 3.5, it should be fine. It is free as well on aistudio.google.com)
 
 [google AI](https://aistudio.google.com/)
 
