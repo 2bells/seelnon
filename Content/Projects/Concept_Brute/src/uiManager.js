@@ -39,7 +39,23 @@ export function setupUI(app) {
     document.getElementById('btn-smudge').onclick = () => app.setTool(TOOLS.SMUDGE);
     document.getElementById('btn-ref_move').onclick = () => app.setTool(TOOLS.REF_MOVE);
     document.getElementById('btn-save').onclick = () => {
-        app._startExportMode();
+        if (app.engine.isStatic) {
+            app._status('SAVING CODES TO INDEXED-DB...');
+            import('./projectManager.js').then(module => {
+                module.saveProject(app).then(() => {
+                    const rect = {
+                        x: -app.engine.isStatic ? app.engine.staticWidth / 2 : 0,
+                        y: -app.engine.isStatic ? app.engine.staticHeight / 2 : 0,
+                        w: app.engine.isStatic ? app.engine.staticWidth : 0,
+                        h: app.engine.isStatic ? app.engine.staticHeight : 0
+                    };
+                    app._showExportModal(rect);
+                    app._status('PROJECT SAVED - EXPORT READY');
+                });
+            });
+        } else {
+            app._startExportMode();
+        }
     };
 
     document.getElementById('btn-undo').onclick = () => app.engine.undo();
@@ -116,9 +132,21 @@ export function setupUI(app) {
         e.stopPropagation();
         const modal = document.getElementById('modal-new-project');
         modal.classList.remove('hidden');
+        // Reset inputs
+        document.getElementById('new-project-mode').value = 'infinite';
+        document.getElementById('new-project-static-dimensions').classList.add('hidden');
         // Reset/Sync quality value display
         const qualitySlider = document.getElementById('new-project-quality');
         document.getElementById('new-quality-val').innerText = qualitySlider.value;
+    };
+
+    document.getElementById('new-project-mode').onchange = (e) => {
+        const dimPanel = document.getElementById('new-project-static-dimensions');
+        if (e.target.value === 'static') {
+            dimPanel.classList.remove('hidden');
+        } else {
+            dimPanel.classList.add('hidden');
+        }
     };
 
     document.getElementById('btn-close-new-project').onclick = () => {
@@ -134,8 +162,23 @@ export function setupUI(app) {
         const id = 'prj_' + Date.now();
         const chunkSize = parseInt(document.getElementById('new-project-chunk-size').value);
         const quality = parseFloat(document.getElementById('new-project-quality').value);
+        const mode = document.getElementById('new-project-mode').value;
+        const isStatic = (mode === 'static');
+        const width = isStatic ? (parseInt(document.getElementById('new-project-width').value) || 2400) : 0;
+        const height = isStatic ? (parseInt(document.getElementById('new-project-height').value) || 3600) : 0;
         
-        const newProj = { id, name, settings: { chunkSize, quality } };
+        const newProj = { 
+            id, 
+            name, 
+            settings: { 
+                chunkSize, 
+                quality,
+                isStatic,
+                width,
+                height,
+                dpiScale: 1.0
+            } 
+        };
         app.projects.push(newProj);
         await app.storage.saveGlobalSetting('projects_list', app.projects);
         
@@ -187,6 +230,117 @@ export function setupUI(app) {
                 e.target.style.background = '#ff4444';
             }
         }, 3000);
+    };
+
+    // Static settings update triggers
+    document.getElementById('btn-apply-static-settings').onclick = async () => {
+        const wVal = parseInt(document.getElementById('settings-static-width').value);
+        const hVal = parseInt(document.getElementById('settings-static-height').value);
+        const dpiVal = parseFloat(document.getElementById('settings-static-dpi').value);
+
+        if (isNaN(wVal) || wVal < 100 || wVal > 15000 || isNaN(hVal) || hVal < 100 || hVal > 15000) {
+            app._status('LIMIT REACHED: 100 - 15000 PX');
+            return;
+        }
+
+        const currentW = app.engine.staticWidth;
+        const currentH = app.engine.staticHeight;
+        const currentDpi = app.engine.dpiScale || 1.0;
+
+        if (wVal === currentW && hVal === currentH && dpiVal === currentDpi) {
+            app._status('NO CHANGES MADE');
+            return;
+        }
+
+        // Apply settings & upscale artwork smoothly
+        app._status('RECONFIGURING CANVAS...');
+        
+        // Find static chunk
+        const chunk = app.engine.chunks.get("0,0");
+        const backups = [];
+
+        if (chunk) {
+            for (let l = 0; l < 4; l++) {  // LAYERS_COUNT (4)
+                const backup = document.createElement('canvas');
+                backup.width = chunk.canvases[l].width;
+                backup.height = chunk.canvases[l].height;
+                backup.getContext('2d').drawImage(chunk.canvases[l], 0, 0);
+                backups.push(backup);
+            }
+        }
+
+        app.engine.staticWidth = wVal;
+        app.engine.staticHeight = hVal;
+        app.engine.dpiScale = dpiVal;
+
+        // Update in global projects list
+        const project = app.projects.find(p => p.id === app.currentProjectId);
+        if (project) {
+            if (!project.settings) project.settings = {};
+            project.settings.width = wVal;
+            project.settings.height = hVal;
+            project.settings.dpiScale = dpiVal;
+            await app.storage.saveGlobalSetting('projects_list', app.projects);
+        }
+
+        // Reconfigure chunk canvases
+        if (chunk) {
+            chunk.width = wVal;
+            chunk.height = hVal;
+
+            for (let l = 0; l < 4; l++) {
+                const canv = chunk.canvases[l];
+                canv.width = wVal * dpiVal;
+                canv.height = hVal * dpiVal;
+
+                const ctx = chunk.ctxs[l];
+                ctx.restore(); // Clear any existing scales
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canv.width, canv.height);
+                
+                // Draw upscaled backup smoothly
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(backups[l], 0, 0, backups[l].width, backups[l].height, 0, 0, canv.width, canv.height);
+
+                if (dpiVal !== 1) {
+                    ctx.scale(dpiVal, dpiVal);
+                }
+            }
+
+            // Reconstruct strokeCanvas
+            const sCanv = chunk.strokeCanvas;
+            sCanv.width = wVal * dpiVal;
+            sCanv.height = hVal * dpiVal;
+            
+            const sCtx = chunk.strokeCtx;
+            sCtx.setTransform(1, 0, 0, 1, 0, 0);
+            sCtx.clearRect(0, 0, sCanv.width, sCanv.height);
+            if (dpiVal !== 1) {
+                sCtx.scale(dpiVal, dpiVal);
+            }
+        }
+
+        // Reset undo stack since coordinate/backing store size differs
+        app.engine.history = [];
+        app.engine.redoStack = [];
+
+        // Reposition Board
+        if (app.engine.setupBoard) {
+            app.engine.setupBoard();
+        }
+
+        // Recenter
+        app.engine.refresh();
+        app.engine.fitZoom();
+        app._updateStorageStat();
+        
+        // Final Save-Out
+        if (app.save) {
+            await app.save();
+        }
+
+        app._status('CANVAS RECONFIGURED!');
     };
 
     // Original Settings inputs

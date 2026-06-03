@@ -552,7 +552,21 @@ class App {
         case 's':
           if (e.ctrlKey) {
             e.preventDefault();
-            this._startExportMode();
+            if (this.engine.isStatic) {
+                this._status('SAVING CODES TO INDEXED-DB...');
+                saveProject(this).then(() => {
+                    const rect = {
+                        x: -this.engine.staticWidth / 2,
+                        y: -this.engine.staticHeight / 2,
+                        w: this.engine.staticWidth,
+                        h: this.engine.staticHeight
+                    };
+                    this._showExportModal(rect);
+                    this._status('PROJECT SAVED - EXPORT READY');
+                });
+            } else {
+                this._startExportMode();
+            }
           } else {
             this._adjOpacity(-5);
           }

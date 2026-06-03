@@ -15,6 +15,14 @@ export async function initProjectSystem(app) {
     if (project && project.settings) {
         app.engine.chunkSize = project.settings.chunkSize || 1024;
         app.engine.saveQuality = project.settings.quality || 0.92;
+        app.engine.isStatic = project.settings.isStatic || false;
+        app.engine.staticWidth = project.settings.width || 2400;
+        app.engine.staticHeight = project.settings.height || 3600;
+        app.engine.dpiScale = project.settings.dpiScale || 1.0;
+        if (app.engine.setupBoard) {
+            app.engine.setupBoard();
+        }
+        syncStaticSettingsUI(app);
     }
     
     await renderProjectList(app);
@@ -103,22 +111,18 @@ export async function switchProject(app, id) {
     // Update Engine with new settings
     app.engine.chunkSize = settings.chunkSize || 1024;
     app.engine.saveQuality = settings.quality || 0.92;
+    app.engine.isStatic = settings.isStatic || false;
+    app.engine.staticWidth = settings.width || 2400;
+    app.engine.staticHeight = settings.height || 3600;
+    app.engine.dpiScale = settings.dpiScale || 1.0;
+    if (app.engine.setupBoard) {
+        app.engine.setupBoard();
+    }
+    syncStaticSettingsUI(app);
     
     // Wipe engine state
-    app.engine.chunks.forEach(c => {
-        // Explicitly clear chunk canvases
-        c.canvases.forEach((canv, lIdx) => {
-            c.ctxs[lIdx].clearRect(0,0, canv.width, canv.height);
-        });
-        c.isEmpty = [true, true, true, true];
-    });
-    app.engine.chunks.clear();
-    app.engine.dirtyChunks.clear();
-    app.engine.history = [];
-    app.engine.redoStack = [];
-    app.engine.referenceImages = [];
-    app.engine.selectedRefIndex = -1;
-    app.engine.activeLayer = 2; // Default to layer 2 (PAINT 2)
+    app.engine.resetEngineState();
+    
     app.engine._updateSelectionPreview();
     app.engine.fitZoom();
     
@@ -148,14 +152,15 @@ export async function deleteProject(app, id) {
         await app.storage.saveGlobalSetting('current_project_id', 'default');
         
         // Reset Engine
+        app.engine.resetEngineState();
         app.engine.chunkSize = 1024;
         app.engine.saveQuality = 0.92;
-        app.engine.chunks.clear();
-        app.engine.dirtyChunks.clear();
-        app.engine.history = [];
-        app.engine.redoStack = [];
-        app.engine.referenceImages = [];
-        app.engine.activeLayer = 2;
+        app.engine.isStatic = false;
+        app.engine.staticWidth = 2400;
+        app.engine.staticHeight = 3600;
+        if (app.engine.setupBoard) {
+            app.engine.setupBoard();
+        }
         app.engine.fitZoom();
         
         await loadProject(app);
@@ -222,7 +227,6 @@ export async function loadProject(app) {
 
         // 2. SECTOR LOADING
         const sectorKeys = await app.storage.getAllSectorKeys();
-        console.log(`DEBUG: Found ${sectorKeys.length} sectors to load.`);
         for (const key of sectorKeys) {
             const parts = key.split('_'); 
             const sy = parseInt(parts[parts.length - 1]);
@@ -340,13 +344,30 @@ export async function saveProject(app) {
                         const dataUrl = tempCanv.toDataURL('image/png'); 
                         sector.chunks[chunkKey] = dataUrl;
 
+                        // FORCE load from memory (re-render the clean saved PNG back onto the canvas)
+                        // This resolves any transient rendering artifact or GPU seam/line residue instantly!
+                        try {
+                            const img = new Image();
+                            await new Promise(resolve => {
+                                img.onload = resolve;
+                                img.src = dataUrl;
+                            });
+                            const chunkCtx = chunk.ctxs[l];
+                            if (chunkCtx) {
+                                chunkCtx.clearRect(0, 0, chunk.canvases[l].width, chunk.canvases[l].height);
+                                chunkCtx.drawImage(img, 0, 0);
+                            }
+                        } catch (err) {
+                            console.error("GPU Rebound Force Reload failed for chunk:", chunkKey, err);
+                        }
+
                         // FORCE Promotion back to GPU hardware acceleration
                         // Browser flushes GPU buffers on toDataURL (readback), demoting the layer composition. 
                         // We write a microscopic transparent pixel to immediately re-promote to GPU.
                         const chunkCtx = chunk.ctxs[l];
                         if (chunkCtx) {
                             chunkCtx.fillStyle = 'rgba(0,0,0,0.004)'; // 1/255 opaque, completely invisible
-                            chunkCtx.fillRect(0, 0, 1, 1);
+                            chunkCtx.fillRect(0, 0, 2, 2); // 2x2 GPU flush
                         }
                     }
                 }
@@ -360,6 +381,9 @@ export async function saveProject(app) {
         // Promote all active layer canvases back to GPU after saving & readbacks
         if (app.engine.promoteAllToGPU) {
             app.engine.promoteAllToGPU();
+        }
+
+        if (app.engine.refresh) {
             app.engine.refresh();
         }
 
@@ -383,12 +407,19 @@ export async function generateThumbnail(app) {
     tctx.fillRect(0, 0, size, size);
     
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    app.engine.chunks.forEach(c => {
-        minX = Math.min(minX, c.cx * app.engine.chunkSize);
-        minY = Math.min(minY, c.cy * app.engine.chunkSize);
-        maxX = Math.max(maxX, (c.cx + 1) * app.engine.chunkSize);
-        maxY = Math.max(maxY, (c.cy + 1) * app.engine.chunkSize);
-    });
+    if (app.engine.isStatic) {
+        minX = -app.engine.staticWidth / 2;
+        minY = -app.engine.staticHeight / 2;
+        maxX = app.engine.staticWidth / 2;
+        maxY = app.engine.staticHeight / 2;
+    } else {
+        app.engine.chunks.forEach(c => {
+            minX = Math.min(minX, c.cx * app.engine.chunkSize);
+            minY = Math.min(minY, c.cy * app.engine.chunkSize);
+            maxX = Math.max(maxX, (c.cx + 1) * app.engine.chunkSize);
+            maxY = Math.max(maxY, (c.cy + 1) * app.engine.chunkSize);
+        });
+    }
     
     if (minX === Infinity) return '';
     
@@ -402,8 +433,10 @@ export async function generateThumbnail(app) {
     tctx.translate(-(minX + w/2), -(minY + h/2));
     
     app.engine.chunks.forEach(chunk => {
+        const lx = app.engine.isStatic ? -app.engine.staticWidth / 2 : chunk.cx * app.engine.chunkSize;
+        const ly = app.engine.isStatic ? -app.engine.staticHeight / 2 : chunk.cy * app.engine.chunkSize;
         for (let i = 1; i < LAYERS_COUNT; i++) {
-            tctx.drawImage(chunk.canvases[i], chunk.cx * app.engine.chunkSize, chunk.cy * app.engine.chunkSize);
+            tctx.drawImage(chunk.canvases[i], lx, ly);
         }
     });
     tctx.restore();
@@ -420,7 +453,13 @@ export async function updateStorageStat(app) {
     const stats = await app.storage.getStorageStats();
     
     const chunksEl = document.getElementById('storage-chunks');
-    if (chunksEl) chunksEl.innerText = `${stats.chunks} CHUNKS (${stats.sectors} SECTORS)`;
+    if (chunksEl) {
+        if (app.engine.isStatic) {
+            chunksEl.innerText = `STATIC SHEET: ${app.engine.staticWidth} x ${app.engine.staticHeight} @ ${app.engine.dpiScale || 1}x`;
+        } else {
+            chunksEl.innerText = `${stats.chunks} CHUNKS (${stats.sectors} SECTORS)`;
+        }
+    }
 
     const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
     const sizeEl = document.getElementById('storage-size');
@@ -465,14 +504,16 @@ export async function performExport(app) {
     tempCtx.restore();
     
     app.engine.chunks.forEach(chunk => {
-        const chunkX = chunk.cx * app.engine.chunkSize;
-        const chunkY = chunk.cy * app.engine.chunkSize;
+        const lx = app.engine.isStatic ? -app.engine.staticWidth / 2 : chunk.cx * app.engine.chunkSize;
+        const ly = app.engine.isStatic ? -app.engine.staticHeight / 2 : chunk.cy * app.engine.chunkSize;
+        const chunkW = app.engine.isStatic ? app.engine.staticWidth : app.engine.chunkSize;
+        const chunkH = app.engine.isStatic ? app.engine.staticHeight : app.engine.chunkSize;
         
-        if (chunkX < xEnd && chunkX + app.engine.chunkSize > xStart &&
-            chunkY < yEnd && chunkY + app.engine.chunkSize > yStart) {
+        if (lx < xEnd && lx + chunkW > xStart &&
+            ly < yEnd && ly + chunkH > yStart) {
             
             for (let i = 1; i < LAYERS_COUNT; i++) {
-                tempCtx.drawImage(chunk.canvases[i], chunkX - xStart, chunkY - yStart, app.engine.chunkSize, app.engine.chunkSize);
+                tempCtx.drawImage(chunk.canvases[i], lx - xStart, ly - yStart, chunkW, chunkH);
             }
         }
     });
@@ -512,4 +553,23 @@ export async function performExport(app) {
 
     app._endExportMode();
     app._status('EXPORTED');
+}
+
+export function syncStaticSettingsUI(app) {
+    const staticSec = document.getElementById('settings-static-section');
+    if (staticSec) {
+        if (app.engine.isStatic) {
+            staticSec.classList.remove('hidden');
+            const wInput = document.getElementById('settings-static-width');
+            const hInput = document.getElementById('settings-static-height');
+            const dpiSelect = document.getElementById('settings-static-dpi');
+            if (wInput) wInput.value = app.engine.staticWidth;
+            if (hInput) hInput.value = app.engine.staticHeight;
+            if (dpiSelect) {
+                dpiSelect.value = String(app.engine.dpiScale || 1);
+            }
+        } else {
+            staticSec.classList.add('hidden');
+        }
+    }
 }

@@ -82,15 +82,27 @@ export class Engine {
     
     this.captureReticle = document.getElementById('capture-reticle');
     
+    // Static canvas state properties
+    this.isStatic = false;
+    this.staticWidth = 2400;
+    this.staticHeight = 3600;
+    this.dpiScale = 1.0;
+
     // Dedicated wrapper for all canvas content that can be mirrored
     this.canvasWrapper = document.createElement('div');
     this.canvasWrapper.id = 'canvas-wrapper';
     this.canvasWrapper.className = 'absolute';
     
-    // Dedicated layer for reference images
+    // Dedicated board container to hold chunks and elements (acting as paper sheet)
+    this.boardContainer = document.createElement('div');
+    this.boardContainer.id = 'board-container';
+    this.boardContainer.style.position = 'absolute';
+    this.canvasWrapper.appendChild(this.boardContainer);
+
+    // Dedicated layer for reference images (nested inside boardContainer)
     this.refLayer = document.createElement('div');
     this.refLayer.className = 'absolute inset-0';
-    this.canvasWrapper.appendChild(this.refLayer);
+    this.boardContainer.appendChild(this.refLayer);
 
     // Make wrapper larger to handle rotation without edges showing
     this.canvasWrapper.style.width = `${this.worldCenter * 2}px`;
@@ -98,7 +110,7 @@ export class Engine {
     this.canvasWrapper.style.left = `calc(50% - ${this.worldCenter}px)`;
     this.canvasWrapper.style.top = `calc(50% - ${this.worldCenter}px)`;
     this.canvasWrapper.style.transformOrigin = `${this.worldCenter}px ${this.worldCenter}px`;
-    this.canvasWrapper.style.backgroundColor = this.canvasBg;
+    this.canvasWrapper.style.backgroundColor = 'transparent'; // Let setupBoard draw paper
     this.container.appendChild(this.canvasWrapper);
 
     if (!this.scratchCanvas) {
@@ -116,6 +128,7 @@ export class Engine {
     this.zoomAnchor = null;
 
     this.loadViewport();
+    this.setupBoard();
     
     // Dedicated UI Layer for overlays (Selection, Lasso, etc)
     this.uiLayer = document.createElement('div');
@@ -140,6 +153,41 @@ export class Engine {
       requestAnimationFrame(loop);
   }
 
+  resetEngineState() {
+      // Clear chunks from DOM and reset
+      this.chunks.forEach(chunk => {
+          if (chunk.isAttached && chunk.element.parentNode) {
+              chunk.element.remove();
+          }
+          chunk.canvases.forEach(c => {
+              c.width = 0;
+              c.height = 0;
+          });
+          if (chunk.strokeCanvas) {
+              chunk.strokeCanvas.width = 0;
+              chunk.strokeCanvas.height = 0;
+          }
+      });
+      this.chunks.clear();
+      this.dirtyChunks.clear();
+
+      // Clear ref images from DOM
+      this.referenceImages.forEach(ref => {
+          if (ref.element && ref.element.parentNode) {
+              ref.element.remove();
+          }
+      });
+      this.referenceImages = [];
+      this.selectedRefIndex = -1;
+      this.refsDirty = false;
+      
+      this.history = [];
+      this.redoStack = [];
+      this.activeSelectionPath = null;
+      this.floatingSelection = null;
+      this.activeLayer = 2; // Default to layer 2
+  }
+
   captureArea(screenX, screenY, size = 128) {
     const temp = document.createElement('canvas');
     temp.width = size;
@@ -156,19 +204,21 @@ export class Engine {
     };
     
     this.chunks.forEach(chunk => {
-        const chunkX = chunk.cx * this.chunkSize;
-        const chunkY = chunk.cy * this.chunkSize;
+        const chunkX = this.isStatic ? -this.staticWidth / 2 : chunk.cx * this.chunkSize;
+        const chunkY = this.isStatic ? -this.staticHeight / 2 : chunk.cy * this.chunkSize;
+        const chunkW = this.isStatic ? this.staticWidth : this.chunkSize;
+        const chunkH = this.isStatic ? this.staticHeight : this.chunkSize;
         
-        if (chunkX < rect.x + rect.w && chunkX + this.chunkSize > rect.x &&
-            chunkY < rect.y + rect.h && chunkY + this.chunkSize > rect.y) {
+        if (chunkX < rect.x + rect.w && chunkX + chunkW > rect.x &&
+            chunkY < rect.y + rect.h && chunkY + chunkH > rect.y) {
             
             for (let i = 1; i < LAYERS_COUNT; i++) {
                 const srcX = Math.max(0, rect.x - chunkX);
                 const srcY = Math.max(0, rect.y - chunkY);
                 const overlapX = Math.max(chunkX, rect.x);
                 const overlapY = Math.max(chunkY, rect.y);
-                const overlapW = Math.min(chunkX + this.chunkSize, rect.x + rect.w) - overlapX;
-                const overlapH = Math.min(chunkY + this.chunkSize, rect.y + rect.h) - overlapY;
+                const overlapW = Math.min(chunkX + chunkW, rect.x + rect.w) - overlapX;
+                const overlapH = Math.min(chunkY + chunkH, rect.y + rect.h) - overlapY;
 
                 if (overlapW > 0 && overlapH > 0) {
                     const dstX = (overlapX - rect.x) * this.zoom;
@@ -176,7 +226,12 @@ export class Engine {
                     const dstW = overlapW * this.zoom;
                     const dstH = overlapH * this.zoom;
                     
-                    tctx.drawImage(chunk.canvases[i], overlapX - chunkX, overlapY - chunkY, overlapW, overlapH, dstX, dstY, dstW, dstH);
+                    const scale = this.isStatic ? this.dpiScale : 1;
+                    const sx = (overlapX - chunkX) * scale;
+                    const sy = (overlapY - chunkY) * scale;
+                    const sw = overlapW * scale;
+                    const sh = overlapH * scale;
+                    tctx.drawImage(chunk.canvases[i], sx, sy, sw, sh, dstX, dstY, dstW, dstH);
                 }
             }
         }
@@ -467,12 +522,19 @@ export class Engine {
     const y = e.clientY - rect.top;
     
     const world = this._screenToWorld(x, y);
+    let wx = world.wx;
+    let wy = world.wy;
+    
+    if (this.isStatic) {
+        wx = Math.max(-this.staticWidth / 2, Math.min(this.staticWidth / 2, wx));
+        wy = Math.max(-this.staticHeight / 2, Math.min(this.staticHeight / 2, wy));
+    }
     
     return {
         x: x, 
         y: y,
-        wx: world.wx,
-        wy: world.wy
+        wx: wx,
+        wy: wy
     };
   }
 
@@ -481,8 +543,8 @@ export class Engine {
     const cx = Math.floor(rect.width / 2);
     const cy = Math.floor(rect.height / 2);
 
-    const dx = x - cx - this.pan.x;
-    const dy = y - cy - this.pan.y;
+    const dx = x - cx - Math.round(this.pan.x);
+    const dy = y - cy - Math.round(this.pan.y);
 
     const cos = Math.cos(-this.rotation);
     const sin = Math.sin(-this.rotation);
@@ -516,6 +578,9 @@ export class Engine {
   }
 
   _getChunkCoords(x, y) {
+    if (this.isStatic) {
+        return { cx: 0, cy: 0 };
+    }
     const pos = this._getMousePos({ clientX: x, clientY: y });
     const cx = Math.floor(pos.wx / this.chunkSize);
     const cy = Math.floor(pos.wy / this.chunkSize);
@@ -523,10 +588,17 @@ export class Engine {
   }
 
   _getChunk(cx, cy) {
+    if (this.isStatic) {
+        cx = 0;
+        cy = 0;
+    }
     const id = `${cx},${cy}`;
     if (this.chunks.has(id)) {
         return this.chunks.get(id);
     }
+
+    const w = this.isStatic ? this.staticWidth : this.chunkSize;
+    const h = this.isStatic ? this.staticHeight : this.chunkSize;
 
     const chunk = {
       cx, cy,
@@ -536,16 +608,18 @@ export class Engine {
       element: document.createElement('div'),
       isAttached: false,
       strokeCanvas: null,
-      strokeCtx: null
+      strokeCtx: null,
+      width: w,
+      height: h
     };
 
     chunk.element.className = 'absolute pointer-events-none';
-    const dpr = 1;
+    const scale = this.isStatic ? this.dpiScale : 1;
     
     for (let i = 0; i < LAYERS_COUNT; i++) {
       const canv = document.createElement('canvas');
-      canv.width = this.chunkSize * dpr;
-      canv.height = this.chunkSize * dpr;
+      canv.width = chunk.width * scale;
+      canv.height = chunk.height * scale;
       canv.className = 'absolute inset-0';
       canv.style.touchAction = 'none';
       canv.style.imageRendering = 'auto'; 
@@ -555,7 +629,11 @@ export class Engine {
       canv.style.willChange = 'transform';
       
       chunk.canvases.push(canv);
-      chunk.ctxs.push(canv.getContext('2d', { alpha: true }));
+      const ctx = canv.getContext('2d', { alpha: true });
+      if (scale !== 1) {
+          ctx.scale(scale, scale);
+      }
+      chunk.ctxs.push(ctx);
       
       // Respect visibility
       if (this.layerSettings[i]) {
@@ -565,8 +643,8 @@ export class Engine {
     }
 
     const strokeCanv = document.createElement('canvas');
-    strokeCanv.width = this.chunkSize;
-    strokeCanv.height = this.chunkSize;
+    strokeCanv.width = chunk.width * scale;
+    strokeCanv.height = chunk.height * scale;
     strokeCanv.className = 'absolute inset-0';
     strokeCanv.style.imageRendering = 'auto';
     strokeCanv.style.backfaceVisibility = 'hidden';
@@ -575,7 +653,11 @@ export class Engine {
     strokeCanv.style.willChange = 'transform';
     strokeCanv.style.opacity = '0';
     chunk.strokeCanvas = strokeCanv;
-    chunk.strokeCtx = strokeCanv.getContext('2d', { alpha: true });
+    const sCtx = strokeCanv.getContext('2d', { alpha: true });
+    if (scale !== 1) {
+        sCtx.scale(scale, scale);
+    }
+    chunk.strokeCtx = sCtx;
     chunk.element.appendChild(strokeCanv);
 
     this.chunks.set(id, chunk);
@@ -597,11 +679,11 @@ export class Engine {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist <= cullingRadius) {
-            this.canvasWrapper.appendChild(chunk.element);
+            this.boardContainer.appendChild(chunk.element);
             chunk.isAttached = true;
         }
     } else {
-        this.canvasWrapper.appendChild(chunk.element);
+        this.boardContainer.appendChild(chunk.element);
         chunk.isAttached = true;
     }
 
@@ -613,11 +695,10 @@ export class Engine {
         for (let i = 0; i < LAYERS_COUNT; i++) {
             const ctx = chunk.ctxs[i];
             if (ctx) {
-                // A stronger, visual-no-op 2D draw to force hardware acceleration. 
-                // We draw a 2x2 transparent rect to ensure a more definitive GPU buffer kick.
+                // Draw a tiny transparent 2x2 rect utilizing extremely small opacity and alpha.
                 ctx.save();
-                ctx.globalAlpha = 0.0039; // Slightly higher alpha (1/256), almost invisible
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.0039)';
+                ctx.globalAlpha = 0.001;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.001)';
                 ctx.fillRect(0, 0, 2, 2);
                 ctx.restore();
             }
@@ -626,6 +707,16 @@ export class Engine {
   }
 
   updateCulling() {
+    if (this.isStatic) {
+        this.chunks.forEach(chunk => {
+            if (!chunk.isAttached) {
+                this.boardContainer.appendChild(chunk.element);
+                chunk.isAttached = true;
+            }
+        });
+        return;
+    }
+
     const rect = this.container.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     
@@ -649,7 +740,7 @@ export class Engine {
         
         if (isVisible) {
             if (!chunk.isAttached) {
-                this.canvasWrapper.appendChild(chunk.element);
+                this.boardContainer.appendChild(chunk.element);
                 chunk.isAttached = true;
             }
         } else {
@@ -662,27 +753,31 @@ export class Engine {
   }
 
   _updateChunkTransform(chunk) {
-    // Chunks are positioned at integer coordinates within the wrapper
-    const x = chunk.cx * this.chunkSize + this.worldCenter;
-    const y = chunk.cy * this.chunkSize + this.worldCenter;
+    // Position offset calculation depends on whether we are in a static size layout or infinite
+    const offsetX = this.isStatic ? 0 : this.worldCenter;
+    const offsetY = this.isStatic ? 0 : this.worldCenter;
+    const x = chunk.cx * this.chunkSize + offsetX;
+    const y = chunk.cy * this.chunkSize + offsetY;
     chunk.element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     
-    // Dynamic overlap: calculate how many CSS pixels we need to overlap
-    // to guarantee at least 1.8 physical screen pixels of coverage at any zoom.
-    // When zoomed way out (e.g., zoom = 0.2), 1 CSS pixel is only 0.2 physical pixels (truncated to 0).
-    // By dividing the target physical pixel overlap (1.8px) by current zoom,
-    // we get the correct self-scaling CSS overlap value.
-    const overlap = Math.max(1, Math.ceil(2.2 / (this.zoom || 1)));
-    chunk.element.style.width = `${this.chunkSize + overlap}px`;
-    chunk.element.style.height = `${this.chunkSize + overlap}px`;
+    if (this.isStatic) {
+        chunk.element.style.width = `${this.staticWidth}px`;
+        chunk.element.style.height = `${this.staticHeight}px`;
+    } else {
+        const overlap = Math.max(1, Math.ceil(1.8 / (this.zoom || 1)));
+        chunk.element.style.width = `${this.chunkSize + overlap}px`;
+        chunk.element.style.height = `${this.chunkSize + overlap}px`;
+    }
     chunk.element.style.transformOrigin = 'top left';
   }
 
   _updateRefImagesTransform() {
     this.referenceImages.forEach((ref, index) => {
         if (!ref.element) return;
-        const x = ref.x + this.worldCenter;
-        const y = ref.y + this.worldCenter;
+        const offsetX = this.isStatic ? this.staticWidth / 2 : this.worldCenter;
+        const offsetY = this.isStatic ? this.staticHeight / 2 : this.worldCenter;
+        const x = ref.x + offsetX;
+        const y = ref.y + offsetY;
         
         let transform = `translate(${x}px, ${y}px) rotate(${ref.rotation}rad) scale(${ref.scale})`;
         if (ref.mirrorX) transform += ' scaleX(-1)';
@@ -731,25 +826,94 @@ export class Engine {
     this.canvasWrapper.style.transform = transform;
   }
 
-  refreshGrid() {
-    this.container.style.backgroundColor = this.canvasBg;
-    this.canvasWrapper.style.backgroundColor = this.canvasBg;
-    
-    if (this.showGrid) {
-        const currentKey = `${this.gridSize}-${this.gridColor}-${this.gridIntensity}-${this.gridPattern}`;
-        if (this._lastGridParams !== currentKey) {
-            this._gridTexture = this._generateGridTexture();
-            this._lastGridParams = currentKey;
-        }
-
-        this.canvasWrapper.style.backgroundImage = `url(${this._gridTexture})`;
-        const texSize = this._gridTextureSize || 1024;
-        this.canvasWrapper.style.backgroundSize = `${texSize}px ${texSize}px`;
-        this.canvasWrapper.style.backgroundPosition = `${this.worldCenter}px ${this.worldCenter}px`;
-        this.canvasWrapper.style.backgroundRepeat = 'repeat';
-    } else {
-        this.canvasWrapper.style.backgroundImage = 'none';
+  setupBoard() {
+    if (!this.boardContainer) {
+        this.boardContainer = document.createElement('div');
+        this.boardContainer.id = 'board-container';
+        this.boardContainer.style.position = 'absolute';
+        this.canvasWrapper.appendChild(this.boardContainer);
     }
+    if (this.refLayer && this.refLayer.parentNode !== this.boardContainer) {
+        this.boardContainer.appendChild(this.refLayer);
+    }
+    
+    // Reset wrapper background in case
+    this.canvasWrapper.style.backgroundColor = 'transparent';
+    this.canvasWrapper.style.backgroundImage = 'none';
+    
+    if (this.isStatic) {
+        this.boardContainer.style.overflow = 'hidden';
+        this.boardContainer.style.width = `${this.staticWidth}px`;
+        this.boardContainer.style.height = `${this.staticHeight}px`;
+        
+        const left = this.worldCenter - this.staticWidth / 2;
+        const top = this.worldCenter - this.staticHeight / 2;
+        this.boardContainer.style.left = `${left}px`;
+        this.boardContainer.style.top = `${top}px`;
+        
+        // Solid brutal line border + shadow
+        this.boardContainer.style.border = 'none';
+        this.boardContainer.style.outline = '4px solid #000000';
+        this.boardContainer.style.boxShadow = '16px 16px 0px 0px rgba(0,0,0,1)';
+        this.boardContainer.style.backgroundColor = this.canvasBg;
+        
+        // High contrast dark gray workspace for desk
+        this.container.style.backgroundColor = '#18181c';
+        
+        // Set up static board grid pattern
+        if (this.showGrid) {
+            const currentKey = `${this.gridSize}-${this.gridColor}-${this.gridIntensity}-${this.gridPattern}`;
+            if (this._lastGridParams !== currentKey) {
+                this._gridTexture = this._generateGridTexture();
+                this._lastGridParams = currentKey;
+            }
+            this.boardContainer.style.backgroundImage = `url(${this._gridTexture})`;
+            const texSize = this._gridTextureSize || 1024;
+            this.boardContainer.style.backgroundSize = `${texSize}px ${texSize}px`;
+            this.boardContainer.style.backgroundPosition = `0px 0px`;
+            this.boardContainer.style.backgroundRepeat = 'repeat';
+        } else {
+            this.boardContainer.style.backgroundImage = 'none';
+        }
+    } else {
+        // Infinite Canvas mode defaults
+        this.boardContainer.style.overflow = 'visible';
+        this.boardContainer.style.width = '100%';
+        this.boardContainer.style.height = '100%';
+        this.boardContainer.style.left = '0px';
+        this.boardContainer.style.top = '0px';
+        this.boardContainer.style.border = 'none';
+        this.boardContainer.style.outline = 'none';
+        this.boardContainer.style.boxShadow = 'none';
+        this.boardContainer.style.backgroundColor = 'transparent';
+        
+        this.container.style.backgroundColor = this.canvasBg;
+        this.canvasWrapper.style.backgroundColor = this.canvasBg;
+        
+        if (this.showGrid) {
+            const currentKey = `${this.gridSize}-${this.gridColor}-${this.gridIntensity}-${this.gridPattern}`;
+            if (this._lastGridParams !== currentKey) {
+                this._gridTexture = this._generateGridTexture();
+                this._lastGridParams = currentKey;
+            }
+            this.canvasWrapper.style.backgroundImage = `url(${this._gridTexture})`;
+            const texSize = this._gridTextureSize || 1024;
+            this.canvasWrapper.style.backgroundSize = `${texSize}px ${texSize}px`;
+            this.canvasWrapper.style.backgroundPosition = `${this.worldCenter}px ${this.worldCenter}px`;
+            this.canvasWrapper.style.backgroundRepeat = 'repeat';
+        } else {
+            this.canvasWrapper.style.backgroundImage = 'none';
+        }
+    }
+    
+    // Refresh transform positions of chunks
+    this.chunks.forEach(chunk => {
+        this._updateChunkTransform(chunk);
+    });
+  }
+
+  refreshGrid() {
+    this.setupBoard();
   }
 
   _generateGridTexture() {
@@ -859,6 +1023,9 @@ export class Engine {
   }
 
   _drawSelectionViz() {
+      const pathToShow = this.lassoPath || this.activeSelectionPath;
+      if (!pathToShow && !this.isExportMode) return;
+
       if (!this.selectionViz) return;
       const ctx = this.selectionViz.getContext('2d');
       const rect = this.container.getBoundingClientRect();
@@ -867,8 +1034,6 @@ export class Engine {
           this.selectionViz.height = rect.height;
       }
       ctx.clearRect(0,0, rect.width, rect.height);
-      
-      const pathToShow = this.lassoPath || this.activeSelectionPath;
       
       if (pathToShow || this.isExportMode) {
           ctx.save();
@@ -959,10 +1124,10 @@ export class Engine {
       selectionCanvas.height = height;
       const sCtx = selectionCanvas.getContext('2d');
 
-      const startCX = Math.floor(minX / this.chunkSize);
-      const startCY = Math.floor(minY / this.chunkSize);
-      const endCX = Math.floor(maxX / this.chunkSize);
-      const endCY = Math.floor(maxY / this.chunkSize);
+      const startCX = this.isStatic ? 0 : Math.floor(minX / this.chunkSize);
+      const startCY = this.isStatic ? 0 : Math.floor(minY / this.chunkSize);
+      const endCX = this.isStatic ? 0 : Math.floor(maxX / this.chunkSize);
+      const endCY = this.isStatic ? 0 : Math.floor(maxY / this.chunkSize);
 
       const affectedChunks = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
@@ -970,8 +1135,8 @@ export class Engine {
               const id = `${cx},${cy}`;
               const chunk = this.chunks.get(id);
               if (!chunk) continue;
-              const lx = cx * this.chunkSize;
-              const ly = cy * this.chunkSize;
+              const lx = this.isStatic ? -this.staticWidth / 2 : cx * this.chunkSize;
+              const ly = this.isStatic ? -this.staticHeight / 2 : cy * this.chunkSize;
 
               // Copy to selection canvas
               sCtx.save();
@@ -982,15 +1147,16 @@ export class Engine {
               });
               sCtx.closePath();
               sCtx.clip();
-              sCtx.drawImage(chunk.canvases[this.activeLayer], lx - minX, ly - minY);
+              sCtx.drawImage(chunk.canvases[this.activeLayer], lx - minX, ly - minY, chunk.width, chunk.height);
               sCtx.restore();
               
               if (clearSource) {
                   // Backup for undo
+                  const srcCanvas = chunk.canvases[this.activeLayer];
                   const backup = document.createElement('canvas');
-                  backup.width = this.chunkSize;
-                  backup.height = this.chunkSize;
-                  backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+                  backup.width = srcCanvas.width;
+                  backup.height = srcCanvas.height;
+                  backup.getContext('2d').drawImage(srcCanvas, 0, 0);
                   affectedChunks.set(id, { layer: this.activeLayer, canvas: backup });
 
                   // Clear source
@@ -1003,7 +1169,7 @@ export class Engine {
                   });
                   ctx.closePath();
                   ctx.clip();
-                  ctx.clearRect(0,0, this.chunkSize, this.chunkSize);
+                  ctx.clearRect(0, 0, chunk.width, chunk.height);
                   ctx.restore();
                   this._markDirty(id, this.activeLayer);
               }
@@ -1240,16 +1406,21 @@ export class Engine {
     }
     
     // 3. Draw paint layers (bottom to top)
-    const cx = Math.floor(wx / this.chunkSize);
-    const cy = Math.floor(wy / this.chunkSize);
+    const cx = this.isStatic ? 0 : Math.floor(wx / this.chunkSize);
+    const cy = this.isStatic ? 0 : Math.floor(wy / this.chunkSize);
     const chunk = this.chunks.get(`${cx},${cy}`);
 
     if (chunk) {
-        const lx = Math.floor(wx - cx * this.chunkSize);
-        const ly = Math.floor(wy - cy * this.chunkSize);
-        if (lx >= 0 && lx < this.chunkSize && ly >= 0 && ly < this.chunkSize) {
+        const chunkLX = this.isStatic ? -this.staticWidth / 2 : cx * this.chunkSize;
+        const chunkLY = this.isStatic ? -this.staticHeight / 2 : cy * this.chunkSize;
+        const lx = Math.floor(wx - chunkLX);
+        const ly = Math.floor(wy - chunkLY);
+        if (lx >= 0 && lx < chunk.width && ly >= 0 && ly < chunk.height) {
+            const scale = this.isStatic ? this.dpiScale : 1;
+            const sx = lx * scale;
+            const sy = ly * scale;
             for (let i = 1; i < LAYERS_COUNT; i++) {
-                pctx.drawImage(chunk.canvases[i], lx, ly, 1, 1, 0, 0, 1, 1);
+                pctx.drawImage(chunk.canvases[i], Math.floor(sx), Math.floor(sy), Math.max(1, Math.round(scale)), Math.max(1, Math.round(scale)), 0, 0, 1, 1);
             }
         }
     }
@@ -1709,8 +1880,8 @@ export class Engine {
             const chunk = this.chunks.get(id);
             if (chunk) {
                 const ctx = chunk.ctxs[this.activeLayer];
-                const lx = chunk.cx * this.chunkSize;
-                const ly = chunk.cy * this.chunkSize;
+                const lx = this.isStatic ? -this.staticWidth / 2 : chunk.cx * this.chunkSize;
+                const ly = this.isStatic ? -this.staticHeight / 2 : chunk.cy * this.chunkSize;
 
                 ctx.save();
                 
@@ -1739,7 +1910,7 @@ export class Engine {
 
                 // Clear stroke buffer for next stroke
                 requestAnimationFrame(() => {
-                    chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
+                    chunk.strokeCtx.clearRect(0, 0, chunk.width, chunk.height);
                     chunk.strokeCanvas.style.opacity = '0';
                 });
             }
@@ -1750,7 +1921,7 @@ export class Engine {
             const chunk = this.chunks.get(id);
             if (chunk) {
                 requestAnimationFrame(() => {
-                    chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
+                    chunk.strokeCtx.clearRect(0, 0, chunk.width, chunk.height);
                     chunk.strokeCanvas.style.opacity = '0';
                 });
             }
@@ -2092,10 +2263,10 @@ export class Engine {
       const bbW = (canvas.width * sc * cos + canvas.height * sc * sin);
       const bbH = (canvas.width * sc * sin + canvas.height * sc * cos);
 
-      const startCX = Math.floor((x + canvas.width / 2 - bbW / 2) / this.chunkSize);
-      const startCY = Math.floor((y + canvas.height / 2 - bbH / 2) / this.chunkSize);
-      const endCX = Math.floor((x + canvas.width / 2 + bbW / 2) / this.chunkSize);
-      const endCY = Math.floor((y + canvas.height / 2 + bbH / 2) / this.chunkSize);
+      const startCX = this.isStatic ? 0 : Math.floor((x + canvas.width / 2 - bbW / 2) / this.chunkSize);
+      const startCY = this.isStatic ? 0 : Math.floor((y + canvas.height / 2 - bbH / 2) / this.chunkSize);
+      const endCX = this.isStatic ? 0 : Math.floor((x + canvas.width / 2 + bbW / 2) / this.chunkSize);
+      const endCY = this.isStatic ? 0 : Math.floor((y + canvas.height / 2 + bbH / 2) / this.chunkSize);
 
       const applyHistory = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
@@ -2103,15 +2274,16 @@ export class Engine {
               const id = `${cx},${cy}`;
               const chunk = this._getChunk(cx, cy);
               const ctx = chunk.ctxs[this.activeLayer];
-              const lx = cx * this.chunkSize;
-              const ly = cy * this.chunkSize;
+              const lx = this.isStatic ? -this.staticWidth / 2 : cx * this.chunkSize;
+              const ly = this.isStatic ? -this.staticHeight / 2 : cy * this.chunkSize;
 
               // Backup for undo
               if (!applyHistory.has(id)) {
+                const srcCanvas = chunk.canvases[this.activeLayer];
                 const backup = document.createElement('canvas');
-                backup.width = this.chunkSize;
-                backup.height = this.chunkSize;
-                backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+                backup.width = srcCanvas.width;
+                backup.height = srcCanvas.height;
+                backup.getContext('2d').drawImage(srcCanvas, 0, 0);
                 applyHistory.set(id, { layer: this.activeLayer, canvas: backup });
               }
 
@@ -2348,10 +2520,10 @@ export class Engine {
 
     for (const s of stamps) {
         const sR = s.size / 2;
-        const sCX = Math.floor((s.x - sR) / this.chunkSize);
-        const eCX = Math.floor((s.x + sR) / this.chunkSize);
-        const sCY = Math.floor((s.y - sR) / this.chunkSize);
-        const eCY = Math.floor((s.y + sR) / this.chunkSize);
+        const sCX = this.isStatic ? 0 : Math.floor((s.x - sR) / this.chunkSize);
+        const eCX = this.isStatic ? 0 : Math.floor((s.x + sR) / this.chunkSize);
+        const sCY = this.isStatic ? 0 : Math.floor((s.y - sR) / this.chunkSize);
+        const eCY = this.isStatic ? 0 : Math.floor((s.y + sR) / this.chunkSize);
 
         for (let cx = sCX; cx <= eCX; cx++) {
             for (let cy = sCY; cy <= eCY; cy++) {
@@ -2397,8 +2569,8 @@ export class Engine {
             affectedChunks.forEach((group, id) => {
                 const chunk = this._getChunk(group.cx, group.cy);
                 if (chunk) {
-                    const lx = group.cx * this.chunkSize;
-                    const ly = group.cy * this.chunkSize;
+                    const lx = this.isStatic ? -this.staticWidth / 2 : group.cx * this.chunkSize;
+                    const ly = this.isStatic ? -this.staticHeight / 2 : group.cy * this.chunkSize;
                     
                     this.segmentCtx.save();
                     // We must clip the pickup and the smudge draw too
@@ -2411,13 +2583,14 @@ export class Engine {
                         this.segmentCtx.clip();
                     }
 
-                    this.segmentCtx.drawImage(chunk.canvases[this.activeLayer], lx - minX, ly - minY);
+                    this.segmentCtx.drawImage(chunk.canvases[this.activeLayer], lx - minX, ly - minY, chunk.width, chunk.height);
                     this.segmentCtx.restore();
 
                     if (this.isDrawing && !this.currentStrokeDirtyChunks.has(id)) {
+                        const srcCanvas = chunk.canvases[this.activeLayer];
                         const backup = document.createElement('canvas');
-                        backup.width = this.chunkSize; backup.height = this.chunkSize;
-                        backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+                        backup.width = srcCanvas.width; backup.height = srcCanvas.height;
+                        backup.getContext('2d').drawImage(srcCanvas, 0, 0);
                         this.currentStrokeDirtyChunks.set(id, { layer: this.activeLayer, canvas: backup });
                         this._markDirty(id, this.activeLayer);
                     }
@@ -2477,9 +2650,12 @@ export class Engine {
             affectedChunks.forEach((group, id) => {
                 const chunk = this._getChunk(group.cx, group.cy);
                 if (chunk) {
-                    const lx = group.cx * this.chunkSize, ly = group.cy * this.chunkSize;
+                    const lx = this.isStatic ? -this.staticWidth / 2 : group.cx * this.chunkSize;
+                    const ly = this.isStatic ? -this.staticHeight / 2 : group.cy * this.chunkSize;
+                    const chunkW = this.isStatic ? this.staticWidth : this.chunkSize;
+                    const chunkH = this.isStatic ? this.staticHeight : this.chunkSize;
                     const iMinX = Math.max(lx, minX), iMinY = Math.max(ly, minY);
-                    const iMaxX = Math.min(lx + this.chunkSize, maxX), iMaxY = Math.min(ly + this.chunkSize, maxY);
+                    const iMaxX = Math.min(lx + chunkW, maxX), iMaxY = Math.min(ly + chunkH, maxY);
                     if (iMaxX > iMinX && iMaxY > iMinY) {
                         const lCtx = chunk.ctxs[this.activeLayer];
                         const layerSet = this.layerSettings[this.activeLayer];
@@ -2507,9 +2683,10 @@ export class Engine {
         if (!chunk) return;
 
         if (this.isDrawing && !this.currentStrokeDirtyChunks.has(id)) {
+            const srcCanvas = chunk.canvases[this.activeLayer];
             const backup = document.createElement('canvas');
-            backup.width = this.chunkSize; backup.height = this.chunkSize;
-            backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
+            backup.width = srcCanvas.width; backup.height = srcCanvas.height;
+            backup.getContext('2d').drawImage(srcCanvas, 0, 0);
             this.currentStrokeDirtyChunks.set(id, { layer: this.activeLayer, canvas: backup });
             this._markDirty(id, this.activeLayer);
         }
@@ -2517,8 +2694,8 @@ export class Engine {
         const ctx = isEraser ? chunk.ctxs[this.activeLayer] : chunk.strokeCtx;
         if (!isEraser) chunk.strokeCanvas.style.opacity = this.brush.opacity;
 
-        const lx = group.cx * this.chunkSize;
-        const ly = group.cy * this.chunkSize;
+        const lx = this.isStatic ? -this.staticWidth / 2 : group.cx * this.chunkSize;
+        const ly = this.isStatic ? -this.staticHeight / 2 : group.cy * this.chunkSize;
 
         ctx.save();
         
@@ -2917,14 +3094,19 @@ export class Engine {
         action.chunks.forEach((data, id) => {
             const chunk = this.chunks.get(id);
             if (chunk) {
+                const srcCanvas = chunk.canvases[data.layer];
                 const redoBackup = document.createElement('canvas');
-                redoBackup.width = this.chunkSize;
-                redoBackup.height = this.chunkSize;
-                redoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
+                redoBackup.width = srcCanvas.width;
+                redoBackup.height = srcCanvas.height;
+                redoBackup.getContext('2d').drawImage(srcCanvas, 0, 0);
                 redoAction.chunks.set(id, { layer: data.layer, canvas: redoBackup });
 
-                chunk.ctxs[data.layer].clearRect(0,0, this.chunkSize, this.chunkSize);
-                chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
+                const ctx = chunk.ctxs[data.layer];
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, srcCanvas.width, srcCanvas.height);
+                ctx.drawImage(data.canvas, 0, 0);
+                ctx.restore();
                 this._markDirty(id, data.layer);
             }
         });
@@ -2963,14 +3145,19 @@ export class Engine {
         action.chunks.forEach((data, id) => {
             const chunk = this.chunks.get(id);
             if (chunk) {
+                const srcCanvas = chunk.canvases[data.layer];
                 const undoBackup = document.createElement('canvas');
-                undoBackup.width = this.chunkSize;
-                undoBackup.height = this.chunkSize;
-                undoBackup.getContext('2d').drawImage(chunk.canvases[data.layer], 0, 0);
+                undoBackup.width = srcCanvas.width;
+                undoBackup.height = srcCanvas.height;
+                undoBackup.getContext('2d').drawImage(srcCanvas, 0, 0);
                 undoAction.chunks.set(id, { layer: data.layer, canvas: undoBackup });
 
-                chunk.ctxs[data.layer].clearRect(0,0, this.chunkSize, this.chunkSize);
-                chunk.ctxs[data.layer].drawImage(data.canvas, 0, 0);
+                const ctx = chunk.ctxs[data.layer];
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, srcCanvas.width, srcCanvas.height);
+                ctx.drawImage(data.canvas, 0, 0);
+                ctx.restore();
                 this._markDirty(id, data.layer);
             }
         });
@@ -2997,15 +3184,15 @@ export class Engine {
       const snap = new Map();
       this.chunks.forEach((chunk, id) => {
           const backup = document.createElement('canvas');
-          backup.width = this.chunkSize;
-          backup.height = this.chunkSize;
+          backup.width = chunk.width;
+          backup.height = chunk.height;
           backup.getContext('2d').drawImage(chunk.canvases[index], 0, 0);
           snap.set(id, { layer: index, canvas: backup });
       });
       this._pushHistory({ type: 'stroke', chunks: snap, zoom: this.zoom, pan: { ...this.pan } });
 
       this.chunks.forEach((chunk, id) => {
-          chunk.ctxs[index].clearRect(0, 0, this.chunkSize, this.chunkSize);
+          chunk.ctxs[index].clearRect(0, 0, chunk.width, chunk.height);
           this._markDirty(id, index, true);
       });
       this._status(`LAYER ${index} CLEARED`);
@@ -3015,7 +3202,7 @@ export class Engine {
   clear() {
     this.chunks.forEach((chunk, id) => {
       chunk.ctxs.forEach((ctx, index) => {
-          ctx.clearRect(0,0, this.chunkSize, this.chunkSize);
+          ctx.clearRect(0, 0, chunk.width, chunk.height);
           this._markDirty(id, index, true);
       });
     });
@@ -3104,7 +3291,25 @@ export class Engine {
   }
 
   fitZoom() {
+    if (this.isStatic) {
+        const rect = this.container.getBoundingClientRect();
+        if (rect.width && rect.height) {
+            const fitW = rect.width - 100;
+            const fitH = rect.height - 100;
+            const scaleX = fitW / this.staticWidth;
+            const scaleY = fitH / this.staticHeight;
+            const bestScale = Math.min(scaleX, scaleY, 4.0);
+            this.setZoom(Math.max(0.05, bestScale));
+            this.pan = { x: 0, y: 0 };
+            this.refresh();
+            this.saveViewport();
+            return;
+        }
+    }
     this.setZoom(1);
+    this.pan = { x: 0, y: 0 };
+    this.refresh();
+    this.saveViewport();
   }
 
   saveViewport() {
