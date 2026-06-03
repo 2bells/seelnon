@@ -355,6 +355,12 @@ export async function saveProject(app) {
         }
         
         await Promise.all(promises);
+        
+        // Promote all active layer canvases back to GPU after saving & readbacks
+        if (app.engine.promoteAllToGPU) {
+            app.engine.promoteAllToGPU();
+        }
+
         app._status('SAVED');
         app._showSaved();
         await updateStorageStat(app);
@@ -399,6 +405,11 @@ export async function generateThumbnail(app) {
         }
     });
     tctx.restore();
+    
+    // Sweep and promote all memory-loaded chunk canvases back to GPU after the readback
+    if (app.engine.promoteAllToGPU) {
+        app.engine.promoteAllToGPU();
+    }
     
     return thumbCanvas.toDataURL('image/webp', 0.5);
 }
@@ -492,6 +503,11 @@ export async function performExport(app) {
     link.href = exportCanvas.toDataURL('image/png');
     link.click();
     
+    // Sweep and promote all memory-loaded chunk canvases back to GPU after export readback
+    if (app.engine.promoteAllToGPU) {
+        app.engine.promoteAllToGPU();
+    }
+
     app._endExportMode();
     app._status('EXPORTED');
 }

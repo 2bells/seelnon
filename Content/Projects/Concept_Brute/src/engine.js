@@ -608,6 +608,25 @@ export class Engine {
     return chunk;
   }
 
+  promoteAllToGPU() {
+    this.chunks.forEach(chunk => {
+        for (let i = 0; i < LAYERS_COUNT; i++) {
+            const ctx = chunk.ctxs[i];
+            if (ctx) {
+                // A lightweight, visual-no-op 2D draw to force hardware acceleration on Chrome/WebKit.
+                // We draw a tiny transparent rect utilizing extremely small opacity and alpha.
+                // In standard 8-bit RGBA color math (0-255), 0.001 * 0.001 rounds down to exactly 0,
+                // making it mathematically impossible to change any pixel value, while registering as a canvas mutator call.
+                ctx.save();
+                ctx.globalAlpha = 0.001;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.001)';
+                ctx.fillRect(0, 0, 1, 1);
+                ctx.restore();
+            }
+        }
+    });
+  }
+
   updateCulling() {
     const rect = this.container.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
@@ -1418,7 +1437,7 @@ export class Engine {
         const zoomDelta = -dy * 0.01;
         const newZoom = this.zoom * (1 + zoomDelta);
         
-        this.setZoom(newZoom, this.transformAnchor.x, this.transformAnchor.y);
+        this.setZoom(newZoom, this.transformAnchor.x, this.transformAnchor.y, true);
         this.lastMousePos = { x: e.clientX, y: e.clientY };
         return;
     }
@@ -1721,8 +1740,10 @@ export class Engine {
                 ctx.restore();
 
                 // Clear stroke buffer for next stroke
-                chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
-                chunk.strokeCanvas.style.opacity = '0';
+                requestAnimationFrame(() => {
+                    chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
+                    chunk.strokeCanvas.style.opacity = '0';
+                });
             }
         });
     } else {
@@ -1730,8 +1751,10 @@ export class Engine {
         this.currentStrokeDirtyChunks.forEach((data, id) => {
             const chunk = this.chunks.get(id);
             if (chunk) {
-                chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
-                chunk.strokeCanvas.style.opacity = '0';
+                requestAnimationFrame(() => {
+                    chunk.strokeCtx.clearRect(0, 0, this.chunkSize, this.chunkSize);
+                    chunk.strokeCanvas.style.opacity = '0';
+                });
             }
         });
     }
@@ -3001,18 +3024,20 @@ export class Engine {
     if (this.onDrawEnd) this.onDrawEnd();
   }
 
-  setZoom(z, cursorX = null, cursorY = null) {
+  setZoom(z, cursorX = null, cursorY = null, bypassSnap = false) {
     const oldZoom = this.zoom;
     let targetZoom = Math.max(0.01, Math.min(50, z));
 
     // Magnetic snapping to integer and common fractional zoom levels (100%, 50%, 200%, etc.)
     // to keep pixel alignment crisp and eliminate subpixel seams.
-    const snapThreshold = 0.04;
-    const snaps = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 12.0, 16.0];
-    for (const s of snaps) {
-        if (Math.abs(targetZoom - s) < snapThreshold * Math.min(1.2, s)) {
-            targetZoom = s;
-            break;
+    if (!bypassSnap) {
+        const snapThreshold = 0.04;
+        const snaps = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 12.0, 16.0];
+        for (const s of snaps) {
+            if (Math.abs(targetZoom - s) < snapThreshold * Math.min(1.2, s)) {
+                targetZoom = s;
+                break;
+            }
         }
     }
     this.zoom = targetZoom;
@@ -3145,7 +3170,7 @@ export class Engine {
     this.rotation = this.gestureStartRotation;
     
     // Apply zoom & rotation anchored at the original midpoint of the fingers
-    this.setZoom(this.gestureStartZoom * zoomFactor, this.gestureStartCenter.x, this.gestureStartCenter.y);
+    this.setZoom(this.gestureStartZoom * zoomFactor, this.gestureStartCenter.x, this.gestureStartCenter.y, true);
     this.setRotation(this.gestureStartRotation + angleDelta, this.gestureStartCenter.x, this.gestureStartCenter.y);
     
     // Finally apply translation of the center point itself
