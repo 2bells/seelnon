@@ -78,6 +78,7 @@ export class Engine {
     this.activePointers = new Map(); // For multitouch gestures
     this._gridTexture = null;
     this._lastGridParams = null;
+    this.worldCenter = 200000;
     
     this.captureReticle = document.getElementById('capture-reticle');
     
@@ -92,11 +93,11 @@ export class Engine {
     this.canvasWrapper.appendChild(this.refLayer);
 
     // Make wrapper larger to handle rotation without edges showing
-    this.canvasWrapper.style.width = '10000px';
-    this.canvasWrapper.style.height = '10000px';
-    this.canvasWrapper.style.left = 'calc(50% - 5000px)';
-    this.canvasWrapper.style.top = 'calc(50% - 5000px)';
-    this.canvasWrapper.style.transformOrigin = '5000px 5000px';
+    this.canvasWrapper.style.width = `${this.worldCenter * 2}px`;
+    this.canvasWrapper.style.height = `${this.worldCenter * 2}px`;
+    this.canvasWrapper.style.left = `calc(50% - ${this.worldCenter}px)`;
+    this.canvasWrapper.style.top = `calc(50% - ${this.worldCenter}px)`;
+    this.canvasWrapper.style.transformOrigin = `${this.worldCenter}px ${this.worldCenter}px`;
     this.canvasWrapper.style.backgroundColor = this.canvasBg;
     this.container.appendChild(this.canvasWrapper);
 
@@ -584,8 +585,8 @@ export class Engine {
 
   _updateChunkTransform(chunk) {
     // Chunks are positioned at integer coordinates within the wrapper
-    const x = chunk.cx * this.chunkSize + 5000;
-    const y = chunk.cy * this.chunkSize + 5000;
+    const x = chunk.cx * this.chunkSize + this.worldCenter;
+    const y = chunk.cy * this.chunkSize + this.worldCenter;
     chunk.element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     // Slightly larger than 100% to overlap and hide fractional seams
     chunk.element.style.width = `${this.chunkSize + 1}px`;
@@ -596,8 +597,8 @@ export class Engine {
   _updateRefImagesTransform() {
     this.referenceImages.forEach((ref, index) => {
         if (!ref.element) return;
-        const x = ref.x + 5000;
-        const y = ref.y + 5000;
+        const x = ref.x + this.worldCenter;
+        const y = ref.y + this.worldCenter;
         
         let transform = `translate(${x}px, ${y}px) rotate(${ref.rotation}rad) scale(${ref.scale})`;
         if (ref.mirrorX) transform += ' scaleX(-1)';
@@ -628,8 +629,8 @@ export class Engine {
     
     // Use container dimensions to center exactly on pixels
     const rect = this.container.getBoundingClientRect();
-    const ox = Math.floor(rect.width / 2) - 5000;
-    const oy = Math.floor(rect.height / 2) - 5000;
+    const ox = Math.floor(rect.width / 2) - this.worldCenter;
+    const oy = Math.floor(rect.height / 2) - this.worldCenter;
     
     this.canvasWrapper.style.left = `${ox}px`;
     this.canvasWrapper.style.top = `${oy}px`;
@@ -655,7 +656,7 @@ export class Engine {
         this.canvasWrapper.style.backgroundImage = `url(${this._gridTexture})`;
         const texSize = this._gridTextureSize || 1024;
         this.canvasWrapper.style.backgroundSize = `${texSize}px ${texSize}px`;
-        this.canvasWrapper.style.backgroundPosition = `5000px 5000px`;
+        this.canvasWrapper.style.backgroundPosition = `${this.worldCenter}px ${this.worldCenter}px`;
         this.canvasWrapper.style.backgroundRepeat = 'repeat';
     } else {
         this.canvasWrapper.style.backgroundImage = 'none';
@@ -1266,14 +1267,15 @@ export class Engine {
         // to avoid tiny first-stamp artifacts while still feeling responsive.
         pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : 0.15;
     }
-    if (!Number.isFinite(pressure)) pressure = 0.5;
+    if (!Number.isFinite(pressure) || pressure <= 0) pressure = 0.5;
+    pressure = Math.max(0.01, Math.min(1.0, pressure));
     
     // Size modulated by initial pressure
     let initSize = this.brush.size;
     if (e.pointerType === 'pen' || e.pointerType === 'touch') {
         initSize *= (0.2 + pressure * 0.8);
     }
-    if (!Number.isFinite(initSize)) initSize = this.brush.size;
+    if (!Number.isFinite(initSize) || initSize < 0.1) initSize = Math.max(0.1, this.brush.size);
 
     const worldPos = {
         x: m.wx,
@@ -1469,28 +1471,30 @@ export class Engine {
         // More robust pressure fallback
         pressure = (e.pressure !== undefined && e.pressure !== 0 && e.pressure !== 0.5) ? e.pressure : (this.lastPressure || 0.2);
     }
-    if (!Number.isFinite(pressure)) pressure = this.lastPressure || 0.5;
+    if (!Number.isFinite(pressure) || pressure <= 0) pressure = this.lastPressure || 0.5;
+    pressure = Math.max(0.01, Math.min(1.0, pressure));
 
     // Smoother pressure
     this.lastPressure = (this.lastPressure || pressure) * 0.6 + pressure * 0.4;
-    if (!Number.isFinite(this.lastPressure)) this.lastPressure = 0.5;
+    this.lastPressure = Math.max(0.01, Math.min(1.0, this.lastPressure));
 
     const dx = currentPos.x - this.lastPos.x;
     const dy = currentPos.y - this.lastPos.y;
-    // dt: increase min to 4ms (250fps) to avoid extreme velocities on high-poll rate devices
-    const dt = Math.max(4, currentTime - this.lastTime); 
+    // dt: increase min to 20ms to smooth out sudden hardware micro-burst touch events
+    const dt = Math.max(20, currentTime - this.lastTime); 
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (!Number.isFinite(dist)) return;
     if (dist < 0.1) return;
     
-    const rawVelocity = dist / dt;
-    // Smoother velocity tracking
-    this.smoothedVelocity = this.smoothedVelocity * 0.85 + rawVelocity * 0.15;
+    // Clamp high instantaneous speed before running it through the low-pass filter
+    const rawVelocity = Math.min(120, dist / dt);
+    // Smoother velocity tracking across longer frame averages
+    this.smoothedVelocity = this.smoothedVelocity * 0.88 + rawVelocity * 0.12;
     if (!Number.isFinite(this.smoothedVelocity)) this.smoothedVelocity = rawVelocity;
     
     // Clamp velocity more strictly to avoid giant "crashes"
-    const velocity = Math.min(this.smoothedVelocity, 400); 
+    const velocity = Math.min(this.smoothedVelocity, 120); 
 
     const worldTo = {
       x: m.wx,
@@ -2583,8 +2587,10 @@ export class Engine {
     const canv = document.createElement('canvas'); canv.width = s; canv.height = s;
     const tctx = canv.getContext('2d');
     
-    // Check for filter support
-    const supportsFilters = typeof tctx.filter !== 'undefined';
+    // Check for filter support, excluding Safari & iOS web view due to broken offscreen canvas filters
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const supportsFilters = typeof tctx.filter !== 'undefined' && !isIOS && !isSafari;
     
     if (airbrush > 0 && blur > 0) {
         if (supportsFilters) {
@@ -2594,7 +2600,7 @@ export class Engine {
             tctx.fillStyle = color; 
             tctx.fillRect(0,0,s,s);
         } else {
-            // Shadow fallback for older mobile browsers
+            // Shadow fallback for mobile/Safari
             tctx.shadowBlur = blur;
             tctx.shadowColor = color;
             tctx.shadowOffsetX = s;
@@ -2621,19 +2627,61 @@ export class Engine {
     if (!this.brush.tip || this.brush.tip.width === 0 || s < 1) return;
     const shad = document.createElement('canvas'); shad.width = s; shad.height = s;
     const sctx = shad.getContext('2d');
-    if (blur > 0) sctx.filter = `blur(${blur}px)`;
-    try {
-        sctx.drawImage(this.brush.tip, 0, 0, s, s);
-    } catch(e) { return; }
-    sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
+    
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const supportsFilters = typeof sctx.filter !== 'undefined' && !isIOS && !isSafari;
+
+    if (blur > 0) {
+        if (supportsFilters) {
+            sctx.filter = `blur(${blur}px)`;
+            try {
+                sctx.drawImage(this.brush.tip, 0, 0, s, s);
+            } catch(e) { return; }
+            sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
+        } else {
+            // Shadow fallback
+            sctx.shadowBlur = blur;
+            sctx.shadowColor = 'black';
+            sctx.shadowOffsetX = s;
+            sctx.shadowOffsetY = 0;
+            try {
+                sctx.drawImage(this.brush.tip, -s, 0, s, s);
+            } catch(e) { return; }
+        }
+    } else {
+        try {
+            sctx.drawImage(this.brush.tip, 0, 0, s, s);
+        } catch(e) { return; }
+        sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
+    }
 
     const high = document.createElement('canvas'); high.width = s; high.height = s;
     const hctx = high.getContext('2d');
-    if (blur > 0) hctx.filter = `blur(${blur}px)`;
-    try {
-        hctx.drawImage(this.brush.tip, 0, 0, s, s);
-    } catch(e) { return; }
-    hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
+    
+    if (blur > 0) {
+        if (supportsFilters) {
+            hctx.filter = `blur(${blur}px)`;
+            try {
+                hctx.drawImage(this.brush.tip, 0, 0, s, s);
+            } catch(e) { return; }
+            hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
+        } else {
+            // Shadow fallback
+            hctx.shadowBlur = blur;
+            hctx.shadowColor = 'white';
+            hctx.shadowOffsetX = s;
+            hctx.shadowOffsetY = 0;
+            try {
+                hctx.drawImage(this.brush.tip, -s, 0, s, s);
+            } catch(e) { return; }
+        }
+    } else {
+        try {
+            hctx.drawImage(this.brush.tip, 0, 0, s, s);
+        } catch(e) { return; }
+        hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
+    }
     
     this._reliefCache = { shadow: shad, highlight: high, key: `${s}_${blur}`, srcTip: this.brush.tip };
   }
