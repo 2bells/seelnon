@@ -588,9 +588,15 @@ export class Engine {
     const x = chunk.cx * this.chunkSize + this.worldCenter;
     const y = chunk.cy * this.chunkSize + this.worldCenter;
     chunk.element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    // Slightly larger than 100% to overlap and hide fractional seams
-    chunk.element.style.width = `${this.chunkSize + 1}px`;
-    chunk.element.style.height = `${this.chunkSize + 1}px`;
+    
+    // Dynamic overlap: calculate how many CSS pixels we need to overlap
+    // to guarantee at least 1.8 physical screen pixels of coverage at any zoom.
+    // When zoomed way out (e.g., zoom = 0.2), 1 CSS pixel is only 0.2 physical pixels (truncated to 0).
+    // By dividing the target physical pixel overlap (1.8px) by current zoom,
+    // we get the correct self-scaling CSS overlap value.
+    const overlap = Math.max(1, Math.ceil(1.8 / (this.zoom || 1)));
+    chunk.element.style.width = `${this.chunkSize + overlap}px`;
+    chunk.element.style.height = `${this.chunkSize + overlap}px`;
     chunk.element.style.transformOrigin = 'top left';
   }
 
