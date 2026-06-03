@@ -613,14 +613,12 @@ export class Engine {
         for (let i = 0; i < LAYERS_COUNT; i++) {
             const ctx = chunk.ctxs[i];
             if (ctx) {
-                // A lightweight, visual-no-op 2D draw to force hardware acceleration on Chrome/WebKit.
-                // We draw a tiny transparent rect utilizing extremely small opacity and alpha.
-                // In standard 8-bit RGBA color math (0-255), 0.001 * 0.001 rounds down to exactly 0,
-                // making it mathematically impossible to change any pixel value, while registering as a canvas mutator call.
+                // A stronger, visual-no-op 2D draw to force hardware acceleration. 
+                // We draw a 2x2 transparent rect to ensure a more definitive GPU buffer kick.
                 ctx.save();
-                ctx.globalAlpha = 0.001;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.001)';
-                ctx.fillRect(0, 0, 1, 1);
+                ctx.globalAlpha = 0.0039; // Slightly higher alpha (1/256), almost invisible
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.0039)';
+                ctx.fillRect(0, 0, 2, 2);
                 ctx.restore();
             }
         }
@@ -674,7 +672,7 @@ export class Engine {
     // When zoomed way out (e.g., zoom = 0.2), 1 CSS pixel is only 0.2 physical pixels (truncated to 0).
     // By dividing the target physical pixel overlap (1.8px) by current zoom,
     // we get the correct self-scaling CSS overlap value.
-    const overlap = Math.max(1, Math.ceil(1.8 / (this.zoom || 1)));
+    const overlap = Math.max(1, Math.ceil(2.2 / (this.zoom || 1)));
     chunk.element.style.width = `${this.chunkSize + overlap}px`;
     chunk.element.style.height = `${this.chunkSize + overlap}px`;
     chunk.element.style.transformOrigin = 'top left';

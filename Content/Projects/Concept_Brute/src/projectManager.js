@@ -222,6 +222,7 @@ export async function loadProject(app) {
 
         // 2. SECTOR LOADING
         const sectorKeys = await app.storage.getAllSectorKeys();
+        console.log(`DEBUG: Found ${sectorKeys.length} sectors to load.`);
         for (const key of sectorKeys) {
             const parts = key.split('_'); 
             const sy = parseInt(parts[parts.length - 1]);
@@ -359,6 +360,7 @@ export async function saveProject(app) {
         // Promote all active layer canvases back to GPU after saving & readbacks
         if (app.engine.promoteAllToGPU) {
             app.engine.promoteAllToGPU();
+            app.engine.refresh();
         }
 
         app._status('SAVED');
