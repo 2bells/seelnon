@@ -44,7 +44,7 @@ Also it should be possible to make ARPG. It already has procedural generation, s
 
 [google AI](https://aistudio.google.com/)
 
-It should be possible to make your own ideas even with editor only, without any LLM, but that needs a lot of testing. Meaning, I need to make a things with it myself to even know if it is working or not. And because I was lazy and asked AI to do stuff: it has access to code, so it is not that concerned with 'in-editor' limitations.
+It should be possible to make your own ideas even with editor only, without any LLM, but that needs a lot of testing. Meaning, I need to make things with editor myself to know if it is working or not. But I was lazy and asked AI to do stuff and the main problem: it has access to the raw code itself, so it is not that concerned with 'in-editor' limitations.
 
 So I can say for sure it is possible to make things LLM assisted, but not sure if it is possible to just do it using only 'in-game' editor UI.
 
