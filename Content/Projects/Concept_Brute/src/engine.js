@@ -524,21 +524,23 @@ export class Engine {
 
   _getChunk(cx, cy) {
     const id = `${cx},${cy}`;
-    if (this.chunks.has(id)) return this.chunks.get(id);
+    if (this.chunks.has(id)) {
+        return this.chunks.get(id);
+    }
 
     const chunk = {
       cx, cy,
       canvases: [],
       ctxs: [],
       isEmpty: new Array(LAYERS_COUNT).fill(true),
-      element: document.createElement('div')
+      element: document.createElement('div'),
+      isAttached: false,
+      strokeCanvas: null,
+      strokeCtx: null
     };
 
-    chunk.element.className = 'absolute pointer-events-none'; // Removed border-white-5 which caused seams
-    
-    // Quality bump: use device pixel ratio for sharper drawing if requested, 
-    // but for now let's just ensure clean tiling.
-    const dpr = 1; // Keeping it 1 for now to avoid breaking coordinate logic, but using auto rendering
+    chunk.element.className = 'absolute pointer-events-none';
+    const dpr = 1;
     
     for (let i = 0; i < LAYERS_COUNT; i++) {
       const canv = document.createElement('canvas');
@@ -546,23 +548,22 @@ export class Engine {
       canv.height = this.chunkSize * dpr;
       canv.className = 'absolute inset-0';
       canv.style.touchAction = 'none';
-      // Smooth rendering for better brush quality (seams are handled by chunk alignment)
       canv.style.imageRendering = 'auto'; 
       canv.style.backfaceVisibility = 'hidden';
       canv.style.webkitBackfaceVisibility = 'hidden';
       canv.style.transform = 'translate3d(0, 0, 0)';
       canv.style.willChange = 'transform';
-      chunk.element.appendChild(canv);
+      
       chunk.canvases.push(canv);
       chunk.ctxs.push(canv.getContext('2d', { alpha: true }));
       
       // Respect visibility
-      if (this.layerSettings[i] && !this.layerSettings[i].visible) {
-          canv.style.display = 'none';
+      if (this.layerSettings[i]) {
+          canv.style.display = this.layerSettings[i].visible ? 'block' : 'none';
       }
+      chunk.element.appendChild(canv);
     }
 
-    // Per-stroke buffer
     const strokeCanv = document.createElement('canvas');
     strokeCanv.width = this.chunkSize;
     strokeCanv.height = this.chunkSize;
@@ -573,14 +574,74 @@ export class Engine {
     strokeCanv.style.transform = 'translate3d(0, 0, 0)';
     strokeCanv.style.willChange = 'transform';
     strokeCanv.style.opacity = '0';
-    chunk.element.appendChild(strokeCanv);
     chunk.strokeCanvas = strokeCanv;
     chunk.strokeCtx = strokeCanv.getContext('2d', { alpha: true });
+    chunk.element.appendChild(strokeCanv);
 
-    this.canvasWrapper.appendChild(chunk.element);
     this.chunks.set(id, chunk);
     this._updateChunkTransform(chunk);
+    
+    const rect = this.container.getBoundingClientRect();
+    if (rect.width && rect.height) {
+        const cxCenter = rect.width / 2;
+        const cyCenter = rect.height / 2;
+        const center = this._screenToWorld(cxCenter, cyCenter);
+        const diag = Math.sqrt(rect.width * rect.width + rect.height * rect.height);
+        const radius = (diag / 2) / (this.zoom || 1);
+        const cullingRadius = radius + this.chunkSize * 2.5;
+
+        const wx = (chunk.cx + 0.5) * this.chunkSize;
+        const wy = (chunk.cy + 0.5) * this.chunkSize;
+        const dx = wx - center.wx;
+        const dy = wy - center.wy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= cullingRadius) {
+            this.canvasWrapper.appendChild(chunk.element);
+            chunk.isAttached = true;
+        }
+    } else {
+        this.canvasWrapper.appendChild(chunk.element);
+        chunk.isAttached = true;
+    }
+
     return chunk;
+  }
+
+  updateCulling() {
+    const rect = this.container.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const center = this._screenToWorld(cx, cy);
+    
+    const diag = Math.sqrt(rect.width * rect.width + rect.height * rect.height);
+    const radius = (diag / 2) / (this.zoom || 1);
+    const cullingRadius = radius + this.chunkSize * 2.5;
+    
+    this.chunks.forEach(chunk => {
+        const wx = (chunk.cx + 0.5) * this.chunkSize;
+        const wy = (chunk.cy + 0.5) * this.chunkSize;
+        
+        const dx = wx - center.wx;
+        const dy = wy - center.wy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        const isVisible = dist <= cullingRadius;
+        
+        if (isVisible) {
+            if (!chunk.isAttached) {
+                this.canvasWrapper.appendChild(chunk.element);
+                chunk.isAttached = true;
+            }
+        } else {
+            if (chunk.isAttached) {
+                chunk.element.remove();
+                chunk.isAttached = false;
+            }
+        }
+    });
   }
 
   _updateChunkTransform(chunk) {
@@ -626,7 +687,12 @@ export class Engine {
   }
 
   refreshTransforms() {
-    this.chunks.forEach(chunk => this._updateChunkTransform(chunk));
+    this.updateCulling();
+    this.chunks.forEach(chunk => {
+        if (chunk.isAttached) {
+            this._updateChunkTransform(chunk);
+        }
+    });
     this._updateRefImagesTransform();
     
     // Move pan and zoom to the wrapper to prevent sub-pixel gaps between chunks
@@ -969,7 +1035,7 @@ export class Engine {
       const data = this._getSelectionData(true);
       if (data) {
           this.clipboard = data.canvas;
-          this.history.push({ 
+          this._pushHistory({ 
               type: 'stroke', 
               chunks: data.affectedChunks 
           });
@@ -1033,7 +1099,7 @@ export class Engine {
           mirrorY: false
       };
 
-      this.history.push({ 
+      this._pushHistory({ 
           type: 'transform', 
           chunks: data.affectedChunks, 
           path: this.activeSelectionPath,
@@ -1094,7 +1160,7 @@ export class Engine {
           }
       }
 
-      this.history.push({ 
+      this._pushHistory({ 
           type: 'stroke', // Reusing stroke type since it handles chunk Map history
           chunks: deleteHistory
       });
@@ -1253,7 +1319,7 @@ export class Engine {
     if (this.brush.type === TOOLS.LASSO) {
         if (this.activeSelectionPath) {
             // Store clear action in history
-            this.history.push({ type: 'selection', path: [...this.activeSelectionPath] });
+            this._pushHistory({ type: 'selection', path: [...this.activeSelectionPath] });
             this.clearSelection();
         }
     }
@@ -1672,16 +1738,12 @@ export class Engine {
 
     // Store the dirty chunks as a history state
     if (this.currentStrokeDirtyChunks.size > 0) {
-        this.history.push({
+        this._pushHistory({
             type: 'stroke',
             chunks: this.currentStrokeDirtyChunks,
             zoom: this.zoom,
             pan: { ...this.pan }
         });
-        if (this.history.length > 50) { // Increased history slightly but with disposal
-            const oldest = this.history.shift();
-            this._disposeAction(oldest);
-        }
     }
     
     if (this.brush.type === TOOLS.REF_MOVE) {
@@ -1981,7 +2043,7 @@ export class Engine {
       this.activeSelectionPath = [...this.lassoPath];
       
       // Push previous path to history so undo can go back
-      this.history.push({ type: 'selection', path: prevPath });
+      this._pushHistory({ type: 'selection', path: prevPath });
 
       this.lassoPath = null;
       this.refresh();
@@ -2049,7 +2111,7 @@ export class Engine {
           }
       }
 
-      this.history.push({ 
+      this._pushHistory({ 
           type: 'stroke', 
           chunks: applyHistory,
           selection: { ...this.floatingSelection } 
@@ -2761,15 +2823,30 @@ export class Engine {
   }
 
   _disposeAction(action) {
-      if (!action || !action.chunks) return;
-      action.chunks.forEach(data => {
-          if (data.canvas) {
-              data.canvas.width = 1;
-              data.canvas.height = 1;
-              data.canvas = null;
-          }
-      });
-      action.chunks.clear();
+      if (!action) return;
+      if (action.chunks) {
+          action.chunks.forEach(data => {
+              if (data.canvas) {
+                  data.canvas.width = 1;
+                  data.canvas.height = 1;
+                  data.canvas = null;
+              }
+          });
+          action.chunks.clear();
+      }
+      if (action.selection && action.selection.canvas) {
+          action.selection.canvas.width = 1;
+          action.selection.canvas.height = 1;
+          action.selection.canvas = null;
+      }
+  }
+
+  _pushHistory(action) {
+      this.history.push(action);
+      if (this.history.length > 50) {
+          const oldest = this.history.shift();
+          this._disposeAction(oldest);
+      }
   }
 
   _clearStack(stack) {
@@ -2887,7 +2964,7 @@ export class Engine {
         if (action.selection) this.floatingSelection = null; // Re-applying stroke clears the "source" floating selection
     }
 
-    this.history.push(undoAction);
+    this._pushHistory(undoAction);
     this._disposeAction(action);
     this._updateSelectionPreview();
     this.refresh();
@@ -2904,7 +2981,7 @@ export class Engine {
           backup.getContext('2d').drawImage(chunk.canvases[index], 0, 0);
           snap.set(id, { layer: index, canvas: backup });
       });
-      this.history.push({ type: 'stroke', chunks: snap, zoom: this.zoom, pan: { ...this.pan } });
+      this._pushHistory({ type: 'stroke', chunks: snap, zoom: this.zoom, pan: { ...this.pan } });
 
       this.chunks.forEach((chunk, id) => {
           chunk.ctxs[index].clearRect(0, 0, this.chunkSize, this.chunkSize);
