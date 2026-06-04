@@ -2,9 +2,16 @@
 
 Had a fun time scrapping Spotify to 'batch add' my music. Back in the day, after getting tired of Slipknot and Children Of Bodom, I became a big lurker of VOCAHOU group with vocaloid music that is made primarily by 1 person. Meaning it is a 'vision' rather than a band trying to do 'meta' stuff and those songs do have very distinct personalities and feel to it.
 
+<iframe data-testid="embed-iframe" style="border-radius:12px" src="https://open.spotify.com/embed/playlist/75SenQkkcnEdXtgVkXtndm?utm_source=generator" width="500" height="420" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+
 Spotify, of course, doesn't have all of them, but it has main artists that pulled through. Very  sad no 1オク↓P (1okushitaP). But... here is the playlist. Has a lot of repeats, because it was like... automatic scrapping to match titles.
 
-<iframe data-testid="embed-iframe" style="border-radius:12px" src="https://open.spotify.com/embed/playlist/75SenQkkcnEdXtgVkXtndm?utm_source=generator" width="500" height="420" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+```
+upd: cleaned 1234 songs
+into 409
+no repeats (hope)
+no Schubert, kek
+```
 
 There is also a song that kind of saved my life back then: I was doing a project with such tight deadlines and I was completely out of juice, so I put the song on repeat and was just blasting it for 3 hours: CMYK by Hachioji P... I did put it into Just Cause 3 video on my youtube later on, to, kind of... say 'thank you'... to the song.
 
