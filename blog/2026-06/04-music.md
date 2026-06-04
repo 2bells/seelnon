@@ -6,7 +6,7 @@ Spotify, of course, doesn't have all of them, but it has main artists that pulle
 
 <iframe data-testid="embed-iframe" style="border-radius:12px" src="https://open.spotify.com/embed/playlist/75SenQkkcnEdXtgVkXtndm?utm_source=generator" width="500" height="420" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
 
-There is also a song that kind of saved my life back then: I was doing a project with such tight deadlines and I was completely of juice, so I put the song on repeat and was just blasting it for 3 hours: CMYK by Hachioji P... I did put it into Just Cause 3 video on my youtube later on, to, kind of... say 'thank you'... to the song.
+There is also a song that kind of saved my life back then: I was doing a project with such tight deadlines and I was completely out of juice, so I put the song on repeat and was just blasting it for 3 hours: CMYK by Hachioji P... I did put it into Just Cause 3 video on my youtube later on, to, kind of... say 'thank you'... to the song.
 
 With Vocaloids I did train myself to 'enter the flow state' back in the day. So it is only something I would listen during heavy tasks and never 'just for fun'. So I had a way to start listening to those tracks and trick my brain to go into the 'flow state' as a switch. Good tech, recommend. 
 
