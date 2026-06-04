@@ -119,7 +119,9 @@ export class Engine {
     }
 
     this.brushCursor = document.getElementById('brush-cursor');
-    this.container.appendChild(this.brushCursor);
+    this.brushCrosshair = document.getElementById('brush-crosshair');
+    if (this.brushCursor) this.container.appendChild(this.brushCursor);
+    if (this.brushCrosshair) this.container.appendChild(this.brushCrosshair);
 
     this.lastPos = null;
     this.lastMousePos = { x: 0, y: 0 };
@@ -251,6 +253,10 @@ export class Engine {
 
   _initEvents() {
     this.container.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+            this.lastPenTouchTime = performance.now();
+        }
+
         // UI SHIELD: Ignore if hitting any UI element
         if (e.target !== this.container && e.target.closest('.ui-panel, .tool-btn, .brutal-btn, .dots-btn, #top-bar, #top-bar-ref, .brutal-range, button, input, select')) {
             return;
@@ -340,6 +346,15 @@ export class Engine {
       // Stop browser gestures (zoom/pan) especially for Windows Ink/Stylus
       if (e.cancelable && e.target === this.container) e.preventDefault();
 
+      if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+          this.lastPenTouchTime = performance.now();
+      }
+
+      // Ignore simulated mouse events right after pen/touch interaction to prevent cursor teleportation at stroke start/end
+      if (e.pointerType === 'mouse' && this.lastPenTouchTime && (performance.now() - this.lastPenTouchTime < 1000)) {
+          return;
+      }
+
       // Ignore mouse moves if we already have non-mouse pointers active, BUT only if target is the canvas
       // This allows mouse to still work on UI sliders even if stylus is hovering.
       const hasNonMouse = Array.from(this.activePointers.values()).some(p => p.pointerType !== 'mouse');
@@ -410,6 +425,10 @@ export class Engine {
     const endHandler = (e) => {
         this.activePointers.delete(e.pointerId);
         
+        if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+            this.lastPenTouchTime = performance.now();
+        }
+        
         if (this.activePointers.size < 2) {
             this.isGesture = false;
         }
@@ -437,6 +456,8 @@ export class Engine {
         // Hide brush cursor when finger/pen is removed on iPad/Pen devices
         if (e.pointerType !== 'mouse') {
             if (this.brushCursor) this.brushCursor.style.display = 'none';
+        } else {
+            this._updateBrushCursor(e);
         }
     };
 
@@ -444,14 +465,51 @@ export class Engine {
     window.addEventListener('pointercancel', endHandler);
     window.addEventListener('pointerout', (e) => {
         this.activePointers.delete(e.pointerId);
-        if (e.pointerType !== 'mouse' && this.brushCursor) this.brushCursor.style.display = 'none';
+        if (e.pointerType !== 'mouse') {
+            if (this.brushCursor) this.brushCursor.style.display = 'none';
+            if (this.brushCrosshair) this.brushCrosshair.style.display = 'none';
+        }
     });
     window.addEventListener('pointerleave', (e) => {
         this.activePointers.delete(e.pointerId);
-        if (e.pointerType !== 'mouse' && this.brushCursor) this.brushCursor.style.display = 'none';
+        if (e.pointerType !== 'mouse') {
+            if (this.brushCursor) this.brushCursor.style.display = 'none';
+            if (this.brushCrosshair) this.brushCrosshair.style.display = 'none';
+        }
+    });
+
+    // Reset pointing and typing states when leaving active window
+    const handleReset = () => {
+        if (this.isDrawing) {
+            this._endStroke();
+        }
+        this.activePointers.clear();
+        this.isDrawing = false;
+        this.isPanning = false;
+        this.isGesture = false;
+        this.isMouseDown = false;
+        this.keys = {};
+        this._updateCursor();
+    };
+
+    window.addEventListener('blur', handleReset);
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            handleReset();
+        }
     });
        
     window.addEventListener('keydown', (e) => {
+        if (
+            document.activeElement && 
+            (document.activeElement.tagName === 'INPUT' || 
+             document.activeElement.tagName === 'TEXTAREA' || 
+             document.activeElement.tagName === 'SELECT' || 
+             document.activeElement.isContentEditable)
+        ) {
+            return;
+        }
         const key = e.key.toLowerCase();
         
         if (key === 'r') {
@@ -468,6 +526,15 @@ export class Engine {
         this._updateCursor();
     });
     window.addEventListener('keyup', (e) => {
+        if (
+            document.activeElement && 
+            (document.activeElement.tagName === 'INPUT' || 
+             document.activeElement.tagName === 'TEXTAREA' || 
+             document.activeElement.tagName === 'SELECT' || 
+             document.activeElement.isContentEditable)
+        ) {
+            return;
+        }
         this.keys[e.key.toLowerCase()] = false;
         this._updateCursor();
     });
@@ -1024,8 +1091,6 @@ export class Engine {
 
   _drawSelectionViz() {
       const pathToShow = this.lassoPath || this.activeSelectionPath;
-      if (!pathToShow && !this.isExportMode) return;
-
       if (!this.selectionViz) return;
       const ctx = this.selectionViz.getContext('2d');
       const rect = this.container.getBoundingClientRect();
@@ -1035,69 +1100,69 @@ export class Engine {
       }
       ctx.clearRect(0,0, rect.width, rect.height);
       
-      if (pathToShow || this.isExportMode) {
-          ctx.save();
+      if (!pathToShow && !this.isExportMode) return;
 
-          if (this.isExportMode) {
-              // Draw dimming overlay
-              ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.save();
+
+      if (this.isExportMode) {
+          // Draw dimming overlay
+          ctx.fillStyle = 'rgba(0,0,0,0.4)';
+          
+          if (this.exportRect) {
+              const r = this.exportRect;
+              // Handle export rect bounds in screen space
+              // Rect is defined by two world points
+              const s1 = this._worldToScreen(r.x, r.y);
+              const s2 = this._worldToScreen(r.x + r.w, r.y + r.h);
               
-              if (this.exportRect) {
-                  const r = this.exportRect;
-                  // Handle export rect bounds in screen space
-                  // Rect is defined by two world points
-                  const s1 = this._worldToScreen(r.x, r.y);
-                  const s2 = this._worldToScreen(r.x + r.w, r.y + r.h);
-                  
-                  const sx = Math.min(s1.x, s2.x);
-                  const sy = Math.min(s1.y, s2.y);
-                  const sw = Math.abs(s2.x - s1.x);
-                  const sh = Math.abs(s2.y - s1.y);
+              const sx = Math.min(s1.x, s2.x);
+              const sy = Math.min(s1.y, s2.y);
+              const sw = Math.abs(s2.x - s1.x);
+              const sh = Math.abs(s2.y - s1.y);
 
-                  // Dim around selection
-                  ctx.fillRect(0, 0, rect.width, sy);
-                  ctx.fillRect(0, sy + sh, rect.width, rect.height - (sy + sh));
-                  ctx.fillRect(0, sy, sx, sh);
-                  ctx.fillRect(sx + sw, sy, rect.width - (sx + sw), sh);
+              // Dim around selection
+              ctx.fillRect(0, 0, rect.width, sy);
+              ctx.fillRect(0, sy + sh, rect.width, rect.height - (sy + sh));
+              ctx.fillRect(0, sy, sx, sh);
+              ctx.fillRect(sx + sw, sy, rect.width - (sx + sw), sh);
 
-                  // Border
-                  ctx.strokeStyle = '#3b82f6';
-                  ctx.setLineDash([5, 5]);
-                  ctx.lineDashOffset = (Date.now() / 50) % 10;
-                  ctx.lineWidth = 2;
-                  ctx.strokeRect(sx, sy, sw, sh);
-                  
-                  ctx.strokeStyle = '#fff';
-                  ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
-                  ctx.strokeRect(sx, sy, sw, sh);
-              } else {
-                  ctx.fillRect(0, 0, rect.width, rect.height);
-              }
-          } else if (pathToShow) {
+              // Border
               ctx.strokeStyle = '#3b82f6';
               ctx.setLineDash([5, 5]);
               ctx.lineDashOffset = (Date.now() / 50) % 10;
-              ctx.lineWidth = 1.5;
-              ctx.beginPath();
-              
-              const skip = Math.max(1, Math.floor(pathToShow.length / 500));
-              pathToShow.forEach((p, i) => {
-                  if (i % skip !== 0 && i !== pathToShow.length - 1) return;
-                  const s = this._worldToScreen(p.x, p.y);
-                  if (i === 0) ctx.moveTo(s.x, s.y);
-                  else ctx.lineTo(s.x, s.y);
-              });
-              
-              if (this.activeSelectionPath) ctx.closePath();
-              ctx.stroke();
+              ctx.lineWidth = 2;
+              ctx.strokeRect(sx, sy, sw, sh);
               
               ctx.strokeStyle = '#fff';
-              ctx.setLineDash([5, 5]);
               ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
-              ctx.stroke();
+              ctx.strokeRect(sx, sy, sw, sh);
+          } else {
+              ctx.fillRect(0, 0, rect.width, rect.height);
           }
-          ctx.restore();
+      } else if (pathToShow) {
+          ctx.strokeStyle = '#3b82f6';
+          ctx.setLineDash([5, 5]);
+          ctx.lineDashOffset = (Date.now() / 50) % 10;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          
+          const skip = Math.max(1, Math.floor(pathToShow.length / 500));
+          pathToShow.forEach((p, i) => {
+              if (i % skip !== 0 && i !== pathToShow.length - 1) return;
+              const s = this._worldToScreen(p.x, p.y);
+              if (i === 0) ctx.moveTo(s.x, s.y);
+              else ctx.lineTo(s.x, s.y);
+          });
+          
+          if (this.activeSelectionPath) ctx.closePath();
+          ctx.stroke();
+          
+          ctx.strokeStyle = '#fff';
+          ctx.setLineDash([5, 5]);
+          ctx.lineDashOffset = (Date.now() / 50) % 10 + 5;
+          ctx.stroke();
       }
+      ctx.restore();
   }
 
   _updateExportReticle() {
@@ -1234,6 +1299,9 @@ export class Engine {
   paste() {
       if (!this.clipboard) return false;
       
+      const prevSelection = this.floatingSelection ? { ...this.floatingSelection } : null;
+      const prevPath = this.activeSelectionPath ? [...this.activeSelectionPath] : null;
+
       if (this.floatingSelection) {
           this._applySelection();
       }
@@ -1254,6 +1322,13 @@ export class Engine {
           mirrorX: false,
           mirrorY: false
       };
+
+      this._pushHistory({
+          type: 'transform',
+          chunks: new Map(), // No base pixels deleted or painted in the background automatically
+          path: prevPath,
+          selection: prevSelection
+      });
 
       this.activeSelectionPath = null;
       this.refresh();
@@ -1842,6 +1917,14 @@ export class Engine {
         if (this.strokePoints.length === 2) {
             // First segment: P0 -> Mid(P0, P1)
             const p0 = this.strokePoints[0];
+            
+            // Recalibrate start point's size & opacity to align with first move/pressure
+            if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
+                p0.size = dynamicSize;
+                p0.opacity = opacMod;
+                p0.pressure = pressure;
+            }
+            
             const mid = { x: (p0.x + worldPos.x) / 2, y: (p0.y + worldPos.y) / 2 };
             this._paintOnChunks(p0, mid, p0.size, p0.opacity, p0.color);
         } else if (this.strokePoints.length > 2) {
@@ -1957,13 +2040,22 @@ export class Engine {
   _updateBrushCursor(e) {
     if (!this.brushCursor) return;
 
+    if (e && e.pointerType === 'mouse' && this.lastPenTouchTime && (performance.now() - this.lastPenTouchTime < 1000)) {
+        return;
+    }
+
+    if (e && e.clientX !== undefined && e.clientY !== undefined) {
+        this.lastMousePos = { x: e.clientX, y: e.clientY };
+    }
+
     // Fallback if e is missing or doesn't have coords
-    const mouseX = e ? e.clientX : this.lastMousePos.x;
-    const mouseY = e ? e.clientY : this.lastMousePos.y;
+    const mouseX = (e && e.clientX !== undefined) ? e.clientX : this.lastMousePos.x;
+    const mouseY = (e && e.clientY !== undefined) ? e.clientY : this.lastMousePos.y;
 
     // Clear cursor on touch if no pointers are touching
     if (this.activePointers.size === 0 && e && (e.pointerType === 'touch' || e.pointerType === 'pen')) {
         this.brushCursor.style.display = 'none';
+        if (this.brushCrosshair) this.brushCrosshair.style.display = 'none';
         return;
     }
 
@@ -1972,7 +2064,29 @@ export class Engine {
     // Hide if mouse is over UI
     if (e && (e.target.closest('.ui-panel') || e.target.closest('button') || e.target.closest('input') || e.target.closest('#top-bar'))) {
         this.brushCursor.style.display = 'none';
+        if (this.brushCrosshair) this.brushCrosshair.style.display = 'none';
         return;
+    }
+
+    // Position relative to container
+    let mX = mouseX - rect.left;
+    let mY = mouseY - rect.top;
+
+    // Manage brush crosshair visibility and positioning
+    let showCrosshair = !this.isExportMode && this.brush.type !== TOOLS.REF_MOVE;
+    if (showCrosshair) {
+        if (this.brushCrosshair) {
+            this.brushCrosshair.style.display = 'block';
+            this.brushCrosshair.style.left = `${mX - 8.5}px`;
+            this.brushCrosshair.style.top = `${mY - 8.5}px`;
+        }
+    } else {
+        if (this.brushCrosshair) this.brushCrosshair.style.display = 'none';
+    }
+
+    // Manage brush cursor (stamp outer circle)
+    if (this.isDrawing) {
+        this.brushCursor.style.display = 'none'; // Hide bulky circle stamp when drawing/painting
     } else {
         this.brushCursor.style.display = 'block';
     }
@@ -2001,7 +2115,10 @@ export class Engine {
         h = s / 2;
         if (this.brush.tip) {
             h = s; // Tips are 1:1 usually
-            mask = `url(${this.brush.tip.toDataURL()})`;
+            if (!this.brush.tip._dataUrl) {
+                this.brush.tip._dataUrl = this.brush.tip.toDataURL();
+            }
+            mask = `url(${this.brush.tip._dataUrl})`;
         }
     } else if (this.brush.type === TOOLS.ERASER || this.brush.type === TOOLS.SMUDGE) {
         h = s / 2;
@@ -2009,7 +2126,10 @@ export class Engine {
         border = this.brush.type === TOOLS.ERASER ? '2px solid #ff4444' : '2px solid #3b82f6';
         if (this.brush.tip) {
             h = s;
-            mask = `url(${this.brush.tip.toDataURL()})`;
+            if (!this.brush.tip._dataUrl) {
+                this.brush.tip._dataUrl = this.brush.tip.toDataURL();
+            }
+            mask = `url(${this.brush.tip._dataUrl})`;
             bgColor = this.brush.type === TOOLS.ERASER ? 'rgba(255, 68, 68, 0.25)' : 'rgba(59, 130, 246, 0.25)';
         }
     } else if (this.brush.type === TOOLS.REF_MOVE) {
@@ -2038,9 +2158,7 @@ export class Engine {
     this.brushCursor.style.maskImage = mask;
     this.brushCursor.style.maskSize = '100% 100%';
 
-    // Position relative to container
-    let mX = mouseX - rect.left;
-    let mY = mouseY - rect.top;
+    this.brushCursor.style.mixBlendMode = 'normal';
 
     this.brushCursor.style.left = `${mX - w/2}px`;
     this.brushCursor.style.top = `${mY - h/2}px`;
@@ -2244,6 +2362,7 @@ export class Engine {
   clearSelection() {
       this.activeSelectionPath = null;
       this.floatingSelection = null;
+      this._updateSelectionPreview();
       this.refresh();
       this._status('READY');
   }
@@ -3300,16 +3419,10 @@ export class Engine {
             const scaleY = fitH / this.staticHeight;
             const bestScale = Math.min(scaleX, scaleY, 4.0);
             this.setZoom(Math.max(0.05, bestScale));
-            this.pan = { x: 0, y: 0 };
-            this.refresh();
-            this.saveViewport();
             return;
         }
     }
     this.setZoom(1);
-    this.pan = { x: 0, y: 0 };
-    this.refresh();
-    this.saveViewport();
   }
 
   saveViewport() {

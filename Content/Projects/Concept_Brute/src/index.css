@@ -95,6 +95,36 @@ button:focus, input:focus, select:focus, .tool-btn:focus, .brutal-btn:focus, .mi
     will-change: left, top, width, height;
 }
 
+#brush-crosshair {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1001;
+    width: 17px;
+    height: 17px;
+    mix-blend-mode: difference;
+    display: none;
+    transition: none;
+    will-change: left, top;
+}
+
+#brush-crosshair .cross-h {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: white;
+}
+
+#brush-crosshair .cross-v {
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: white;
+}
+
 /* BRUSH TIP PANEL */
 #panel-brush-tips {
     top: 60px;
@@ -1060,6 +1090,7 @@ button, input, select {
     gap: 8px;
     max-height: 380px;
     overflow-y: auto;
+    padding: 6px 10px 6px 6px;
 }
 
 .project-item {
@@ -1078,6 +1109,11 @@ button, input, select {
 
 .project-item.active {
     background: #000;
+    color: #fff;
+}
+
+.project-item.active:hover {
+    background: #222;
     color: #fff;
 }
 
@@ -1118,6 +1154,11 @@ button, input, select {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.project-item .btn-delete-proj:hover {
+    filter: brightness(1.2);
 }
 
 .project-item:hover .btn-delete-proj {

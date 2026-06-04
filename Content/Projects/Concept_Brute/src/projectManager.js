@@ -18,7 +18,7 @@ export async function initProjectSystem(app) {
         app.engine.isStatic = project.settings.isStatic || false;
         app.engine.staticWidth = project.settings.width || 2400;
         app.engine.staticHeight = project.settings.height || 3600;
-        app.engine.dpiScale = project.settings.dpiScale || 1.0;
+        app.engine.dpiScale = 1.0;
         if (app.engine.setupBoard) {
             app.engine.setupBoard();
         }
@@ -72,14 +72,34 @@ export async function renderProjectList(app) {
         name.innerText = proj.name || proj.id;
         item.appendChild(name);
 
-        const delBtn = document.createElement('button');
-        delBtn.className = 'btn-delete-proj';
-        delBtn.innerText = 'X';
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteProject(app, proj.id);
-        };
-        item.appendChild(delBtn);
+        if (proj.id !== 'default') {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn-delete-proj';
+            delBtn.innerText = 'X';
+            delBtn.title = 'DELETE PROJECT';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (delBtn.innerText === 'X') {
+                    delBtn.innerText = '?';
+                    delBtn.style.background = '#000';
+                    delBtn.style.color = '#fff';
+                    delBtn.title = 'CLICK AGAIN TO CONFIRM DELETION';
+                    
+                    // Reset to "X" if they don't click again within 3 seconds
+                    setTimeout(() => {
+                        if (delBtn.innerText === '?') {
+                            delBtn.innerText = 'X';
+                            delBtn.style.background = '#f00';
+                            delBtn.style.color = '#fff';
+                            delBtn.title = 'DELETE PROJECT';
+                        }
+                    }, 3000);
+                } else {
+                    deleteProject(app, proj.id);
+                }
+            };
+            item.appendChild(delBtn);
+        }
 
         item.onclick = () => switchProject(app, proj.id);
         container.appendChild(item);
@@ -114,7 +134,7 @@ export async function switchProject(app, id) {
     app.engine.isStatic = settings.isStatic || false;
     app.engine.staticWidth = settings.width || 2400;
     app.engine.staticHeight = settings.height || 3600;
-    app.engine.dpiScale = settings.dpiScale || 1.0;
+    app.engine.dpiScale = 1.0;
     if (app.engine.setupBoard) {
         app.engine.setupBoard();
     }
@@ -139,7 +159,6 @@ export async function deleteProject(app, id) {
         app._status('CANNOT DELETE STANDARD PROJECT');
         return;
     }
-    if (!confirm('DELETE THIS PROJECT PERMANENTLY?')) return;
     
     app._status('DELETING...');
     app.projects = app.projects.filter(p => p.id !== id);
@@ -455,7 +474,9 @@ export async function updateStorageStat(app) {
     const chunksEl = document.getElementById('storage-chunks');
     if (chunksEl) {
         if (app.engine.isStatic) {
-            chunksEl.innerText = `STATIC SHEET: ${app.engine.staticWidth} x ${app.engine.staticHeight} @ ${app.engine.dpiScale || 1}x`;
+            const project = app.projects.find(p => p.id === app.currentProjectId);
+            const dpiVal = (project && project.settings && project.settings.dpi) ? project.settings.dpi : 300;
+            chunksEl.innerText = `STATIC SHEET: ${app.engine.staticWidth} x ${app.engine.staticHeight} PX @ ${dpiVal} DPI`;
         } else {
             chunksEl.innerText = `${stats.chunks} CHUNKS (${stats.sectors} SECTORS)`;
         }
@@ -562,12 +583,8 @@ export function syncStaticSettingsUI(app) {
             staticSec.classList.remove('hidden');
             const wInput = document.getElementById('settings-static-width');
             const hInput = document.getElementById('settings-static-height');
-            const dpiSelect = document.getElementById('settings-static-dpi');
             if (wInput) wInput.value = app.engine.staticWidth;
             if (hInput) hInput.value = app.engine.staticHeight;
-            if (dpiSelect) {
-                dpiSelect.value = String(app.engine.dpiScale || 1);
-            }
         } else {
             staticSec.classList.add('hidden');
         }

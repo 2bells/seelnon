@@ -488,6 +488,15 @@ class App {
 
   _setupHotkeys() {
     window.onkeydown = (e) => {
+      if (
+          document.activeElement && 
+          (document.activeElement.tagName === 'INPUT' || 
+           document.activeElement.tagName === 'TEXTAREA' || 
+           document.activeElement.tagName === 'SELECT' || 
+           document.activeElement.isContentEditable)
+      ) {
+          return;
+      }
       if (e.repeat && ['z', 'y'].includes(e.key.toLowerCase())) return;
       
       const key = e.key.toLowerCase();
@@ -513,8 +522,9 @@ class App {
           break;
         case 'd': 
           if (e.ctrlKey) {
-            if (this.engine.activeSelectionPath) {
-                this.engine.history.push({ type: 'selection', path: [...this.engine.activeSelectionPath] });
+            if (this.engine.activeSelectionPath || this.engine.floatingSelection) {
+                const prevPath = this.engine.activeSelectionPath ? [...this.engine.activeSelectionPath] : null;
+                this.engine._pushHistory({ type: 'selection', path: prevPath });
                 this.engine.clearSelection();
             }
             e.preventDefault();
@@ -596,6 +606,11 @@ class App {
           if (this.engine.isExportMode) {
               this._endExportMode();
               this._status('EXPORT CANCELLED');
+          }
+          if (this.engine.activeSelectionPath || this.engine.floatingSelection) {
+              const prevPath = this.engine.activeSelectionPath ? [...this.engine.activeSelectionPath] : null;
+              this.engine._pushHistory({ type: 'selection', path: prevPath });
+              this.engine.clearSelection();
           }
           this.settingsPanel.classList.add('hidden');
           document.getElementById('modal-new-project').classList.add('hidden');
@@ -1217,17 +1232,23 @@ class App {
   }
 
   _saveBrushSettings() {
-    const toSave = {};
-    Object.keys(this.brushSettings).forEach(tool => {
-        const s = this.brushSettings[tool];
-        toSave[tool] = { ...s };
-        // Canvas elements cannot be cloned in IndexedDB/Storage
-        if (toSave[tool].tip instanceof HTMLCanvasElement) {
-            toSave[tool].tip = null; 
-        }
-    });
-    localStorage.setItem('brushSettings', JSON.stringify(toSave));
-    this.storage.saveSetting('brushSettings', toSave);
+    if (this._saveBrushSettingsTimeout) {
+        clearTimeout(this._saveBrushSettingsTimeout);
+    }
+    this._saveBrushSettingsTimeout = setTimeout(() => {
+        const toSave = {};
+        Object.keys(this.brushSettings).forEach(tool => {
+            const s = this.brushSettings[tool];
+            toSave[tool] = { ...s };
+            // Canvas elements cannot be cloned in IndexedDB/Storage
+            if (toSave[tool].tip instanceof HTMLCanvasElement) {
+                toSave[tool].tip = null; 
+            }
+        });
+        localStorage.setItem('brushSettings', JSON.stringify(toSave));
+        this.storage.saveSetting('brushSettings', toSave);
+        this._saveBrushSettingsTimeout = null;
+    }, 250);
   }
 
   async _generateThumbnail() {

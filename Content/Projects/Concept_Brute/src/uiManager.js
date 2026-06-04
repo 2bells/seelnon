@@ -166,6 +166,7 @@ export function setupUI(app) {
         const isStatic = (mode === 'static');
         const width = isStatic ? (parseInt(document.getElementById('new-project-width').value) || 2400) : 0;
         const height = isStatic ? (parseInt(document.getElementById('new-project-height').value) || 3600) : 0;
+        const dpi = isStatic ? (parseInt(document.getElementById('new-project-dpi').value) || 300) : 300;
         
         const newProj = { 
             id, 
@@ -176,6 +177,7 @@ export function setupUI(app) {
                 isStatic,
                 width,
                 height,
+                dpi: dpi,
                 dpiScale: 1.0
             } 
         };
@@ -236,7 +238,7 @@ export function setupUI(app) {
     document.getElementById('btn-apply-static-settings').onclick = async () => {
         const wVal = parseInt(document.getElementById('settings-static-width').value);
         const hVal = parseInt(document.getElementById('settings-static-height').value);
-        const dpiVal = parseFloat(document.getElementById('settings-static-dpi').value);
+        const dpiVal = 1.0; // Standard 1:1 pixel coordinates for absolute precision and stability
 
         if (isNaN(wVal) || wVal < 100 || wVal > 15000 || isNaN(hVal) || hVal < 100 || hVal > 15000) {
             app._status('LIMIT REACHED: 100 - 15000 PX');
@@ -252,9 +254,11 @@ export function setupUI(app) {
             return;
         }
 
-        // Apply settings & upscale artwork smoothly
+        // Apply settings & upscale/extend artwork
         app._status('RECONFIGURING CANVAS...');
         
+        const preserveArtwork = document.getElementById('settings-static-preserve') ? document.getElementById('settings-static-preserve').checked : true;
+
         // Find static chunk
         const chunk = app.engine.chunks.get("0,0");
         const backups = [];
@@ -298,10 +302,19 @@ export function setupUI(app) {
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.clearRect(0, 0, canv.width, canv.height);
                 
-                // Draw upscaled backup smoothly
+                // Draw backup
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(backups[l], 0, 0, backups[l].width, backups[l].height, 0, 0, canv.width, canv.height);
+                
+                if (preserveArtwork) {
+                    // Rescale artwork to fit new coordinates
+                    ctx.drawImage(backups[l], 0, 0, backups[l].width, backups[l].height, 0, 0, canv.width, canv.height);
+                } else {
+                    // Center the artwork: if the canvas is made smaller, it trims evenly on all sides. If made larger, it adds padding evenly on all sides.
+                    const dx = Math.round((canv.width - backups[l].width) / 2);
+                    const dy = Math.round((canv.height - backups[l].height) / 2);
+                    ctx.drawImage(backups[l], dx, dy);
+                }
 
                 if (dpiVal !== 1) {
                     ctx.scale(dpiVal, dpiVal);
@@ -313,12 +326,19 @@ export function setupUI(app) {
             sCanv.width = wVal * dpiVal;
             sCanv.height = hVal * dpiVal;
             
-            const sCtx = chunk.strokeCtx;
+            const sCtx = sCanv.getContext('2d', { alpha: true });
             sCtx.setTransform(1, 0, 0, 1, 0, 0);
             sCtx.clearRect(0, 0, sCanv.width, sCanv.height);
             if (dpiVal !== 1) {
                 sCtx.scale(dpiVal, dpiVal);
             }
+            chunk.strokeCtx = sCtx;
+        }
+
+        // Release backup canvas GPU memory immediately
+        for (const backup of backups) {
+            backup.width = 1;
+            backup.height = 1;
         }
 
         // Reset undo stack since coordinate/backing store size differs
@@ -342,6 +362,33 @@ export function setupUI(app) {
 
         app._status('CANVAS RECONFIGURED!');
     };
+
+    // Linked Aspect Ratio handlers
+    const staticWInput = document.getElementById('settings-static-width');
+    const staticHInput = document.getElementById('settings-static-height');
+    const staticAspectCheck = document.getElementById('settings-static-aspect');
+
+    if (staticWInput && staticHInput) {
+        staticWInput.oninput = (e) => {
+            if (!staticAspectCheck || !staticAspectCheck.checked) return;
+            const newW = parseInt(e.target.value);
+            if (isNaN(newW) || newW <= 0) return;
+            const currentRatio = app.engine.staticWidth / app.engine.staticHeight;
+            if (currentRatio && !isNaN(currentRatio)) {
+                staticHInput.value = Math.round(newW / currentRatio);
+            }
+        };
+
+        staticHInput.oninput = (e) => {
+            if (!staticAspectCheck || !staticAspectCheck.checked) return;
+            const newH = parseInt(e.target.value);
+            if (isNaN(newH) || newH <= 0) return;
+            const currentRatio = app.engine.staticWidth / app.engine.staticHeight;
+            if (currentRatio && !isNaN(currentRatio)) {
+                staticWInput.value = Math.round(newH * currentRatio);
+            }
+        };
+    }
 
     // Original Settings inputs
     document.getElementById('settings-bg-color').oninput = (e) => {
