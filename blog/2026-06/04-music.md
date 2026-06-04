@@ -1,6 +1,6 @@
 # Spot-i-fy
 
-Had a fun time scrapping Spotify to 'batch add' my music. Back in the day, after getting tired of Slipknot and Children of the Bottom, I became a big lurker of VOCAHOU group with vocaloid music that is made primarily by 1 person. Meaning it is a 'vision' rather than a band trying to do 'meta' stuff and those songs do have very distinct personalities and feel to it.
+Had a fun time scrapping Spotify to 'batch add' my music. Back in the day, after getting tired of Slipknot and Children Of Bodom, I became a big lurker of VOCAHOU group with vocaloid music that is made primarily by 1 person. Meaning it is a 'vision' rather than a band trying to do 'meta' stuff and those songs do have very distinct personalities and feel to it.
 
 Spotify, of course, doesn't have all of them, but it has main artists that pulled through. Very  sad no 1オク↓P (1okushitaP). But... here is the playlist. Has a lot of repeats, because it was like... automatic scrapping to match titles.
 
