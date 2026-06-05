@@ -923,7 +923,7 @@ export class Engine {
         this.container.style.backgroundColor = '#18181c';
         
         // Set up static board grid pattern
-        if (this.showGrid) {
+        if (this.showGrid && this.zoom > 0.08) {
             const currentKey = `${this.gridSize}-${this.gridColor}-${this.gridIntensity}-${this.gridPattern}`;
             if (this._lastGridParams !== currentKey) {
                 this._gridTexture = this._generateGridTexture();
@@ -952,7 +952,7 @@ export class Engine {
         this.container.style.backgroundColor = this.canvasBg;
         this.canvasWrapper.style.backgroundColor = this.canvasBg;
         
-        if (this.showGrid) {
+        if (this.showGrid && this.zoom > 0.08) {
             const currentKey = `${this.gridSize}-${this.gridColor}-${this.gridIntensity}-${this.gridPattern}`;
             if (this._lastGridParams !== currentKey) {
                 this._gridTexture = this._generateGridTexture();
@@ -1052,6 +1052,7 @@ export class Engine {
           }
       }
       
+      this._gridCanvas = canvas;
       return canvas.toDataURL();
   }
 
@@ -1060,6 +1061,7 @@ export class Engine {
     this.refreshGrid();
     this._drawSelectionViz();
     this._updateSelectionPreview();
+    this._updateWireframeOverlay();
   }
 
   _worldToScreen(wx, wy) {
@@ -1079,8 +1081,8 @@ export class Engine {
     const finalY = (rx * sin + ry * cos) * this.zoom;
     
     return {
-        x: cx + this.pan.x + finalX,
-        y: cy + this.pan.y + finalY
+        x: cx + Math.round(this.pan.x) + finalX,
+        y: cy + Math.round(this.pan.y) + finalY
     };
   }
 
@@ -1879,32 +1881,16 @@ export class Engine {
 
     if (this.brush.type === TOOLS.WIREFRAME) {
         // Point density normalization: only store points if we moved significantly in world space
-        // This fixes the "stylus has 10x points in same area" issue
+        // This fixes the stylus coordinate storm / high Dpi storm
         const lastP = this.strokePoints[this.strokePoints.length - 1];
         const worldDist = Math.sqrt((worldPos.x - lastP.x)**2 + (worldPos.y - lastP.y)**2);
         
         // Minimal distance between points in buffer (e.g., 2 pixels at size 20)
-        const minBufferDist = Math.max(1, dynamicSize * 0.1);
+        const minBufferDist = Math.max(2, dynamicSize * 0.15);
         
         if (worldDist > minBufferDist) {
             this.strokePoints.push(worldPos);
-        }
-
-        const from = this.lastWorldPos || worldTo;
-        this._paintOnChunks(from, worldTo, Math.max(1, dynamicSize * 0.1), opacMod, color);
-        
-        const thresholdMax = dynamicSize * (this.brush.wireRange ?? 4.0);
-        const thresholdMin = dynamicSize * (this.brush.wireMinDist ?? 0.5);
-        const points = this.strokePoints;
-        const count = points.length;
-        const maxSeek = this.brush.wireDensity ?? 30;
-        
-        for (let i = Math.max(0, count - maxSeek); i < count - 1; i++) {
-            const p = points[i];
-            const d = Math.sqrt((p.x - worldTo.x)**2 + (p.y - worldTo.y)**2);
-            if (d > thresholdMin && d < thresholdMax) {
-                this._paintOnChunks(p, worldTo, 1, opacMod * 0.2, color);
-            }
+            this._paintWireframeIncrementally(this.strokePoints.length - 1);
         }
     } else {
         this.strokePoints.push(worldPos);
@@ -1941,6 +1927,18 @@ export class Engine {
   }
 
   _endStroke(e = null) {
+    // 1. Calculate bounding box of this stroke if we have points, to optimize baking/clearing
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    if (this.strokePoints && this.strokePoints.length > 0) {
+        for (const p of this.strokePoints) {
+            const pad = (p.size || this.brush.size || 10) + 15; // 15px safety padding
+            minX = Math.min(minX, p.x - pad);
+            maxX = Math.max(maxX, p.x + pad);
+            minY = Math.min(minY, p.y - pad);
+            maxY = Math.max(maxY, p.y + pad);
+        }
+    }
+
     // Finish last part of smoothed curve
     if (this.isDrawing && this.brush.type !== TOOLS.LASSO && this.strokePoints.length > 1 && this.brush.type !== TOOLS.WIREFRAME) {
         const p_last = this.strokePoints[this.strokePoints.length - 1];
@@ -1983,12 +1981,45 @@ export class Engine {
                     ctx.globalCompositeOperation = 'source-over';
                 }
 
-                ctx.drawImage(chunk.strokeCanvas, 0, 0);
+                const scale = this.isStatic ? this.dpiScale : 1;
+                let chunkMinX = 0;
+                let chunkMinY = 0;
+                let chunkW = chunk.width;
+                let chunkH = chunk.height;
+
+                if (minX !== Infinity) {
+                    chunkMinX = Math.max(0, Math.floor(minX - lx));
+                    chunkMinY = Math.max(0, Math.floor(minY - ly));
+                    const chunkMaxX = Math.min(chunk.width, Math.ceil(maxX - lx));
+                    const chunkMaxY = Math.min(chunk.height, Math.ceil(maxY - ly));
+                    chunkW = chunkMaxX - chunkMinX;
+                    chunkH = chunkMaxY - chunkMinY;
+                }
+
+                if (chunkW > 0 && chunkH > 0) {
+                    ctx.drawImage(
+                        chunk.strokeCanvas,
+                        chunkMinX * scale,
+                        chunkMinY * scale,
+                        chunkW * scale,
+                        chunkH * scale,
+                        chunkMinX,
+                        chunkMinY,
+                        chunkW,
+                        chunkH
+                    );
+                }
                 ctx.restore();
 
                 // Clear stroke buffer for next stroke
+                const cMinX = chunkMinX;
+                const cMinY = chunkMinY;
+                const cW = chunkW;
+                const cH = chunkH;
                 requestAnimationFrame(() => {
-                    chunk.strokeCtx.clearRect(0, 0, chunk.width, chunk.height);
+                    if (cW > 0 && cH > 0) {
+                        chunk.strokeCtx.clearRect(cMinX, cMinY, cW, cH);
+                    }
                     chunk.strokeCanvas.style.opacity = '0';
                 });
             }
@@ -1998,8 +2029,29 @@ export class Engine {
         this.currentStrokeDirtyChunks.forEach((data, id) => {
             const chunk = this.chunks.get(id);
             if (chunk) {
+                const lx = this.isStatic ? -this.staticWidth / 2 : chunk.cx * this.chunkSize;
+                const ly = this.isStatic ? -this.staticHeight / 2 : chunk.cy * this.chunkSize;
+                let chunkMinX = 0;
+                let chunkMinY = 0;
+                let chunkW = chunk.width;
+                let chunkH = chunk.height;
+
+                if (minX !== Infinity) {
+                    chunkMinX = Math.max(0, Math.floor(minX - lx));
+                    chunkMinY = Math.max(0, Math.floor(minY - ly));
+                    const chunkMaxX = Math.min(chunk.width, Math.ceil(maxX - lx));
+                    const chunkMaxY = Math.min(chunk.height, Math.ceil(maxY - ly));
+                    chunkW = chunkMaxX - chunkMinX;
+                    chunkH = chunkMaxY - chunkMinY;
+                }
+                const cMinX = chunkMinX;
+                const cMinY = chunkMinY;
+                const cW = chunkW;
+                const cH = chunkH;
                 requestAnimationFrame(() => {
-                    chunk.strokeCtx.clearRect(0, 0, chunk.width, chunk.height);
+                    if (cW > 0 && cH > 0) {
+                        chunk.strokeCtx.clearRect(cMinX, cMinY, cW, cH);
+                    }
                     chunk.strokeCanvas.style.opacity = '0';
                 });
             }
@@ -2534,11 +2586,130 @@ export class Engine {
       }
   }
 
+  _updateWireframeOverlay() {
+    // No-op: now handled incrementally directly onto chunks in real-time!
+  }
+
+  _paintWireframeIncrementally(j) {
+    const points = this.strokePoints;
+    if (j < 1 || j >= points.length) return;
+    
+    const p = points[j];
+    const lastP = points[j - 1];
+    const dynamicSize = p.size;
+    const opacMod = p.opacity;
+    const globalOpacity = this.brush.opacity ?? 1.0;
+    
+    const thresholdMaxRatio = this.brush.wireRange ?? 4.0;
+    const thresholdMinRatio = this.brush.wireMinDist ?? 0.5;
+    const maxSeek = this.brush.wireDensity ?? 30;
+    
+    // Find all line segments to draw for this point
+    const segments = [];
+    
+    // 1. Connection lines
+    const thresholdMax = dynamicSize * thresholdMaxRatio;
+    const thresholdMin = dynamicSize * thresholdMinRatio;
+    const connOpacity = opacMod * 0.2 * globalOpacity;
+    const baseConnWidth = Math.max(0.3, dynamicSize * 0.05);
+    
+    for (let i = Math.max(0, j - maxSeek); i < j - 1; i++) {
+        const prevP = points[i];
+        const d = Math.sqrt((prevP.x - p.x)**2 + (prevP.y - p.y)**2);
+        if (d > thresholdMin && d < thresholdMax) {
+            segments.push({
+                type: 'conn',
+                from: prevP,
+                to: p,
+                width: baseConnWidth,
+                opacity: connOpacity,
+                color: p.color
+            });
+        }
+    }
+    
+    // 2. Main segment
+    const baseMainWidth = Math.max(0.5, dynamicSize * 0.15);
+    segments.push({
+        type: 'main',
+        from: lastP,
+        to: p,
+        width: baseMainWidth,
+        opacity: opacMod * globalOpacity,
+        color: p.color
+    });
+    
+    // Draw segments on affected chunks
+    for (const seg of segments) {
+        const pad = seg.width + 5;
+        const minX = Math.min(seg.from.x, seg.to.x) - pad;
+        const maxX = Math.max(seg.from.x, seg.to.x) + pad;
+        const minY = Math.min(seg.from.y, seg.to.y) - pad;
+        const maxY = Math.max(seg.from.y, seg.to.y) + pad;
+        
+        const sCX = this.isStatic ? 0 : Math.floor(minX / this.chunkSize);
+        const eCX = this.isStatic ? 0 : Math.floor(maxX / this.chunkSize);
+        const sCY = this.isStatic ? 0 : Math.floor(minY / this.chunkSize);
+        const eCY = this.isStatic ? 0 : Math.floor(maxY / this.chunkSize);
+        
+        for (let cx = sCX; cx <= eCX; cx++) {
+            for (let cy = sCY; cy <= eCY; cy++) {
+                const chunk = this._getChunk(cx, cy);
+                if (!chunk) continue;
+                
+                const id = `${cx},${cy}`;
+                if (!this.currentStrokeDirtyChunks.has(id)) {
+                    const srcCanvas = chunk.canvases[this.activeLayer];
+                    const backup = document.createElement('canvas');
+                    backup.width = srcCanvas.width; backup.height = srcCanvas.height;
+                    backup.getContext('2d').drawImage(srcCanvas, 0, 0);
+                    this.currentStrokeDirtyChunks.set(id, { layer: this.activeLayer, canvas: backup });
+                    this._markDirty(id, this.activeLayer);
+                }
+                
+                // Show stroke canvas
+                chunk.strokeCanvas.style.opacity = this.brush.opacity;
+                
+                const lx = this.isStatic ? -this.staticWidth / 2 : cx * this.chunkSize;
+                const ly = this.isStatic ? -this.staticHeight / 2 : cy * this.chunkSize;
+                
+                const ctx = chunk.strokeCtx;
+                ctx.save();
+                
+                // Active Selection Path Clip
+                if (this.activeSelectionPath) {
+                    ctx.beginPath();
+                    this.activeSelectionPath.forEach((pt, idx) => {
+                        const px = pt.x - lx;
+                        const py = pt.y - ly;
+                        if (idx === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    });
+                    ctx.closePath();
+                    ctx.clip();
+                }
+                
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = seg.opacity;
+                ctx.lineWidth = seg.width;
+                ctx.strokeStyle = seg.color;
+                ctx.beginPath();
+                ctx.moveTo(seg.from.x - lx, seg.from.y - ly);
+                ctx.lineTo(seg.to.x - lx, seg.to.y - ly);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+    }
+  }
+
   _paintOnChunks(from, to, size, opacity, color) {
     if (this.activeLayer === 0) return;
     
     // 1. Prepare Brush Params
     const isSmudge = this.brush.type === TOOLS.SMUDGE;
+    const isWire = this.brush.type === TOOLS.WIREFRAME;
     const bSize = Math.round(size);
     let spacing = isSmudge ? Math.max(1, bSize * 0.05) : Math.max(2, bSize * this.brush.spacing); 
     if (!Number.isFinite(spacing) || spacing < 0.5) spacing = 2;
@@ -2549,7 +2720,6 @@ export class Engine {
     const flow = this.brush.flow || 0.5;
     
     const isEraser = this.brush.type === TOOLS.ERASER;
-    const isWire = this.brush.type === TOOLS.WIREFRAME;
     const tip = this.brush.tip;
     const airbrush = this.brush.airbrush || 0;
     const oil = this.brush.oiliness || 0;
@@ -3446,10 +3616,19 @@ export class Engine {
         const prefix = this.currentProjectId ? `v_${this.currentProjectId}_` : 'v_';
         const savedZoom = localStorage.getItem(prefix + 'zoom');
         const savedPan = localStorage.getItem(prefix + 'pan');
-        if (savedZoom) this.zoom = parseFloat(savedZoom);
-        if (savedPan) this.pan = JSON.parse(savedPan);
-        this.refresh();
-        if (this.onZoomChange) this.onZoomChange(this.zoom);
+        if (savedZoom && savedPan) {
+            this.zoom = parseFloat(savedZoom);
+            this.pan = JSON.parse(savedPan);
+            this.refresh();
+            if (this.onZoomChange) this.onZoomChange(this.zoom);
+        } else {
+            this.pan = { x: 0, y: 0 };
+            if (this.isStatic) {
+                this.fitZoom();
+            } else {
+                this.setZoom(1);
+            }
+        }
     } catch(e) {
         console.warn('Failed to load viewport', e);
     }

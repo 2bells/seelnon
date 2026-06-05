@@ -119,10 +119,18 @@ export async function switchProject(app, id) {
 
     await saveProject(app);
     
+    // Save previous viewport before switching ID
+    if (app.engine) {
+        app.engine.saveViewport();
+    }
+    
     app._status('SWITCHING...');
     app.currentProjectId = id;
     app.storage.setProjectId(id);
     await app.storage.saveGlobalSetting('current_project_id', id);
+    
+    // Load non-canvas project-specific settings (background, palette, grid)
+    await app.loadProjectSettings();
     
     // Load project settings
     const project = app.projects.find(p => p.id === id);
@@ -144,7 +152,7 @@ export async function switchProject(app, id) {
     app.engine.resetEngineState();
     
     app.engine._updateSelectionPreview();
-    app.engine.fitZoom();
+    app.engine.loadViewport(id);
     
     // Sync UI settings
     document.getElementById('settings-brush-spacing').value = app.engine.brush.spacing;
@@ -180,7 +188,7 @@ export async function deleteProject(app, id) {
         if (app.engine.setupBoard) {
             app.engine.setupBoard();
         }
-        app.engine.fitZoom();
+        app.engine.loadViewport('default');
         
         await loadProject(app);
         app._updateRefImageList();
@@ -509,20 +517,51 @@ export async function performExport(app) {
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) return;
     
-    tempCtx.save();
-    tempCtx.translate(-xStart, -yStart);
-    app.engine.referenceImages.forEach(ref => {
+    // Draw background color and grid pattern if not exporting transparency (alpha)
+    if (!alpha) {
+        tempCtx.fillStyle = app.engine.canvasBg;
+        tempCtx.fillRect(0, 0, exactW, exactH);
+        
+        if (app.engine.showGrid) {
+            if (!app.engine._gridCanvas) {
+                app.engine._generateGridTexture();
+            }
+            if (app.engine._gridCanvas) {
+                const pattern = tempCtx.createPattern(app.engine._gridCanvas, 'repeat');
+                if (pattern) {
+                    let originX = 0;
+                    let originY = 0;
+                    if (app.engine.isStatic) {
+                        originX = -app.engine.staticWidth / 2;
+                        originY = -app.engine.staticHeight / 2;
+                    }
+                    tempCtx.save();
+                    tempCtx.translate(originX - xStart, originY - yStart);
+                    tempCtx.fillStyle = pattern;
+                    tempCtx.fillRect(xStart - originX, yStart - originY, exactW, exactH);
+                    tempCtx.restore();
+                }
+            }
+        }
+    }
+    
+    // Only draw reference images if layer index 0 (IMG REF) is visible
+    if (app.engine.layerSettings[0] && app.engine.layerSettings[0].visible) {
         tempCtx.save();
-        tempCtx.translate(ref.x, ref.y);
-        tempCtx.rotate(ref.rotation);
-        tempCtx.scale(ref.scale, ref.scale);
-        if (ref.mirrorX) tempCtx.scale(-1, 1);
-        if (ref.mirrorY) tempCtx.scale(1, -1);
-        tempCtx.globalAlpha = ref.opacity;
-        tempCtx.drawImage(ref.img, -ref.img.width/2, -ref.img.height/2);
+        tempCtx.translate(-xStart, -yStart);
+        app.engine.referenceImages.forEach(ref => {
+            tempCtx.save();
+            tempCtx.translate(ref.x, ref.y);
+            tempCtx.rotate(ref.rotation);
+            tempCtx.scale(ref.scale, ref.scale);
+            if (ref.mirrorX) tempCtx.scale(-1, 1);
+            if (ref.mirrorY) tempCtx.scale(1, -1);
+            tempCtx.globalAlpha = ref.opacity;
+            tempCtx.drawImage(ref.img, -ref.img.width/2, -ref.img.height/2);
+            tempCtx.restore();
+        });
         tempCtx.restore();
-    });
-    tempCtx.restore();
+    }
     
     app.engine.chunks.forEach(chunk => {
         const lx = app.engine.isStatic ? -app.engine.staticWidth / 2 : chunk.cx * app.engine.chunkSize;
@@ -534,6 +573,10 @@ export async function performExport(app) {
             ly < yEnd && ly + chunkH > yStart) {
             
             for (let i = 1; i < LAYERS_COUNT; i++) {
+                // Skip invisible layers
+                if (app.engine.layerSettings[i] && !app.engine.layerSettings[i].visible) {
+                    continue;
+                }
                 tempCtx.drawImage(chunk.canvases[i], lx - xStart, ly - yStart, chunkW, chunkH);
             }
         }

@@ -44,8 +44,8 @@ export function setupUI(app) {
             import('./projectManager.js').then(module => {
                 module.saveProject(app).then(() => {
                     const rect = {
-                        x: -app.engine.isStatic ? app.engine.staticWidth / 2 : 0,
-                        y: -app.engine.isStatic ? app.engine.staticHeight / 2 : 0,
+                        x: app.engine.isStatic ? -app.engine.staticWidth / 2 : 0,
+                        y: app.engine.isStatic ? -app.engine.staticHeight / 2 : 0,
                         w: app.engine.isStatic ? app.engine.staticWidth : 0,
                         h: app.engine.isStatic ? app.engine.staticHeight : 0
                     };
@@ -390,21 +390,33 @@ export function setupUI(app) {
         };
     }
 
+    const updateProjectSetting = async (key, val) => {
+        const project = app.projects.find(p => p.id === app.currentProjectId);
+        if (project) {
+            if (!project.settings) project.settings = {};
+            project.settings[key] = val;
+            await app.storage.saveGlobalSetting('projects_list', app.projects);
+        }
+    };
+
     // Original Settings inputs
     document.getElementById('settings-bg-color').oninput = (e) => {
         app.engine.canvasBg = e.target.value;
         app.engine.refreshGrid();
         app.storage.saveSetting('canvasBg', e.target.value);
+        updateProjectSetting('canvasBg', e.target.value);
     };
     document.getElementById('settings-grid-color').oninput = (e) => {
         app.engine.gridColor = e.target.value;
         app.engine.refreshGrid();
         app.storage.saveSetting('gridColor', e.target.value);
+        updateProjectSetting('gridColor', e.target.value);
     };
     document.getElementById('settings-grid-pattern').onchange = (e) => {
         app.engine.gridPattern = e.target.value;
         app.engine.refreshGrid();
         app.storage.saveSetting('gridPattern', e.target.value);
+        updateProjectSetting('gridPattern', e.target.value);
     };
     document.getElementById('settings-grid-size').oninput = (e) => {
         const val = parseInt(e.target.value);
@@ -412,6 +424,7 @@ export function setupUI(app) {
         document.getElementById('grid-size-val').innerText = `${val}px`;
         app.engine.refreshGrid();
         app.storage.saveSetting('gridSize', val);
+        updateProjectSetting('gridSize', val);
     };
     document.getElementById('settings-grid-intensity').oninput = (e) => {
         const val = parseInt(e.target.value);
@@ -419,11 +432,13 @@ export function setupUI(app) {
         document.getElementById('grid-intensity-val').innerText = `${val}%`;
         app.engine.refreshGrid();
         app.storage.saveSetting('gridIntensity', val);
+        updateProjectSetting('gridIntensity', val);
     };
     document.getElementById('settings-grid-show').onchange = (e) => {
         app.engine.showGrid = e.target.checked;
         app.engine.refreshGrid();
         app.storage.saveSetting('showGrid', e.target.checked);
+        updateProjectSetting('showGrid', e.target.checked);
     };
     document.getElementById('settings-brush-spacing').oninput = (e) => {
         const val = parseFloat(e.target.value);

@@ -240,110 +240,7 @@ class App {
     this._restoreWindowPositions();
 
     // 3. LOAD NON-CANVAS SETTINGS (Fast)
-    try {
-        // Load autosave settings
-        const savedAutosaveSlider = await this.storage.loadSetting('autosaveDelaySlider');
-        const savedAutosaveEnabled = await this.storage.loadSetting('autosaveEnabled');
-        if (savedAutosaveSlider !== null) {
-            const sliderEl = document.getElementById('settings-autosave');
-            if (sliderEl) sliderEl.value = savedAutosaveSlider;
-            const seconds = Math.round(4 * Math.pow(300 / 4, savedAutosaveSlider / 100));
-            this.autosaveDelay = seconds * 1000;
-            const valEl = document.getElementById('autosave-val');
-            if (valEl) valEl.innerText = `${seconds}s`;
-        }
-        if (savedAutosaveEnabled !== null) {
-            this.autosaveEnabled = savedAutosaveEnabled;
-            const enableEl = document.getElementById('settings-autosave-enable');
-            if (enableEl) enableEl.checked = savedAutosaveEnabled;
-        }
-
-        const savedPalette = await this.storage.loadSetting('palette');
-        if (savedPalette) this.palette.baseColors = savedPalette;
-
-        const canvasBg = await this.storage.loadSetting('canvasBg');
-        if (canvasBg) {
-            this.engine.canvasBg = canvasBg;
-            const bgEl = document.getElementById('settings-bg-color');
-            if (bgEl) bgEl.value = canvasBg;
-        }
-
-        const gridColor = await this.storage.loadSetting('gridColor');
-        if (gridColor) {
-            this.engine.gridColor = gridColor;
-            const gcEl = document.getElementById('settings-grid-color');
-            if (gcEl) gcEl.value = gridColor;
-        }
-
-        const gridPattern = await this.storage.loadSetting('gridPattern');
-        if (gridPattern) {
-            this.engine.gridPattern = gridPattern;
-            const gpEl = document.getElementById('settings-grid-pattern');
-            if (gpEl) gpEl.value = gridPattern;
-        }
-
-        const gridSize = await this.storage.loadSetting('gridSize');
-        if (gridSize) {
-            this.engine.gridSize = parseInt(gridSize);
-            const gsEl = document.getElementById('settings-grid-size');
-            if (gsEl) gsEl.value = gridSize;
-            const gsvEl = document.getElementById('grid-size-val');
-            if (gsvEl) gsvEl.innerText = `${gridSize}px`;
-        }
-
-        const gridIntensity = await this.storage.loadSetting('gridIntensity');
-        if (gridIntensity) {
-            this.engine.gridIntensity = parseInt(gridIntensity) / 100;
-            const giEl = document.getElementById('settings-grid-intensity');
-            if (giEl) giEl.value = gridIntensity;
-            const givEl = document.getElementById('grid-intensity-val');
-            if (givEl) givEl.innerText = `${gridIntensity}%`;
-        }
-
-        const showGrid = await this.storage.loadSetting('showGrid');
-        if (showGrid !== undefined) {
-            this.engine.showGrid = showGrid;
-            const sgEl = document.getElementById('settings-grid-show');
-            if (sgEl) sgEl.checked = showGrid;
-            this.engine.refreshGrid();
-        }
-
-        // BRUSH SETTINGS
-        let savedBrushes = null;
-        try {
-            const raw = localStorage.getItem('brushSettings');
-            if (raw) savedBrushes = JSON.parse(raw);
-        } catch(e) {}
-        if (!savedBrushes) savedBrushes = await this.storage.loadSetting('brushSettings');
-        if (savedBrushes) {
-            Object.keys(savedBrushes).forEach(tool => {
-                if (this.brushSettings[tool]) {
-                    this.brushSettings[tool] = { ...this.brushSettings[tool], ...savedBrushes[tool] };
-                }
-            });
-        }
-
-        const spacing = await this.storage.loadSetting('brushSpacing');
-        if (spacing) {
-            this.engine.brush.spacing = parseFloat(spacing);
-            const spEl = document.getElementById('settings-brush-spacing');
-            if (spEl) spEl.value = spacing;
-        }
-
-    } catch (e) {
-        console.warn("Settings load failed", e);
-    }
-
-    // 4. RENDER UI STATE
-    this._renderPalette();
-    this._initColorSelector();
-    
-    const lastColor = await this.storage.loadSetting('lastColor') || this.palette.baseColors[0];
-    this.setColor(lastColor);
-    this._updateHSVFromHex(lastColor);
-    
-    // 5. APPLY BRUSH (Sync UI sliders)
-    this.setTool(this.activeTool, true);
+    await this.loadProjectSettings();
 
     // 6. HEAVY ASSETS (References & Canvas chunks)
     this._status('LOADING ASSETS...');
@@ -442,6 +339,152 @@ class App {
       };
       self._saveWindowPositions();
     }
+  }
+
+  async loadProjectSettings() {
+    try {
+        // Load autosave settings
+        const savedAutosaveSlider = await this.storage.loadSetting('autosaveDelaySlider');
+        const savedAutosaveEnabled = await this.storage.loadSetting('autosaveEnabled');
+        if (savedAutosaveSlider !== null) {
+            const sliderEl = document.getElementById('settings-autosave');
+            if (sliderEl) sliderEl.value = savedAutosaveSlider;
+            const seconds = Math.round(4 * Math.pow(300 / 4, savedAutosaveSlider / 100));
+            this.autosaveDelay = seconds * 1000;
+            const valEl = document.getElementById('autosave-val');
+            if (valEl) valEl.innerText = `${seconds}s`;
+        }
+        if (savedAutosaveEnabled !== null) {
+            this.autosaveEnabled = savedAutosaveEnabled;
+            const enableEl = document.getElementById('settings-autosave-enable');
+            if (enableEl) enableEl.checked = savedAutosaveEnabled;
+        }
+
+        const savedPalette = await this.storage.loadSetting('palette');
+        if (savedPalette) this.palette.baseColors = savedPalette;
+
+        // Reset default background/grid settings so they don't leak from previous project if not present
+        this.engine.canvasBg = '#ffffff';
+        this.engine.gridColor = '#cccccc';
+        this.engine.gridPattern = 'dots';
+        this.engine.gridSize = 64;
+        this.engine.gridIntensity = 0.5;
+        this.engine.showGrid = true;
+
+        const project = this.projects ? this.projects.find(p => p.id === this.currentProjectId) : null;
+        const projSet = (project && project.settings) ? project.settings : {};
+
+        const canvasBg = projSet.canvasBg !== undefined ? projSet.canvasBg : await this.storage.loadSetting('canvasBg');
+        if (canvasBg) {
+            this.engine.canvasBg = canvasBg;
+            const bgEl = document.getElementById('settings-bg-color');
+            if (bgEl) bgEl.value = canvasBg;
+        } else {
+            const bgEl = document.getElementById('settings-bg-color');
+            if (bgEl) bgEl.value = '#ffffff';
+        }
+
+        const gridColor = projSet.gridColor !== undefined ? projSet.gridColor : await this.storage.loadSetting('gridColor');
+        if (gridColor) {
+            this.engine.gridColor = gridColor;
+            const gcEl = document.getElementById('settings-grid-color');
+            if (gcEl) gcEl.value = gridColor;
+        } else {
+            const gcEl = document.getElementById('settings-grid-color');
+            if (gcEl) gcEl.value = '#cccccc';
+        }
+
+        const gridPattern = projSet.gridPattern !== undefined ? projSet.gridPattern : await this.storage.loadSetting('gridPattern');
+        if (gridPattern) {
+            this.engine.gridPattern = gridPattern;
+            const gpEl = document.getElementById('settings-grid-pattern');
+            if (gpEl) gpEl.value = gridPattern;
+        } else {
+            const gpEl = document.getElementById('settings-grid-pattern');
+            if (gpEl) gpEl.value = 'dots';
+        }
+
+        const gridSize = projSet.gridSize !== undefined ? projSet.gridSize : await this.storage.loadSetting('gridSize');
+        if (gridSize) {
+            this.engine.gridSize = parseInt(gridSize);
+            const gsEl = document.getElementById('settings-grid-size');
+            if (gsEl) gsEl.value = gridSize;
+            const gsvEl = document.getElementById('grid-size-val');
+            if (gsvEl) gsvEl.innerText = `${gridSize}px`;
+        } else {
+            const gsEl = document.getElementById('settings-grid-size');
+            if (gsEl) gsEl.value = '64';
+            const gsvEl = document.getElementById('grid-size-val');
+            if (gsvEl) gsvEl.innerText = '64px';
+        }
+
+        const gridIntensity = projSet.gridIntensity !== undefined ? projSet.gridIntensity : await this.storage.loadSetting('gridIntensity');
+        if (gridIntensity) {
+            this.engine.gridIntensity = parseInt(gridIntensity) / 100;
+            const giEl = document.getElementById('settings-grid-intensity');
+            if (giEl) giEl.value = gridIntensity;
+            const givEl = document.getElementById('grid-intensity-val');
+            if (givEl) givEl.innerText = `${gridIntensity}%`;
+        } else {
+            const giEl = document.getElementById('settings-grid-intensity');
+            if (giEl) giEl.value = '50';
+            const givEl = document.getElementById('grid-intensity-val');
+            if (givEl) givEl.innerText = '50%';
+        }
+
+        const showGrid = projSet.showGrid !== undefined ? projSet.showGrid : await this.storage.loadSetting('showGrid');
+        if (showGrid !== undefined) {
+            this.engine.showGrid = showGrid;
+            const sgEl = document.getElementById('settings-grid-show');
+            if (sgEl) sgEl.checked = showGrid;
+        } else {
+            const sgEl = document.getElementById('settings-grid-show');
+            if (sgEl) sgEl.checked = true;
+        }
+        
+        // Refresh grid textures & application styles based on settings loaded
+        this.engine.setupBoard();
+        this.engine.refreshGrid();
+
+        // BRUSH SETTINGS
+        let savedBrushes = null;
+        try {
+            const raw = localStorage.getItem('brushSettings');
+            if (raw) savedBrushes = JSON.parse(raw);
+        } catch(e) {}
+        if (!savedBrushes) savedBrushes = await this.storage.loadSetting('brushSettings');
+        if (savedBrushes) {
+            Object.keys(savedBrushes).forEach(tool => {
+                if (this.brushSettings[tool]) {
+                    this.brushSettings[tool] = { ...this.brushSettings[tool], ...savedBrushes[tool] };
+                }
+            });
+        }
+
+        const spacing = await this.storage.loadSetting('brushSpacing');
+        if (spacing) {
+            this.engine.brush.spacing = parseFloat(spacing);
+            const spEl = document.getElementById('settings-brush-spacing');
+            if (spEl) spEl.value = spacing;
+        } else {
+            const spEl = document.getElementById('settings-brush-spacing');
+            if (spEl) spEl.value = '0.05';
+        }
+
+    } catch (e) {
+        console.warn("Settings load failed", e);
+    }
+
+    // 4. RENDER UI STATE
+    this._renderPalette();
+    this._initColorSelector();
+    
+    const lastColor = await this.storage.loadSetting('lastColor') || this.palette.baseColors[0];
+    this.setColor(lastColor);
+    this._updateHSVFromHex(lastColor);
+    
+    // 5. APPLY BRUSH (Sync UI sliders)
+    this.setTool(this.activeTool, true);
   }
 
   _saveWindowPositions() {
