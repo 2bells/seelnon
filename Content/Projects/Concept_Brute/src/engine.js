@@ -452,13 +452,6 @@ export class Engine {
             return;
         }
         this._endStroke(e);
-        
-        // Hide brush cursor when finger/pen is removed on iPad/Pen devices
-        if (e.pointerType !== 'mouse') {
-            if (this.brushCursor) this.brushCursor.style.display = 'none';
-        } else {
-            this._updateBrushCursor(e);
-        }
     };
 
     window.addEventListener('pointerup', endHandler);
@@ -627,7 +620,9 @@ export class Engine {
   }
 
   _updateCursor() {
-    if (this.isPanning || this.keys[' ']) {
+    if (this.isDrawing) {
+        this.container.style.cursor = 'none';
+    } else if (this.isPanning || this.keys[' ']) {
         this.container.style.cursor = 'grab';
     } else if (this.isZooming || this.keys['z']) {
         this.container.style.cursor = 'zoom-in';
@@ -1945,7 +1940,7 @@ export class Engine {
     this.lastTime = currentTime;
   }
 
-  _endStroke() {
+  _endStroke(e = null) {
     // Finish last part of smoothed curve
     if (this.isDrawing && this.brush.type !== TOOLS.LASSO && this.strokePoints.length > 1 && this.brush.type !== TOOLS.WIREFRAME) {
         const p_last = this.strokePoints[this.strokePoints.length - 1];
@@ -2035,10 +2030,24 @@ export class Engine {
     this.shiftOrigin = null;
     this.shiftLockAxis = null;
     this._status('READY');
+    this._updateCursor();
+    
+    if (e) {
+        if (e.pointerType !== 'mouse') {
+            if (this.brushCursor) this.brushCursor.style.display = 'none';
+            if (this.brushCrosshair) this.brushCrosshair.style.display = 'none';
+        } else {
+            this._updateBrushCursor(e);
+        }
+    } else {
+        this._updateBrushCursor();
+    }
   }
 
   _updateBrushCursor(e) {
     if (!this.brushCursor) return;
+
+    this._updateCursor();
 
     if (e && e.pointerType === 'mouse' && this.lastPenTouchTime && (performance.now() - this.lastPenTouchTime < 1000)) {
         return;
@@ -2073,7 +2082,7 @@ export class Engine {
     let mY = mouseY - rect.top;
 
     // Manage brush crosshair visibility and positioning
-    let showCrosshair = !this.isExportMode && this.brush.type !== TOOLS.REF_MOVE;
+    let showCrosshair = this.isDrawing && !this.isExportMode && this.brush.type !== TOOLS.REF_MOVE;
     if (showCrosshair) {
         if (this.brushCrosshair) {
             this.brushCrosshair.style.display = 'block';
