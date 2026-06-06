@@ -259,7 +259,7 @@ class App {
 
     // Event hooks
     this.engine.onDrawStart = () => this._clearSaveTimer();
-    this.engine.onDrawMove = () => this._triggerAutoSave();
+    this.engine.onDrawMove = null;
     this.engine.onDrawEnd = () => this._triggerAutoSave();
     this.engine.onZoomChange = () => this._updateZoomUI();
     this.engine.onExportSelectionDone = (rect) => this._showExportModal(rect);
@@ -293,7 +293,16 @@ class App {
   _triggerAutoSave() {
     this._clearSaveTimer();
     if (this.autosaveEnabled) {
-        this.saveTimeout = setTimeout(() => this.save(), this.autosaveDelay);
+        this.saveTimeout = setTimeout(() => {
+            const isBusy = this.isCapturingTip || 
+                           (this.engine && (this.engine.isDrawing || this.engine.isPanning || this.engine.isPanningMode));
+            if (isBusy) {
+                // Postpone save action again because the user is currently busy painting/liquifying/editing
+                this._triggerAutoSave();
+            } else {
+                this.save();
+            }
+        }, this.autosaveDelay);
     }
   }
 

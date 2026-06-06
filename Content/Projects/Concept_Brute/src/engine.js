@@ -677,6 +677,10 @@ export class Engine {
   }
 
   syncOffscreenCanvases() {
+      if (this.isDrawing || this.isPanning || this.isPanningMode) {
+          // Defer sync until interaction is complete to keep active actions high-performance and lag-free
+          return;
+      }
       if (!this.offscreenDirty || this.offscreenDirty.size === 0) return;
       for (const item of this.offscreenDirty) {
           const [chunkId, layerStr] = item.split('|');
