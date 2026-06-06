@@ -441,8 +441,12 @@ button:focus, input:focus, select:focus, .tool-btn:focus, .brutal-btn:focus, .mi
 /* SLIDERS */
 .slider-group {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
+}
+
+.sensitivity-group .slider-container {
+    margin-top: -4px;
 }
 
 .slider-container {

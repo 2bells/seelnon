@@ -37,6 +37,7 @@ export function setupUI(app) {
     document.getElementById('btn-wireframe').onclick = () => app.setTool(TOOLS.WIREFRAME);
     document.getElementById('btn-lasso').onclick = () => app.setTool(TOOLS.LASSO);
     document.getElementById('btn-smudge').onclick = () => app.setTool(TOOLS.SMUDGE);
+    document.getElementById('btn-liquify').onclick = () => app.setTool(TOOLS.LIQUIFY);
     document.getElementById('btn-ref_move').onclick = () => app.setTool(TOOLS.REF_MOVE);
     document.getElementById('btn-save').onclick = () => {
         if (app.engine.isStatic) {
@@ -399,46 +400,84 @@ export function setupUI(app) {
         }
     };
 
+    let gridSaveTimeout = null;
+    const queueGridSettingsSave = () => {
+        if (gridSaveTimeout) clearTimeout(gridSaveTimeout);
+        gridSaveTimeout = setTimeout(async () => {
+            await app.storage.saveSetting('canvasBg', app.engine.canvasBg);
+            await app.storage.saveSetting('gridColor', app.engine.gridColor);
+            await app.storage.saveSetting('gridPattern', app.engine.gridPattern);
+            await app.storage.saveSetting('gridSize', app.engine.gridSize);
+            await app.storage.saveSetting('gridThickness', app.engine.gridThickness);
+            await app.storage.saveSetting('gridIntensity', Math.round(app.engine.gridIntensity * 100));
+            await app.storage.saveSetting('showGrid', app.engine.showGrid);
+
+            const project = app.projects.find(p => p.id === app.currentProjectId);
+            if (project) {
+                if (!project.settings) project.settings = {};
+                project.settings.canvasBg = app.engine.canvasBg;
+                project.settings.gridColor = app.engine.gridColor;
+                project.settings.gridPattern = app.engine.gridPattern;
+                project.settings.gridSize = app.engine.gridSize;
+                project.settings.gridThickness = app.engine.gridThickness;
+                project.settings.gridIntensity = Math.round(app.engine.gridIntensity * 100);
+                project.settings.showGrid = app.engine.showGrid;
+                await app.storage.saveGlobalSetting('projects_list', app.projects);
+            }
+        }, 300);
+    };
+
     // Original Settings inputs
     document.getElementById('settings-bg-color').oninput = (e) => {
         app.engine.canvasBg = e.target.value;
         app.engine.refreshGrid();
-        app.storage.saveSetting('canvasBg', e.target.value);
-        updateProjectSetting('canvasBg', e.target.value);
+    };
+    document.getElementById('settings-bg-color').onchange = () => {
+        queueGridSettingsSave();
     };
     document.getElementById('settings-grid-color').oninput = (e) => {
         app.engine.gridColor = e.target.value;
         app.engine.refreshGrid();
-        app.storage.saveSetting('gridColor', e.target.value);
-        updateProjectSetting('gridColor', e.target.value);
+    };
+    document.getElementById('settings-grid-color').onchange = () => {
+        queueGridSettingsSave();
     };
     document.getElementById('settings-grid-pattern').onchange = (e) => {
         app.engine.gridPattern = e.target.value;
         app.engine.refreshGrid();
-        app.storage.saveSetting('gridPattern', e.target.value);
-        updateProjectSetting('gridPattern', e.target.value);
+        queueGridSettingsSave();
     };
     document.getElementById('settings-grid-size').oninput = (e) => {
         const val = parseInt(e.target.value);
         app.engine.gridSize = val;
         document.getElementById('grid-size-val').innerText = `${val}px`;
         app.engine.refreshGrid();
-        app.storage.saveSetting('gridSize', val);
-        updateProjectSetting('gridSize', val);
+    };
+    document.getElementById('settings-grid-size').onchange = () => {
+        queueGridSettingsSave();
+    };
+    document.getElementById('settings-grid-thickness').oninput = (e) => {
+        const val = parseFloat(e.target.value);
+        app.engine.gridThickness = val;
+        document.getElementById('grid-thickness-val').innerText = `${val}px`;
+        app.engine.refreshGrid();
+    };
+    document.getElementById('settings-grid-thickness').onchange = () => {
+        queueGridSettingsSave();
     };
     document.getElementById('settings-grid-intensity').oninput = (e) => {
         const val = parseInt(e.target.value);
         app.engine.gridIntensity = val / 100;
         document.getElementById('grid-intensity-val').innerText = `${val}%`;
         app.engine.refreshGrid();
-        app.storage.saveSetting('gridIntensity', val);
-        updateProjectSetting('gridIntensity', val);
+    };
+    document.getElementById('settings-grid-intensity').onchange = () => {
+        queueGridSettingsSave();
     };
     document.getElementById('settings-grid-show').onchange = (e) => {
         app.engine.showGrid = e.target.checked;
         app.engine.refreshGrid();
-        app.storage.saveSetting('showGrid', e.target.checked);
-        updateProjectSetting('showGrid', e.target.checked);
+        queueGridSettingsSave();
     };
     document.getElementById('settings-brush-spacing').oninput = (e) => {
         const val = parseFloat(e.target.value);
@@ -666,6 +705,7 @@ export function setupUI(app) {
       app.brushSettings[app.activeTool].size = size;
       app.engine.brush.size = size;
       sizeVal.innerText = size;
+      if (app.engine) app.engine._updateBrushCursor();
       app._saveBrushSettings();
     };
 
@@ -691,6 +731,33 @@ export function setupUI(app) {
           app.brushSettings[app.activeTool].flow = val / 100;
           app.engine.brush.flow = val / 100;
           flowVal.innerText = `${val}%`;
+          app._saveBrushSettings();
+        };
+    }
+
+    const falloffSlider = document.getElementById('brush-falloff');
+    const falloffVal = document.getElementById('falloff-val');
+    if (falloffSlider) {
+        falloffSlider.oninput = (e) => {
+          const val = parseInt(e.target.value);
+          if (!app.activeTool) return;
+          app.brushSettings[app.activeTool].falloff = val / 100;
+          app.engine.brush.falloff = val / 100;
+          if (falloffVal) falloffVal.innerText = `${val}%`;
+          app._saveBrushSettings();
+        };
+    }
+
+    const qualitySlider = document.getElementById('brush-liquify-quality');
+    const qualityVal = document.getElementById('liquify-quality-val');
+    if (qualitySlider) {
+        qualitySlider.oninput = (e) => {
+          const val = parseInt(e.target.value);
+          if (!app.activeTool) return;
+          app.brushSettings[app.activeTool].liquifyQuality = val;
+          app.engine.brush.liquifyQuality = val;
+          const labels = { 1: 'FAST', 2: 'RESOLVE', 3: 'ULTRA' };
+          if (qualityVal) qualityVal.innerText = labels[val] || 'RESOLVE';
           app._saveBrushSettings();
         };
     }
@@ -909,7 +976,6 @@ export function setupUI(app) {
             if (app.activeTool) {
                 app.brushSettings[app.activeTool].size = size;
                 app.engine.brush.size = size;
-                app._saveBrushSettings();
                 
                 // Sync main size inputs
                 const mainSizeInput = document.getElementById('brush-size');
@@ -919,22 +985,56 @@ export function setupUI(app) {
                 
                 const touchSizeValDisplay = document.getElementById('touch-size-val');
                 if (touchSizeValDisplay) touchSizeValDisplay.innerText = size;
+                
+                if (app.engine) app.engine._updateBrushCursor();
+                app._saveBrushSettings();
             }
         };
     }
 
+    const setupHoldButton = (btn, delta) => {
+        let sizeTimeout = null;
+        let sizeInterval = null;
+
+        const startAdjusting = (e) => {
+            e.preventDefault();
+            app._adjSize(delta, true); // skip save on immediate click
+
+            if (sizeTimeout) clearTimeout(sizeTimeout);
+            sizeTimeout = setTimeout(() => {
+                if (sizeInterval) clearInterval(sizeInterval);
+                sizeInterval = setInterval(() => {
+                    app._adjSize(delta, true); // skip save on repeat
+                }, 30);
+            }, 250);
+        };
+
+        const stopAdjusting = (e) => {
+            if (sizeTimeout) {
+                clearTimeout(sizeTimeout);
+                sizeTimeout = null;
+            }
+            if (sizeInterval) {
+                clearInterval(sizeInterval);
+                sizeInterval = null;
+            }
+            app._saveBrushSettings(); // Save once at the end of holding or clicking
+        };
+
+        btn.addEventListener('pointerdown', startAdjusting);
+        btn.addEventListener('pointerup', stopAdjusting);
+        btn.addEventListener('pointercancel', stopAdjusting);
+        btn.addEventListener('pointerleave', stopAdjusting);
+    };
+
     const btnTouchSizeDown = document.getElementById('btn-touch-size-down');
     if (btnTouchSizeDown) {
-        btnTouchSizeDown.onclick = () => {
-            app._adjSize(-5);
-        };
+        setupHoldButton(btnTouchSizeDown, -5);
     }
 
     const btnTouchSizeUp = document.getElementById('btn-touch-size-up');
     if (btnTouchSizeUp) {
-        btnTouchSizeUp.onclick = () => {
-            app._adjSize(5);
-        };
+        setupHoldButton(btnTouchSizeUp, 5);
     }
 
     document.getElementById('btn-advanced-brush').onclick = () => {

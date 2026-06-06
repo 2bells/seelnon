@@ -17,9 +17,11 @@ import {
   updateStorageStat, 
   performExport 
 } from './projectManager.js';
+import { setupIgnoreSystem } from './ignore.js';
 
 class App {
   constructor() {
+    setupIgnoreSystem();
     this.engine = new Engine(document.getElementById('canvas-container'));
     this.engine.onColorPicked = (color) => this.setColor(color);
     this.engine.onStatus = (text) => this._status(text);
@@ -51,6 +53,7 @@ class App {
     this.activeTool = TOOLS.BRUSH;
     this.lastBrush = TOOLS.BRUSH; // Track for smart switching back to painting
     this.prevTool = TOOLS.BRUSH; 
+    this.lastPaintLayer = 2; // Track last paint layer for easy toggling
     
     // Per-brush settings
     this.brushSettings = {};
@@ -87,6 +90,10 @@ class App {
     this.brushSettings[TOOLS.SMUDGE].opacity = 0.5;
     this.brushSettings[TOOLS.SMUDGE].flow = 0.5;
     this.brushSettings[TOOLS.WIREFRAME].size = 20;
+    this.brushSettings[TOOLS.LIQUIFY].size = 85;
+    this.brushSettings[TOOLS.LIQUIFY].flow = 0.40; // 40% strength is a great sweet spot!
+    this.brushSettings[TOOLS.LIQUIFY].falloff = 0.50; // default 50% falloff
+    this.brushSettings[TOOLS.LIQUIFY].liquifyQuality = 2; // default 2 (RESOLVE)
 
     this.tipManager = new TipManager(document.getElementById('panel-brush-tips'), (tip, height, oiliness, airbrush) => {
         // Always store tip in BRUSH settings as it serves as the source for shared tips
@@ -368,6 +375,7 @@ class App {
         this.engine.gridColor = '#cccccc';
         this.engine.gridPattern = 'dots';
         this.engine.gridSize = 64;
+        this.engine.gridThickness = 2;
         this.engine.gridIntensity = 0.5;
         this.engine.showGrid = true;
 
@@ -416,6 +424,21 @@ class App {
             if (gsEl) gsEl.value = '64';
             const gsvEl = document.getElementById('grid-size-val');
             if (gsvEl) gsvEl.innerText = '64px';
+        }
+
+        const gridThickness = projSet.gridThickness !== undefined ? projSet.gridThickness : await this.storage.loadSetting('gridThickness');
+        if (gridThickness) {
+            this.engine.gridThickness = parseFloat(gridThickness);
+            const gtEl = document.getElementById('settings-grid-thickness');
+            if (gtEl) gtEl.value = gridThickness;
+            const gtvEl = document.getElementById('grid-thickness-val');
+            if (gtvEl) gtvEl.innerText = `${gridThickness}px`;
+        } else {
+            this.engine.gridThickness = 2;
+            const gtEl = document.getElementById('settings-grid-thickness');
+            if (gtEl) gtEl.value = '2';
+            const gtvEl = document.getElementById('grid-thickness-val');
+            if (gtvEl) gtvEl.innerText = '2px';
         }
 
         const gridIntensity = projSet.gridIntensity !== undefined ? projSet.gridIntensity : await this.storage.loadSetting('gridIntensity');
@@ -549,7 +572,18 @@ class App {
         case '3': this.setTool(TOOLS.LASSO); break;
         case '4': this.setTool(TOOLS.SMUDGE); break;
         case '5': this.setTool(TOOLS.ERASER); break;
-        case '6': this.setTool(TOOLS.REF_MOVE); break;
+        case '6':
+        case 'g':
+          this.setTool(TOOLS.LIQUIFY);
+          break;
+        case 'i':
+          if (this.engine.activeLayer === 0) {
+              this.setLayer(this.lastPaintLayer || 2);
+          } else {
+              this.lastPaintLayer = this.engine.activeLayer;
+              this.setLayer(0);
+          }
+          break;
         case 'b': 
           if (this.engine.floatingSelection) {
               this.engine.floatingSelection.mirrorX = !this.engine.floatingSelection.mirrorX;
@@ -605,20 +639,26 @@ class App {
         case 's':
           if (e.ctrlKey) {
             e.preventDefault();
-            if (this.engine.isStatic) {
-                this._status('SAVING CODES TO INDEXED-DB...');
-                saveProject(this).then(() => {
-                    const rect = {
-                        x: -this.engine.staticWidth / 2,
-                        y: -this.engine.staticHeight / 2,
-                        w: this.engine.staticWidth,
-                        h: this.engine.staticHeight
-                    };
-                    this._showExportModal(rect);
-                    this._status('PROJECT SAVED - EXPORT READY');
-                });
+            if (e.shiftKey) {
+              // Save into a file (export trigger)
+              if (this.engine.isStatic) {
+                  this._status('SAVING CODES TO INDEXED-DB...');
+                  saveProject(this).then(() => {
+                      const rect = {
+                          x: -this.engine.staticWidth / 2,
+                          y: -this.engine.staticHeight / 2,
+                          w: this.engine.staticWidth,
+                          h: this.engine.staticHeight
+                      };
+                      this._showExportModal(rect);
+                      this._status('PROJECT SAVED - EXPORT READY');
+                  });
+              } else {
+                  this._startExportMode();
+              }
             } else {
-                this._startExportMode();
+              // Force save now to database
+              this.save();
             }
           } else {
             this._adjOpacity(-5);
@@ -663,15 +703,15 @@ class App {
           document.getElementById('capture-reticle').style.display = 'none';
           break;
         case 'y': if (e.ctrlKey) { this.engine.redo(); e.preventDefault(); } break;
-        case 'w': this._adjSize(-8); break; 
-        case 'e': this._adjSize(8); break;  
-        case '[': this._adjSize(-5); break;
-        case ']': this._adjSize(5); break;
+        case 'w': this._adjSize(-8, e.repeat); break; 
+        case 'e': this._adjSize(8, e.repeat); break;  
+        case '[': this._adjSize(-5, e.repeat); break;
+        case ']': this._adjSize(5, e.repeat); break;
       }
     };
   }
 
-  _adjSize(delta) {
+  _adjSize(delta, skipSave = false) {
     if (!this.activeTool) return;
     const el = document.getElementById('brush-size');
     const valEl = document.getElementById('size-val');
@@ -683,7 +723,8 @@ class App {
         effectiveDelta = Math.sign(delta) * Math.max(1, Math.floor(Math.abs(delta) / 4));
     }
     
-    const newSize = Math.max(1, Math.min(500, currentSize + effectiveDelta));
+    const maxSize = (this.activeTool === TOOLS.LIQUIFY) ? 1500 : 500;
+    const newSize = Math.max(1, Math.min(maxSize, currentSize + effectiveDelta));
     
     this.brushSettings[this.activeTool].size = newSize;
     this.engine.brush.size = newSize;
@@ -696,7 +737,13 @@ class App {
     const touchSizeRangeVal = document.getElementById('touch-size-val');
     if (touchSizeRangeVal) touchSizeRangeVal.innerText = newSize;
     
-    this._saveBrushSettings();
+    if (this.engine) {
+        this.engine._updateBrushCursor();
+    }
+    
+    if (!skipSave) {
+        this._saveBrushSettings();
+    }
   }
 
   _adjOpacity(delta) {
@@ -923,6 +970,21 @@ class App {
         if (heightCtrl) heightCtrl.style.display = (tool === TOOLS.BRUSH) ? 'block' : 'none';
         if (oilCtrl) oilCtrl.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE) ? 'block' : 'none';
         if (airCtrl) airCtrl.style.display = (tool === TOOLS.BRUSH) ? 'block' : 'none';
+
+        const opacCtrl = document.getElementById('control-opacity');
+        const flowLbl = document.getElementById('lbl-flow');
+        if (opacCtrl) opacCtrl.style.display = (tool === TOOLS.LIQUIFY) ? 'none' : 'block';
+        if (flowLbl) flowLbl.innerText = (tool === TOOLS.LIQUIFY) ? 'STRENGTH' : 'FLOW';
+        
+        const falloffCtrl = document.getElementById('control-falloff');
+        if (falloffCtrl) {
+            falloffCtrl.style.display = (tool === TOOLS.LIQUIFY) ? 'block' : 'none';
+        }
+        
+        const qCtrl = document.getElementById('control-liquify-quality');
+        if (qCtrl) {
+            qCtrl.style.display = (tool === TOOLS.LIQUIFY) ? 'block' : 'none';
+        }
         
         // Advanced settings button visibility
         if (advBtn) {
@@ -949,6 +1011,25 @@ class App {
         if (flowEl) {
             flowEl.value = settings.flow * 100;
             document.getElementById('flow-val').innerText = `${Math.round(settings.flow * 100)}%`;
+        }
+
+        const falloffEl = document.getElementById('brush-falloff');
+        if (falloffEl) {
+            const fValue = (settings.falloff !== undefined) ? settings.falloff : 0.50;
+            falloffEl.value = fValue * 100;
+            const fValDisplay = document.getElementById('falloff-val');
+            if (fValDisplay) fValDisplay.innerText = `${Math.round(fValue * 100)}%`;
+        }
+
+        const qualityEl = document.getElementById('brush-liquify-quality');
+        if (qualityEl) {
+            const qValue = settings.liquifyQuality ?? 2;
+            qualityEl.value = qValue;
+            const qValDisplay = document.getElementById('liquify-quality-val');
+            if (qValDisplay) {
+                const labels = { 1: 'FAST', 2: 'RESOLVE', 3: 'ULTRA' };
+                qValDisplay.innerText = labels[qValue] || 'RESOLVE';
+            }
         }
 
         const heightEl = document.getElementById('brush-height');
@@ -1128,6 +1209,8 @@ class App {
     this.engine.brush.size = settings.size;
     this.engine.brush.opacity = settings.opacity;
     this.engine.brush.flow = settings.flow;
+    this.engine.brush.falloff = settings.falloff ?? 0.50;
+    this.engine.brush.liquifyQuality = settings.liquifyQuality ?? 2;
     this.engine.brush.speedSize = settings.speedSize;
     this.engine.brush.speedOpacity = settings.speedOpacity;
     this.engine.brush.speedValue = settings.speedValue;
@@ -1216,6 +1299,7 @@ class App {
         this.engine.selectedRefIndex = -1;
         this.engine.refresh();
         this._updateRefImageList();
+        this.lastPaintLayer = index;
     }
 
     // Update UI
@@ -1375,17 +1459,31 @@ class App {
   }
 
   _mapSliderToSize(val) {
-    if (val <= 100) return 1 + (val / 100) * (10 - 1);
-    if (val <= 200) return 10 + ((val - 100) / 100) * (30 - 10);
-    if (val <= 300) return 30 + ((val - 200) / 100) * (100 - 30);
-    return 100 + ((val - 300) / 100) * (500 - 100);
+    if (this.activeTool === TOOLS.LIQUIFY) {
+      if (val <= 100) return 1 + (val / 100) * (15 - 1);
+      if (val <= 200) return 15 + ((val - 100) / 100) * (100 - 15);
+      if (val <= 300) return 100 + ((val - 200) / 100) * (500 - 100);
+      return 500 + ((val - 300) / 100) * (1500 - 500);
+    } else {
+      if (val <= 100) return 1 + (val / 100) * (10 - 1);
+      if (val <= 200) return 10 + ((val - 100) / 100) * (30 - 10);
+      if (val <= 300) return 30 + ((val - 200) / 100) * (100 - 30);
+      return 100 + ((val - 300) / 100) * (500 - 100);
+    }
   }
 
   _mapSizeToSlider(size) {
-    if (size <= 10) return ((size - 1) / (10 - 1)) * 100;
-    if (size <= 30) return 100 + ((size - 10) / (30 - 10)) * 100;
-    if (size <= 100) return 200 + ((size - 30) / (100 - 30)) * 100;
-    return 300 + ((size - 100) / (500 - 100)) * 100;
+    if (this.activeTool === TOOLS.LIQUIFY) {
+      if (size <= 15) return ((size - 1) / (15 - 1)) * 100;
+      if (size <= 100) return 100 + ((size - 15) / (100 - 15)) * 100;
+      if (size <= 500) return 200 + ((size - 100) / (500 - 100)) * 100;
+      return 300 + ((size - 500) / (1500 - 500)) * 100;
+    } else {
+      if (size <= 10) return ((size - 1) / (10 - 1)) * 100;
+      if (size <= 30) return 100 + ((size - 10) / (30 - 10)) * 100;
+      if (size <= 100) return 200 + ((size - 30) / (100 - 30)) * 100;
+      return 300 + ((size - 100) / (500 - 100)) * 100;
+    }
   }
 
   _mapSliderToPrecision(val, rangeMax = 100) {

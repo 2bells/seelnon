@@ -316,6 +316,9 @@ export async function saveProject(app) {
 
         app.engine.compact();
 
+        // Sync all offscreen canvases from on-screen canvases before saving
+        app.engine.syncOffscreenCanvases();
+
         if (!app.engine.dirtyChunks || app.engine.dirtyChunks.size === 0) {
             app._status('SAVED');
             app._showSaved();
@@ -356,46 +359,18 @@ export async function saveProject(app) {
 
                 const chunk = app.engine.chunks.get(chunkId);
                 if (chunk) {
-                    const isEmpty = chunk.isEmpty[l] || isCanvasEmpty(chunk.canvases[l]);
+                    // Ensure the offscreen canvas for this layer is initialized and fully synced
+                    app.engine._syncChunkOffscreen(chunk, l);
+                    
+                    const offCanvas = chunk.offscreenCanvases[l];
+                    const isEmpty = chunk.isEmpty[l] || isCanvasEmpty(offCanvas);
                     
                     if (isEmpty) {
                         delete sector.chunks[chunkKey];
                     } else {
-                        const tempCanv = document.createElement('canvas');
-                        tempCanv.width = chunk.canvases[l].width;
-                        tempCanv.height = chunk.canvases[l].height;
-                        const tempCtx = tempCanv.getContext('2d');
-                        if (tempCtx) {
-                            tempCtx.drawImage(chunk.canvases[l], 0, 0);
-                        }
-                        const dataUrl = tempCanv.toDataURL('image/png'); 
+                        // Obtain data URL from our offscreen canvas, avoiding any GPU pipeline stalling or flickering on on-screen canvases
+                        const dataUrl = offCanvas.toDataURL('image/png'); 
                         sector.chunks[chunkKey] = dataUrl;
-
-                        // FORCE load from memory (re-render the clean saved PNG back onto the canvas)
-                        // This resolves any transient rendering artifact or GPU seam/line residue instantly!
-                        try {
-                            const img = new Image();
-                            await new Promise(resolve => {
-                                img.onload = resolve;
-                                img.src = dataUrl;
-                            });
-                            const chunkCtx = chunk.ctxs[l];
-                            if (chunkCtx) {
-                                chunkCtx.clearRect(0, 0, chunk.canvases[l].width, chunk.canvases[l].height);
-                                chunkCtx.drawImage(img, 0, 0);
-                            }
-                        } catch (err) {
-                            console.error("GPU Rebound Force Reload failed for chunk:", chunkKey, err);
-                        }
-
-                        // FORCE Promotion back to GPU hardware acceleration
-                        // Browser flushes GPU buffers on toDataURL (readback), demoting the layer composition. 
-                        // We write a microscopic transparent pixel to immediately re-promote to GPU.
-                        const chunkCtx = chunk.ctxs[l];
-                        if (chunkCtx) {
-                            chunkCtx.fillStyle = 'rgba(0,0,0,0.004)'; // 1/255 opaque, completely invisible
-                            chunkCtx.fillRect(0, 0, 2, 2); // 2x2 GPU flush
-                        }
                     }
                 }
             }
@@ -405,15 +380,6 @@ export async function saveProject(app) {
         
         await Promise.all(promises);
         
-        // Promote all active layer canvases back to GPU after saving & readbacks
-        if (app.engine.promoteAllToGPU) {
-            app.engine.promoteAllToGPU();
-        }
-
-        if (app.engine.refresh) {
-            app.engine.refresh();
-        }
-
         app._status('SAVED');
         app._showSaved();
         await updateStorageStat(app);

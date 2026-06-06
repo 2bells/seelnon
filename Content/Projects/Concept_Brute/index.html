@@ -41,7 +41,10 @@
           <button id="btn-eraser" class="tool-btn" title="Eraser (5)">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.9-9.9c1-1 2.5-1 3.4 0l4.4 4.4c1 1 1 2.5 0 3.4l-4.4 4.4"/><path d="M22 21H7"/></svg>
           </button>
-          <button id="btn-ref_move" class="tool-btn" title="Ref Move (6)">
+          <button id="btn-liquify" class="tool-btn" title="Liquify (6) / (G)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="bevel"><path d="M12 2v20M17 2c-3 5-3 15 0 20M7 2c3 5 3 15 0 20M2 12h20M2 17c5-3 15-3 20 0M2 7c5 3 15 3 20 0" /></svg>
+          </button>
+          <button id="btn-ref_move" class="tool-btn" title="Ref Move" style="display: none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 9  -3 3 3 3"/><path d="M22 12H2"/><path d="m19 9 3 3-3 3"/><path d="m15 5-3-3-3 3"/><path d="M12 2v20"/><path d="m15 19-3 3-3-3"/></svg>
           </button>
         </div>
@@ -57,7 +60,7 @@
                 <input type="range" id="brush-size" min="0" max="400" value="214" class="brutal-range main-range">
             </div>
 
-            <div class="slider-container">
+            <div class="slider-container" id="control-opacity">
                 <div class="slider-header">
                     <label class="slider-label">OPACITY</label>
                     <span id="opacity-val" class="slider-value">100%</span>
@@ -65,12 +68,28 @@
                 <input type="range" id="brush-opacity" min="0" max="100" value="100" class="brutal-range main-range">
             </div>
 
-            <div class="slider-container">
+            <div class="slider-container" id="control-flow">
                 <div class="slider-header">
-                    <label class="slider-label">FLOW</label>
+                    <label class="slider-label" id="lbl-flow">FLOW</label>
                     <span id="flow-val" class="slider-value">100%</span>
                 </div>
                 <input type="range" id="brush-flow" min="0" max="100" value="100" class="brutal-range main-range">
+            </div>
+
+            <div class="slider-container" id="control-falloff" style="display: none;">
+                <div class="slider-header">
+                    <label class="slider-label">FALLOFF</label>
+                    <span id="falloff-val" class="slider-value">50%</span>
+                </div>
+                <input type="range" id="brush-falloff" min="1" max="100" value="50" class="brutal-range main-range">
+            </div>
+
+            <div class="slider-container" id="control-liquify-quality" style="display: none;">
+                <div class="slider-header">
+                    <label class="slider-label">QUALITY</label>
+                    <span id="liquify-quality-val" class="slider-value">RESOLVE</span>
+                </div>
+                <input type="range" id="brush-liquify-quality" min="1" max="3" value="2" class="brutal-range main-range">
             </div>
         </div>
 
@@ -374,6 +393,13 @@
                   </div>
                   <div class="settings-group">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="settings-label">PATTERN SIZE</label>
+                        <span id="grid-thickness-val" style="font-size: 9px; font-weight: 900;">2px</span>
+                     </div>
+                     <input type="range" id="settings-grid-thickness" min="1" max="50" step="1" value="2" class="brutal-range" style="width: 100%;">
+                  </div>
+                  <div class="settings-group">
+                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label class="settings-label">GRID INTENSITY</label>
                         <span id="grid-intensity-val" style="font-size: 9px; font-weight: 900;">100%</span>
                      </div>
@@ -672,7 +698,7 @@
             </div>
         </div>
 
-        <!-- EXPORT MODAL -->
+        <!--  EXPORT MODAL  -->
         <div id="modal-export" class="ui-panel hidden" style="width: 280px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10002; box-shadow: 12px 12px 0 0 #000; height: auto; max-height: 90vh; overflow-y: auto;">
             <div class="panel-handle">
                 <span class="panel-title">EXPORT SELECTION</span>

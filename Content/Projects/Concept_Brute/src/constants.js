@@ -12,5 +12,6 @@ export const TOOLS = {
   PICKER: 'picker',
   SMUDGE: 'smudge',
   REF_MOVE: 'ref_move',
-  EXPORT: 'export'
+  EXPORT: 'export',
+  LIQUIFY: 'liquify'
 };
