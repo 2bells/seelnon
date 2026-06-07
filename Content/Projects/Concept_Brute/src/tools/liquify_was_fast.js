@@ -1,3 +1,5 @@
+// Liquify functions from liquify_was_fast (Highly Optimized FAST Mode)
+
 export function displaceLiquifyCoords(engine, p0, p1, affectedThisFrame) {
     if (engine.activeLayer === 0) return;
     
@@ -97,9 +99,8 @@ export function displaceLiquifyCoords(engine, p0, p1, affectedThisFrame) {
                 frameBox.maxY = Math.max(frameBox.maxY, localMaxY);
             }
             
-            // Displace coordinates in the grid
+            // Displace coordinates in the grid using FAST quadratic weights (no square roots or powers)
             const R_sq = R * R;
-            const exponent = (engine.brush.falloff !== undefined) ? (engine.brush.falloff * 4.0) : 2.0;
             
             for (let y = localMinY; y <= localMaxY; y++) {
                 const worldY = cly + y;
@@ -112,10 +113,10 @@ export function displaceLiquifyCoords(engine, p0, p1, affectedThisFrame) {
                     const distSq = dx * dx + dySq;
                     
                     if (distSq < R_sq) {
-                        const d = Math.sqrt(distSq);
-                        const rRatio = d / R;
-                        // Configurable exponent falloff matching quartic curve (1 - r^2)^exponent
-                        const weight = Math.max(0, Math.min(1, Math.pow(1 - rRatio * rRatio, exponent)));
+                        // High-speed quadratic weight: (1 - d^2/R^2)^2 (no Math.sqrt, no Math.pow!)
+                        const r2 = distSq / R_sq;
+                        const w_term = 1 - r2;
+                        const weight = w_term * w_term;
                         
                         const idx = (y * w + x) * 2;
                         map[idx] -= weight * vx * strength;
@@ -172,54 +173,26 @@ export function getIntPixelDataAndIdx(engine, wx, wy, chunkCache) {
     return true;
 }
 
+export function sampleOriginalNearestWorldPixel(engine, wx, wy, chunkCache, dstData, dstIdx) {
+    const lx = Math.round(wx);
+    const ly = Math.round(wy);
+    if (getIntPixelDataAndIdx(engine, lx, ly, chunkCache)) {
+        const d = engine._tempData, idx = engine._tempIdx;
+        dstData[dstIdx] = d[idx];
+        dstData[dstIdx + 1] = d[idx + 1];
+        dstData[dstIdx + 2] = d[idx + 2];
+        dstData[dstIdx + 3] = d[idx + 3];
+    } else {
+        dstData[dstIdx] = 0;
+        dstData[dstIdx + 1] = 0;
+        dstData[dstIdx + 2] = 0;
+        dstData[dstIdx + 3] = 0;
+    }
+}
+
 export function sampleOriginalWorldPixel(engine, wx, wy, chunkCache, dstData, dstIdx) {
-    const x0 = Math.floor(wx);
-    const x1 = x0 + 1;
-    const y0 = Math.floor(wy);
-    const y1 = y0 + 1;
-    
-    const tx = wx - x0;
-    const ty = wy - y0;
-    
-    let c00_r = 0, c00_g = 0, c00_b = 0, c00_a = 0;
-    if (getIntPixelDataAndIdx(engine, x0, y0, chunkCache)) {
-      const d = engine._tempData, idx = engine._tempIdx;
-      c00_r = d[idx]; c00_g = d[idx+1]; c00_b = d[idx+2]; c00_a = d[idx+3];
-    }
-    
-    let c10_r = 0, c10_g = 0, c10_b = 0, c10_a = 0;
-    if (getIntPixelDataAndIdx(engine, x1, y0, chunkCache)) {
-      const d = engine._tempData, idx = engine._tempIdx;
-      c10_r = d[idx]; c10_g = d[idx+1]; c10_b = d[idx+2]; c10_a = d[idx+3];
-    }
-    
-    let c01_r = 0, c01_g = 0, c01_b = 0, c01_a = 0;
-    if (getIntPixelDataAndIdx(engine, x0, y1, chunkCache)) {
-      const d = engine._tempData, idx = engine._tempIdx;
-      c01_r = d[idx]; c01_g = d[idx+1]; c01_b = d[idx+2]; c01_a = d[idx+3];
-    }
-    
-    let c11_r = 0, c11_g = 0, c11_b = 0, c11_a = 0;
-    if (getIntPixelDataAndIdx(engine, x1, y1, chunkCache)) {
-      const d = engine._tempData, idx = engine._tempIdx;
-      c11_r = d[idx]; c11_g = d[idx+1]; c11_b = d[idx+2]; c11_a = d[idx+3];
-    }
-    
-    const r0_r = c00_r + tx * (c10_r - c00_r);
-    const r1_r = c01_r + tx * (c11_r - c01_r);
-    dstData[dstIdx] = Math.round(r0_r + ty * (r1_r - r0_r));
-    
-    const r0_g = c00_g + tx * (c10_g - c00_g);
-    const r1_g = c01_g + tx * (c11_g - c01_g);
-    dstData[dstIdx + 1] = Math.round(r0_g + ty * (r1_g - r0_g));
-    
-    const r0_b = c00_b + tx * (c10_b - c00_b);
-    const r1_b = c01_b + tx * (c11_b - c01_b);
-    dstData[dstIdx + 2] = Math.round(r0_b + ty * (r1_b - r0_b));
-    
-    const r0_a = c00_a + tx * (c10_a - c00_a);
-    const r1_a = c01_a + tx * (c11_a - c01_a);
-    dstData[dstIdx + 3] = Math.round(r0_a + ty * (r1_a - r0_a));
+    // Fallback stub: forward to nearest pixel for fast mode
+    sampleOriginalNearestWorldPixel(engine, wx, wy, chunkCache, dstData, dstIdx);
 }
 
 export function renderLiquifyChunks(engine, affectedThisFrame, forceBilinear = false) {
@@ -266,48 +239,22 @@ export function renderLiquifyChunks(engine, affectedThisFrame, forceBilinear = f
                     dstData[dstIdx + 2] = srcData[srcIdx + 2];
                     dstData[dstIdx + 3] = srcData[srcIdx + 3];
                 } else {
-                    const srcX = x + dx_displace;
-                    const srcY = y + dy_displace;
+                    // FAST mode nearest neighbor mapping (no interpolation, blazing fast CPU lookups)
+                    const srcX = Math.round(x + dx_displace);
+                    const srcY = Math.round(y + dy_displace);
                     
-                    const x0 = Math.floor(srcX);
-                    const y0 = Math.floor(srcY);
-                    
-                    if (x0 >= 0 && x0 < w - 1 && y0 >= 0 && y0 < h - 1) {
-                        // Fast path within chunk: direct array lookups
+                    if (srcX >= 0 && srcX < w && srcY >= 0 && srcY < h) {
                         const srcData = originalImageData.data;
-                        const tx = srcX - x0;
-                        const ty = srcY - y0;
-                        const idx00 = (y0 * w + x0) * 4;
-                        const idx10 = (y0 * w + (x0 + 1)) * 4;
-                        const idx01 = ((y0 + 1) * w + x0) * 4;
-                        const idx11 = ((y0 + 1) * w + (x0 + 1)) * 4;
-                        
-                        // Red
-                        const r0_r = srcData[idx00] + tx * (srcData[idx10] - srcData[idx00]);
-                        const r1_r = srcData[idx01] + tx * (srcData[idx11] - srcData[idx01]);
-                        dstData[dstIdx] = Math.round(r0_r + ty * (r1_r - r0_r));
-                        
-                        // Green
-                        const r0_g = srcData[idx00 + 1] + tx * (srcData[idx10 + 1] - srcData[idx00 + 1]);
-                        const r1_g = srcData[idx01 + 1] + tx * (srcData[idx11 + 1] - srcData[idx01 + 1]);
-                        dstData[dstIdx + 1] = Math.round(r0_g + ty * (r1_g - r0_g));
-                        
-                        // Blue
-                        const r0_b = srcData[idx00 + 2] + tx * (srcData[idx10 + 2] - srcData[idx00 + 2]);
-                        const r1_b = srcData[idx01 + 2] + tx * (srcData[idx11 + 2] - srcData[idx01 + 2]);
-                        dstData[dstIdx + 2] = Math.round(r0_b + ty * (r1_b - r0_b));
-                        
-                        // Alpha
-                        const r0_a = srcData[idx00 + 3] + tx * (srcData[idx10 + 3] - srcData[idx00 + 3]);
-                        const r1_a = srcData[idx01 + 3] + tx * (srcData[idx11 + 3] - srcData[idx01 + 3]);
-                        dstData[dstIdx + 3] = Math.round(r0_a + ty * (r1_a - r0_a));
+                        const srcIdx = (srcY * w + srcX) * 4;
+                        dstData[dstIdx] = srcData[srcIdx];
+                        dstData[dstIdx + 1] = srcData[srcIdx + 1];
+                        dstData[dstIdx + 2] = srcData[srcIdx + 2];
+                        dstData[dstIdx + 3] = srcData[srcIdx + 3];
                     } else {
-                        // Turn local original coordinates (srcX, srcY) into absolute World Space!
-                        const worldOrigX = clx + srcX;
-                        const worldOrigY = cly + srcY;
-                        
-                        // Slow path crossing chunk boundary: seamless cross-chunk sampling
-                        sampleOriginalWorldPixel(engine, worldOrigX, worldOrigY, chunkCache, dstData, dstIdx);
+                        // Border fallback crossing chunk boundary: seamless cross-chunk nearest neighbor
+                        const worldOrigX = clx + (x + dx_displace);
+                        const worldOrigY = cly + (y + dy_displace);
+                        sampleOriginalNearestWorldPixel(engine, worldOrigX, worldOrigY, chunkCache, dstData, dstIdx);
                     }
                 }
             }
@@ -320,35 +267,14 @@ export function renderLiquifyChunks(engine, affectedThisFrame, forceBilinear = f
 }
 
 export function bilinearSampleImageData(engine, srcData, w, h, x, y, dstData, dstIdx) {
-    const x0 = Math.floor(x);
-    const x1 = x0 + 1;
-    const y0 = Math.floor(y);
-    const y1 = y0 + 1;
-    
-    const tx = x - x0;
-    const ty = y - y0;
-    
-    const ix0 = x0 < 0 ? 0 : (x0 >= w ? w - 1 : x0);
-    const ix1 = x1 < 0 ? 0 : (x1 >= w ? w - 1 : x1);
-    const iy0 = y0 < 0 ? 0 : (y0 >= h ? h - 1 : y0);
-    const iy1 = y1 < 0 ? 0 : (y1 >= h ? h - 1 : y1);
-    
-    const idx00 = (iy0 * w + ix0) * 4;
-    const idx10 = (iy0 * w + ix1) * 4;
-    const idx01 = (iy1 * w + ix0) * 4;
-    const idx11 = (iy1 * w + ix1) * 4;
-    
-    for (let c = 0; c < 4; c++) {
-        const c00 = srcData[idx00 + c];
-        const c10 = srcData[idx10 + c];
-        const c01 = srcData[idx01 + c];
-        const c11 = srcData[idx11 + c];
-        
-        const r0 = c00 + tx * (c10 - c00);
-        const r1 = c01 + tx * (c11 - c01);
-        
-        dstData[dstIdx + c] = Math.round(r0 + ty * (r1 - r0));
-    }
+    // Stub: nearest neighbor mapping fallback
+    const px = Math.max(0, Math.min(w - 1, Math.round(x)));
+    const py = Math.max(0, Math.min(h - 1, Math.round(y)));
+    const srcIdx = (py * w + px) * 4;
+    dstData[dstIdx] = srcData[srcIdx];
+    dstData[dstIdx+1] = srcData[srcIdx+1];
+    dstData[dstIdx+2] = srcData[srcIdx+2];
+    dstData[dstIdx+3] = srcData[srcIdx+3];
 }
 
 export function bilinearSample(engine, srcData, w, h, x, y, dstData, dstIdx) {

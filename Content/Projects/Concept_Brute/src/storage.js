@@ -6,21 +6,77 @@ export class SketchStorage {
     this.dbName = 'ConceptBruteDB';
     this.version = 1;
     this.db = null;
+    this.isFallback = false;
+    this.fallbackStore = {
+      chunks: {},
+      settings: {},
+      sectors: {}
+    };
   }
 
   setProjectId(id) {
     this.projectId = id || 'default';
   }
 
-  async init() {
-    if (this.db) return;
+  _enableFallback() {
+    this.isFallback = true;
+    this.fallbackStore = {
+      chunks: {},
+      settings: {},
+      sectors: {}
+    };
     
-    return new Promise((resolve, reject) => {
+    // Attempt to load settings/metadata keys from localStorage to preserve state
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith(`p_${this.projectId}_`) || key.startsWith(`brushTips`) || key === 'window_positions' || key === 'canvas_palette' || key.startsWith('cat_collapsed_'))) {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (key.includes('_s_')) {
+                // If it is a sector or setting key
+                if (key.includes('_s_0_') || key.includes('_s_1_') || key.includes('_s_2_') || key.includes('_s_3_') || key.includes('_s_minus_')) {
+                  this.fallbackStore.sectors[key] = parsed;
+                } else {
+                  this.fallbackStore.settings[key] = parsed;
+                }
+              } else {
+                this.fallbackStore.settings[key] = parsed;
+              }
+            }
+          } catch (e) {
+            // Keep as raw string if JSON parsing falls through
+            const raw = localStorage.getItem(key);
+            this.fallbackStore.settings[key] = raw;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('LocalStorage reads disabled or blocked:', err);
+    }
+  }
+
+  async init() {
+    if (this.db || this.isFallback) return;
+    
+    return new Promise((resolve) => {
+      // 1-second timeout guard to prevent mobile IndexedDB hangs
+      const timeoutId = setTimeout(() => {
+        console.warn('IndexedDB handshake timed out. Activating high-performance in-memory fallback.');
+        this._enableFallback();
+        resolve();
+      }, 1000);
+
       let request;
       try {
         request = indexedDB.open(this.dbName, this.version);
       } catch (err) {
-        reject(new Error('IndexedDB open block: ' + err.message));
+        clearTimeout(timeoutId);
+        console.warn('IndexedDB blocked by security rules. Activating in-memory fallback.', err.message);
+        this._enableFallback();
+        resolve();
         return;
       }
       
@@ -38,12 +94,16 @@ export class SketchStorage {
       };
       
       request.onsuccess = (event) => {
+        clearTimeout(timeoutId);
         this.db = event.target.result;
         resolve();
       };
       
       request.onerror = (event) => {
-        reject(event.target.error || new Error('Unknown database open error'));
+        clearTimeout(timeoutId);
+        console.warn('IndexedDB refused connection. Activating in-memory fallback.');
+        this._enableFallback();
+        resolve();
       };
     });
   }
@@ -57,8 +117,20 @@ export class SketchStorage {
   }
 
   async saveSector(sx, sy, sectorData) {
-    if (!this.db) throw new Error('Database not initialized');
     const key = this._getSectorKey(sx, sy);
+
+    if (this.isFallback) {
+      if (!sectorData || Object.keys(sectorData.chunks || {}).length === 0) {
+        delete this.fallbackStore.sectors[key];
+        try { localStorage.removeItem(key); } catch (e) {}
+      } else {
+        this.fallbackStore.sectors[key] = sectorData;
+        try { localStorage.setItem(key, JSON.stringify(sectorData)); } catch (e) {}
+      }
+      return;
+    }
+
+    if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['sectors'], 'readwrite');
@@ -76,20 +148,30 @@ export class SketchStorage {
   }
 
   async loadSector(sx, sy) {
-    if (!this.db) throw new Error('Database not initialized');
     const key = this._getSectorKey(sx, sy);
+
+    if (this.isFallback) {
+      return this.fallbackStore.sectors[key] || null;
+    }
+
+    if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['sectors'], 'readonly');
       const store = transaction.objectStore('sectors');
       const request = store.get(key);
       
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || null);
       request.onerror = (event) => reject(event.target.error || new Error('Load sector failed'));
     });
   }
 
   async getAllSectorKeys() {
+    if (this.isFallback) {
+      const prefix = `p_${this.projectId}_s_`;
+      return Object.keys(this.fallbackStore.sectors).filter(k => k.startsWith(prefix));
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
@@ -98,12 +180,17 @@ export class SketchStorage {
       const range = IDBKeyRange.bound(`p_${this.projectId}_s_`, `p_${this.projectId}_s_\uffff`);
       const request = store.getAllKeys(range);
       
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || []);
       request.onerror = (event) => reject(event.target.error || new Error('Get keys failed'));
     });
   }
 
   async getAllLegacyKeys() {
+    if (this.isFallback) {
+      const prefix = `p_${this.projectId}_c_`;
+      return Object.keys(this.fallbackStore.chunks).filter(k => k.startsWith(prefix));
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
@@ -112,12 +199,16 @@ export class SketchStorage {
       const range = IDBKeyRange.bound(`p_${this.projectId}_c_`, `p_${this.projectId}_c_\uffff`);
       const request = store.getAllKeys(range);
       
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || []);
       request.onerror = (event) => reject(event.target.error || new Error('Get legacy keys failed'));
     });
   }
 
   async loadLegacyChunk(id) {
+    if (this.isFallback) {
+      return this.fallbackStore.chunks[id] ? this.fallbackStore.chunks[id].data : null;
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
@@ -131,6 +222,11 @@ export class SketchStorage {
   }
 
   async deleteLegacyChunk(id) {
+    if (this.isFallback) {
+      delete this.fallbackStore.chunks[id];
+      return;
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
@@ -144,8 +240,15 @@ export class SketchStorage {
   }
 
   async saveSetting(id, value) {
-    if (!this.db) throw new Error('Database not initialized');
     const key = this._getSettingKey(id);
+
+    if (this.isFallback) {
+      this.fallbackStore.settings[key] = value;
+      try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+      return;
+    }
+
+    if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['settings'], 'readwrite');
@@ -158,8 +261,21 @@ export class SketchStorage {
   }
 
   async loadSetting(id) {
-    if (!this.db) throw new Error('Database not initialized');
     const key = this._getSettingKey(id);
+
+    if (this.isFallback) {
+      if (this.fallbackStore.settings[key] !== undefined) {
+        return this.fallbackStore.settings[key];
+      }
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['settings'], 'readonly');
@@ -172,6 +288,12 @@ export class SketchStorage {
   }
 
   async saveGlobalSetting(id, value) {
+    if (this.isFallback) {
+      this.fallbackStore.settings[id] = value;
+      try { localStorage.setItem(id, JSON.stringify(value)); } catch (e) {}
+      return;
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
@@ -185,6 +307,18 @@ export class SketchStorage {
   }
 
   async loadGlobalSetting(id) {
+    if (this.isFallback) {
+      if (this.fallbackStore.settings[id] !== undefined) {
+        return this.fallbackStore.settings[id];
+      }
+      try {
+        const raw = localStorage.getItem(id);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
@@ -198,6 +332,25 @@ export class SketchStorage {
   }
 
   async getStorageStats() {
+    if (this.isFallback) {
+      let size = 0;
+      let sectors = 0;
+      let chunks = 0;
+      const prefix = `p_${this.projectId}_s_`;
+      
+      for (const key in this.fallbackStore.sectors) {
+        if (key.startsWith(prefix)) {
+          sectors++;
+          const chunkData = this.fallbackStore.sectors[key].chunks || {};
+          for (const k in chunkData) {
+            chunks++;
+            size += (chunkData[k]?.length || 0);
+          }
+        }
+      }
+      return { size, sectors, chunks };
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {
@@ -230,6 +383,28 @@ export class SketchStorage {
   }
 
   async clearDatabase() {
+    if (this.isFallback) {
+      this.fallbackStore = {
+        chunks: {},
+        settings: {},
+        sectors: {}
+      };
+      // Attempt to clear corresponding localStorage keys
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith(`p_${this.projectId}_`) || key.startsWith(`brushTips_`))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => {
+          try { localStorage.removeItem(k); } catch (e) {}
+        });
+      } catch (e) {}
+      return;
+    }
+
     if (!this.db) throw new Error('Database not initialized');
     
     return new Promise((resolve, reject) => {

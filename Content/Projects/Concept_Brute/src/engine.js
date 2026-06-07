@@ -1,13 +1,6 @@
 import { CHUNK_SIZE as DEFAULT_CHUNK_SIZE, LAYERS_COUNT, TOOLS } from './constants.js';
-import {
-  displaceLiquifyCoords,
-  renderLiquifyChunks,
-  getOriginalChunkDataFromId,
-  getIntPixelDataAndIdx,
-  sampleOriginalWorldPixel,
-  bilinearSampleImageData,
-  bilinearSample
-} from './tools/liquify.js';
+import * as liquifyNew from './tools/liquify.js';
+import * as liquifyOld from './tools/liquify_was_fast.js';
 import { paintWireframeIncrementally } from './tools/wireframe.js';
 import {
   drawLasso,
@@ -1534,57 +1527,13 @@ export class Engine {
   deleteSelection() {
       if (!this.activeSelectionPath) return;
       
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      this.activeSelectionPath.forEach(p => {
-          minX = Math.min(minX, p.x);
-          minY = Math.min(minY, p.y);
-          maxX = Math.max(maxX, p.x);
-          maxY = Math.max(maxY, p.y);
-      });
-
-      const startCX = this.isStatic ? 0 : Math.floor(minX / this.chunkSize);
-      const startCY = this.isStatic ? 0 : Math.floor(minY / this.chunkSize);
-      const endCX = this.isStatic ? 0 : Math.floor(maxX / this.chunkSize);
-      const endCY = this.isStatic ? 0 : Math.floor(maxY / this.chunkSize);
-
-      const deleteHistory = new Map();
-      for (let cx = startCX; cx <= endCX; cx++) {
-          for (let cy = startCY; cy <= endCY; cy++) {
-              const id = `${cx},${cy}`;
-              const chunk = this.chunks.get(id);
-              if (!chunk) continue;
-              const lx = this.isStatic ? -this.staticWidth / 2 : cx * this.chunkSize;
-              const ly = this.isStatic ? -this.staticHeight / 2 : cy * this.chunkSize;
-              const w = this.isStatic ? this.staticWidth : this.chunkSize;
-              const h = this.isStatic ? this.staticHeight : this.chunkSize;
-
-              // Backup for undo
-              const backup = document.createElement('canvas');
-              backup.width = w;
-              backup.height = h;
-              backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
-              deleteHistory.set(id, { layer: this.activeLayer, canvas: backup });
-
-              // Clear source
-              const ctx = chunk.ctxs[this.activeLayer];
-              ctx.save();
-              ctx.beginPath();
-              this.activeSelectionPath.forEach((p, i) => {
-                  if (i === 0) ctx.moveTo(p.x - lx, p.y - ly);
-                  else ctx.lineTo(p.x - lx, p.y - ly);
-              });
-              ctx.closePath();
-              ctx.clip();
-              ctx.clearRect(0, 0, w, h);
-              ctx.restore();
-              this._markDirty(id, this.activeLayer);
-          }
+      const data = this._getSelectionData(true);
+      if (data) {
+          this._pushHistory({ 
+              type: 'stroke', 
+              chunks: data.affectedChunks 
+          });
       }
-
-      this._pushHistory({ 
-          type: 'stroke', // Reusing stroke type since it handles chunk Map history
-          chunks: deleteHistory
-      });
 
       this.clearSelection();
       this.refresh();
@@ -2086,7 +2035,16 @@ export class Engine {
         if (dist >= minWarpDist) {
             // Determine intermediate points to create "arcs that are smooth" (interpolation)
             // Tighter stepSize ensures smooth curvature even on fast drags with high-DPI input
-            const stepSize = Math.max(3, Math.min(10, this.brush.size * 0.02));
+            let stepSize = Math.max(3, Math.min(10, this.brush.size * 0.02));
+            if (this.brush.type === TOOLS.LIQUIFY) {
+                if (this.brush.liquifyQuality === 1) {
+                    // FAST mode: large step size, very few sub-steps or none at all (boosting dragging speed massively)
+                    stepSize = Math.max(30, this.brush.size * 0.30);
+                } else if (this.brush.liquifyQuality === 3) {
+                    // ULTRA mode: tighter sub-steps for sub-pixel accuracy
+                    stepSize = Math.max(2, Math.min(6, this.brush.size * 0.015));
+                }
+            }
             const numSteps = Math.max(1, Math.floor(dist / stepSize));
             
             let prevPt = lastP;
@@ -2262,8 +2220,8 @@ export class Engine {
             }
         });
     } else {
-        // High-precision Liquify Resolve pass for RESOLVE (2) mode
-        if (this.brush.type === TOOLS.LIQUIFY && (this.brush.liquifyQuality ?? 2) === 2) {
+        // High-precision Liquify Resolve pass for RESOLVE (2) and ULTRA (3) modes
+        if (this.brush.type === TOOLS.LIQUIFY && (this.brush.liquifyQuality ?? 2) >= 2) {
             if (this.liquifyChunkData && this.liquifySteps && this.liquifySteps.length > 0) {
                 // Reset all map grids to zero first
                 this.liquifyChunkData.forEach((chunkData) => {
@@ -3230,6 +3188,17 @@ export class Engine {
         sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
     }
 
+    // Erase the solid core of the brush tip to prevent value/hue shifts in the flat middle of strokes
+    sctx.save();
+    sctx.globalCompositeOperation = 'destination-out';
+    if (supportsFilters) sctx.filter = 'none';
+    sctx.shadowBlur = 0;
+    sctx.shadowOffsetX = 0;
+    try {
+        sctx.drawImage(this.brush.tip, 0, 0, s, s);
+    } catch (e) {}
+    sctx.restore();
+
     const high = document.createElement('canvas'); high.width = s; high.height = s;
     const hctx = high.getContext('2d');
     
@@ -3256,6 +3225,17 @@ export class Engine {
         } catch(e) { return; }
         hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
     }
+
+    // Erase the solid core of the brush tip to prevent value/hue shifts in the flat middle of strokes
+    hctx.save();
+    hctx.globalCompositeOperation = 'destination-out';
+    if (supportsFilters) hctx.filter = 'none';
+    hctx.shadowBlur = 0;
+    hctx.shadowOffsetX = 0;
+    try {
+        hctx.drawImage(this.brush.tip, 0, 0, s, s);
+    } catch (e) {}
+    hctx.restore();
     
     this._reliefCache = { shadow: shad, highlight: high, key: `${s}_${blur}`, srcTip: this.brush.tip };
   }
@@ -3698,27 +3678,39 @@ export class Engine {
   }
 
   _displaceLiquifyCoords(p0, p1, affectedThisFrame, forceStepOne = false) {
-    return displaceLiquifyCoords(this, p0, p1, affectedThisFrame, forceStepOne);
+    const isFast = (this.brush.liquifyQuality === 1);
+    const mod = isFast ? liquifyOld : liquifyNew;
+    return mod.displaceLiquifyCoords(this, p0, p1, affectedThisFrame, forceStepOne);
   }
 
   _getOriginalChunkDataFromId(id) {
-    return getOriginalChunkDataFromId(this, id);
+    const isFast = (this.brush.liquifyQuality === 1);
+    const mod = isFast ? liquifyOld : liquifyNew;
+    return mod.getOriginalChunkDataFromId(this, id);
   }
 
   _getIntPixelDataAndIdx(wx, wy, chunkCache) {
-    return getIntPixelDataAndIdx(this, wx, wy, chunkCache);
+    const isFast = (this.brush.liquifyQuality === 1);
+    const mod = isFast ? liquifyOld : liquifyNew;
+    return mod.getIntPixelDataAndIdx(this, wx, wy, chunkCache);
   }
 
   _sampleOriginalWorldPixel(wx, wy, chunkCache, dstData, dstIdx) {
-    return sampleOriginalWorldPixel(this, wx, wy, chunkCache, dstData, dstIdx);
+    const isFast = (this.brush.liquifyQuality === 1);
+    const mod = isFast ? liquifyOld : liquifyNew;
+    return mod.sampleOriginalWorldPixel(this, wx, wy, chunkCache, dstData, dstIdx);
   }
 
   _renderLiquifyChunks(affectedThisFrame, forceBilinear = false) {
-    return renderLiquifyChunks(this, affectedThisFrame, forceBilinear);
+    const isFast = (this.brush.liquifyQuality === 1);
+    const mod = isFast ? liquifyOld : liquifyNew;
+    return mod.renderLiquifyChunks(this, affectedThisFrame, forceBilinear);
   }
 
   _bilinearSampleImageData(srcData, w, h, x, y, dstData, dstIdx) {
-    return bilinearSampleImageData(this, srcData, w, h, x, y, dstData, dstIdx);
+    const isFast = (this.brush.liquifyQuality === 1);
+    const mod = isFast ? liquifyOld : liquifyNew;
+    return mod.bilinearSampleImageData(this, srcData, w, h, x, y, dstData, dstIdx);
   }
 
   _bilinearSample(srcData, w, h, x, y, dstData, dstIdx) {
