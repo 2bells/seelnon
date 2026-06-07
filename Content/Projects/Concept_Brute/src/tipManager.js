@@ -33,20 +33,25 @@ export class TipManager {
         } catch(e) {}
 
         if (savedMain && Array.isArray(savedMain)) {
+            const mainPromises = [];
             for (let i = 0; i < savedMain.length && i < this.tips.length; i++) {
                 if (savedMain[i]) {
+                    const idx = i;
                     const tipData = (typeof savedMain[i] === 'string') ? { src: savedMain[i] } : savedMain[i];
-                    const img = new Image();
-                    await new Promise(r => { img.onload = r; img.onerror = r; img.src = tipData.src; });
-                    const c = document.createElement('canvas');
-                    c.width = 128; c.height = 128;
-                    c.getContext('2d').drawImage(img, 0, 0);
-                    this.tips[i].canvas = c;
-                    this.tips[i].paintHeight = tipData.paintHeight || 0;
-                    this.tips[i].oiliness = tipData.oiliness ?? 0.5;
-                    this.tips[i].airbrush = tipData.airbrush || 0;
+                    mainPromises.push((async () => {
+                        const img = new Image();
+                        await new Promise(r => { img.onload = r; img.onerror = r; img.src = tipData.src; });
+                        const c = document.createElement('canvas');
+                        c.width = 128; c.height = 128;
+                        c.getContext('2d').drawImage(img, 0, 0);
+                        this.tips[idx].canvas = c;
+                        this.tips[idx].paintHeight = tipData.paintHeight || 0;
+                        this.tips[idx].oiliness = tipData.oiliness ?? 0.5;
+                        this.tips[idx].airbrush = tipData.airbrush || 0;
+                    })());
                 }
             }
+            await Promise.all(mainPromises);
         }
 
         // Load generated tips
@@ -57,19 +62,24 @@ export class TipManager {
         } catch(e) {}
 
         if (savedGen && Array.isArray(savedGen)) {
+            const genPromises = [];
             for (let i = 0; i < savedGen.length && i < this.generatedTips.length; i++) {
                 if (savedGen[i] && savedGen[i].src) {
-                    const img = new Image();
-                    await new Promise(r => { img.onload = r; img.onerror = r; img.src = savedGen[i].src; });
-                    const c = document.createElement('canvas');
-                    c.width = 128; c.height = 128;
-                    c.getContext('2d').drawImage(img, 0, 0);
-                    this.generatedTips[i].canvas = c;
-                    this.generatedTips[i].paintHeight = savedGen[i].paintHeight || 0;
-                    this.generatedTips[i].oiliness = savedGen[i].oiliness ?? 0.5;
-                    this.generatedTips[i].airbrush = savedGen[i].airbrush || 0;
+                    const idx = i;
+                    genPromises.push((async () => {
+                        const img = new Image();
+                        await new Promise(r => { img.onload = r; img.onerror = r; img.src = savedGen[idx].src; });
+                        const c = document.createElement('canvas');
+                        c.width = 128; c.height = 128;
+                        c.getContext('2d').drawImage(img, 0, 0);
+                        this.generatedTips[idx].canvas = c;
+                        this.generatedTips[idx].paintHeight = savedGen[idx].paintHeight || 0;
+                        this.generatedTips[idx].oiliness = savedGen[idx].oiliness ?? 0.5;
+                        this.generatedTips[idx].airbrush = savedGen[idx].airbrush || 0;
+                    })());
                 }
             }
+            await Promise.all(genPromises);
         }
 
         // Fill missing generated tips

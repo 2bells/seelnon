@@ -243,21 +243,56 @@ export function sampleOriginalWorldPixel(engine, wx, wy, chunkCache, dstData, ds
         c11_r = d[idx]; c11_g = d[idx+1]; c11_b = d[idx+2]; c11_a = d[idx+3];
     }
     
-    const r0_r = c00_r + tx * (c10_r - c00_r);
-    const r1_r = c01_r + tx * (c11_r - c01_r);
-    dstData[dstIdx] = Math.round(r0_r + ty * (r1_r - r0_r));
-    
-    const r0_g = c00_g + tx * (c10_g - c00_g);
-    const r1_g = c01_g + tx * (c11_g - c01_g);
-    dstData[dstIdx + 1] = Math.round(r0_g + ty * (r1_g - r0_g));
-    
-    const r0_b = c00_b + tx * (c10_b - c00_b);
-    const r1_b = c01_b + tx * (c11_b - c01_b);
-    dstData[dstIdx + 2] = Math.round(r0_b + ty * (r1_b - r0_b));
-    
-    const r0_a = c00_a + tx * (c10_a - c00_a);
-    const r1_a = c01_a + tx * (c11_a - c01_a);
-    dstData[dstIdx + 3] = Math.round(r0_a + ty * (r1_a - r0_a));
+    // Normalize and convert to premultiplied alpha space
+    const a00 = c00_a / 255;
+    const r00 = c00_r * a00;
+    const g00 = c00_g * a00;
+    const b00 = c00_b * a00;
+
+    const a10 = c10_a / 255;
+    const r10 = c10_r * a10;
+    const g10 = c10_g * a10;
+    const b10 = c10_b * a10;
+
+    const a01 = c01_a / 255;
+    const r01 = c01_r * a01;
+    const g01 = c01_g * a01;
+    const b01 = c01_b * a01;
+
+    const a11 = c11_a / 255;
+    const r11 = c11_r * a11;
+    const g11 = c11_g * a11;
+    const b11 = c11_b * a11;
+
+    // Bilinear interpolate in pre-multiplied space
+    const r0_a = a00 + tx * (a10 - a00);
+    const r1_a = a01 + tx * (a11 - a01);
+    const interp_a = r0_a + ty * (r1_a - r0_a);
+
+    const r0_r = r00 + tx * (r10 - r00);
+    const r1_r = r01 + tx * (r11 - r01);
+    const interp_r = r0_r + ty * (r1_r - r0_r);
+
+    const r0_g = g00 + tx * (g10 - g00);
+    const r1_g = g01 + tx * (g11 - g01);
+    const interp_g = r0_g + ty * (r1_g - r0_g);
+
+    const r0_b = b00 + tx * (b10 - b00);
+    const r1_b = b01 + tx * (b11 - b01);
+    const interp_b = r0_b + ty * (r1_b - r0_b);
+
+    const alphaFinal = Math.round(interp_a * 255);
+    dstData[dstIdx + 3] = alphaFinal;
+
+    if (interp_a > 1e-5) {
+        dstData[dstIdx] = Math.max(0, Math.min(255, Math.round(interp_r / interp_a)));
+        dstData[dstIdx + 1] = Math.max(0, Math.min(255, Math.round(interp_g / interp_a)));
+        dstData[dstIdx + 2] = Math.max(0, Math.min(255, Math.round(interp_b / interp_a)));
+    } else {
+        dstData[dstIdx] = 0;
+        dstData[dstIdx + 1] = 0;
+        dstData[dstIdx + 2] = 0;
+    }
 }
 
 export function renderLiquifyChunks(engine, affectedThisFrame, forceBilinear = false) {
@@ -339,25 +374,56 @@ export function renderLiquifyChunks(engine, affectedThisFrame, forceBilinear = f
                             const idx01 = ((y0 + 1) * w + x0) * 4;
                             const idx11 = ((y0 + 1) * w + (x0 + 1)) * 4;
                             
-                            // Red
-                            const r0_r = srcData[idx00] + tx * (srcData[idx10] - srcData[idx00]);
-                            const r1_r = srcData[idx01] + tx * (srcData[idx11] - srcData[idx01]);
-                            dstData[dstIdx] = Math.round(r0_r + ty * (r1_r - r0_r));
-                            
-                            // Green
-                            const r0_g = srcData[idx00 + 1] + tx * (srcData[idx10 + 1] - srcData[idx00 + 1]);
-                            const r1_g = srcData[idx01 + 1] + tx * (srcData[idx11 + 1] - srcData[idx01 + 1]);
-                            dstData[dstIdx + 1] = Math.round(r0_g + ty * (r1_g - r0_g));
-                            
-                            // Blue
-                            const r0_b = srcData[idx00 + 2] + tx * (srcData[idx10 + 2] - srcData[idx00 + 2]);
-                            const r1_b = srcData[idx01 + 2] + tx * (srcData[idx11 + 2] - srcData[idx01 + 2]);
-                            dstData[dstIdx + 2] = Math.round(r0_b + ty * (r1_b - r0_b));
-                            
-                            // Alpha
-                            const r0_a = srcData[idx00 + 3] + tx * (srcData[idx10 + 3] - srcData[idx00 + 3]);
-                            const r1_a = srcData[idx01 + 3] + tx * (srcData[idx11 + 3] - srcData[idx01 + 3]);
-                            dstData[dstIdx + 3] = Math.round(r0_a + ty * (r1_a - r0_a));
+                            // Convert to premultiplied alpha space
+                            const a00 = srcData[idx00 + 3] / 255;
+                            const r00 = srcData[idx00] * a00;
+                            const g00 = srcData[idx00 + 1] * a00;
+                            const b00 = srcData[idx00 + 2] * a00;
+
+                            const a10 = srcData[idx10 + 3] / 255;
+                            const r10 = srcData[idx10] * a10;
+                            const g10 = srcData[idx10 + 1] * a10;
+                            const b10 = srcData[idx10 + 2] * a10;
+
+                            const a01 = srcData[idx01 + 3] / 255;
+                            const r01 = srcData[idx01] * a01;
+                            const g01 = srcData[idx01 + 1] * a01;
+                            const b01 = srcData[idx01 + 2] * a01;
+
+                            const a11 = srcData[idx11 + 3] / 255;
+                            const r11 = srcData[idx11] * a11;
+                            const g11 = srcData[idx11 + 1] * a11;
+                            const b11 = srcData[idx11 + 2] * a11;
+
+                            // Interpolate
+                            const r0_a = a00 + tx * (a10 - a00);
+                            const r1_a = a01 + tx * (a11 - a01);
+                            const interp_a = r0_a + ty * (r1_a - r0_a);
+
+                            const r0_r = r00 + tx * (r10 - r00);
+                            const r1_r = r01 + tx * (r11 - r01);
+                            const interp_r = r0_r + ty * (r1_r - r0_r);
+
+                            const r0_g = g00 + tx * (g10 - g00);
+                            const r1_g = g01 + tx * (g11 - g01);
+                            const interp_g = r0_g + ty * (r1_g - r0_g);
+
+                            const r0_b = b00 + tx * (b10 - b00);
+                            const r1_b = b01 + tx * (b11 - b01);
+                            const interp_b = r0_b + ty * (r1_b - r0_b);
+
+                            const alphaFinal = Math.round(interp_a * 255);
+                            dstData[dstIdx + 3] = alphaFinal;
+
+                            if (interp_a > 1e-5) {
+                                dstData[dstIdx] = Math.max(0, Math.min(255, Math.round(interp_r / interp_a)));
+                                dstData[dstIdx + 1] = Math.max(0, Math.min(255, Math.round(interp_g / interp_a)));
+                                dstData[dstIdx + 2] = Math.max(0, Math.min(255, Math.round(interp_b / interp_a)));
+                            } else {
+                                dstData[dstIdx] = 0;
+                                dstData[dstIdx + 1] = 0;
+                                dstData[dstIdx + 2] = 0;
+                            }
                         }
                     } else {
                         // Turn local original coordinates (srcX, srcY) into absolute World Space!
@@ -366,6 +432,64 @@ export function renderLiquifyChunks(engine, affectedThisFrame, forceBilinear = f
                         
                         // Slow path crossing chunk boundary: seamless cross-chunk sampling
                         sampleOriginalWorldPixel(engine, worldOrigX, worldOrigY, chunkCache, dstData, dstIdx);
+                    }
+                }
+            }
+        }
+        
+        if (forceBilinear) {
+            // Apply a localized, boundary-safe unsharp mask (sharpening filter) to counteract bilinear resampling blur.
+            // This is only run once at the end of the stroke, ensuring zero impact on active dragging frame rates!
+            const tempDstData = new Uint8ClampedArray(dstData);
+            const amount = 0.35; // Gentle, highly natural sharpening amount to eliminate progressive blur.
+            
+            for (let y = box.minY; y <= box.maxY; y++) {
+                const localY = y - box.minY;
+                for (let x = box.minX; x <= box.maxX; x++) {
+                    const localX = x - box.minX;
+                    const idx = (y * w + x) * 2;
+                    const dx_displace = map[idx];
+                    const dy_displace = map[idx + 1];
+                    
+                    // Only sharpen pixels that were actually deformed by liquify moves
+                    if (Math.abs(dx_displace) > 0.05 || Math.abs(dy_displace) > 0.05) {
+                        const centerIdx = (localY * boxW + localX) * 4;
+                        const alpha = tempDstData[centerIdx + 3];
+                        
+                        // Ignore fully transparent regions to eliminate border-fringing noise
+                        if (alpha > 8) {
+                            let sumR = 0, sumG = 0, sumB = 0, count = 0;
+                            
+                            const addNeighbor = (neighborIdx) => {
+                                const nAlpha = tempDstData[neighborIdx + 3];
+                                // Only average with neighbors that possess sufficient opacity (avoids pulling down average near transparency boundaries)
+                                if (nAlpha > 15) {
+                                    sumR += tempDstData[neighborIdx];
+                                    sumG += tempDstData[neighborIdx + 1];
+                                    sumB += tempDstData[neighborIdx + 2];
+                                    count++;
+                                }
+                            };
+                            
+                            if (localX > 0) addNeighbor(centerIdx - 4);
+                            if (localX < boxW - 1) addNeighbor(centerIdx + 4);
+                            if (localY > 0) addNeighbor(centerIdx - boxW * 4);
+                            if (localY < boxH - 1) addNeighbor(centerIdx + boxW * 4);
+                            
+                            if (count > 0) {
+                                const avgR = sumR / count;
+                                const avgG = sumG / count;
+                                const avgB = sumB / count;
+                                
+                                const diffR = tempDstData[centerIdx] - avgR;
+                                const diffG = tempDstData[centerIdx + 1] - avgG;
+                                const diffB = tempDstData[centerIdx + 2] - avgB;
+                                
+                                dstData[centerIdx]     = Math.max(0, Math.min(255, Math.round(tempDstData[centerIdx] + amount * diffR)));
+                                dstData[centerIdx + 1] = Math.max(0, Math.min(255, Math.round(tempDstData[centerIdx + 1] + amount * diffG)));
+                                dstData[centerIdx + 2] = Math.max(0, Math.min(255, Math.round(tempDstData[centerIdx + 2] + amount * diffB)));
+                            }
+                        }
                     }
                 }
             }
@@ -396,16 +520,55 @@ export function bilinearSampleImageData(engine, srcData, w, h, x, y, dstData, ds
     const idx01 = (iy1 * w + ix0) * 4;
     const idx11 = (iy1 * w + ix1) * 4;
     
-    for (let c = 0; c < 4; c++) {
-        const c00 = srcData[idx00 + c];
-        const c10 = srcData[idx10 + c];
-        const c01 = srcData[idx01 + c];
-        const c11 = srcData[idx11 + c];
-        
-        const r0 = c00 + tx * (c10 - c00);
-        const r1 = c01 + tx * (c11 - c01);
-        
-        dstData[dstIdx + c] = Math.round(r0 + ty * (r1 - r0));
+    // Normalize and convert to premultiplied alpha space
+    const a00 = srcData[idx00 + 3] / 255;
+    const r00 = srcData[idx00] * a00;
+    const g00 = srcData[idx00 + 1] * a00;
+    const b00 = srcData[idx00 + 2] * a00;
+
+    const a10 = srcData[idx10 + 3] / 255;
+    const r10 = srcData[idx10] * a10;
+    const g10 = srcData[idx10 + 1] * a10;
+    const b10 = srcData[idx10 + 2] * a10;
+
+    const a01 = srcData[idx01 + 3] / 255;
+    const r01 = srcData[idx01] * a01;
+    const g01 = srcData[idx01 + 1] * a01;
+    const b01 = srcData[idx01 + 2] * a01;
+
+    const a11 = srcData[idx11 + 3] / 255;
+    const r11 = srcData[idx11] * a11;
+    const g11 = srcData[idx11 + 1] * a11;
+    const b11 = srcData[idx11 + 2] * a11;
+
+    // Bilinear interpolate in pre-multiplied space
+    const r0_a = a00 + tx * (a10 - a00);
+    const r1_a = a01 + tx * (a11 - a01);
+    const interp_a = r0_a + ty * (r1_a - r0_a);
+
+    const r0_r = r00 + tx * (r10 - r00);
+    const r1_r = r01 + tx * (r11 - r01);
+    const interp_r = r0_r + ty * (r1_r - r0_r);
+
+    const r0_g = g00 + tx * (g10 - g00);
+    const r1_g = g01 + tx * (g11 - g01);
+    const interp_g = r0_g + ty * (r1_g - r0_g);
+
+    const r0_b = b00 + tx * (b10 - b00);
+    const r1_b = b01 + tx * (b11 - b01);
+    const interp_b = r0_b + ty * (r1_b - r0_b);
+
+    const alphaFinal = Math.round(interp_a * 255);
+    dstData[dstIdx + 3] = alphaFinal;
+
+    if (interp_a > 1e-5) {
+        dstData[dstIdx] = Math.max(0, Math.min(255, Math.round(interp_r / interp_a)));
+        dstData[dstIdx + 1] = Math.max(0, Math.min(255, Math.round(interp_g / interp_a)));
+        dstData[dstIdx + 2] = Math.max(0, Math.min(255, Math.round(interp_b / interp_a)));
+    } else {
+        dstData[dstIdx] = 0;
+        dstData[dstIdx + 1] = 0;
+        dstData[dstIdx + 2] = 0;
     }
 }
 

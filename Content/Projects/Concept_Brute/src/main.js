@@ -228,34 +228,61 @@ class App {
   }
 
   async init() {
-    this._status('INITIALIZING...');
+    console.log('[PERF] --- INITIALIZING APP START ---');
+    const t0 = performance.now();
+    
+    // 1. PANELS & UI FIRST (Immediate render & interactive frames)
+    const tUiStart = performance.now();
+    this._status('INITIALIZING UI...');
+    this._setupUI();
+    this._setupHotkeys();
+    console.log(`[PERF] _setupUI() & _setupHotkeys() took ${(performance.now() - tUiStart).toFixed(2)}ms`);
 
-    // 1. STORAGE & PROJECTS (Lightweight metadata)
+    const tWindowPositionsStart = performance.now();
+    await this._loadWindowPositions();
+    this._restoreWindowPositions();
+    console.log(`[PERF] _loadWindowPositions() & _restoreWindowPositions() took ${(performance.now() - tWindowPositionsStart).toFixed(2)}ms`);
+
+    // Force layout paint so the windows/palette render to the screen immediately for the user
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // 2. STORAGE & PROJECTS SECONDO (Lightweight database handshake)
+    const tStorageStart = performance.now();
     try {
         await this.storage.init();
+        console.log(`[PERF] storage.init() took ${(performance.now() - tStorageStart).toFixed(2)}ms`);
+        const tProjectSystemStart = performance.now();
         await this.initProjectSystem();
+        console.log(`[PERF] initProjectSystem() took ${(performance.now() - tProjectSystemStart).toFixed(2)}ms`);
     } catch (e) {
         console.error("Storage init failed", e);
         this._status('STORAGE ERROR');
     }
 
-    // 2. PANELS & UI (Instant responsiveness)
+    const tTipManagerStart = performance.now();
     await this.tipManager.ready;
-    this._setupUI();
-    this._setupHotkeys();
-    await this._loadWindowPositions();
-    this._restoreWindowPositions();
+    console.log(`[PERF] tipManager.ready took ${(performance.now() - tTipManagerStart).toFixed(2)}ms`);
 
-    // 3. LOAD NON-CANVAS SETTINGS (Fast)
+    // 3. LOAD NON-CANVAS SETTINGS (Fast settings properties restoration)
+    const tProjectSettingsStart = performance.now();
     await this.loadProjectSettings();
+    console.log(`[PERF] loadProjectSettings() took ${(performance.now() - tProjectSettingsStart).toFixed(2)}ms`);
 
-    // 6. HEAVY ASSETS (References & Canvas chunks)
-    this._status('LOADING ASSETS...');
+    // Brief yield for snappy feedback
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // 4. HEAVY ASSETS LAST (Image references and large canvas chunk matrices)
+    const tHeavyAssetsStart = performance.now();
     await this.load();
+    console.log(`[PERF] load() (Heavy Assets) took ${(performance.now() - tHeavyAssetsStart).toFixed(2)}ms`);
     
-    // Final sync
+    // Final viewport and layer sync
+    const tRefreshStart = performance.now();
     this.engine.refresh();
+    console.log(`[PERF] engine.refresh() took ${(performance.now() - tRefreshStart).toFixed(2)}ms`);
+
     this._status('READY');
+    console.log(`[PERF] --- TOTAL INITIALIZATION TIME: ${(performance.now() - t0).toFixed(2)}ms ---`);
 
     // Event hooks
     this.engine.onDrawStart = () => this._clearSaveTimer();
@@ -358,10 +385,32 @@ class App {
   }
 
   async loadProjectSettings() {
+    let settings = {};
     try {
+        const keys = [
+            'autosaveDelaySlider',
+            'autosaveEnabled',
+            'palette',
+            'canvasBg',
+            'gridColor',
+            'gridPattern',
+            'gridSize',
+            'gridThickness',
+            'gridIntensity',
+            'showGrid',
+            'brushSettings',
+            'brushSpacing',
+            'lastColor'
+        ];
+        
+        const results = await Promise.all(keys.map(k => this.storage.loadSetting(k)));
+        keys.forEach((k, idx) => {
+            settings[k] = results[idx];
+        });
+
         // Load autosave settings
-        const savedAutosaveSlider = await this.storage.loadSetting('autosaveDelaySlider');
-        const savedAutosaveEnabled = await this.storage.loadSetting('autosaveEnabled');
+        const savedAutosaveSlider = settings['autosaveDelaySlider'];
+        const savedAutosaveEnabled = settings['autosaveEnabled'];
         if (savedAutosaveSlider !== null) {
             const sliderEl = document.getElementById('settings-autosave');
             if (sliderEl) sliderEl.value = savedAutosaveSlider;
@@ -376,7 +425,7 @@ class App {
             if (enableEl) enableEl.checked = savedAutosaveEnabled;
         }
 
-        const savedPalette = await this.storage.loadSetting('palette');
+        const savedPalette = settings['palette'];
         if (savedPalette) this.palette.baseColors = savedPalette;
 
         // Reset default background/grid settings so they don't leak from previous project if not present
@@ -391,7 +440,7 @@ class App {
         const project = this.projects ? this.projects.find(p => p.id === this.currentProjectId) : null;
         const projSet = (project && project.settings) ? project.settings : {};
 
-        const canvasBg = projSet.canvasBg !== undefined ? projSet.canvasBg : await this.storage.loadSetting('canvasBg');
+        const canvasBg = projSet.canvasBg !== undefined ? projSet.canvasBg : settings['canvasBg'];
         if (canvasBg) {
             this.engine.canvasBg = canvasBg;
             const bgEl = document.getElementById('settings-bg-color');
@@ -401,7 +450,7 @@ class App {
             if (bgEl) bgEl.value = '#ffffff';
         }
 
-        const gridColor = projSet.gridColor !== undefined ? projSet.gridColor : await this.storage.loadSetting('gridColor');
+        const gridColor = projSet.gridColor !== undefined ? projSet.gridColor : settings['gridColor'];
         if (gridColor) {
             this.engine.gridColor = gridColor;
             const gcEl = document.getElementById('settings-grid-color');
@@ -411,7 +460,7 @@ class App {
             if (gcEl) gcEl.value = '#cccccc';
         }
 
-        const gridPattern = projSet.gridPattern !== undefined ? projSet.gridPattern : await this.storage.loadSetting('gridPattern');
+        const gridPattern = projSet.gridPattern !== undefined ? projSet.gridPattern : settings['gridPattern'];
         if (gridPattern) {
             this.engine.gridPattern = gridPattern;
             const gpEl = document.getElementById('settings-grid-pattern');
@@ -421,7 +470,7 @@ class App {
             if (gpEl) gpEl.value = 'dots';
         }
 
-        const gridSize = projSet.gridSize !== undefined ? projSet.gridSize : await this.storage.loadSetting('gridSize');
+        const gridSize = projSet.gridSize !== undefined ? projSet.gridSize : settings['gridSize'];
         if (gridSize) {
             this.engine.gridSize = parseInt(gridSize);
             const gsEl = document.getElementById('settings-grid-size');
@@ -435,7 +484,7 @@ class App {
             if (gsvEl) gsvEl.innerText = '64px';
         }
 
-        const gridThickness = projSet.gridThickness !== undefined ? projSet.gridThickness : await this.storage.loadSetting('gridThickness');
+        const gridThickness = projSet.gridThickness !== undefined ? projSet.gridThickness : settings['gridThickness'];
         if (gridThickness) {
             this.engine.gridThickness = parseFloat(gridThickness);
             const gtEl = document.getElementById('settings-grid-thickness');
@@ -450,7 +499,7 @@ class App {
             if (gtvEl) gtvEl.innerText = '2px';
         }
 
-        const gridIntensity = projSet.gridIntensity !== undefined ? projSet.gridIntensity : await this.storage.loadSetting('gridIntensity');
+        const gridIntensity = projSet.gridIntensity !== undefined ? projSet.gridIntensity : settings['gridIntensity'];
         if (gridIntensity) {
             this.engine.gridIntensity = parseInt(gridIntensity) / 100;
             const giEl = document.getElementById('settings-grid-intensity');
@@ -464,7 +513,7 @@ class App {
             if (givEl) givEl.innerText = '50%';
         }
 
-        const showGrid = projSet.showGrid !== undefined ? projSet.showGrid : await this.storage.loadSetting('showGrid');
+        const showGrid = projSet.showGrid !== undefined ? projSet.showGrid : settings['showGrid'];
         if (showGrid !== undefined) {
             this.engine.showGrid = showGrid;
             const sgEl = document.getElementById('settings-grid-show');
@@ -484,7 +533,7 @@ class App {
             const raw = localStorage.getItem('brushSettings');
             if (raw) savedBrushes = JSON.parse(raw);
         } catch(e) {}
-        if (!savedBrushes) savedBrushes = await this.storage.loadSetting('brushSettings');
+        if (!savedBrushes) savedBrushes = settings['brushSettings'];
         if (savedBrushes) {
             Object.keys(savedBrushes).forEach(tool => {
                 if (this.brushSettings[tool]) {
@@ -493,7 +542,7 @@ class App {
             });
         }
 
-        const spacing = await this.storage.loadSetting('brushSpacing');
+        const spacing = settings['brushSpacing'];
         if (spacing) {
             this.engine.brush.spacing = parseFloat(spacing);
             const spEl = document.getElementById('settings-brush-spacing');
@@ -511,7 +560,8 @@ class App {
     this._renderPalette();
     this._initColorSelector();
     
-    const lastColor = await this.storage.loadSetting('lastColor') || this.palette.baseColors[0];
+    // Retrieve last color value from batch settings
+    const lastColor = (settings && settings['lastColor']) || this.palette.baseColors[0];
     this.setColor(lastColor);
     this._updateHSVFromHex(lastColor);
     

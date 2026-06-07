@@ -1684,7 +1684,7 @@ export class Engine {
     if (target.closest('.ui-panel') || target.closest('button') || target.closest('input') || target.closest('#top-bar')) {
         return;
     }
-    
+
     // Check if we are panning (Space) or zooming (Z)
     if (this.keys[' '] || this.isPanningMode) {
         this.isPanning = true;
@@ -3658,6 +3658,83 @@ export class Engine {
   }
 
   _bilinearSample(srcData, w, h, x, y, dstData, dstIdx) {
-    return bilinearSample(this, srcData, w, h, x, y, dstData, dstIdx);
+    const x0 = Math.floor(x);
+    const x1 = x0 + 1;
+    const y0 = Math.floor(y);
+    const y1 = y0 + 1;
+    
+    const tx = x - x0;
+    const ty = y - y0;
+    
+    const ix0 = x0 < 0 ? 0 : (x0 >= w ? w - 1 : x0);
+    const ix1 = x1 < 0 ? 0 : (x1 >= w ? w - 1 : x1);
+    const iy0 = y0 < 0 ? 0 : (y0 >= h ? h - 1 : y0);
+    const iy1 = y1 < 0 ? 0 : (y1 >= h ? h - 1 : y1);
+    
+    const idx00 = (iy0 * w + ix0) * 4;
+    const idx10 = (iy0 * w + ix1) * 4;
+    const idx01 = (iy1 * w + ix0) * 4;
+    const idx11 = (iy1 * w + ix1) * 4;
+    
+    // Normalize and convert to premultiplied alpha space
+    const a00 = srcData[idx00 + 3] / 255;
+    const r00 = srcData[idx00] * a00;
+    const g00 = srcData[idx00 + 1] * a00;
+    const b00 = srcData[idx00 + 2] * a00;
+
+    const a10 = srcData[idx10 + 3] / 255;
+    const r10 = srcData[idx10] * a10;
+    const g10 = srcData[idx10 + 1] * a10;
+    const b10 = srcData[idx10 + 2] * a10;
+
+    const a01 = srcData[idx01 + 3] / 255;
+    const r01 = srcData[idx01] * a01;
+    const g01 = srcData[idx01 + 1] * a01;
+    const b01 = srcData[idx01 + 2] * a01;
+
+    const a11 = srcData[idx11 + 3] / 255;
+    const r11 = srcData[idx11] * a11;
+    const g11 = srcData[idx11 + 1] * a11;
+    const b11 = srcData[idx11 + 2] * a11;
+
+    // Bilinear interpolate in pre-multiplied space
+    const r0_a = a00 + tx * (a10 - a00);
+    const r1_a = a01 + tx * (a11 - a01);
+    const interp_a = r0_a + ty * (r1_a - r0_a);
+
+    const r0_r = r00 + tx * (r10 - r00);
+    const r1_r = r01 + tx * (r11 - r01);
+    const interp_r = r0_r + ty * (r1_r - r0_r);
+
+    const r0_g = g00 + tx * (g10 - g00);
+    const r1_g = g01 + tx * (g11 - g01);
+    const interp_g = r0_g + ty * (r1_g - r0_g);
+
+    const r0_b = b00 + tx * (b10 - b00);
+    const r1_b = b01 + tx * (b11 - b01);
+    const interp_b = r0_b + ty * (r1_b - r0_b);
+
+    const alphaFinal = Math.round(interp_a * 255);
+    dstData[dstIdx + 3] = alphaFinal;
+
+    if (interp_a > 1e-5) {
+        dstData[dstIdx] = Math.max(0, Math.min(255, Math.round(interp_r / interp_a)));
+        dstData[dstIdx + 1] = Math.max(0, Math.min(255, Math.round(interp_g / interp_a)));
+        dstData[dstIdx + 2] = Math.max(0, Math.min(255, Math.round(interp_b / interp_a)));
+    } else {
+        dstData[dstIdx] = 0;
+        dstData[dstIdx + 1] = 0;
+        dstData[dstIdx + 2] = 0;
+    }
+  }
+
+  _nearestSample(srcData, w, h, x, y, dstData, dstIdx) {
+    const ix = Math.max(0, Math.min(w - 1, Math.round(x)));
+    const iy = Math.max(0, Math.min(h - 1, Math.round(y)));
+    const srcIdx = (iy * w + ix) * 4;
+    dstData[dstIdx] = srcData[srcIdx];
+    dstData[dstIdx + 1] = srcData[srcIdx + 1];
+    dstData[dstIdx + 2] = srcData[srcIdx + 2];
+    dstData[dstIdx + 3] = srcData[srcIdx + 3];
   }
 }

@@ -198,68 +198,117 @@ export async function deleteProject(app, id) {
     app._status('PROJECT DELETED');
 }
 
+// Process tasks in controlled batches to avoid thread/layout exhaustion (especially on mobile devices!)
+async function runInBatches(tasks, batchSize = 12, onProgress = null) {
+    for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, i + batchSize);
+        await Promise.all(batch.map(fn => fn()));
+        if (onProgress) {
+            onProgress(i + batch.length, tasks.length);
+        }
+        // Yield to the main/UI thread with a microtask break to ensure the browser paints intermediate frames and processes inputs!
+        await new Promise(resolve => setTimeout(resolve, 4));
+    }
+}
+
 export async function loadProject(app) {
+    console.log('[PERF] loadProject() started');
+    const tLoadStart = performance.now();
     app._status('LOADING...');
     app.engine.selectedRefIndex = -1; // Ensure de-selected on load
     try {
+        const tRefsStart = performance.now();
         const refs = await app.storage.loadSetting('referenceImages');
+        console.log(`[PERF] Loaded reference settings from storage in ${(performance.now() - tRefsStart).toFixed(2)}ms`);
+
         if (refs && Array.isArray(refs)) {
-            for (const r of refs) {
-                const img = new Image();
-                await new Promise(res => {
-                    img.onload = res;
-                    img.src = r.src;
-                });
-                app.engine.addReferenceImage(img, r.name, r.x, r.y, {
-                    rotation: r.rotation,
-                    scale: r.scale,
-                    opacity: r.opacity,
-                    mirrorX: r.mirrorX,
-                    mirrorY: r.mirrorY
-                }, false);
-            }
+            const tRefsImagesStart = performance.now();
+            const refPromises = refs.map((r) => {
+                return () => (async () => {
+                    const img = new Image();
+                    await new Promise(res => {
+                        img.onload = res;
+                        img.onerror = res;
+                        img.src = r.src;
+                    });
+                    app.engine.addReferenceImage(img, r.name, r.x, r.y, {
+                        rotation: r.rotation,
+                        scale: r.scale,
+                        opacity: r.opacity,
+                        mirrorX: r.mirrorX,
+                        mirrorY: r.mirrorY
+                    }, false);
+                })();
+            });
+            await runInBatches(refPromises, 3);
             app._updateRefImageList();
+            console.log(`[PERF] Reference images decoding and layout took ${(performance.now() - tRefsImagesStart).toFixed(2)}ms`);
         }
 
         // 1. LEGACY MIGRATION
+        const tLegacyStart = performance.now();
         const legacyKeys = await app.storage.getAllLegacyKeys();
+        console.log(`[PERF] Checked legacy keys in ${(performance.now() - tLegacyStart).toFixed(2)}ms`);
+
         if (legacyKeys.length > 0) {
             app._status('MIGRATING...');
-            for (const key of legacyKeys) {
-                const parts = key.split('_');
-                const cy = parseInt(parts[parts.length - 1]);
-                const cx = parseInt(parts[parts.length - 2]);
-                const layerId = parseInt(parts[parts.length - 3]);
-                
-                if (isNaN(layerId) || layerId < 0 || layerId >= LAYERS_COUNT) {
-                    continue;
-                }
-
-                if (layerId === 0) continue;
-
-                const dataUrl = await app.storage.loadLegacyChunk(key);
-                if (dataUrl) {
-                    const img = new Image();
-                    await new Promise(r => { img.onload = r; img.src = dataUrl; });
-                    const chunk = app.engine._getChunk(cx, cy);
-                    if (chunk && chunk.ctxs[layerId]) {
-                        chunk.ctxs[layerId].drawImage(img, 0, 0);
-                        if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
-                        app.engine._markDirty(`${cx},${cy}`, layerId, false);
+            const tMigrationStart = performance.now();
+            const legacyPromises = legacyKeys.map((key) => {
+                return () => (async () => {
+                    const parts = key.split('_');
+                    const cy = parseInt(parts[parts.length - 1]);
+                    const cx = parseInt(parts[parts.length - 2]);
+                    const layerId = parseInt(parts[parts.length - 3]);
+                    
+                    if (isNaN(layerId) || layerId < 0 || layerId >= LAYERS_COUNT) {
+                        return;
                     }
-                }
-                await app.storage.deleteLegacyChunk(key);
-            }
+
+                    if (layerId === 0) return;
+
+                    const dataUrl = await app.storage.loadLegacyChunk(key);
+                    if (dataUrl) {
+                        const img = new Image();
+                        await new Promise(r => { 
+                            img.onload = r; 
+                            img.onerror = r; 
+                            img.src = dataUrl; 
+                        });
+                        const chunk = app.engine._getChunk(cx, cy);
+                        if (chunk && chunk.ctxs[layerId]) {
+                            chunk.ctxs[layerId].drawImage(img, 0, 0);
+                            if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
+                            app.engine._markDirty(`${cx},${cy}`, layerId, false);
+                        }
+                    }
+                    await app.storage.deleteLegacyChunk(key);
+                })();
+            });
+            await runInBatches(legacyPromises, 8);
+            console.log(`[PERF] Legacy migration of ${legacyKeys.length} keys took ${(performance.now() - tMigrationStart).toFixed(2)}ms`);
         }
 
         // 2. SECTOR LOADING
+        const tSectorKeysStart = performance.now();
         const sectorKeys = await app.storage.getAllSectorKeys();
-        for (const key of sectorKeys) {
+        console.log(`[PERF] Retrieved ${sectorKeys.length} sector keys in ${(performance.now() - tSectorKeysStart).toFixed(2)}ms`);
+        
+        const tSectorsLoadStart = performance.now();
+        // Load all sectors in parallel from the indexedDB store
+        const sectorPromises = sectorKeys.map(async (key) => {
             const parts = key.split('_'); 
             const sy = parseInt(parts[parts.length - 1]);
             const sx = parseInt(parts[parts.length - 2]);
-            
             const sector = await app.storage.loadSector(sx, sy);
+            return { sx, sy, sector };
+        });
+        const sectors = await Promise.all(sectorPromises);
+        console.log(`[PERF] Loading sector metadata from store took ${(performance.now() - tSectorsLoadStart).toFixed(2)}ms`);
+
+        // Map and load all chunk images concurrently
+        const tChunksStart = performance.now();
+        const chunkLoadPromises = [];
+        for (const { sector } of sectors) {
             if (sector && sector.chunks) {
                 for (const chunkKey in sector.chunks) {
                     const cParts = chunkKey.split('_');
@@ -269,20 +318,35 @@ export async function loadProject(app) {
                     const dataUrl = sector.chunks[chunkKey];
                     
                     if (dataUrl && !isNaN(layerId) && layerId >= 0 && layerId < LAYERS_COUNT) {
-                        const img = new Image();
-                        await new Promise(r => { img.onload = r; img.src = dataUrl; });
-                        const chunk = app.engine._getChunk(cx, cy);
-                        if (chunk && chunk.ctxs[layerId]) {
-                            chunk.ctxs[layerId].drawImage(img, 0, 0);
-                            if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
-                        }
+                        chunkLoadPromises.push(() => (async () => {
+                            const img = new Image();
+                            await new Promise(r => { 
+                                img.onload = r; 
+                                img.onerror = r; 
+                                img.src = dataUrl; 
+                            });
+                            const chunk = app.engine._getChunk(cx, cy);
+                            if (chunk && chunk.ctxs[layerId]) {
+                                chunk.ctxs[layerId].drawImage(img, 0, 0);
+                                if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
+                            }
+                        })());
                     }
                 }
             }
         }
+        
+        console.log(`[PERF] Prepared ${chunkLoadPromises.length} chunk loaders. Starting runInBatches...`);
+        const tBatchRunStart = performance.now();
+        await runInBatches(chunkLoadPromises, 12, (loaded, total) => {
+            const pct = Math.min(100, Math.round((loaded / total) * 100));
+            app._status(`LOADING (${pct}%)`);
+        });
+        console.log(`[PERF] runInBatches() completed in ${(performance.now() - tBatchRunStart).toFixed(2)}ms for ${chunkLoadPromises.length} chunks`);
 
         app.engine.refresh();
         app._status('READY');
+        console.log(`[PERF] loadProject() completed in ${(performance.now() - tLoadStart).toFixed(2)}ms`);
     } catch (e) {
         console.error("Load failed", e);
         app._status('LOAD ERROR');
