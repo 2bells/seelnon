@@ -32,7 +32,7 @@ export function paintSmudgeOnChunks(engine, stamps, affectedChunks, flow, opacit
                     const srcCanvas = chunk.canvases[engine.activeLayer];
                     const backup = document.createElement('canvas');
                     backup.width = srcCanvas.width; backup.height = srcCanvas.height;
-                    backup.getContext('2d', { willReadFrequently: true }).drawImage(srcCanvas, 0, 0);
+                    backup.getContext('2d').drawImage(srcCanvas, 0, 0);
                     engine.currentStrokeDirtyChunks.set(id, { layer: engine.activeLayer, canvas: backup });
                     engine._markDirty(id, engine.activeLayer);
                 }

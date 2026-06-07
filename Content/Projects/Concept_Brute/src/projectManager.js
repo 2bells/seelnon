@@ -380,6 +380,10 @@ export async function saveProject(app) {
         
         await Promise.all(promises);
         
+        if (app.engine && app.engine.clearAllOffscreenCanvases) {
+            app.engine.clearAllOffscreenCanvases();
+        }
+        
         app._status('SAVED');
         app._showSaved();
         await updateStorageStat(app);

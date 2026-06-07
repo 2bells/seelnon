@@ -166,7 +166,6 @@ export class Engine {
         this.refresh();
     });
     this.offscreenDirty = new Set();
-    this._startOffscreenSyncLoop();
     this._startAnimationLoop();
   }
 
@@ -454,7 +453,11 @@ export class Engine {
         }
         
         if (this.activePointers.size < 2) {
+            const wasGesture = this.isGesture;
             this.isGesture = false;
+            if (wasGesture) {
+                this.refresh();
+            }
         }
 
         if (this.isExportMode && this.isDrawing) {
@@ -601,7 +604,7 @@ export class Engine {
   }
 
   _getMousePos(e) {
-    const rect = this.container.getBoundingClientRect();
+    const rect = this.getContainerRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
@@ -623,7 +626,7 @@ export class Engine {
   }
 
   _screenToWorld(x, y) {
-    const rect = this.container.getBoundingClientRect();
+    const rect = this.getContainerRect();
     const cx = Math.floor(rect.width / 2);
     const cy = Math.floor(rect.height / 2);
 
@@ -670,17 +673,25 @@ export class Engine {
       this.offscreenDirty.add(`${id}|${layer}`);
   }
 
-  _startOffscreenSyncLoop() {
-      setInterval(() => {
-          this.syncOffscreenCanvases();
-      }, 1000);
+  clearAllOffscreenCanvases() {
+      this.chunks.forEach(chunk => {
+          if (chunk.offscreenCanvases) {
+              chunk.offscreenCanvases.forEach(canv => {
+                  if (canv) {
+                      canv.width = 0;
+                      canv.height = 0;
+                  }
+              });
+              chunk.offscreenCanvases = [];
+              chunk.offscreenCtxs = [];
+          }
+          if (chunk._cachedOffscreenImageData) {
+              chunk._cachedOffscreenImageData = [];
+          }
+      });
   }
 
   syncOffscreenCanvases() {
-      if (this.isDrawing || this.isPanning || this.isPanningMode) {
-          // Defer sync until interaction is complete to keep active actions high-performance and lag-free
-          return;
-      }
       if (!this.offscreenDirty || this.offscreenDirty.size === 0) return;
       for (const item of this.offscreenDirty) {
           const [chunkId, layerStr] = item.split('|');
@@ -786,23 +797,8 @@ export class Engine {
       chunk.element.appendChild(canv);
     }
 
-    const strokeCanv = document.createElement('canvas');
-    strokeCanv.width = chunk.width * scale;
-    strokeCanv.height = chunk.height * scale;
-    strokeCanv.className = 'absolute inset-0';
-    strokeCanv.style.imageRendering = 'auto';
-    strokeCanv.style.backfaceVisibility = 'hidden';
-    strokeCanv.style.webkitBackfaceVisibility = 'hidden';
-    strokeCanv.style.transform = 'translate3d(0, 0, 0)';
-    strokeCanv.style.willChange = 'transform';
-    strokeCanv.style.opacity = '0';
-    chunk.strokeCanvas = strokeCanv;
-    const sCtx = strokeCanv.getContext('2d', { alpha: true });
-    if (scale !== 1) {
-        sCtx.scale(scale, scale);
-    }
-    chunk.strokeCtx = sCtx;
-    chunk.element.appendChild(strokeCanv);
+    chunk.strokeCanvas = null;
+    chunk.strokeCtx = null;
 
     this.chunks.set(id, chunk);
     this._updateChunkTransform(chunk);
@@ -832,6 +828,28 @@ export class Engine {
     }
 
     return chunk;
+  }
+
+  _ensureStrokeCanvas(chunk) {
+    if (chunk.strokeCanvas) return;
+    const scale = this.isStatic ? this.dpiScale : 1;
+    const strokeCanv = document.createElement('canvas');
+    strokeCanv.width = chunk.width * scale;
+    strokeCanv.height = chunk.height * scale;
+    strokeCanv.className = 'absolute inset-0';
+    strokeCanv.style.imageRendering = 'auto';
+    strokeCanv.style.backfaceVisibility = 'hidden';
+    strokeCanv.style.webkitBackfaceVisibility = 'hidden';
+    strokeCanv.style.transform = 'translate3d(0, 0, 0)';
+    strokeCanv.style.willChange = 'transform';
+    strokeCanv.style.opacity = '0';
+    chunk.strokeCanvas = strokeCanv;
+    const sCtx = strokeCanv.getContext('2d', { alpha: true });
+    if (scale !== 1) {
+        sCtx.scale(scale, scale);
+    }
+    chunk.strokeCtx = sCtx;
+    chunk.element.appendChild(strokeCanv);
   }
 
   promoteAllToGPU() {
@@ -977,7 +995,7 @@ export class Engine {
     // Zoom/Dimension changes affect static size width/height or overlap calculation,
     // so we only update individual chunk attributes when zoom changes.
     const zoomChanged = this.zoom !== this._lastTransformZoom;
-    if (zoomChanged) {
+    if (zoomChanged && !this.isGesture) {
         this.chunks.forEach(chunk => {
             if (chunk.isAttached) {
                 this._updateChunkTransform(chunk);
@@ -1799,7 +1817,7 @@ export class Engine {
         
         if (this.keys['r']) {
             // Rotate
-            const rect = this.container.getBoundingClientRect();
+            const rect = this.getContainerRect();
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
             
@@ -2193,7 +2211,7 @@ export class Engine {
                     chunkH = chunkMaxY - chunkMinY;
                 }
 
-                if (chunkW > 0 && chunkH > 0) {
+                if (chunkW > 0 && chunkH > 0 && chunk.strokeCanvas) {
                     ctx.drawImage(
                         chunk.strokeCanvas,
                         chunkMinX * scale,
@@ -2214,10 +2232,12 @@ export class Engine {
                 const cW = chunkW;
                 const cH = chunkH;
                 requestAnimationFrame(() => {
-                    if (cW > 0 && cH > 0) {
+                    if (cW > 0 && cH > 0 && chunk.strokeCtx) {
                         chunk.strokeCtx.clearRect(cMinX, cMinY, cW, cH);
                     }
-                    chunk.strokeCanvas.style.opacity = '0';
+                    if (chunk.strokeCanvas) {
+                        chunk.strokeCanvas.style.opacity = '0';
+                    }
                 });
             }
         });
@@ -2313,10 +2333,12 @@ export class Engine {
                 const cW = chunkW;
                 const cH = chunkH;
                 requestAnimationFrame(() => {
-                    if (cW > 0 && cH > 0) {
+                    if (cW > 0 && cH > 0 && chunk.strokeCtx) {
                         chunk.strokeCtx.clearRect(cMinX, cMinY, cW, cH);
                     }
-                    chunk.strokeCanvas.style.opacity = '0';
+                    if (chunk.strokeCanvas) {
+                        chunk.strokeCanvas.style.opacity = '0';
+                    }
                 });
             }
         });
@@ -2336,6 +2358,10 @@ export class Engine {
     
     if (this.brush.type === TOOLS.REF_MOVE) {
         this.refsDirty = true;
+    }
+    
+    if (this.brush.type === TOOLS.LIQUIFY) {
+        this.clearAllOffscreenCanvases();
     }
     
     if (this.onDrawEnd && this.isDrawing) this.onDrawEnd();
@@ -2386,7 +2412,7 @@ export class Engine {
         return;
     }
 
-    const rect = this.container.getBoundingClientRect();
+    const rect = this.getContainerRect();
 
     // Hide if mouse is over UI
     if (e && (e.target.closest('.ui-panel') || e.target.closest('button') || e.target.closest('input') || e.target.closest('#top-bar'))) {
@@ -2763,6 +2789,13 @@ export class Engine {
         }
     }
 
+    // Additional heavy stamp optimization for impasto / wet oil brushes at speed to prevent clogging up browser queue
+    if (!isSmudge && !isWire && (oil > 0 || height > 0) && this.smoothedVelocity > 5) {
+        // Scaled up to 3x standard spacing as velocity goes from 5 to 50
+        const speedScale = 1 + Math.min(2.0, (this.smoothedVelocity - 5) / 22.5);
+        currentSpacing *= speedScale;
+    }
+
     const stamps = [];
     let p = this.spacingAccumulator;
     const jPos = this.brush.jitterPos || 0;
@@ -2817,16 +2850,18 @@ export class Engine {
     // 3. Cache and Smudge Prep
     if (tip && !isSmudge) {
         const sharpen = this.brush.brushSharpen || 0;
-        const cacheKey = `${airbrush}_${bSize}_${sharpen}`;
+        // Round size for caching to prevent constant canvas/filter redevelopment overhead
+        const cacheSize = this._getCacheSize(bSize);
+        const cacheKey = `${airbrush}_${cacheSize}_${sharpen}`;
         if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color) {
-            this._updateTipCache(bSize, airbrush, color);
+            this._updateTipCache(cacheSize, airbrush, color);
         }
         if ((oil > 0 || height > 0) && dist < 500) {
             // Oiliness now produces sharper highlights for a "wet" look, while impasto stays soft
             const reliefBlur = Math.max(0.2, (height * 0.1 + oil * 0.02)) * 4 * (1 - airbrush * 0.4);
-            const reliefKey = `${bSize}_${reliefBlur}`;
+            const reliefKey = `${cacheSize}_${reliefBlur}`;
             if (!this._reliefCache || this._reliefCache.key !== reliefKey) {
-                this._updateReliefCache(bSize, reliefBlur);
+                this._updateReliefCache(cacheSize, reliefBlur);
             }
         }
     }
@@ -2881,13 +2916,18 @@ export class Engine {
             const srcCanvas = chunk.canvases[this.activeLayer];
             const backup = document.createElement('canvas');
             backup.width = srcCanvas.width; backup.height = srcCanvas.height;
-            backup.getContext('2d', { willReadFrequently: true }).drawImage(srcCanvas, 0, 0);
+            // Only request willReadFrequently if performing costly pixel readback operations (e.g. Liquify)
+            const useReadBack = (this.brush.type === TOOLS.LIQUIFY);
+            backup.getContext('2d', useReadBack ? { willReadFrequently: true } : undefined).drawImage(srcCanvas, 0, 0);
             this.currentStrokeDirtyChunks.set(id, { layer: this.activeLayer, canvas: backup });
             this._markDirty(id, this.activeLayer);
         }
 
+        if (!isEraser) {
+            this._ensureStrokeCanvas(chunk);
+            chunk.strokeCanvas.style.opacity = this.brush.opacity;
+        }
         const ctx = isEraser ? chunk.ctxs[this.activeLayer] : chunk.strokeCtx;
-        if (!isEraser) chunk.strokeCanvas.style.opacity = this.brush.opacity;
 
         const lx = this.isStatic ? -this.staticWidth / 2 : group.cx * this.chunkSize;
         const ly = this.isStatic ? -this.staticHeight / 2 : group.cy * this.chunkSize;
@@ -2960,14 +3000,16 @@ export class Engine {
                     if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
                         // Sync color for tip if jittered
                         if (jHue > 0) {
-                            this.scratchCanvas.width = curSize;
-                            this.scratchCanvas.height = curSize;
+                            if (this.scratchCanvas.width < curSize || this.scratchCanvas.height < curSize) {
+                                this.scratchCanvas.width = Math.max(this.scratchCanvas.width, curSize);
+                                this.scratchCanvas.height = Math.max(this.scratchCanvas.height, curSize);
+                            }
                             this.scratchCtx.clearRect(0, 0, curSize, curSize);
                             this.scratchCtx.drawImage(useTip, 0, 0, curSize, curSize);
                             this.scratchCtx.globalCompositeOperation = 'source-in';
                             this.scratchCtx.fillStyle = s.color;
                             this.scratchCtx.fillRect(0, 0, curSize, curSize);
-                            ctx.drawImage(this.scratchCanvas, -curR, -curR);
+                            ctx.drawImage(this.scratchCanvas, 0, 0, curSize, curSize, -curR, -curR, curSize, curSize);
                         } else {
                             ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
                         }
@@ -2976,7 +3018,7 @@ export class Engine {
                         const origGCO = ctx.globalCompositeOperation;
 
                         // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
-                        if (height > 0) {
+                        if (height > 0 && !(this.smoothedVelocity > 35)) {
                             ctx.globalCompositeOperation = 'multiply';
                             ctx.globalAlpha = origAlpha * height * 0.22;
                             ctx.drawImage(this._reliefCache.shadow, -curR + 1, -curR + 1, curSize, curSize);
@@ -2984,14 +3026,15 @@ export class Engine {
 
                         // 2. Base Highlight Pass - Using screen for volumetric height stability
                         const baseHighlightOpacity = height * 0.15;
-                        if (baseHighlightOpacity > 0) {
+                        const oilOpacity = oil * 0.35;
+                        const skipBaseHighlight = (this.smoothedVelocity > 15);
+                        if (baseHighlightOpacity > 0 && (!skipBaseHighlight || oilOpacity <= 0)) {
                             ctx.globalCompositeOperation = 'screen';
                             ctx.globalAlpha = origAlpha * Math.min(1.0, baseHighlightOpacity);
                             ctx.drawImage(this._reliefCache.highlight, -curR - 1, -curR - 1, curSize, curSize);
                         }
 
                         // 3. Wet/Oil Pass - Using overlay or dodge for that high-specular shiny look
-                        const oilOpacity = oil * 0.35;
                         if (oilOpacity > 0) {
                             ctx.globalCompositeOperation = 'overlay'; 
                             ctx.globalAlpha = origAlpha * Math.min(0.8, oilOpacity);
@@ -3035,6 +3078,14 @@ export class Engine {
         }
         ctx.restore();
     });
+  }
+
+  _getCacheSize(s) {
+    if (s <= 1) return 1;
+    if (s <= 16) return Math.max(2, Math.round(s / 2) * 2);
+    if (s <= 64) return Math.round(s / 4) * 4;
+    if (s <= 256) return Math.round(s / 8) * 8;
+    return Math.round(s / 16) * 16;
   }
 
   _updateTipCache(s, airbrush, color) {
