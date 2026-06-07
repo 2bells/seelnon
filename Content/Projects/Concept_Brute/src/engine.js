@@ -1791,10 +1791,19 @@ export class Engine {
     this.lastDynamicSize = initSize;
     this.lastDynamicOpac = worldPos.opacity;
     this.lastPressure = pressure;
+
+    const pad = (initSize || 10) + 15;
+    this.strokeMinX = worldPos.x - pad;
+    this.strokeMaxX = worldPos.x + pad;
+    this.strokeMinY = worldPos.y - pad;
+    this.strokeMaxY = worldPos.y + pad;
     
     this.spacingAccumulator = 0;
     this.shiftOrigin = null;
     this.shiftLockAxis = null;
+    this._currentHueJitterColor = null;
+    this._hueJitterStampCount = 0;
+    this._lastHueJitterBaseColor = null;
 
     if (this.brush.type === TOOLS.SMUDGE) {
         this.smudgeDirty = false;
@@ -2142,25 +2151,34 @@ export class Engine {
   }
 
   _endStroke(e = null) {
-    // 1. Calculate bounding box of this stroke if we have points, to optimize baking/clearing
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    if (this.strokePoints && this.strokePoints.length > 0) {
-        for (const p of this.strokePoints) {
-            const pad = (p.size || this.brush.size || 10) + 15; // 15px safety padding
-            minX = Math.min(minX, p.x - pad);
-            maxX = Math.max(maxX, p.x + pad);
-            minY = Math.min(minY, p.y - pad);
-            maxY = Math.max(maxY, p.y + pad);
-        }
-    }
-
-    // Finish last part of smoothed curve
+    // Finish last part of smoothed curve first, so that final stamps are drawn and final box boundaries set
     if (this.isDrawing && this.brush.type !== TOOLS.LASSO && this.strokePoints.length > 1 && this.brush.type !== TOOLS.WIREFRAME && this.brush.type !== TOOLS.LIQUIFY) {
         const p_last = this.strokePoints[this.strokePoints.length - 1];
         const p_prev = this.strokePoints[this.strokePoints.length - 2];
         const mid = { x: (p_last.x + p_prev.x) / 2, y: (p_last.y + p_prev.y) / 2 };
         this._paintOnChunks(mid, p_last, p_last.size, p_last.opacity, p_last.color);
     }
+
+    // 1. Calculate bounding box of this stroke based on actual generated/scattered stamp bounds
+    let minX = this.strokeMinX;
+    let maxX = this.strokeMaxX;
+    let minY = this.strokeMinY;
+    let maxY = this.strokeMaxY;
+
+    // Fallback if bounds are not set
+    if (minX === undefined || minX === Infinity || maxX === -Infinity || minY === Infinity || maxY === -Infinity) {
+        minX = Infinity; maxX = -Infinity; minY = Infinity; maxY = -Infinity;
+        if (this.strokePoints && this.strokePoints.length > 0) {
+            for (const p of this.strokePoints) {
+                const pad = (p.size || this.brush.size || 10) + 15; // 15px safety padding
+                minX = Math.min(minX, p.x - pad);
+                maxX = Math.max(maxX, p.x + pad);
+                minY = Math.min(minY, p.y - pad);
+                maxY = Math.max(maxY, p.y + pad);
+            }
+        }
+    }
+
     if (this.brush.type === TOOLS.LASSO && this.lassoPath?.length > 10) {
         this._processLassoSelection();
     }
@@ -2685,10 +2703,34 @@ export class Engine {
   }
 
   _shiftColor(hex, hDelta, lDelta) {
+    if (!hex || typeof hex !== 'string') return '#000000';
+    let colorStr = hex.trim().toLowerCase();
+    let r = 0, g = 0, b = 0;
+    
+    if (colorStr.startsWith('#')) {
+      if (colorStr.length === 4) {
+        r = parseInt(colorStr[1] + colorStr[1], 16) / 255;
+        g = parseInt(colorStr[2] + colorStr[2], 16) / 255;
+        b = parseInt(colorStr[3] + colorStr[3], 16) / 255;
+      } else {
+        r = parseInt(colorStr.slice(1, 3), 16) / 255;
+        g = parseInt(colorStr.slice(3, 5), 16) / 255;
+        b = parseInt(colorStr.slice(5, 7), 16) / 255;
+      }
+    } else if (colorStr.startsWith('rgb')) {
+      const parts = colorStr.match(/\d+/g);
+      if (parts && parts.length >= 3) {
+        r = parseInt(parts[0], 10) / 255;
+        g = parseInt(parts[1], 10) / 255;
+        b = parseInt(parts[2], 10) / 255;
+      }
+    }
+    
+    if (isNaN(r) || isNaN(g) || isNaN(b)) {
+      r = 0; g = 0; b = 0;
+    }
+
     // hex to hsl
-    let r = parseInt(hex.slice(1, 3), 16) / 255;
-    let g = parseInt(hex.slice(3, 5), 16) / 255;
-    let b = parseInt(hex.slice(5, 7), 16) / 255;
     let max = Math.max(r, g, b), min = Math.min(r, g, b);
     let h, s, l = (max + min) / 2;
     if (max === min) { h = s = 0; } else {
@@ -2718,7 +2760,10 @@ export class Engine {
     let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
     let p = 2 * l - q;
     r = hue2rgb(p, q, h + 1/3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1/3);
-    const toHex = x => Math.round(x * 255).toString(16).padStart(2, '0');
+    const toHex = x => {
+      const val = Math.max(0, Math.min(255, Math.round(x * 255)));
+      return val.toString(16).padStart(2, '0');
+    };
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
   }
 
@@ -2833,11 +2878,21 @@ export class Engine {
 
         // Hue Jitter
         if (jHue > 0) {
-            // Shift hue by up to 180 degrees based on jitter amount
-            stamp.color = this._shiftColor(color, (Math.random() - 0.5) * jHue * 360, 0);
+            this._hueJitterStampCount = (this._hueJitterStampCount || 0) + 1;
+            if (!this._currentHueJitterColor || this._hueJitterStampCount % 8 === 0 || this._lastHueJitterBaseColor !== color) {
+                this._lastHueJitterBaseColor = color;
+                this._currentHueJitterColor = this._shiftColor(color, (Math.random() - 0.5) * jHue * 360, 0);
+            }
+            stamp.color = this._currentHueJitterColor;
         } else {
             stamp.color = color;
         }
+
+        const pad = (stamp.size / 2) + 15;
+        this.strokeMinX = Math.min(this.strokeMinX, sx - pad);
+        this.strokeMaxX = Math.max(this.strokeMaxX, sx + pad);
+        this.strokeMinY = Math.min(this.strokeMinY, sy - pad);
+        this.strokeMaxY = Math.max(this.strokeMaxY, sy + pad);
 
         stamps.push(stamp);
         p += currentSpacing;
@@ -2963,117 +3018,124 @@ export class Engine {
         }
 
         for (const s of group.stamps) {
-            const px = Math.round(s.x - lx);
-            const py = Math.round(s.y - ly);
-            const curSize = Math.round(s.size);
-            const curR = curSize / 2;
-            
-            // Regular stamps: optimized by avoiding save/restore if no rotation/tip/jitter
-            if (s.angle === 0 && !tip && !isWire && !hasSpecialJitter) {
-                if (isEraser) {
-                    ctx.clearRect(px - curR, py - curR/2, curSize, curSize/2);
-                } else {
-                    ctx.fillStyle = s.color;
-                    ctx.fillRect(px - curR, py - curR/2, curSize, curSize/2);
-                }
-            } else {
-                ctx.save();
-                ctx.translate(px, py);
-                if (s.angle !== 0) ctx.rotate(s.angle);
-
-                if (isWire) {
-                    ctx.beginPath(); ctx.arc(0, 0, curR, 0, Math.PI*2);
-                    ctx.strokeStyle = s.color; ctx.lineWidth = 1.5; ctx.stroke();
-                } else if (tip) {
-                    // Refresh cache if size or color changed due to jitter
-                    let useTip = this._tipColorCache.canvas;
-                    if (hasSpecialJitter) {
-                        // For high performance, we should ideally have a pool of caches or just draw scaled.
-                        // However, _updateTipCache uses filters which are slow inside a loop.
-                        // Let's use the current cache but draw it scaled.
-                        // If color changed, we might need a temporary tinting pass or just accept slight inaccuracy 
-                        // for hue jitter when using custom tips (Hue jitter is mostly for solid/procedural brushes).
-                        // Actually, let's tint it if hue jitter is on.
-                    }
-
-                    // Relief / Impasto effect
-                    if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
-                        // Sync color for tip if jittered
-                        if (jHue > 0) {
-                            if (this.scratchCanvas.width < curSize || this.scratchCanvas.height < curSize) {
-                                this.scratchCanvas.width = Math.max(this.scratchCanvas.width, curSize);
-                                this.scratchCanvas.height = Math.max(this.scratchCanvas.height, curSize);
-                            }
-                            this.scratchCtx.clearRect(0, 0, curSize, curSize);
-                            this.scratchCtx.drawImage(useTip, 0, 0, curSize, curSize);
-                            this.scratchCtx.globalCompositeOperation = 'source-in';
-                            this.scratchCtx.fillStyle = s.color;
-                            this.scratchCtx.fillRect(0, 0, curSize, curSize);
-                            ctx.drawImage(this.scratchCanvas, 0, 0, curSize, curSize, -curR, -curR, curSize, curSize);
-                        } else {
-                            ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
-                        }
-
-                        const origAlpha = ctx.globalAlpha;
-                        const origGCO = ctx.globalCompositeOperation;
-
-                        // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
-                        if (height > 0 && !(this.smoothedVelocity > 35)) {
-                            ctx.globalCompositeOperation = 'multiply';
-                            ctx.globalAlpha = origAlpha * height * 0.22;
-                            ctx.drawImage(this._reliefCache.shadow, -curR + 1, -curR + 1, curSize, curSize);
-                        }
-
-                        // 2. Base Highlight Pass - Using screen for volumetric height stability
-                        const baseHighlightOpacity = height * 0.15;
-                        const oilOpacity = oil * 0.35;
-                        const skipBaseHighlight = (this.smoothedVelocity > 15);
-                        if (baseHighlightOpacity > 0 && (!skipBaseHighlight || oilOpacity <= 0)) {
-                            ctx.globalCompositeOperation = 'screen';
-                            ctx.globalAlpha = origAlpha * Math.min(1.0, baseHighlightOpacity);
-                            ctx.drawImage(this._reliefCache.highlight, -curR - 1, -curR - 1, curSize, curSize);
-                        }
-
-                        // 3. Wet/Oil Pass - Using overlay or dodge for that high-specular shiny look
-                        if (oilOpacity > 0) {
-                            ctx.globalCompositeOperation = 'overlay'; 
-                            ctx.globalAlpha = origAlpha * Math.min(0.8, oilOpacity);
-                            ctx.drawImage(this._reliefCache.highlight, -curR - 1.5, -curR - 1.5, curSize, curSize);
-                        }
-
-                        // Restore original properties directly
-                        ctx.globalAlpha = origAlpha;
-                        ctx.globalCompositeOperation = origGCO;
+            try {
+                const px = Math.round(s.x - lx);
+                const py = Math.round(s.y - ly);
+                const curSize = Math.round(s.size);
+                if (curSize < 1) continue;
+                const curR = curSize / 2;
+                
+                // Regular stamps: optimized by avoiding save/restore if no rotation, wireframe or custom tips are active
+                // Simple procedural rect brush doesn't need save/restore even if hue/size jitter is active, as long as angle === 0!
+                if (s.angle === 0 && !tip && !isWire) {
+                    if (isEraser) {
+                        ctx.clearRect(px - curR, py - curR/2, curSize, curSize/2);
                     } else {
-                        if (jHue > 0 || jSize > 0) {
-                             ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
-                             // If hue jitter is on, we'd need to re-tint. 
-                             // To keep it fast, we skip re-tinting custom tips for now if they are 128x128.
-                             // But we can apply a globalCompositeOperation if it's not too slow.
-                             if (jHue > 0) {
-                                ctx.save();
-                                ctx.globalCompositeOperation = 'source-in';
-                                ctx.fillStyle = s.color;
-                                // This is tricky because we're in a translated state.
-                                // We'll just draw the tip then tint it.
-                                ctx.restore(); // Exit previous save
-                                ctx.save();
-                                ctx.translate(px, py);
-                                if (s.angle !== 0) ctx.rotate(s.angle);
-                                ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
-                                ctx.globalCompositeOperation = 'source-in';
-                                ctx.fillStyle = s.color;
-                                ctx.fillRect(-curR, -curR, curSize, curSize);
-                             }
-                        } else {
-                             ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
-                        }
+                        ctx.fillStyle = s.color || color || '#000000';
+                        ctx.fillRect(px - curR, py - curR/2, curSize, curSize/2);
                     }
                 } else {
-                    ctx.fillStyle = s.color;
-                    ctx.fillRect(-curR, -curR/2, curSize, curSize/2);
+                    ctx.save();
+                    try {
+                        ctx.translate(px, py);
+                        if (s.angle !== 0) ctx.rotate(s.angle);
+
+                        if (isWire) {
+                            ctx.beginPath(); ctx.arc(0, 0, curR, 0, Math.PI*2);
+                            ctx.strokeStyle = s.color || color || '#000000'; ctx.lineWidth = 1.5; ctx.stroke();
+                        } else if (tip) {
+                            let useTip = (this._tipColorCache && this._tipColorCache.canvas) ? this._tipColorCache.canvas : null;
+                            if (!useTip) {
+                                ctx.fillStyle = s.color || color || '#000000';
+                                ctx.beginPath();
+                                ctx.arc(0, 0, curR, 0, Math.PI * 2);
+                                ctx.fill();
+                            } else {
+                                // Relief / Impasto effect
+                                if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
+                                    // Sync color for tip if jittered
+                                    if (jHue > 0) {
+                                        if (!this.scratchCanvas) {
+                                            this.scratchCanvas = document.createElement('canvas');
+                                            this.scratchCtx = this.scratchCanvas.getContext('2d', { alpha: true });
+                                        }
+                                        if (this.scratchCanvas.width < curSize || this.scratchCanvas.height < curSize) {
+                                            this.scratchCanvas.width = Math.max(this.scratchCanvas.width, curSize);
+                                            this.scratchCanvas.height = Math.max(this.scratchCanvas.height, curSize);
+                                        }
+                                        this.scratchCtx.globalCompositeOperation = 'source-over'; // Reset first!
+                                        this.scratchCtx.clearRect(0, 0, curSize, curSize);
+                                        this.scratchCtx.drawImage(useTip, 0, 0, curSize, curSize);
+                                        this.scratchCtx.globalCompositeOperation = 'source-in';
+                                        this.scratchCtx.fillStyle = s.color || color || '#000000';
+                                        this.scratchCtx.fillRect(0, 0, curSize, curSize);
+                                        ctx.drawImage(this.scratchCanvas, 0, 0, curSize, curSize, -curR, -curR, curSize, curSize);
+                                    } else {
+                                        ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
+                                    }
+
+                                    const origAlpha = ctx.globalAlpha;
+                                    const origGCO = ctx.globalCompositeOperation;
+
+                                    // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
+                                    if (height > 0 && !(this.smoothedVelocity > 35) && this._reliefCache) {
+                                        ctx.globalCompositeOperation = 'multiply';
+                                        ctx.globalAlpha = origAlpha * height * 0.22;
+                                        ctx.drawImage(this._reliefCache.shadow, -curR + 1, -curR + 1, curSize, curSize);
+                                    }
+
+                                    // 2. Base Highlight Pass - Using screen for volumetric height stability
+                                    const baseHighlightOpacity = height * 0.15;
+                                    const oilOpacity = oil * 0.35;
+                                    const skipBaseHighlight = (this.smoothedVelocity > 15);
+                                    if (baseHighlightOpacity > 0 && (!skipBaseHighlight || oilOpacity <= 0) && this._reliefCache) {
+                                        ctx.globalCompositeOperation = 'screen';
+                                        ctx.globalAlpha = origAlpha * Math.min(1.0, baseHighlightOpacity);
+                                        ctx.drawImage(this._reliefCache.highlight, -curR - 1, -curR - 1, curSize, curSize);
+                                    }
+
+                                    // 3. Wet/Oil Pass - Using overlay or dodge for that high-specular shiny look
+                                    if (oilOpacity > 0 && this._reliefCache) {
+                                        ctx.globalCompositeOperation = 'overlay'; 
+                                        ctx.globalAlpha = origAlpha * Math.min(0.8, oilOpacity);
+                                        ctx.drawImage(this._reliefCache.highlight, -curR - 1.5, -curR - 1.5, curSize, curSize);
+                                    }
+
+                                    // Restore original properties directly
+                                    ctx.globalAlpha = origAlpha;
+                                    ctx.globalCompositeOperation = origGCO;
+                                } else {
+                                    if (jHue > 0) {
+                                        if (!this.scratchCanvas) {
+                                            this.scratchCanvas = document.createElement('canvas');
+                                            this.scratchCtx = this.scratchCanvas.getContext('2d', { alpha: true });
+                                        }
+                                        if (this.scratchCanvas.width < curSize || this.scratchCanvas.height < curSize) {
+                                            this.scratchCanvas.width = Math.max(this.scratchCanvas.width, curSize);
+                                            this.scratchCanvas.height = Math.max(this.scratchCanvas.height, curSize);
+                                        }
+                                        this.scratchCtx.globalCompositeOperation = 'source-over'; // Reset first!
+                                        this.scratchCtx.clearRect(0, 0, curSize, curSize);
+                                        this.scratchCtx.drawImage(useTip, 0, 0, curSize, curSize);
+                                        this.scratchCtx.globalCompositeOperation = 'source-in';
+                                        this.scratchCtx.fillStyle = s.color || color || '#000000';
+                                        this.scratchCtx.fillRect(0, 0, curSize, curSize);
+                                        ctx.drawImage(this.scratchCanvas, 0, 0, curSize, curSize, -curR, -curR, curSize, curSize);
+                                    } else {
+                                        ctx.drawImage(useTip, -curR, -curR, curSize, curSize);
+                                    }
+                                }
+                            }
+                        } else {
+                            ctx.fillStyle = s.color || color || '#000000';
+                            ctx.fillRect(-curR, -curR/2, curSize, curSize/2);
+                        }
+                    } finally {
+                        ctx.restore();
+                    }
                 }
-                ctx.restore();
+            } catch (err) {
+                console.error("Stamp sub-draw error:", err);
             }
         }
         ctx.restore();
