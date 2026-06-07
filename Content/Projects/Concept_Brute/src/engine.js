@@ -1542,10 +1542,10 @@ export class Engine {
           maxY = Math.max(maxY, p.y);
       });
 
-      const startCX = Math.floor(minX / this.chunkSize);
-      const startCY = Math.floor(minY / this.chunkSize);
-      const endCX = Math.floor(maxX / this.chunkSize);
-      const endCY = Math.floor(maxY / this.chunkSize);
+      const startCX = this.isStatic ? 0 : Math.floor(minX / this.chunkSize);
+      const startCY = this.isStatic ? 0 : Math.floor(minY / this.chunkSize);
+      const endCX = this.isStatic ? 0 : Math.floor(maxX / this.chunkSize);
+      const endCY = this.isStatic ? 0 : Math.floor(maxY / this.chunkSize);
 
       const deleteHistory = new Map();
       for (let cx = startCX; cx <= endCX; cx++) {
@@ -1553,13 +1553,15 @@ export class Engine {
               const id = `${cx},${cy}`;
               const chunk = this.chunks.get(id);
               if (!chunk) continue;
-              const lx = cx * this.chunkSize;
-              const ly = cy * this.chunkSize;
+              const lx = this.isStatic ? -this.staticWidth / 2 : cx * this.chunkSize;
+              const ly = this.isStatic ? -this.staticHeight / 2 : cy * this.chunkSize;
+              const w = this.isStatic ? this.staticWidth : this.chunkSize;
+              const h = this.isStatic ? this.staticHeight : this.chunkSize;
 
               // Backup for undo
               const backup = document.createElement('canvas');
-              backup.width = this.chunkSize;
-              backup.height = this.chunkSize;
+              backup.width = w;
+              backup.height = h;
               backup.getContext('2d').drawImage(chunk.canvases[this.activeLayer], 0, 0);
               deleteHistory.set(id, { layer: this.activeLayer, canvas: backup });
 
@@ -1573,7 +1575,7 @@ export class Engine {
               });
               ctx.closePath();
               ctx.clip();
-              ctx.clearRect(0,0, this.chunkSize, this.chunkSize);
+              ctx.clearRect(0, 0, w, h);
               ctx.restore();
               this._markDirty(id, this.activeLayer);
           }
@@ -2029,7 +2031,7 @@ export class Engine {
     let dynamicSize = this.brush.size * Math.max(0.01, sizeMod);
     
     if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
-        const inf = this.brush.pressureInfluence ?? 1.0;
+        const inf = this.brush.pressureSizeInfluence !== undefined ? this.brush.pressureSizeInfluence : (this.brush.pressureInfluence ?? 1.0);
         dynamicSize *= ( (1 - inf) + this.lastPressure * inf );
     }
     // Final clamp to prevent "crashed chunks" (e.g. 5000px stamps)
@@ -2041,7 +2043,7 @@ export class Engine {
     let opacMod = Math.max(0.01, Math.min(1.0, opacBase));
     
     if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
-        const inf = this.brush.pressureInfluence ?? 1.0;
+        const inf = this.brush.pressureOpacityInfluence !== undefined ? this.brush.pressureOpacityInfluence : (this.brush.pressureInfluence ?? 1.0);
         opacMod *= ( (1 - inf) + this.lastPressure * inf );
     }
     opacMod = Math.max(0.005, Math.min(1.0, opacMod));

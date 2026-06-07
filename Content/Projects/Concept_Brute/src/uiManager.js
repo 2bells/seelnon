@@ -482,6 +482,9 @@ export function setupUI(app) {
     document.getElementById('settings-brush-spacing').oninput = (e) => {
         const val = parseFloat(e.target.value);
         app.engine.brush.spacing = val;
+        if (app.tipManager) {
+            app.tipManager.updateActiveTipAdvancedSettings('spacing', val);
+        }
         if (app.brushSettings[app.activeTool]) {
             app.brushSettings[app.activeTool].spacing = val;
             app._saveBrushSettings();
@@ -489,24 +492,50 @@ export function setupUI(app) {
     };
 
     const pressureEnable = document.getElementById('settings-pressure-enable');
-    const pressureInf = document.getElementById('settings-pressure-influence');
-    const pressureVal = document.getElementById('pressure-val');
+    const pressureOpacityInf = document.getElementById('settings-pressure-opacity-influence');
+    const pressureSizeInf = document.getElementById('settings-pressure-size-influence');
 
-    if (pressureEnable && pressureInf) {
+    if (pressureEnable) {
         pressureEnable.onchange = (e) => {
             const val = e.target.checked;
             app.engine.brush.pressureEnabled = val;
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('pressureEnabled', val);
+            }
             if (app.brushSettings[app.activeTool]) {
                 app.brushSettings[app.activeTool].pressureEnabled = val;
                 app._saveBrushSettings();
             }
         };
-        pressureInf.oninput = (e) => {
+    }
+
+    if (pressureOpacityInf) {
+        pressureOpacityInf.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            app.engine.brush.pressureInfluence = val;
-            pressureVal.innerText = val.toFixed(1);
+            app.engine.brush.pressureOpacityInfluence = val;
+            const displayEl = document.getElementById('pressure-opacity-val');
+            if (displayEl) displayEl.innerText = val.toFixed(1);
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('pressureOpacityInfluence', val);
+            }
             if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].pressureInfluence = val;
+                app.brushSettings[app.activeTool].pressureOpacityInfluence = val;
+                app._saveBrushSettings();
+            }
+        };
+    }
+
+    if (pressureSizeInf) {
+        pressureSizeInf.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            app.engine.brush.pressureSizeInfluence = val;
+            const displayEl = document.getElementById('pressure-size-val');
+            if (displayEl) displayEl.innerText = val.toFixed(1);
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('pressureSizeInfluence', val);
+            }
+            if (app.brushSettings[app.activeTool]) {
+                app.brushSettings[app.activeTool].pressureSizeInfluence = val;
                 app._saveBrushSettings();
             }
         };
@@ -525,6 +554,9 @@ export function setupUI(app) {
             app.engine.brush.jitterSize = val / 100;
             const valEl = document.getElementById('jitter-size-val');
             if (valEl) valEl.innerText = `${val}%`;
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('jitterSize', val);
+            }
             if (app.brushSettings[app.activeTool]) {
                 app.brushSettings[app.activeTool].jitterSize = val;
                 app._saveBrushSettings();
@@ -538,6 +570,9 @@ export function setupUI(app) {
             app.engine.brush.jitterAngle = (val * Math.PI) / 180;
             const valEl = document.getElementById('jitter-angle-val');
             if (valEl) valEl.innerText = `${val}°`;
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('jitterAngle', val);
+            }
             if (app.brushSettings[app.activeTool]) {
                 app.brushSettings[app.activeTool].jitterAngle = val;
                 app._saveBrushSettings();
@@ -551,6 +586,9 @@ export function setupUI(app) {
             app.engine.brush.jitterPos = val / 100;
             const valEl = document.getElementById('jitter-pos-val');
             if (valEl) valEl.innerText = `${val}%`;
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('jitterPos', val);
+            }
             if (app.brushSettings[app.activeTool]) {
                 app.brushSettings[app.activeTool].jitterPos = val;
                 app._saveBrushSettings();
@@ -564,6 +602,9 @@ export function setupUI(app) {
             app.engine.brush.jitterHue = val / 100;
             const valEl = document.getElementById('jitter-hue-val');
             if (valEl) valEl.innerText = `${val}%`;
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('jitterHue', val);
+            }
             if (app.brushSettings[app.activeTool]) {
                 app.brushSettings[app.activeTool].jitterHue = val;
                 app._saveBrushSettings();
@@ -1048,6 +1089,9 @@ export function setupUI(app) {
     if (smudgeBoostInput) {
         smudgeBoostInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('smudgeFlowBoost', val);
+            }
             app.brushSettings[TOOLS.SMUDGE].smudgeFlowBoost = val;
             if (app.activeTool === TOOLS.SMUDGE) app.engine.brush.smudgeFlowBoost = val;
             document.getElementById('adv-smudge-flow-boost-val').innerText = val.toFixed(1);
@@ -1059,6 +1103,9 @@ export function setupUI(app) {
     if (smudgePickupInput) {
         smudgePickupInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('smudgePickup', val);
+            }
             app.brushSettings[TOOLS.SMUDGE].smudgePickup = val;
             if (app.activeTool === TOOLS.SMUDGE) app.engine.brush.smudgePickup = val;
             document.getElementById('adv-smudge-pickup-val').innerText = val.toFixed(1);
@@ -1070,7 +1117,9 @@ export function setupUI(app) {
     if (sharpenInput) {
         sharpenInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            // Apply to Brush 1 specifically as it's the primary tool for the tip
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('brushSharpen', val);
+            }
             app.brushSettings[TOOLS.BRUSH].brushSharpen = val;
             if (app.activeTool === TOOLS.BRUSH) app.engine.brush.brushSharpen = val;
             document.getElementById('adv-brush-sharpen-val').innerText = val.toFixed(2);
@@ -1083,6 +1132,9 @@ export function setupUI(app) {
     if (wireDensityInput) {
         wireDensityInput.oninput = (e) => {
             const val = parseInt(e.target.value);
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('wireDensity', val);
+            }
             app.brushSettings[TOOLS.WIREFRAME].wireDensity = val;
             if (app.activeTool === TOOLS.WIREFRAME) app.engine.brush.wireDensity = val;
             document.getElementById('adv-wire-density-val').innerText = val;
@@ -1094,6 +1146,9 @@ export function setupUI(app) {
     if (wireRangeInput) {
         wireRangeInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('wireRange', val);
+            }
             app.brushSettings[TOOLS.WIREFRAME].wireRange = val;
             if (app.activeTool === TOOLS.WIREFRAME) app.engine.brush.wireRange = val;
             document.getElementById('adv-wire-range-val').innerText = val.toFixed(1);
@@ -1105,6 +1160,9 @@ export function setupUI(app) {
     if (wireMinDistInput) {
         wireMinDistInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
+            if (app.tipManager) {
+                app.tipManager.updateActiveTipAdvancedSettings('wireMinDist', val);
+            }
             app.brushSettings[TOOLS.WIREFRAME].wireMinDist = val;
             if (app.activeTool === TOOLS.WIREFRAME) app.engine.brush.wireMinDist = val;
             document.getElementById('adv-wire-min-dist-val').innerText = val.toFixed(1);

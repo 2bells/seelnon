@@ -16,12 +16,35 @@ export class TipManager {
     this.ready = this.init();
   }
 
+  _applyDefaultAdvancedSettings(t, saved = {}) {
+    t.paintHeight = saved.paintHeight || 0;
+    t.oiliness = saved.oiliness ?? 0.5;
+    t.airbrush = saved.airbrush || 0;
+    
+    t.spacing = saved.spacing ?? 0.05;
+    t.pressureEnabled = saved.pressureEnabled ?? true;
+    t.pressureOpacityInfluence = saved.pressureOpacityInfluence ?? 1.0;
+    t.pressureSizeInfluence = saved.pressureSizeInfluence ?? 1.0;
+    t.jitterSize = saved.jitterSize ?? 0;
+    t.jitterAngle = saved.jitterAngle ?? 0;
+    t.jitterPos = saved.jitterPos ?? 0;
+    t.jitterHue = saved.jitterHue ?? 0;
+    t.smudgeFlowBoost = saved.smudgeFlowBoost ?? 10.0;
+    t.smudgePickup = saved.smudgePickup ?? 2.0;
+    t.brushSharpen = saved.brushSharpen ?? 0.0;
+    t.wireDensity = saved.wireDensity ?? 30;
+    t.wireRange = saved.wireRange ?? 4.0;
+    t.wireMinDist = saved.wireMinDist ?? 0.5;
+  }
+
   async init() {
     await this._createDefaultTips();
     
     // Create initial empty generated tips
     for (let i = 0; i < 9; i++) {
-        this.generatedTips.push({ canvas: null, paintHeight: 0, oiliness: 0.5, airbrush: 0 });
+        const t = { canvas: null };
+        this._applyDefaultAdvancedSettings(t);
+        this.generatedTips.push(t);
     }
 
     if (this.storage) {
@@ -39,15 +62,25 @@ export class TipManager {
                     const idx = i;
                     const tipData = (typeof savedMain[i] === 'string') ? { src: savedMain[i] } : savedMain[i];
                     mainPromises.push((async () => {
-                        const img = new Image();
-                        await new Promise(r => { img.onload = r; img.onerror = r; img.src = tipData.src; });
-                        const c = document.createElement('canvas');
-                        c.width = 128; c.height = 128;
-                        c.getContext('2d').drawImage(img, 0, 0);
-                        this.tips[idx].canvas = c;
-                        this.tips[idx].paintHeight = tipData.paintHeight || 0;
-                        this.tips[idx].oiliness = tipData.oiliness ?? 0.5;
-                        this.tips[idx].airbrush = tipData.airbrush || 0;
+                        try {
+                            const img = new Image();
+                            await new Promise((res, rej) => {
+                                const timer = setTimeout(() => {
+                                    img.src = '';
+                                    rej(new Error('Tip load timeout'));
+                                }, 300);
+                                img.onload = () => { clearTimeout(timer); res(); };
+                                img.onerror = () => { clearTimeout(timer); rej(new Error('Tip load error')); };
+                                img.src = tipData.src;
+                            });
+                            const c = document.createElement('canvas');
+                            c.width = 128; c.height = 128;
+                            c.getContext('2d').drawImage(img, 0, 0);
+                            this.tips[idx].canvas = c;
+                            this._applyDefaultAdvancedSettings(this.tips[idx], tipData);
+                        } catch (err) {
+                            console.warn(`Failed loading saved main tip ${idx}:`, err);
+                        }
                     })());
                 }
             }
@@ -67,15 +100,25 @@ export class TipManager {
                 if (savedGen[i] && savedGen[i].src) {
                     const idx = i;
                     genPromises.push((async () => {
-                        const img = new Image();
-                        await new Promise(r => { img.onload = r; img.onerror = r; img.src = savedGen[idx].src; });
-                        const c = document.createElement('canvas');
-                        c.width = 128; c.height = 128;
-                        c.getContext('2d').drawImage(img, 0, 0);
-                        this.generatedTips[idx].canvas = c;
-                        this.generatedTips[idx].paintHeight = savedGen[idx].paintHeight || 0;
-                        this.generatedTips[idx].oiliness = savedGen[idx].oiliness ?? 0.5;
-                        this.generatedTips[idx].airbrush = savedGen[idx].airbrush || 0;
+                        try {
+                            const img = new Image();
+                            await new Promise((res, rej) => {
+                                const timer = setTimeout(() => {
+                                    img.src = '';
+                                    rej(new Error('Gen tip load timeout'));
+                                }, 300);
+                                img.onload = () => { clearTimeout(timer); res(); };
+                                img.onerror = () => { clearTimeout(timer); rej(new Error('Gen tip load error')); };
+                                img.src = savedGen[idx].src;
+                            });
+                            const c = document.createElement('canvas');
+                            c.width = 128; c.height = 128;
+                            c.getContext('2d').drawImage(img, 0, 0);
+                            this.generatedTips[idx].canvas = c;
+                            this._applyDefaultAdvancedSettings(this.generatedTips[idx], savedGen[idx]);
+                        } catch (err) {
+                            console.warn(`Failed loading saved gen tip ${idx}:`, err);
+                        }
                     })());
                 }
             }
@@ -141,12 +184,7 @@ export class TipManager {
     cctx.restore();
 
     this.generatedTips[i].canvas = combined;
-    // Don't reset settings on regeneration if we want them saved? 
-    // Usually regeneration means new brush entirely, but user said "saved". 
-    // Let's reset settings on REFRESH specifically.
-    this.generatedTips[i].paintHeight = 0;
-    this.generatedTips[i].oiliness = 0.5;
-    this.generatedTips[i].airbrush = 0;
+    this._applyDefaultAdvancedSettings(this.generatedTips[i]);
 
     if (save) this._saveToStorage();
   }
@@ -164,14 +202,22 @@ export class TipManager {
             try {
                 canvas = await new Promise((resolve, reject) => {
                     const img = new Image();
+                    const timer = setTimeout(() => {
+                        img.src = '';
+                        reject(new Error('Timeout loading default brush tip'));
+                    }, 300);
                     img.onload = () => {
+                        clearTimeout(timer);
                         const tc = document.createElement('canvas');
                         tc.width = 128; tc.height = 128;
                         tc.getContext('2d').drawImage(img, 0, 0, 128, 128);
                         resolve(tc);
                     };
-                    img.onerror = reject;
-                    img.src = './src/_main_brushtip.png'; // Use absolute path for dev environment
+                    img.onerror = () => {
+                        clearTimeout(timer);
+                        reject(new Error('Error loading default brush tip'));
+                    };
+                    img.src = './src/_main_brushtip.png'; 
                 });
             } catch (e) {
                 canvas = this._createShape(type);
@@ -180,7 +226,9 @@ export class TipManager {
             canvas = this._createShape(type);
         }
 
-        this.tips.push({ canvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 });
+        const t = { canvas };
+        this._applyDefaultAdvancedSettings(t);
+        this.tips.push(t);
         const backup = document.createElement('canvas');
         backup.width = 128; backup.height = 128;
         backup.getContext('2d').drawImage(canvas, 0, 0);
@@ -419,6 +467,23 @@ export class TipManager {
     }
   }
 
+  getActiveTip() {
+    if (this.activeBankIndex >= 0) {
+        return this.tips[this.activeBankIndex];
+    } else if (this.activeGeneratedIndex >= 0) {
+        return this.generatedTips[this.activeGeneratedIndex];
+    }
+    return null;
+  }
+
+  updateActiveTipAdvancedSettings(key, val) {
+    const target = this.getActiveTip();
+    if (target) {
+        target[key] = val;
+        this._saveToStorage();
+    }
+  }
+
   _updateActiveTip() {
     this.refreshTip();
   }
@@ -444,7 +509,21 @@ export class TipManager {
           src: t.canvas.toDataURL(), 
           paintHeight: t.paintHeight || 0,
           oiliness: t.oiliness ?? 0.5,
-          airbrush: t.airbrush || 0
+          airbrush: t.airbrush || 0,
+          spacing: t.spacing ?? 0.05,
+          pressureEnabled: t.pressureEnabled ?? true,
+          pressureOpacityInfluence: t.pressureOpacityInfluence ?? 1.0,
+          pressureSizeInfluence: t.pressureSizeInfluence ?? 1.0,
+          jitterSize: t.jitterSize ?? 0,
+          jitterAngle: t.jitterAngle ?? 0,
+          jitterPos: t.jitterPos ?? 0,
+          jitterHue: t.jitterHue ?? 0,
+          smudgeFlowBoost: t.smudgeFlowBoost ?? 10.0,
+          smudgePickup: t.smudgePickup ?? 2.0,
+          brushSharpen: t.brushSharpen ?? 0.0,
+          wireDensity: t.wireDensity ?? 30,
+          wireRange: t.wireRange ?? 4.0,
+          wireMinDist: t.wireMinDist ?? 0.5
       }));
       localStorage.setItem('brushTips', JSON.stringify(mainData));
 
@@ -452,7 +531,21 @@ export class TipManager {
           src: t.canvas ? t.canvas.toDataURL() : null,
           paintHeight: t.paintHeight || 0,
           oiliness: t.oiliness ?? 0.5,
-          airbrush: t.airbrush || 0
+          airbrush: t.airbrush || 0,
+          spacing: t.spacing ?? 0.05,
+          pressureEnabled: t.pressureEnabled ?? true,
+          pressureOpacityInfluence: t.pressureOpacityInfluence ?? 1.0,
+          pressureSizeInfluence: t.pressureSizeInfluence ?? 1.0,
+          jitterSize: t.jitterSize ?? 0,
+          jitterAngle: t.jitterAngle ?? 0,
+          jitterPos: t.jitterPos ?? 0,
+          jitterHue: t.jitterHue ?? 0,
+          smudgeFlowBoost: t.smudgeFlowBoost ?? 10.0,
+          smudgePickup: t.smudgePickup ?? 2.0,
+          brushSharpen: t.brushSharpen ?? 0.0,
+          wireDensity: t.wireDensity ?? 30,
+          wireRange: t.wireRange ?? 4.0,
+          wireMinDist: t.wireMinDist ?? 0.5
       }));
       localStorage.setItem('brushTips_generated', JSON.stringify(genData));
 

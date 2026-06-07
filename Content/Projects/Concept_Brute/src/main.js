@@ -130,6 +130,27 @@ class App {
             }
         }
 
+        const activeTip = this.tipManager ? this.tipManager.getActiveTip() : null;
+        if (activeTip) {
+             const isTipTool = (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE || this.activeTool === TOOLS.WIREFRAME);
+             if (isTipTool) {
+                 this.engine.brush.spacing = activeTip.spacing ?? 0.05;
+                 this.engine.brush.pressureEnabled = activeTip.pressureEnabled ?? true;
+                 this.engine.brush.pressureOpacityInfluence = activeTip.pressureOpacityInfluence ?? 1.0;
+                 this.engine.brush.pressureSizeInfluence = activeTip.pressureSizeInfluence ?? 1.0;
+                 this.engine.brush.jitterSize = (activeTip.jitterSize ?? 0) / 100;
+                 this.engine.brush.jitterAngle = ((activeTip.jitterAngle ?? 0) * Math.PI) / 180;
+                 this.engine.brush.jitterPos = (activeTip.jitterPos ?? 0) / 100;
+                 this.engine.brush.jitterHue = (activeTip.jitterHue ?? 0) / 100;
+                 this.engine.brush.smudgeFlowBoost = activeTip.smudgeFlowBoost ?? 10.0;
+                 this.engine.brush.smudgePickup = activeTip.smudgePickup ?? 2.0;
+                 this.engine.brush.brushSharpen = activeTip.brushSharpen ?? 0.0;
+                 this.engine.brush.wireDensity = activeTip.wireDensity ?? 30;
+                 this.engine.brush.wireRange = activeTip.wireRange ?? 4.0;
+                 this.engine.brush.wireMinDist = activeTip.wireMinDist ?? 0.5;
+             }
+        }
+
         this._updateBrushSettingsUI(this.activeTool);
     }, this.storage);
 
@@ -1139,89 +1160,116 @@ class App {
         }
 
         // Update Advanced Sliders
+        const activeTip = (this.tipManager) ? this.tipManager.getActiveTip() : null;
+        const getVal = (key, defaultVal) => {
+            if (activeTip && activeTip[key] !== undefined) {
+                return activeTip[key];
+            }
+            return settings[key] !== undefined ? settings[key] : defaultVal;
+        };
+
         const smudgeBoost = document.getElementById('adv-smudge-flow-boost');
         if (smudgeBoost) {
-            smudgeBoost.value = settings.smudgeFlowBoost;
+            const bVal = getVal('smudgeFlowBoost', 10.0);
+            smudgeBoost.value = bVal;
             const valEl = document.getElementById('adv-smudge-flow-boost-val');
-            if (valEl) valEl.innerText = settings.smudgeFlowBoost.toFixed(1);
+            if (valEl) valEl.innerText = bVal.toFixed(1);
         }
         
         const smudgePickup = document.getElementById('adv-smudge-pickup');
         if (smudgePickup) {
-            smudgePickup.value = settings.smudgePickup;
+            const pVal = getVal('smudgePickup', 2.0);
+            smudgePickup.value = pVal;
             const valEl = document.getElementById('adv-smudge-pickup-val');
-            if (valEl) valEl.innerText = settings.smudgePickup.toFixed(1);
+            if (valEl) valEl.innerText = pVal.toFixed(1);
         }
         
         const sharpen = document.getElementById('adv-brush-sharpen');
         if (sharpen) {
-            sharpen.value = settings.brushSharpen;
+            const sVal = getVal('brushSharpen', 0.0);
+            sharpen.value = sVal;
             const valEl = document.getElementById('adv-brush-sharpen-val');
-            if (valEl) valEl.innerText = settings.brushSharpen.toFixed(2);
+            if (valEl) valEl.innerText = sVal.toFixed(2);
         }
         
         const wireDensity = document.getElementById('adv-wire-density');
         if (wireDensity) {
-            wireDensity.value = settings.wireDensity;
+            const dVal = getVal('wireDensity', 30);
+            wireDensity.value = dVal;
             const valEl = document.getElementById('adv-wire-density-val');
-            if (valEl) valEl.innerText = settings.wireDensity;
+            if (valEl) valEl.innerText = dVal;
         }
         
         const wireRange = document.getElementById('adv-wire-range');
         if (wireRange) {
-            wireRange.value = settings.wireRange;
+            const rVal = getVal('wireRange', 4.0);
+            wireRange.value = rVal;
             const valEl = document.getElementById('adv-wire-range-val');
-            if (valEl) valEl.innerText = settings.wireRange.toFixed(1);
+            if (valEl) valEl.innerText = rVal.toFixed(1);
         }
         
         const wireMinDist = document.getElementById('adv-wire-min-dist');
         if (wireMinDist) {
-            wireMinDist.value = settings.wireMinDist;
+            const mVal = getVal('wireMinDist', 0.5);
+            wireMinDist.value = mVal;
             const valEl = document.getElementById('adv-wire-min-dist-val');
-            if (valEl) valEl.innerText = settings.wireMinDist.toFixed(1);
+            if (valEl) valEl.innerText = mVal.toFixed(1);
         }
 
         const spacingEl = document.getElementById('settings-brush-spacing');
         if (spacingEl) {
-            spacingEl.value = settings.spacing ?? 0.05;
+            spacingEl.value = getVal('spacing', 0.05);
         }
 
         const pressureEnable = document.getElementById('settings-pressure-enable');
         if (pressureEnable) {
-            pressureEnable.checked = settings.pressureEnabled ?? true;
+            pressureEnable.checked = getVal('pressureEnabled', true);
         }
 
-        const pressureInf = document.getElementById('settings-pressure-influence');
-        if (pressureInf) {
-            pressureInf.value = settings.pressureInfluence ?? 1.0;
-            const valEl = document.getElementById('pressure-val');
-            if (valEl) valEl.innerText = (settings.pressureInfluence ?? 1.0).toFixed(1);
+        const pressureOpacityInf = document.getElementById('settings-pressure-opacity-influence');
+        if (pressureOpacityInf) {
+            const opVal = getVal('pressureOpacityInfluence', 1.0);
+            pressureOpacityInf.value = opVal;
+            const valEl = document.getElementById('pressure-opacity-val');
+            if (valEl) valEl.innerText = opVal.toFixed(1);
+        }
+
+        const pressureSizeInf = document.getElementById('settings-pressure-size-influence');
+        if (pressureSizeInf) {
+            const szVal = getVal('pressureSizeInfluence', 1.0);
+            pressureSizeInf.value = szVal;
+            const valEl = document.getElementById('pressure-size-val');
+            if (valEl) valEl.innerText = szVal.toFixed(1);
         }
 
         // Jitter Sliders
         const jitterSize = document.getElementById('settings-jitter-size');
         if (jitterSize) {
-            jitterSize.value = this._mapPrecisionToSlider(settings.jitterSize ?? 0, 100);
+            const jSizeVal = getVal('jitterSize', 0);
+            jitterSize.value = this._mapPrecisionToSlider(jSizeVal, 100);
             const valEl = document.getElementById('jitter-size-val');
-            if (valEl) valEl.innerText = `${(settings.jitterSize ?? 0)}%`;
+            if (valEl) valEl.innerText = `${jSizeVal}%`;
         }
         const jitterAngle = document.getElementById('settings-jitter-angle');
         if (jitterAngle) {
-            jitterAngle.value = this._mapPrecisionToSlider(settings.jitterAngle ?? 0, 180);
+            const jAngleVal = getVal('jitterAngle', 0);
+            jitterAngle.value = this._mapPrecisionToSlider(jAngleVal, 180);
             const valEl = document.getElementById('jitter-angle-val');
-            if (valEl) valEl.innerText = `${(settings.jitterAngle ?? 0)}°`;
+            if (valEl) valEl.innerText = `${jAngleVal}°`;
         }
         const jitterPos = document.getElementById('settings-jitter-pos');
         if (jitterPos) {
-            jitterPos.value = this._mapPrecisionToSlider(settings.jitterPos ?? 0, 200);
+            const jPosVal = getVal('jitterPos', 0);
+            jitterPos.value = this._mapPrecisionToSlider(jPosVal, 200);
             const valEl = document.getElementById('jitter-pos-val');
-            if (valEl) valEl.innerText = `${(settings.jitterPos ?? 0)}%`;
+            if (valEl) valEl.innerText = `${jPosVal}%`;
         }
         const jitterHue = document.getElementById('settings-jitter-hue');
         if (jitterHue) {
-            jitterHue.value = this._mapPrecisionToSlider(settings.jitterHue ?? 0, 100);
+            const jHueVal = getVal('jitterHue', 0);
+            jitterHue.value = this._mapPrecisionToSlider(jHueVal, 100);
             const valEl = document.getElementById('jitter-hue-val');
-            if (valEl) valEl.innerText = `${(settings.jitterHue ?? 0)}%`;
+            if (valEl) valEl.innerText = `${jHueVal}%`;
         }
     }
   }
@@ -1286,7 +1334,8 @@ class App {
     this.engine.brush.wireMinDist = settings.wireMinDist;
     this.engine.brush.spacing = settings.spacing ?? 0.05;
     this.engine.brush.pressureEnabled = settings.pressureEnabled ?? true;
-    this.engine.brush.pressureInfluence = settings.pressureInfluence ?? 1.0;
+    this.engine.brush.pressureOpacityInfluence = settings.pressureOpacityInfluence ?? (settings.pressureInfluence ?? 1.0);
+    this.engine.brush.pressureSizeInfluence = settings.pressureSizeInfluence ?? (settings.pressureInfluence ?? 1.0);
     this.engine.brush.jitterSize = (settings.jitterSize ?? 0) / 100;
     this.engine.brush.jitterAngle = ((settings.jitterAngle ?? 0) * Math.PI) / 180;
     this.engine.brush.jitterPos = (settings.jitterPos ?? 0) / 100;

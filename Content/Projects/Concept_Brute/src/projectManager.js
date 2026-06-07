@@ -227,17 +227,23 @@ export async function loadProject(app) {
                 return () => (async () => {
                     const img = new Image();
                     await new Promise(res => {
-                        img.onload = res;
-                        img.onerror = res;
+                        const timer = setTimeout(() => {
+                            img.src = '';
+                            res();
+                        }, 1000);
+                        img.onload = () => { clearTimeout(timer); res(); };
+                        img.onerror = () => { clearTimeout(timer); res(); };
                         img.src = r.src;
                     });
-                    app.engine.addReferenceImage(img, r.name, r.x, r.y, {
-                        rotation: r.rotation,
-                        scale: r.scale,
-                        opacity: r.opacity,
-                        mirrorX: r.mirrorX,
-                        mirrorY: r.mirrorY
-                    }, false);
+                    if (img.width > 0) {
+                        app.engine.addReferenceImage(img, r.name, r.x, r.y, {
+                            rotation: r.rotation,
+                            scale: r.scale,
+                            opacity: r.opacity,
+                            mirrorX: r.mirrorX,
+                            mirrorY: r.mirrorY
+                        }, false);
+                    }
                 })();
             });
             await runInBatches(refPromises, 3);
@@ -270,15 +276,21 @@ export async function loadProject(app) {
                     if (dataUrl) {
                         const img = new Image();
                         await new Promise(r => { 
-                            img.onload = r; 
-                            img.onerror = r; 
+                            const timer = setTimeout(() => {
+                                img.src = '';
+                                r();
+                            }, 1000);
+                            img.onload = () => { clearTimeout(timer); r(); };
+                            img.onerror = () => { clearTimeout(timer); r(); };
                             img.src = dataUrl; 
                         });
-                        const chunk = app.engine._getChunk(cx, cy);
-                        if (chunk && chunk.ctxs[layerId]) {
-                            chunk.ctxs[layerId].drawImage(img, 0, 0);
-                            if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
-                            app.engine._markDirty(`${cx},${cy}`, layerId, false);
+                        if (img.width > 0) {
+                            const chunk = app.engine._getChunk(cx, cy);
+                            if (chunk && chunk.ctxs[layerId]) {
+                                chunk.ctxs[layerId].drawImage(img, 0, 0);
+                                if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
+                                app.engine._markDirty(`${cx},${cy}`, layerId, false);
+                            }
                         }
                     }
                     await app.storage.deleteLegacyChunk(key);
@@ -321,14 +333,20 @@ export async function loadProject(app) {
                         chunkLoadPromises.push(() => (async () => {
                             const img = new Image();
                             await new Promise(r => { 
-                                img.onload = r; 
-                                img.onerror = r; 
+                                const timer = setTimeout(() => {
+                                    img.src = '';
+                                    r();
+                                }, 1000);
+                                img.onload = () => { clearTimeout(timer); r(); };
+                                img.onerror = () => { clearTimeout(timer); r(); };
                                 img.src = dataUrl; 
                             });
-                            const chunk = app.engine._getChunk(cx, cy);
-                            if (chunk && chunk.ctxs[layerId]) {
-                                chunk.ctxs[layerId].drawImage(img, 0, 0);
-                                if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
+                            if (img.width > 0) {
+                                const chunk = app.engine._getChunk(cx, cy);
+                                if (chunk && chunk.ctxs[layerId]) {
+                                    chunk.ctxs[layerId].drawImage(img, 0, 0);
+                                    if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
+                                }
                             }
                         })());
                     }
