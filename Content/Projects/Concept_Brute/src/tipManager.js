@@ -171,7 +171,7 @@ export class TipManager {
                         resolve(tc);
                     };
                     img.onerror = reject;
-                    img.src = '/src/_main_brushtip.png'; // Use absolute path for dev environment
+                    img.src = './src/_main_brushtip.png'; // Use absolute path for dev environment
                 });
             } catch (e) {
                 canvas = this._createShape(type);
