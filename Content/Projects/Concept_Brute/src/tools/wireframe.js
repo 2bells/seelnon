@@ -55,6 +55,11 @@ export function paintWireframeIncrementally(engine, j) {
         const minY = Math.min(seg.from.y, seg.to.y) - pad;
         const maxY = Math.max(seg.from.y, seg.to.y) + pad;
         
+        engine.strokeMinX = Math.min(engine.strokeMinX, minX);
+        engine.strokeMaxX = Math.max(engine.strokeMaxX, maxX);
+        engine.strokeMinY = Math.min(engine.strokeMinY, minY);
+        engine.strokeMaxY = Math.max(engine.strokeMaxY, maxY);
+        
         const sCX = engine.isStatic ? 0 : Math.floor(minX / engine.chunkSize);
         const eCX = engine.isStatic ? 0 : Math.floor(maxX / engine.chunkSize);
         const sCY = engine.isStatic ? 0 : Math.floor(minY / engine.chunkSize);
