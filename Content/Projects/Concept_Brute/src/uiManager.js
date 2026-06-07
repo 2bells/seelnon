@@ -921,6 +921,7 @@ export function setupUI(app) {
     app._makeDraggable(document.getElementById('panel-brush-tips'), document.getElementById('handle-brush-tips'));
     app._makeDraggable(document.getElementById('panel-advanced-brush'), document.getElementById('handle-advanced-brush'));
     app._makeDraggable(document.getElementById('panel-touch-shortcuts'), document.getElementById('handle-touch-shortcuts'));
+    app._makeDraggable(document.getElementById('modal-new-project'), document.getElementById('handle-new-project'));
 
     // Toggle Touch Shortcuts Panel
     const toggleShortcutsBtn = document.getElementById('btn-toggle-shortcuts');
