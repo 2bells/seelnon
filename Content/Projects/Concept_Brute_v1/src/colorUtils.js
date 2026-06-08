@@ -1,9 +1,33 @@
 
 export function hexToRgb(hex) {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return { r, g, b };
+    if (!hex || typeof hex !== 'string') return { r: 0, g: 0, b: 0 };
+    let colorStr = hex.trim().toLowerCase();
+    let r = 0, g = 0, b = 0;
+    
+    if (colorStr.startsWith('#')) {
+        if (colorStr.length === 4) {
+            r = parseInt(colorStr[1] + colorStr[1], 16);
+            g = parseInt(colorStr[2] + colorStr[2], 16);
+            b = parseInt(colorStr[3] + colorStr[3], 16);
+        } else {
+            r = parseInt(colorStr.slice(1, 3), 16);
+            g = parseInt(colorStr.slice(3, 5), 16);
+            b = parseInt(colorStr.slice(5, 7), 16);
+        }
+    } else if (colorStr.startsWith('rgb')) {
+        const parts = colorStr.match(/\d+/g);
+        if (parts && parts.length >= 3) {
+            r = parseInt(parts[0], 10);
+            g = parseInt(parts[1], 10);
+            b = parseInt(parts[2], 10);
+        }
+    }
+    
+    return { 
+        r: isNaN(r) ? 0 : r, 
+        g: isNaN(g) ? 0 : g, 
+        b: isNaN(b) ? 0 : b 
+    };
 }
 
 export function rgbToHex(r, g, b) {
@@ -117,3 +141,20 @@ export function rgbToHsv(r, g, b) {
     }
     return { h: h * 360, s: s * 100, v: v * 100 };
 }
+
+export function isCanvasEmpty(canvas) {
+    const ctx = canvas.getContext('2d', { alpha: true });
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    // Check alpha channel for any non-zero value
+    for (let i = 3; i < data.length; i += 4) {
+        if (data[i] > 0) return false;
+    }
+    return true;
+}
+
+export const isMobileDevice = typeof navigator !== 'undefined' && (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+);
+

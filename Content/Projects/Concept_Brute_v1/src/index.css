@@ -3,6 +3,8 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 body {
@@ -11,6 +13,20 @@ body {
     overflow: hidden;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
+    touch-action: none;
+}
+
+button:focus, input:focus, select:focus, .tool-btn:focus, .brutal-btn:focus, .mini-btn:focus {
+    outline: none !important;
+    box-shadow: inherit; /* Don't add default blue glows */
+}
+
+/* Fix for iPad highlight on tap */
+* {
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* APP STRUCTURE */
@@ -29,7 +45,6 @@ body {
 .inset-0 { top: 0; left: 0; right: 0; bottom: 0; }
 .pointer-events-none { pointer-events: none; }
 .z-100 { z-index: 100 !important; }
-.border-white-5 { border: 1px solid rgba(255,255,255,0.05); }
 
 #top-bar, #top-bar-ref {
     height: 48px;
@@ -53,6 +68,11 @@ body {
     position: relative;
     overflow: hidden;
     background-color: #f0f0f0;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
 }
 
 #canvas-wrapper {
@@ -60,6 +80,9 @@ body {
     width: 2048px;
     height: 2048px;
     background-repeat: repeat;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 #brush-cursor {
@@ -72,11 +95,48 @@ body {
     will-change: left, top, width, height;
 }
 
+#brush-crosshair {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1001;
+    width: 17px;
+    height: 17px;
+    mix-blend-mode: difference;
+    display: none;
+    transition: none;
+    will-change: left, top;
+}
+
+#brush-crosshair .cross-h {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: white;
+}
+
+#brush-crosshair .cross-v {
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: white;
+}
+
 /* BRUSH TIP PANEL */
 #panel-brush-tips {
     top: 60px;
     right: 220px;
-    width: 180px;
+    width: 160px;
+    max-height: 80vh;
+}
+
+#tips-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 #tip-editor-container {
@@ -86,12 +146,15 @@ body {
     background: #fff;
     border-bottom: 2px solid #000;
     cursor: crosshair;
+    touch-action: none;
+    flex-shrink: 0;
 }
 
 #tip-editor-canvas {
     width: 100%;
     height: 100%;
-    image-rendering: pixelated;
+    image-rendering: auto;
+    touch-action: none;
 }
 
 #tip-editor-controls {
@@ -102,7 +165,7 @@ body {
 
 #tip-palette {
     padding: 8px;
-    max-height: 300px;
+    flex-grow: 1;
     overflow-y: auto;
 }
 
@@ -126,7 +189,7 @@ body {
 .tip-swatch canvas {
     width: 100%;
     height: 100%;
-    image-rendering: pixelated;
+    image-rendering: auto;
 }
 
 .tip-swatch.active-swatch {
@@ -180,6 +243,7 @@ body {
     justify-content: space-between;
     align-items: center;
     cursor: move;
+    touch-action: none;
 }
 
 .panel-handle:active {
@@ -218,6 +282,10 @@ body {
 .tool-btn:active, .tool-btn.active-tool {
     background-color: black;
     color: white;
+}
+
+.tool-btn:focus {
+    outline: none;
 }
 
 .tool-btn.with-shadow {
@@ -313,6 +381,10 @@ body {
     transform: translate(1px, 1px);
 }
 
+.brutal-btn:focus {
+    outline: none;
+}
+
 .mini-btn {
     background-color: white;
     border: 2px solid black;
@@ -339,37 +411,70 @@ body {
     transform: translate(1px, 1px);
 }
 
+.dots-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    font-weight: 900;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+    user-select: none;
+}
+
+.dots-btn:hover {
+    background: #eee;
+}
+
+.dots-btn:active {
+    background: #ddd;
+}
+
+.group-collapsed {
+    display: none !important;
+}
+
 /* SLIDERS */
 .slider-group {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.sensitivity-group .slider-container {
+    margin-top: -4px;
 }
 
 .slider-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    min-width: 60px;
+}
+
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
 }
 
 .slider-label {
-    font-size: 9px;
-    font-weight: 900;
+    font-size: 8px;
+    font-weight: 910;
     text-transform: uppercase;
-}
-
-.slider-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    white-space: nowrap;
 }
 
 .slider-value {
-    font-size: 12px;
-    font-weight: 900;
-    width: 40px;
-    text-align: center;
+    font-size: 9px;
+    font-weight: 910;
+    text-align: right;
 }
+
 
 .brutal-range {
     appearance: none;
@@ -434,6 +539,42 @@ body {
     border-right: 2px solid white;
 }
 
+.brutal-slider-wrapper {
+    position: relative;
+    display: inline-flex;
+    width: 80px;
+    height: 24px;
+}
+
+.slider-reset-arrow {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: -5px;
+    background: white;
+    border: 2px solid black;
+    color: black;
+    font-size: 6px;
+    width: 12px;
+    height: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;
+    line-height: 1;
+    padding: 0;
+    font-family: monospace;
+    font-weight: bold;
+    user-select: none;
+    transition: background 0.05s, color 0.05s;
+}
+
+.slider-reset-arrow:hover {
+    background: black;
+    color: white;
+}
+
 /* TOOLBAR GROUPS */
 .toolbar-divider {
     width: 2px;
@@ -480,6 +621,7 @@ body {
     border: 2px solid black;
     background: linear-gradient(to bottom, transparent, black), 
                 linear-gradient(to right, white, transparent);
+    touch-action: none;
 }
 
 .sv-cursor {
@@ -565,19 +707,90 @@ body {
     border-bottom: 2px solid black;
 }
 
+.layer-item {
+    display: flex;
+    gap: 2px;
+    align-items: stretch;
+    position: relative;
+}
+
+.layer-item.active-layer .layer-btn {
+    background: #000;
+    color: #fff;
+}
+
 .layer-btn {
+    flex-grow: 1;
     border: 2px solid black;
     font-size: 10px;
     padding: 8px;
+    padding-right: 64px; /* Space for controls */
     background-color: white;
     cursor: pointer;
     font-weight: 900;
     text-transform: uppercase;
+    text-align: left;
 }
 
-.layer-btn:hover, .layer-btn.active-tool {
-    background-color: black;
-    color: white;
+.layer-btn:hover {
+    background-color: #eee;
+}
+
+.layer-item.active-layer .layer-btn:hover {
+    background-color: #333;
+}
+
+.layer-controls {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+}
+
+.layer-lock-btn, .layer-vis-btn {
+    width: 24px;
+    height: 24px;
+    border: 2px solid black;
+    background: #fff;
+    color: #000;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    box-shadow: none !important;
+    transition: all 0.1s;
+}
+
+/* Control state: Toggled (Lock ON or Eye OFF) */
+.layer-lock-btn.lock-active,
+.layer-vis-btn.vis-hidden {
+    background: #000;
+    color: #fff;
+}
+
+.layer-vis-btn svg {
+    stroke: currentColor;
+}
+
+/* Ensure borders are visible when layer is selected (black bg) */
+.active-layer .layer-lock-btn,
+.active-layer .layer-vis-btn {
+    border-color: #fff;
+}
+
+/* Fix UI interaction for stylus */
+.ui-panel {
+    pointer-events: auto;
+    touch-action: auto !important;
+}
+
+button, input, select {
+    touch-action: auto !important;
+    pointer-events: auto;
 }
 
 /* ZOOM & STATUS */
@@ -794,8 +1007,73 @@ body {
 .flex-grow { flex-grow: 1; }
 
 #panel-color { bottom: 24px; right: 24px; width: 192px; height: auto; }
+#texture-settings {
+    position: absolute;
+    bottom: 100%;
+    left: -2px;
+    width: 192px;
+    background-color: #f0f0f0;
+    border: 2px solid black;
+    z-index: 50;
+    padding: 8px;
+    user-select: none;
+    pointer-events: auto;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+}
 #panel-images { top: 24px; right: 24px; width: 96px; }
 #panel-layers { bottom: 24px; left: 24px; width: 160px; }
+#panel-touch-shortcuts { bottom: 320px; left: 24px; width: 144px; z-index: 45; }
+
+
+
+.brutal-btn.active-tool {
+    background-color: black !important;
+    color: white !important;
+}
+.brutal-btn.active-tool span {
+    color: white !important;
+}
+
+.shortcut-toggle-btn {
+    width: 14px;
+    height: 14px;
+    border: 2px solid black;
+    background-color: white;
+    cursor: pointer;
+    box-shadow: 1px 1px 0px 0px black;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.05s, transform 0.05s;
+}
+
+.shortcut-toggle-btn#btn-toggle-texture {
+    background-image: radial-gradient(circle, black 1.5px, transparent 1.5px);
+    background-size: 3px 3px;
+    background-position: center;
+}
+
+.shortcut-toggle-btn#btn-toggle-texture:hover {
+    background-color: black;
+    background-image: radial-gradient(circle, white 1.5px, transparent 1.5px);
+}
+
+.shortcut-toggle-btn#btn-toggle-texture.active {
+    background-color: black;
+    background-image: radial-gradient(circle, white 1.5px, transparent 1.5px);
+}
+
+.shortcut-toggle-btn:hover {
+    background-color: black;
+}
+
+.shortcut-toggle-btn.active {
+    background-color: black;
+    box-shadow: none;
+    transform: translate(1px, 1px);
+}
 #panel-settings { top: 64px; left: 25%; width: 224px; }
 
 .settings-main {
@@ -856,6 +1134,7 @@ body {
     gap: 8px;
     max-height: 380px;
     overflow-y: auto;
+    padding: 6px 10px 6px 6px;
 }
 
 .project-item {
@@ -874,6 +1153,11 @@ body {
 
 .project-item.active {
     background: #000;
+    color: #fff;
+}
+
+.project-item.active:hover {
+    background: #222;
     color: #fff;
 }
 
@@ -914,6 +1198,11 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.project-item .btn-delete-proj:hover {
+    filter: brightness(1.2);
 }
 
 .project-item:hover .btn-delete-proj {
@@ -924,3 +1213,45 @@ body {
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: white; border-left: 2px solid black; }
 ::-webkit-scrollbar-thumb { background: black; }
+
+/* SETTINGS CATEGORIES */
+.settings-category {
+    border: 2px solid black;
+    margin-bottom: 8px;
+    background: #fff;
+}
+
+.category-header {
+    background: #000;
+    color: #fff;
+    padding: 4px 8px;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.category-header:hover {
+    background: #333;
+}
+
+.category-content {
+    padding: 8px;
+}
+
+.category-collapsed .category-content {
+    display: none;
+}
+
+.category-header::after {
+    content: '▼';
+    font-size: 8px;
+}
+
+.category-collapsed .category-header::after {
+    content: '▶';
+}
+
