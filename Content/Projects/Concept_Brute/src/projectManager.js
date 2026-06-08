@@ -1,5 +1,5 @@
 import { LAYERS_COUNT, SECTOR_SIZE } from './constants.js';
-import { isCanvasEmpty } from './colorUtils.js';
+import { isCanvasEmpty, isMobileDevice } from './colorUtils.js';
 
 export async function initProjectSystem(app) {
     const list = await app.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.92 }}];
@@ -441,17 +441,19 @@ export async function saveProject(app) {
 
                 const chunk = app.engine.chunks.get(chunkId);
                 if (chunk) {
-                    // Ensure the offscreen canvas for this layer is initialized and fully synced
-                    app.engine._syncChunkOffscreen(chunk, l);
+                    if (!isMobileDevice) {
+                        // Ensure the offscreen canvas for this layer is initialized and fully synced
+                        app.engine._syncChunkOffscreen(chunk, l);
+                    }
                     
-                    const offCanvas = chunk.offscreenCanvases[l];
-                    const isEmpty = chunk.isEmpty[l] || isCanvasEmpty(offCanvas);
+                    const sourceCanvas = isMobileDevice ? chunk.canvases[l] : (chunk.offscreenCanvases && chunk.offscreenCanvases[l] ? chunk.offscreenCanvases[l] : chunk.canvases[l]);
+                    const isEmpty = chunk.isEmpty[l] || isCanvasEmpty(sourceCanvas);
                     
                     if (isEmpty) {
                         delete sector.chunks[chunkKey];
                     } else {
-                        // Obtain data URL from our offscreen canvas, avoiding any GPU pipeline stalling or flickering on on-screen canvases
-                        const dataUrl = offCanvas.toDataURL('image/png'); 
+                        // Obtain data URL from our canvas
+                        const dataUrl = sourceCanvas.toDataURL('image/png'); 
                         sector.chunks[chunkKey] = dataUrl;
                     }
                 }

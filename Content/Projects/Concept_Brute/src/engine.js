@@ -9,6 +9,7 @@ import {
   applySelection
 } from './tools/selection.js';
 import { paintSmudgeOnChunks } from './tools/smudge.js';
+import { isMobileDevice } from './colorUtils.js';
 
 export class Engine {
   constructor(container, settings = {}) {
@@ -685,6 +686,10 @@ export class Engine {
   }
 
   syncOffscreenCanvases() {
+      if (isMobileDevice) {
+          if (this.offscreenDirty) this.offscreenDirty.clear();
+          return;
+      }
       if (!this.offscreenDirty || this.offscreenDirty.size === 0) return;
       for (const item of this.offscreenDirty) {
           const [chunkId, layerStr] = item.split('|');
@@ -698,6 +703,7 @@ export class Engine {
   }
 
   _syncChunkOffscreen(chunk, l) {
+      if (isMobileDevice) return;
       if (!chunk.offscreenCanvases) {
           chunk.offscreenCanvases = [];
           chunk.offscreenCtxs = [];
@@ -1554,8 +1560,8 @@ export class Engine {
       this._pickerCanvas = document.createElement('canvas');
       this._pickerCanvas.width = 1;
       this._pickerCanvas.height = 1;
-      // using willReadFrequently: true is key for GPU->CPU readback performance
-      this._pickerCtx = this._pickerCanvas.getContext('2d', { willReadFrequently: true });
+      // using willReadFrequently: true is key for GPU->CPU readback performance, but buggy on mobile Safari
+      this._pickerCtx = this._pickerCanvas.getContext('2d', isMobileDevice ? undefined : { willReadFrequently: true });
     }
     
     const pctx = this._pickerCtx;
@@ -2885,7 +2891,7 @@ export class Engine {
         this.smudgeCanvas = document.createElement('canvas');
         this.smudgeCanvas.width = 128; // Standard smudge tip size
         this.smudgeCanvas.height = 128;
-        this.smudgeCtx = this.smudgeCanvas.getContext('2d', { willReadFrequently: true });
+        this.smudgeCtx = this.smudgeCanvas.getContext('2d', isMobileDevice ? undefined : { willReadFrequently: true });
         this.smudgeDirty = false;
     }
 
@@ -3753,7 +3759,7 @@ export class Engine {
     const g11 = srcData[idx11 + 1] * a11;
     const b11 = srcData[idx11 + 2] * a11;
 
-    // Bilinear interpolate in pre-multiplied space
+    // Bilinear interpolate in  pre-multiplied space
     const r0_a = a00 + tx * (a10 - a00);
     const r1_a = a01 + tx * (a11 - a01);
     const interp_a = r0_a + ty * (r1_a - r0_a);

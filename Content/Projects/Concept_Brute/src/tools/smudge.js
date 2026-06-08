@@ -1,3 +1,5 @@
+import { isMobileDevice } from '../colorUtils.js';
+
 export function paintSmudgeOnChunks(engine, stamps, affectedChunks, flow, opacity, tip) {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const s of stamps) {
@@ -12,7 +14,7 @@ export function paintSmudgeOnChunks(engine, stamps, affectedChunks, flow, opacit
     if (w > 0 && h > 0) {
         if (!engine.segmentCanvas) {
             engine.segmentCanvas = document.createElement('canvas');
-            engine.segmentCtx = engine.segmentCanvas.getContext('2d', { willReadFrequently: true });
+            engine.segmentCtx = engine.segmentCanvas.getContext('2d', isMobileDevice ? undefined : { willReadFrequently: true });
         }
         if (engine.segmentCanvas.width < w || engine.segmentCanvas.height < h) {
             engine.segmentCanvas.width = Math.max(engine.segmentCanvas.width, w + 128);

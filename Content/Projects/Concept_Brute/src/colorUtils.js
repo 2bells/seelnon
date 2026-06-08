@@ -152,3 +152,9 @@ export function isCanvasEmpty(canvas) {
     }
     return true;
 }
+
+export const isMobileDevice = typeof navigator !== 'undefined' && (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+);
+
