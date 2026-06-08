@@ -1025,6 +1025,24 @@ export class Engine {
         transform += ' scaleX(-1)';
     }
     this.canvasWrapper.style.transform = transform;
+    
+    // Sync the optimized high-performance mobile viewport grid
+    this._updateMobileGridPosition();
+  }
+
+  _updateMobileGridPosition() {
+      if (!isMobileDevice || !this.showGrid || this.isStatic) {
+          if (isMobileDevice && this.container) {
+              this.container.style.backgroundImage = 'none';
+          }
+          return;
+      }
+      const px = Math.round(this.pan.x);
+      const py = Math.round(this.pan.y);
+      const scaledSize = this.gridSize * this.zoom;
+      
+      this.container.style.backgroundSize = `${scaledSize}px ${scaledSize}px`;
+      this.container.style.backgroundPosition = `calc(50% + ${px}px) calc(50% + ${py}px)`;
   }
 
   setupBoard(force = false) {
@@ -1097,7 +1115,7 @@ export class Engine {
         this.boardContainer.style.backgroundColor = 'transparent';
         
         this.container.style.backgroundColor = this.canvasBg;
-        this.canvasWrapper.style.backgroundColor = this.canvasBg;
+        this.canvasWrapper.style.backgroundColor = 'transparent'; // NEVER apply full-colored gigantic layer backgrounds
         
         if (gridVisible) {
             const currentKeyGrid = `${this.gridSize}-${this.gridColor}-${this.gridIntensity}-${this.gridPattern}-${this.gridThickness || 2}`;
@@ -1105,13 +1123,24 @@ export class Engine {
                 this._gridTexture = this._generateGridTexture();
                 this._lastGridParams = currentKeyGrid;
             }
-            this.canvasWrapper.style.backgroundImage = `url(${this._gridTexture})`;
-            const texSize = this._gridTextureSize || 1024;
-            this.canvasWrapper.style.backgroundSize = `${texSize}px ${texSize}px`;
-            this.canvasWrapper.style.backgroundPosition = `${this.worldCenter}px ${this.worldCenter}px`;
-            this.canvasWrapper.style.backgroundRepeat = 'repeat';
+            if (isMobileDevice) {
+                // Highly optimized: Grid repeats on viewport-sized screen div rather than gigantic wrapper
+                this.container.style.backgroundImage = `url(${this._gridTexture})`;
+                this.container.style.backgroundRepeat = 'repeat';
+                this.canvasWrapper.style.backgroundImage = 'none';
+                this._updateMobileGridPosition();
+            } else {
+                // Desktop rotates the entire grid as before
+                this.canvasWrapper.style.backgroundImage = `url(${this._gridTexture})`;
+                const texSize = this._gridTextureSize || 1024;
+                this.canvasWrapper.style.backgroundSize = `${texSize}px ${texSize}px`;
+                this.canvasWrapper.style.backgroundPosition = `${this.worldCenter}px ${this.worldCenter}px`;
+                this.canvasWrapper.style.backgroundRepeat = 'repeat';
+                this.container.style.backgroundImage = 'none';
+            }
         } else {
             this.canvasWrapper.style.backgroundImage = 'none';
+            this.container.style.backgroundImage = 'none';
         }
     }
     
