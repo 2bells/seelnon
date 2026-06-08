@@ -32,9 +32,11 @@ So if we manage timelines and assume that we are in the 'deep history' of the un
 
 Also humanoid robots are very stupid to make, but we still do them anyway. Almost every character in any game you can play as is a Humanoid, while enemies are a big spider lady, bugs and old people.
 
-And the most interesting one: a very important gameplay loop of a race: compatible DNA for self improvement. And that needs 'breeding grounds' / farms... And btw if humans can make anime ladies reality, for sure for sure number 1 priority will be DNA compatibility.
+And the most interesting one: a very important gameplay loop of a race: compatible DNA for self improvement. And that needs 'breeding grounds' / farms...
 
 Fermi Paradox... is because your are not invited to the 'party'.
+
+Btw, if humans can make anime ladies reality, for sure for sure number 1 priority will be DNA compatibility.
 
 But if to drop the act a bit: DNA is cute, but it is the 'traditional sci-fi' thinking. Most likely there is a need for a specific consciousness recipes / soul types. That is impossible to engineer and a specific 'recipe' has to go through its life as one and only. No guardrails. Now this is a true delicacy.
 
