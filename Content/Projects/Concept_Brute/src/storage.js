@@ -166,6 +166,43 @@ export class SketchStorage {
     });
   }
 
+  async loadSectorsBatch(keys) {
+    if (this.isFallback) {
+      return keys.map(key => ({
+        key,
+        sector: this.fallbackStore.sectors[key] || null
+      }));
+    }
+
+    if (!this.db) throw new Error('Database not initialized');
+    if (keys.length === 0) return [];
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['sectors'], 'readonly');
+      const store = transaction.objectStore('sectors');
+      const results = [];
+      let loadedCount = 0;
+      let failed = false;
+
+      keys.forEach((key, index) => {
+        const request = store.get(key);
+        request.onsuccess = () => {
+          if (failed) return;
+          results[index] = { key, sector: request.result || null };
+          loadedCount++;
+          if (loadedCount === keys.length) {
+            resolve(results);
+          }
+        };
+        request.onerror = (event) => {
+          if (failed) return;
+          failed = true;
+          reject(event.target.error || new Error('Load sectors batch failed'));
+        };
+      });
+    });
+  }
+
   async getAllSectorKeys() {
     if (this.isFallback) {
       const prefix = `p_${this.projectId}_s_`;
@@ -284,6 +321,55 @@ export class SketchStorage {
       
       request.onsuccess = () => resolve(request.result ? request.result.value : null);
       request.onerror = (event) => reject(event.target.error || new Error('Load setting failed'));
+    });
+  }
+
+  async loadSettingsBatch(keys) {
+    if (this.isFallback) {
+      const results = {};
+      keys.forEach(k => {
+        const key = this._getSettingKey(k);
+        if (this.fallbackStore.settings[key] !== undefined) {
+          results[k] = this.fallbackStore.settings[key];
+        } else {
+          try {
+            const raw = localStorage.getItem(key);
+            results[k] = raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            results[k] = null;
+          }
+        }
+      });
+      return results;
+    }
+
+    if (!this.db) throw new Error('Database not initialized');
+    if (keys.length === 0) return {};
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['settings'], 'readonly');
+      const store = transaction.objectStore('settings');
+      const results = {};
+      let loadedCount = 0;
+      let failed = false;
+
+      keys.forEach((k) => {
+        const key = this._getSettingKey(k);
+        const request = store.get(key);
+        request.onsuccess = () => {
+          if (failed) return;
+          results[k] = request.result ? request.result.value : null;
+          loadedCount++;
+          if (loadedCount === keys.length) {
+            resolve(results);
+          }
+        };
+        request.onerror = (event) => {
+          if (failed) return;
+          failed = true;
+          reject(event.target.error || new Error('Batch settings load failed'));
+        };
+      });
     });
   }
 

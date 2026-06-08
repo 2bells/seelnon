@@ -306,15 +306,14 @@ export async function loadProject(app) {
         console.log(`[PERF] Retrieved ${sectorKeys.length} sector keys in ${(performance.now() - tSectorKeysStart).toFixed(2)}ms`);
         
         const tSectorsLoadStart = performance.now();
-        // Load all sectors in parallel from the indexedDB store
-        const sectorPromises = sectorKeys.map(async (key) => {
+        // Load all sectors in a single batch transaction from the indexedDB store
+        const batchResults = await app.storage.loadSectorsBatch(sectorKeys);
+        const sectors = batchResults.map(({ key, sector }) => {
             const parts = key.split('_'); 
             const sy = parseInt(parts[parts.length - 1]);
             const sx = parseInt(parts[parts.length - 2]);
-            const sector = await app.storage.loadSector(sx, sy);
             return { sx, sy, sector };
         });
-        const sectors = await Promise.all(sectorPromises);
         console.log(`[PERF] Loading sector metadata from store took ${(performance.now() - tSectorsLoadStart).toFixed(2)}ms`);
 
         // Map and load all chunk images concurrently

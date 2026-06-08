@@ -424,10 +424,7 @@ class App {
             'lastColor'
         ];
         
-        const results = await Promise.all(keys.map(k => this.storage.loadSetting(k)));
-        keys.forEach((k, idx) => {
-            settings[k] = results[idx];
-        });
+        settings = await this.storage.loadSettingsBatch(keys);
 
         // Load autosave settings
         const savedAutosaveSlider = settings['autosaveDelaySlider'];
