@@ -22,7 +22,7 @@ So 'Avatar' has that feel of:
 - James, it is just plants?... And water... I mean... it looks good, yeah.
 - Yeah, that's the point.
 - So that's what you wanted to show so badly... 30-50 years, James.
-- `[redacted] Yeah, because I've been there. [/redacted]`
+- [redacted]` Yeah, because I've been there. `[/redacted]
 - I wanted to push VFX to its limits to showcase a truly alien world!
 - Understandable, have a nice day.
 
