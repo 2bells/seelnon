@@ -236,13 +236,16 @@ export async function loadProject(app) {
                         img.src = r.src;
                     });
                     if (img.width > 0) {
-                        app.engine.addReferenceImage(img, r.name, r.x, r.y, {
+                        const refObj = app.engine.addReferenceImage(img, r.name, r.x, r.y, {
                             rotation: r.rotation,
                             scale: r.scale,
                             opacity: r.opacity,
                             mirrorX: r.mirrorX,
                             mirrorY: r.mirrorY
                         }, false);
+                        if (refObj && r.extractedPalette) {
+                            refObj.extractedPalette = r.extractedPalette;
+                        }
                     }
                 })();
             });
@@ -389,7 +392,8 @@ export async function saveProject(app) {
                 scale: r.scale,
                 opacity: r.opacity,
                 mirrorX: r.mirrorX,
-                mirrorY: r.mirrorY
+                mirrorY: r.mirrorY,
+                extractedPalette: r.extractedPalette || null
             }));
             await app.storage.saveSetting('referenceImages', refData);
             app.engine.refsDirty = false;

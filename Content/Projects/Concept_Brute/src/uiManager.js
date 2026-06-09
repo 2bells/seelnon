@@ -922,6 +922,7 @@ export function setupUI(app) {
     app._makeDraggable(document.getElementById('panel-advanced-brush'), document.getElementById('handle-advanced-brush'));
     app._makeDraggable(document.getElementById('panel-touch-shortcuts'), document.getElementById('handle-touch-shortcuts'));
     app._makeDraggable(document.getElementById('modal-new-project'), document.getElementById('handle-new-project'));
+    app._makeDraggable(document.getElementById('modal-ref-editor'), document.getElementById('handle-ref-editor'));
 
     // Toggle Touch Shortcuts Panel
     const toggleShortcutsBtn = document.getElementById('btn-toggle-shortcuts');
@@ -995,6 +996,13 @@ export function setupUI(app) {
     if (btnTouchDeselect) {
         btnTouchDeselect.onclick = () => {
             if (app.engine) app.engine.clearSelection();
+        };
+    }
+
+    const btnTouchDelete = document.getElementById('btn-touch-delete');
+    if (btnTouchDelete) {
+        btnTouchDelete.onclick = () => {
+            if (app.engine) app.engine.deleteSelection();
         };
     }
 
@@ -1168,6 +1176,77 @@ export function setupUI(app) {
             if (app.activeTool === TOOLS.WIREFRAME) app.engine.brush.wireMinDist = val;
             document.getElementById('adv-wire-min-dist-val').innerText = val.toFixed(1);
             app._saveBrushSettings();
+        };
+    }
+
+    // --- TEXTURE PAINT (SCREENTONES) SYSTEM INTERACTION CONTROLS ---
+    const toggleTextureBtn = document.getElementById('btn-toggle-texture');
+    const textureSettingsPanel = document.getElementById('texture-settings');
+    
+    if (toggleTextureBtn && textureSettingsPanel) {
+        toggleTextureBtn.onclick = () => {
+            if (!app.engine) return;
+            const isEnabled = !app.engine.textureModeEnabled;
+            app.engine.textureModeEnabled = isEnabled;
+            
+            if (isEnabled) {
+                toggleTextureBtn.classList.add('active');
+                textureSettingsPanel.classList.remove('hidden');
+                app._status("TEXTURE MODE: ON");
+            } else {
+                toggleTextureBtn.classList.remove('active');
+                textureSettingsPanel.classList.add('hidden');
+                app._status("TEXTURE MODE: OFF");
+            }
+        };
+    }
+
+    // Pattern selector button group
+    const patternBtns = {
+        dot: document.getElementById('btn-tex-dot'),
+        square: document.getElementById('btn-tex-sq'),
+        line: document.getElementById('btn-tex-line'),
+        triangle: document.getElementById('btn-tex-tri')
+    };
+
+    Object.entries(patternBtns).forEach(([patternType, btn]) => {
+        if (btn) {
+            btn.onclick = () => {
+                if (!app.engine) return;
+                app.engine.texturePattern = patternType;
+                
+                // Toggle active visual states
+                Object.values(patternBtns).forEach(b => {
+                    if (b) b.classList.remove('active-btn');
+                });
+                btn.classList.add('active-btn');
+                
+                app._status(`PATTERN: ${patternType.toUpperCase()}`);
+            };
+        }
+    });
+
+    // Density range slider
+    const texDensitySlider = document.getElementById('slider-tex-density');
+    const texDensityVal = document.getElementById('tex-density-val');
+    if (texDensitySlider && texDensityVal) {
+        texDensitySlider.oninput = (e) => {
+            if (!app.engine) return;
+            const valPercent = parseInt(e.target.value);
+            app.engine.textureDensity = valPercent / 100.0;
+            texDensityVal.innerText = `${valPercent}%`;
+        };
+    }
+
+    // Grid size (Screentone spacing frequency) slider
+    const texSizeSlider = document.getElementById('slider-tex-size');
+    const texSizeVal = document.getElementById('tex-size-val');
+    if (texSizeSlider && texSizeVal) {
+        texSizeSlider.oninput = (e) => {
+            if (!app.engine) return;
+            const valPx = parseInt(e.target.value);
+            app.engine.textureGridSize = valPx;
+            texSizeVal.innerText = `${valPx}px`;
         };
     }
 }

@@ -23,7 +23,10 @@ class App {
   constructor() {
     setupIgnoreSystem();
     this.engine = new Engine(document.getElementById('canvas-container'));
-    this.engine.onColorPicked = (color) => this.setColor(color);
+    this.engine.onColorPicked = (color) => {
+        this.setColor(color);
+        this._updateHSVFromHex(color);
+    };
     this.engine.onStatus = (text) => this._status(text);
     this.engine.onDrawEnd = () => {
         if (this.autosaveEnabled) this._triggerAutoSave();
@@ -48,7 +51,10 @@ class App {
     };
     this.storage = new SketchStorage();
     this.palette = new PaletteManager();
-    this.imgHandler = new ImgHandler(this.engine, () => this._updateRefImageList());
+    this.imgHandler = new ImgHandler(this.engine, () => {
+        this._updateRefImageList();
+        this._triggerAutoSave();
+    });
 
     this.activeTool = TOOLS.BRUSH;
     this.lastBrush = TOOLS.BRUSH; // Track for smart switching back to painting
@@ -371,6 +377,16 @@ class App {
       e.preventDefault();
       e.stopPropagation();
       
+      const rect = el.getBoundingClientRect();
+      el.style.transform = 'none';
+      if (el.id === 'modal-ref-editor') {
+        el.style.left = rect.left + 'px';
+        el.style.top = rect.top + 'px';
+      } else {
+        el.style.left = rect.left;
+        el.style.top = rect.top;
+      }
+      
       pos3 = e.clientX;
       pos4 = e.clientY;
       
@@ -676,7 +692,9 @@ class App {
           break;
         case 'd': 
           if (e.ctrlKey) {
-            if (this.engine.activeSelectionPath || this.engine.floatingSelection) {
+            if (this.engine.floatingSelection) {
+                this.engine._applySelection();
+            } else if (this.engine.activeSelectionPath) {
                 const prevPath = this.engine.activeSelectionPath ? [...this.engine.activeSelectionPath] : null;
                 this.engine._pushHistory({ type: 'selection', path: prevPath });
                 this.engine.clearSelection();
@@ -884,21 +902,30 @@ class App {
               this._updateRefImageList();
           };
 
-          const nameSpan = document.createElement('span');
-          nameSpan.className = 'truncate';
-          nameSpan.innerText = ref.name;
-          item.appendChild(nameSpan);
-
-          // Add mini palette if exists
           if (ref.extractedPalette) {
               const palPreview = document.createElement('div');
               palPreview.className = 'ref-mini-palette';
+              palPreview.style.marginRight = '6px';
+              palPreview.style.flex = '1';
+              
               ref.extractedPalette.forEach(c => {
                   const s = document.createElement('div');
                   s.style.backgroundColor = c;
+                  s.title = `Use color ${c}`;
+                  s.onclick = (e) => {
+                      e.stopPropagation();
+                      this.setColor(c);
+                      this._updateHSVFromHex(c);
+                      this._status(`COLOR SET: ${c}`);
+                  };
                   palPreview.appendChild(s);
               });
               item.appendChild(palPreview);
+          } else {
+              const nameSpan = document.createElement('span');
+              nameSpan.className = 'truncate';
+              nameSpan.innerText = ref.name;
+              item.appendChild(nameSpan);
           }
 
           const delBtn = document.createElement('button');
@@ -1065,8 +1092,12 @@ class App {
         
         // Advanced settings button visibility
         if (advBtn) {
-            const hasAdv = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME);
+            const hasAdv = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER);
             advBtn.style.display = hasAdv ? 'block' : 'none';
+        }
+        const advTitle = document.querySelector('#panel-advanced-brush .panel-title');
+        if (advTitle) {
+            advTitle.innerText = (tool === TOOLS.ERASER) ? 'ADVANCED ERASER' : 'ADVANCED BRUSH';
         }
 
         // Update UI Sliders
@@ -1268,6 +1299,16 @@ class App {
             const valEl = document.getElementById('jitter-hue-val');
             if (valEl) valEl.innerText = `${jHueVal}%`;
         }
+
+        const catPressure = document.getElementById('cat-pressure');
+        const catJitter = document.getElementById('cat-jitter');
+        const catSmudge = document.getElementById('cat-smudge');
+        const catWireframe = document.getElementById('cat-wireframe');
+        
+        if (catPressure) catPressure.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER) ? 'block' : 'none';
+        if (catJitter) catJitter.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER) ? 'block' : 'none';
+        if (catSmudge) catSmudge.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE) ? 'block' : 'none';
+        if (catWireframe) catWireframe.style.display = (tool === TOOLS.WIREFRAME) ? 'block' : 'none';
     }
   }
 

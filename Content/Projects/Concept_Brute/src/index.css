@@ -329,19 +329,30 @@ button:focus, input:focus, select:focus, .tool-btn:focus, .brutal-btn:focus, .mi
 }
 
 .ref-mini-palette {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1px;
-    margin-top: 4px;
-    border: 1px solid black;
-    padding: 1px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 2px;
+    border: 2px solid black;
+    padding: 2px;
+    background-color: #ebebeb;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .ref-mini-palette div {
-    height: 6px;
-    flex: 1 0 15%; /* 12 colors approx 2 rows */
-    min-width: 4px;
+    aspect-ratio: 1 / 1;
+    cursor: pointer;
+    box-sizing: border-box;
+    border: 1px solid rgba(0,0,0,0.25);
+    transition: transform 0.1s ease;
+}
+
+.ref-mini-palette div:hover {
+    transform: scale(1.15);
+    outline: 2px solid white;
+    border-color: black;
+    z-index: 10;
 }
 
 .hotkey-list {
@@ -1007,9 +1018,33 @@ button, input, select {
 .flex-grow { flex-grow: 1; }
 
 #panel-color { bottom: 24px; right: 24px; width: 192px; height: auto; }
-#panel-images { top: 24px; right: 24px; width: 96px; }
+#texture-settings {
+    position: absolute;
+    bottom: 100%;
+    left: -2px;
+    width: 192px;
+    background-color: #f0f0f0;
+    border: 2px solid black;
+    z-index: 50;
+    padding: 8px;
+    user-select: none;
+    pointer-events: auto;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+}
+#panel-images { top: 24px; right: 24px; width: 144px; }
 #panel-layers { bottom: 24px; left: 24px; width: 160px; }
-#panel-touch-shortcuts { bottom: 320px; left: 24px; width: 170px; z-index: 45; }
+#panel-touch-shortcuts { bottom: 320px; left: 24px; width: 144px; z-index: 45; }
+
+
+
+.brutal-btn.active-tool {
+    background-color: black !important;
+    color: white !important;
+}
+.brutal-btn.active-tool span {
+    color: white !important;
+}
 
 .shortcut-toggle-btn {
     width: 14px;
@@ -1023,6 +1058,22 @@ button, input, select {
     align-items: center;
     justify-content: center;
     transition: background 0.05s, transform 0.05s;
+}
+
+.shortcut-toggle-btn#btn-toggle-texture {
+    background-image: radial-gradient(circle, black 1px, transparent 1.2px);
+    background-size: 4px 4px;
+    background-position: center;
+}
+
+.shortcut-toggle-btn#btn-toggle-texture:hover {
+    background-color: black;
+    background-image: radial-gradient(circle, white 1px, transparent 1.2px);
+}
+
+.shortcut-toggle-btn#btn-toggle-texture.active {
+    background-color: black;
+    background-image: radial-gradient(circle, white 1px, transparent 1.2px);
 }
 
 .shortcut-toggle-btn:hover {
@@ -1213,5 +1264,12 @@ button, input, select {
 
 .category-collapsed .category-header::after {
     content: '▶';
+}
+
+.board-ref-image, .selection-overlay-gpu {
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform-style: preserve-3d;
 }
 
