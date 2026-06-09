@@ -631,24 +631,33 @@ export class Engine {
   }
 
   toggleMirror() {
-    const rect = this.container.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
+    const rect = this.getContainerRect();
+    const cx = Math.floor(rect.width / 2);
+    const cy = Math.floor(rect.height / 2);
     
-    // Get current world point at screen center
-    const worldCenter = this._getMousePos({ clientX: cx, clientY: cy });
+    let worldCenter;
+    if (this.isStatic) {
+        // For static canvas, the mirroring anchor position is always the middle of the image (0, 0)
+        worldCenter = { wx: 0, wy: 0 };
+    } else {
+        // Infinite canvas keeps the current viewport screen center aligned
+        worldCenter = this._screenToWorld(cx, cy);
+    }
+    
+    // Find where the anchor point is on screen before toggling
+    const screenCenterBefore = this._worldToScreen(worldCenter.wx, worldCenter.wy);
     
     this.isMirrored = !this.isMirrored;
     
     // Refresh to update matrix internal state
     this.refresh();
     
-    // Find where that world point is now
+    // Find where that anchor point is now
     const screenCenterAfter = this._worldToScreen(worldCenter.wx, worldCenter.wy);
     
-    // Adjust pan to keep it exactly at center
-    this.pan.x += cx - screenCenterAfter.x;
-    this.pan.y += cy - screenCenterAfter.y;
+    // Adjust pan to keep that anchor point exactly at its previous screen position!
+    this.pan.x += screenCenterBefore.x - screenCenterAfter.x;
+    this.pan.y += screenCenterBefore.y - screenCenterAfter.y;
 
     this.refresh();
     this.saveViewport();
@@ -2793,6 +2802,7 @@ export class Engine {
           for (let i = 0; i < data.length; i += 4 * 4) {
               const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
               if (a < 220) continue;
+              if (r > 245 && g > 245 && b > 245) continue;
               const lum = 0.299 * r + 0.587 * g + 0.114 * b;
               candidates.push({ color: [r, g, b], lum });
           }
@@ -2922,13 +2932,36 @@ export class Engine {
           const shadows = candidates.filter(c => c.lum <= 85).sort((a,b) => a.lum - b.lum);
           const mids = candidates.filter(c => c.lum > 85 && c.lum < 170).sort((a,b) => Math.abs(128 - a.lum) - Math.abs(128 - b.lum));
 
-          const extractedLights = getDiverseColors(lights, 4);
-          const extractedMids = getDiverseColors(mids, 4);
-          const extractedShadows = getDiverseColors(shadows, 4);
+          const totalSlots = 12;
+          const pL = getDiverseColors(lights, totalSlots);
+          const pM = getDiverseColors(mids, totalSlots);
+          const pS = getDiverseColors(shadows, totalSlots);
 
-          while (extractedLights.length < 4 && lights.length > extractedLights.length) extractedLights.push(lights[extractedLights.length].color);
-          while (extractedMids.length < 4 && mids.length > extractedMids.length) extractedMids.push(mids[extractedMids.length].color);
-          while (extractedShadows.length < 4 && shadows.length > extractedShadows.length) extractedShadows.push(shadows[extractedShadows.length].color);
+          const wL = lights.length, wM = mids.length, wS = shadows.length;
+          const totalW = wL + wM + wS || 1;
+          const rL = wL / totalW;
+          const rM = wM / totalW;
+          const rS = wS / totalW;
+          
+          let nL, nM, nS;
+          
+          if (rM > 0.75) { // Extreme mid-bias
+            [nL, nM, nS] = [1, 10, 1];
+          } else if (rM > 0.6) { // Strong mid-bias
+            [nL, nM, nS] = [2, 8, 2];
+          } else if (rM > 0.45) { // Mild mid-bias
+            [nL, nM, nS] = [3, 6, 3];
+          } else { // Balanced
+            [nL, nM, nS] = [4, 4, 4];
+          }
+          
+          nL = Math.max(1, Math.min(pL.length, nL));
+          nS = Math.max(1, Math.min(pS.length, nS));
+          nM = Math.max(1, Math.min(pM.length, 12 - nL - nS));
+
+          const extractedLights = pL.slice(0, nL);
+          const extractedMids = pM.slice(0, nM);
+          const extractedShadows = pS.slice(0, nS);
 
           const colorToLum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
           extractedLights.sort((a,b) => colorToLum(b) - colorToLum(a));

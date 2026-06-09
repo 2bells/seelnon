@@ -434,9 +434,9 @@ export function processLassoSelection(engine, e = null) {
     const isAdditive = strokeMode === 'add' || (strokeMode === undefined && (engine.keys['shift'] || (e && e.shiftKey)));
     const isSubtractive = strokeMode === 'subtract' || (strokeMode === undefined && (engine.keys['alt'] || (e && e.altKey)));
 
-    const prevPath = engine.activeSelectionPath ? 
+    const prevPath = engine._selectionBeforeStroke !== undefined ? engine._selectionBeforeStroke : (engine.activeSelectionPath ? 
         normalizeSelectionPath(engine.activeSelectionPath).map(p => ({ points: [...p.points], type: p.type })) : 
-        null;
+        null);
 
     let newPathList = [];
     if (prevPath) {

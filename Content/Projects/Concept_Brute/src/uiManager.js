@@ -132,6 +132,11 @@ export function setupUI(app) {
     document.getElementById('btn-project-new').onclick = (e) => {
         e.stopPropagation();
         const modal = document.getElementById('modal-new-project');
+        modal.style.left = '50%';
+        modal.style.top = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.right = 'auto';
+        modal.style.bottom = 'auto';
         modal.classList.remove('hidden');
         // Reset inputs
         document.getElementById('new-project-mode').value = 'infinite';
@@ -922,6 +927,7 @@ export function setupUI(app) {
     app._makeDraggable(document.getElementById('panel-advanced-brush'), document.getElementById('handle-advanced-brush'));
     app._makeDraggable(document.getElementById('panel-touch-shortcuts'), document.getElementById('handle-touch-shortcuts'));
     app._makeDraggable(document.getElementById('modal-new-project'), document.getElementById('handle-new-project'));
+    app._makeDraggable(document.getElementById('modal-export'), document.getElementById('handle-export'));
     app._makeDraggable(document.getElementById('modal-ref-editor'), document.getElementById('handle-ref-editor'));
 
     // Toggle Touch Shortcuts Panel
@@ -1003,6 +1009,25 @@ export function setupUI(app) {
     if (btnTouchDelete) {
         btnTouchDelete.onclick = () => {
             if (app.engine) app.engine.deleteSelection();
+        };
+    }
+
+    const btnTouchMirror = document.getElementById('btn-touch-mirror');
+    if (btnTouchMirror) {
+        btnTouchMirror.onclick = () => {
+            if (app.engine) {
+                if (app.engine.floatingSelection) {
+                    app.engine.floatingSelection.mirrorX = !app.engine.floatingSelection.mirrorX;
+                    app.engine.refresh();
+                } else if (app.activeTool === TOOLS.REF_MOVE && app.engine.selectedRefIndex !== -1) {
+                    const ref = app.engine.referenceImages[app.engine.selectedRefIndex];
+                    ref.mirrorX = !ref.mirrorX;
+                    app.engine.refresh();
+                    app._triggerAutoSave();
+                } else {
+                    app.engine.toggleMirror();
+                }
+            }
         };
     }
 

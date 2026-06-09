@@ -1537,6 +1537,13 @@ class App {
       this.currentExportRect = rect;
       
       const modal = document.getElementById('modal-export');
+      
+      modal.style.left = '50%';
+      modal.style.top = '50%';
+      modal.style.transform = 'translate(-50%, -50%)';
+      modal.style.right = 'auto';
+      modal.style.bottom = 'auto';
+      
       modal.classList.remove('hidden');
       
       const wInput = document.getElementById('export-width');
@@ -1548,11 +1555,6 @@ class App {
       
       document.getElementById('export-scale').value = 100;
       document.getElementById('export-scale-val').innerText = '100%';
-      
-      // Force repaint/reflow to ensure it shows up
-      modal.style.display = 'none';
-      modal.offsetHeight; // reflow
-      modal.style.display = 'block';
   }
 
   _updateExportDimensions(ratioOnly = false) {

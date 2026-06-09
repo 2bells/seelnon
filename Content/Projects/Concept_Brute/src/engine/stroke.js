@@ -56,6 +56,12 @@ export function _startStroke(e) {
       }
   }
 
+  // If the active layer is hidden, do not accept strokes or actions into it
+  if (this.layerSettings[this.activeLayer] && !this.layerSettings[this.activeLayer].visible) {
+      this._status('LAYER IS HIDDEN');
+      return; // STOP HERE, don't start drawing/painting/selection on a hidden layer
+  }
+
   // Selection Apply Check: If we have a selection and click away, apply it
   if (this.floatingSelection) {
       const m = this._getMousePos(e);
@@ -109,12 +115,13 @@ export function _startStroke(e) {
           this.lassoStrokeMode = 'new';
       }
 
+      // Save the selection path BEFORE we make any changes to it
+      this._selectionBeforeStroke = this.activeSelectionPath ? 
+          this.normalizeSelectionPath(this.activeSelectionPath).map(p => ({ points: [...p.points], type: p.type })) : 
+          null;
+
       if (!isAdditive && !isSubtractive) {
           if (this.activeSelectionPath) {
-              const prevPath = this.activeSelectionPath ? 
-                  this.normalizeSelectionPath(this.activeSelectionPath).map(p => ({ points: [...p.points], type: p.type })) : 
-                  null;
-              this._pushHistory({ type: 'selection', path: prevPath });
               this.clearSelection();
           }
       }
@@ -571,8 +578,18 @@ export function _endStroke(e = null) {
       }
   }
 
-  if (this.brush.type === TOOLS.LASSO && this.lassoPath?.length > 10) {
-      this._processLassoSelection(e);
+  if (this.brush.type === TOOLS.LASSO) {
+      if (this.lassoPath && this.lassoPath.length > 10) {
+          this._processLassoSelection(e);
+      } else {
+          // They tapped and cleared the selection, push history to allow undoing the clear
+          if (this._selectionBeforeStroke) {
+              this._pushHistory({ type: 'selection', path: this._selectionBeforeStroke });
+          }
+          this.lassoPath = null;
+          this.refresh();
+      }
+      this._selectionBeforeStroke = null;
   }
 
   // Bake per-stroke buffer

@@ -358,10 +358,11 @@
 
             <!-- Column 2: Transforms -->
             <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1; width: 56px;">
-              <button id="btn-touch-transform" class="brutal-btn" style="height: 54px; font-size: 8px;" title="Transform">TRAN</button>
-              <button id="btn-touch-apply" class="brutal-btn" style="height: 54px; font-size: 8px;" title="Apply">APPLY</button>
-              <button id="btn-touch-deselect" class="brutal-btn" style="height: 54px; font-size: 8px;" title="Deselect">DESEL</button>
-              <button id="btn-touch-delete" class="brutal-btn" style="height: 54px; font-size: 8px; background-color: #ff4d4d; color: white;" title="Delete">DEL</button>
+              <button id="btn-touch-transform" class="brutal-btn" style="height: 40px; font-size: 8px;" title="Transform">TRAN</button>
+              <button id="btn-touch-apply" class="brutal-btn" style="height: 40px; font-size: 8px;" title="Apply">APPLY</button>
+              <button id="btn-touch-deselect" class="brutal-btn" style="height: 40px; font-size: 8px;" title="Deselect">DESEL</button>
+              <button id="btn-touch-mirror" class="brutal-btn" style="height: 40px; font-size: 8px;" title="Mirror (B)">MIRR</button>
+              <button id="btn-touch-delete" class="brutal-btn" style="height: 40px; font-size: 8px; background-color: #ff4d4d; color: white;" title="Delete">DEL</button>
             </div>
           </div>
         </div>
@@ -722,9 +723,9 @@
             </div>
         </div>
 
-        <!-- EXPORT MODAL -->
+        <!--  EXPORT MODAL -->
         <div id="modal-export" class="ui-panel hidden" style="width: 280px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10002; box-shadow: 12px 12px 0 0 #000; height: auto; max-height: 90vh; overflow-y: auto;">
-            <div class="panel-handle">
+            <div id="handle-export" class="panel-handle">
                 <span class="panel-title">EXPORT SELECTION</span>
                 <button id="btn-close-export" class="mini-btn">X</button>
             </div>
@@ -866,35 +867,35 @@
                             <label class="settings-label" style="font-size: 8px;">INPUT BLACK</label>
                             <span id="val-col-black" style="font-size: 8px; font-weight: 900;">0</span>
                         </div>
-                        <input type="range" id="slider-col-black" min="0" max="200" value="0" class="minimal-range" style="width:100%;">
+                        <input type="range" id="slider-col-black" min="0" max="255" value="0" class="minimal-range" style="width:100%;">
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <label class="settings-label" style="font-size: 8px;">GAMMA (MIDTONES)</label>
                             <span id="val-col-gamma" style="font-size: 8px; font-weight: 900;">1.00</span>
                         </div>
-                        <input type="range" id="slider-col-gamma" min="20" max="300" value="100" class="minimal-range" style="width:100%;">
+                        <input type="range" id="slider-col-gamma" min="5" max="500" value="100" class="minimal-range" style="width:100%;">
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <label class="settings-label" style="font-size: 8px;">INPUT WHITE</label>
                             <span id="val-col-white" style="font-size: 8px; font-weight: 900;">255</span>
                         </div>
-                        <input type="range" id="slider-col-white" min="100" max="255" value="255" class="minimal-range" style="width:100%;">
+                        <input type="range" id="slider-col-white" min="0" max="255" value="255" class="minimal-range" style="width:100%;">
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <label class="settings-label" style="font-size: 8px;">OUTPUT BLACK</label>
                             <span id="val-col-outblack" style="font-size: 8px; font-weight: 900;">0</span>
                         </div>
-                        <input type="range" id="slider-col-outblack" min="0" max="150" value="0" class="minimal-range" style="width:100%;">
+                        <input type="range" id="slider-col-outblack" min="0" max="255" value="0" class="minimal-range" style="width:100%;">
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <label class="settings-label" style="font-size: 8px;">OUTPUT WHITE</label>
                             <span id="val-col-outwhite" style="font-size: 8px; font-weight: 900;">255</span>
                         </div>
-                        <input type="range" id="slider-col-outwhite" min="150" max="255" value="255" class="minimal-range" style="width:100%;">
+                        <input type="range" id="slider-col-outwhite" min="0" max="255" value="255" class="minimal-range" style="width:100%;">
                     </div>
                     <button id="btn-color-reset" class="brutal-btn full-width" style="margin-top: 10px; padding: 4px; font-size: 9px;">RESET CHANNEL</button>
                 </div>
