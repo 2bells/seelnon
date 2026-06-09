@@ -45,7 +45,7 @@ Oh yeah, mascot of the app... A bit different style as I'm testing different stu
 - No good Ctrl+Z on selection manipulation
 - 'S-' sliders could be a bit annoying as they transpose some of the changes a bit weirdly. So needs some dynamic adjustments
 
-But doing a few paintings using my standard '2400 x 3600 at 300 DPI'... thing is FAST FAST! And I had 0 crashes, no issues at all... I'm not gonna tell how much Rebelle likes to explode on me and how slow it sometimes.
+But doing a few paintings using my standard '2400 x 3600 at 300 DPI'... thing is FAST FAST! And I had 0 crashes, no issues at all... I'm not gonna tell how much Rebelle likes to explode on me and how slow it is sometimes.
 
 As additional features... hmmm... maybe the whole paper texture thing... I do have an idea of how it could be done by implying masks that have 'grip' strength that tells paint 'how to stay'... But do I really need it? Probably not... it will slow down as + additional calculation. Could be a setting on a brush that 'grips'... nah... the more I start to 'paint in my head' the more I like: yeah it is more annoying, than fun when paint sometimes doesn't do what you want it to do and at that point just use Rebelle.
 
@@ -59,4 +59,23 @@ tommorow
 ///
 this post is actually
 a bit ahead
+>_
+while editing day started...
+
+let me think of a thought...
+
+...
+
+...
+
+mornings are great,
+because they are
+a messiah of
+coffee
+
+...
+
+time to go and meet 
+the morning of this day
+will be back in a few.
 ```
