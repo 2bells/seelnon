@@ -1,6 +1,6 @@
 # Day 6 6 26
 
-![img c](https://i.pinimg.com/736x/12/05/8e/12058ec326c7e61438dcb060cb1690d1.jpg) 
+![img](https://i.pinimg.com/736x/12/05/8e/12058ec326c7e61438dcb060cb1690d1.jpg) 
 
 Yeah... doing updates and things... very POGGIES... Look, Lisa is getting painted a bit:
 
