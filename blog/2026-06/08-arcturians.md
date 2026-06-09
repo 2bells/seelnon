@@ -18,7 +18,7 @@ And of course, just screen memories and injections by... something for some reas
 
 BUT! James Cameron... and his movies: Terminator, Abyss, Aliens, Avatar... not saying anything, but that's interesting. Funny enough that some UFO lore does report 'spaceships' being like a submarine. And funny coincidence "I waited for technology to catch up"... when he was talking about Avatar.
 
-So 'Avatar' has that feel of:
+So it has that feel of:
 - James, it is just plants?... And water... I mean... it looks good, yeah.
 - Yeah, that's the point.
 - So that's what you wanted to show so badly... 30-50 years, James.
