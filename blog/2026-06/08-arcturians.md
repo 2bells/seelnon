@@ -18,7 +18,15 @@ And of course, just screen memories and injections by... something for some reas
 
 BUT! James Cameron... and his movies: Terminator, Abyss, Aliens, Avatar... not saying anything, but that's interesting. Funny enough that some UFO lore does report 'spaceships' being like a submarine. And funny coincidence "I waited for technology to catch up"... when he was talking about Avatar.
 
-Mostly it is an idea: 'where does imagination of oneself comes from'?
+So 'Avatar' has that feel of:
+- James, it is just plants?... And water... I mean... it looks good, yeah.
+- Yeah, that's the point.
+- So that's what you wanted to show so badly... 30-50 years, James.
+- [redacted] Yeah, because I've been there. [/redacted]
+- I wanted to push VFX to its limits to showcase a truly alien world!
+- Understandable, have a nice day.
+
+Mostly it is an idea: 'where does imagination of oneself comes from'? I drew a lady and almost was asking her: 'how did you happen?'. Because she started to give of a 'vibe', like I'm painting a genuine portrait, not just me testing some brushes. I mean, I don't mind doing a commission for a fellow Arcturian, just hit me up if you need another one.
 
 ## But There is More
 
