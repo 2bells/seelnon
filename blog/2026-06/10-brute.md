@@ -1,6 +1,6 @@
 # Brute Updates
 
-![img 40% c](https://i.pinimg.com/736x/7b/a3/a8/7ba3a87a9147d3043d02a44f8d0e17d0.jpg)
+![img](https://i.pinimg.com/736x/7b/a3/a8/7ba3a87a9147d3043d02a44f8d0e17d0.jpg)
 
 Ok, brute was HEAVILY worked on on the background bit by bit.
 So:
@@ -32,7 +32,7 @@ So:
 
 Oh yeah, mascot of the app... A bit different style as I'm testing different stuff.
 
-![img 40% c](https://www.dropbox.com/scl/fi/qxtu53ls8bkv6rr4l6ccq/CONCEPT_BRUTE_17810a33704455.jpg?rlkey=ifqduywwq6noxxhkuhs03tvig&st=pt97rxh9&raw=1)
+![img 60% c](https://www.dropbox.com/scl/fi/qxtu53ls8bkv6rr4l6ccq/CONCEPT_BRUTE_17810a33704455.jpg?rlkey=ifqduywwq6noxxhkuhs03tvig&st=pt97rxh9&raw=1)
 
 ## Known issues:
 
