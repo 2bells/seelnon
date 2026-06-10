@@ -31,6 +31,10 @@ class App {
     this.engine.onDrawEnd = () => {
         if (this.autosaveEnabled) this._triggerAutoSave();
     };
+    this.engine.onReferenceImagesChange = () => {
+        this._updateRefImageList();
+        if (this.autosaveEnabled) this._triggerAutoSave();
+    };
     this.engine.onPaletteExtracted = (colors) => {
         // Pick 2 bright, 2 mid, 2 dark from the 12 extracted values
         // Extraction is sorted by lum: [0..3] Light, [4..7] Mid, [8..11] Dark
@@ -377,15 +381,14 @@ class App {
       e.preventDefault();
       e.stopPropagation();
       
-      const rect = el.getBoundingClientRect();
-      el.style.transform = 'none';
-      if (el.id === 'modal-ref-editor') {
+      if (el.id === 'modal-ref-editor' || el.id === 'modal-new-project' || el.id === 'modal-export') {
+        const rect = el.getBoundingClientRect();
+        el.style.transform = 'none';
         el.style.left = rect.left + 'px';
         el.style.top = rect.top + 'px';
-      } else {
-        el.style.left = rect.left;
-        el.style.top = rect.top;
       }
+
+      
       
       pos3 = e.clientX;
       pos4 = e.clientY;
@@ -413,11 +416,13 @@ class App {
       handle.onpointerup = null;
       handle.onpointercancel = null;
       
-      self.windowPositions[el.id] = {
-          top: el.offsetTop,
-          left: el.offsetLeft
-      };
-      self._saveWindowPositions();
+      if (el.id !== 'modal-ref-editor' && el.id !== 'modal-new-project' && el.id !== 'modal-export') {
+        self.windowPositions[el.id] = {
+            top: el.offsetTop,
+            left: el.offsetLeft
+        };
+        self._saveWindowPositions();
+      }
     }
   }
 
@@ -619,6 +624,7 @@ class App {
       const vh = window.innerHeight;
 
       Object.keys(this.windowPositions).forEach(id => {
+          if (id === 'modal-ref-editor' || id === 'modal-new-project' || id === 'modal-export') return;
           const el = document.getElementById(id);
           if (!el) return;
 
@@ -647,6 +653,21 @@ class App {
 
   _setupHotkeys() {
     window.onkeydown = (e) => {
+      const refEditor = document.getElementById('modal-ref-editor');
+      if (refEditor && !refEditor.classList.contains('hidden')) {
+        const key = e.key.toLowerCase();
+        if (key === 'z' && e.ctrlKey) {
+          e.preventDefault();
+          const btnKnifeUndo = document.getElementById('btn-knife-undo');
+          if (btnKnifeUndo) btnKnifeUndo.click();
+        } else if (key === 'escape') {
+          e.preventDefault();
+          const btnCancel = document.getElementById('btn-ref-editor-cancel');
+          if (btnCancel) btnCancel.click();
+        }
+        return; // Block other hotkeys
+      }
+      
       if (
           document.activeElement && 
           (document.activeElement.tagName === 'INPUT' || 
@@ -1543,6 +1564,7 @@ class App {
       modal.style.transform = 'translate(-50%, -50%)';
       modal.style.right = 'auto';
       modal.style.bottom = 'auto';
+      modal.style.display = '';
       
       modal.classList.remove('hidden');
       
@@ -1598,7 +1620,7 @@ class App {
       const modal = document.getElementById('modal-export');
       if (modal) {
           modal.classList.add('hidden');
-          modal.style.display = 'none';
+          modal.style.display = '';
       }
       this.engine.isExportMode = false;
       this.engine.container.classList.remove('export-mode');

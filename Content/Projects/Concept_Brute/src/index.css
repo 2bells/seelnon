@@ -852,7 +852,7 @@ button, input, select {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-height: 128px;
+    max-height: 150px;
     overflow-y: auto;
     margin-bottom: 8px;
 }

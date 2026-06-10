@@ -242,6 +242,11 @@ export class ImgHandler {
       b:   { black: 0, gamma: 1.0, white: 255, outblack: 0, outwhite: 255 }
     };
 
+    if (this.colorBWCheckbox) {
+      this.colorBWCheckbox.checked = false;
+    }
+    this.colorBWMode = false;
+
     // Update Sliders in UI
     this.syncCropSliders();
     this.syncColorSliders('all');
@@ -316,6 +321,10 @@ export class ImgHandler {
       if (slider) {
         slider.oninput = (e) => {
           this.cropVal[side] = parseInt(e.target.value);
+          const valSpan = document.getElementById(`crop-val-${side}`);
+          if (valSpan) {
+            valSpan.innerText = `${this.cropVal[side]}%`;
+          }
           this.renderPreview();
         };
       }
@@ -357,10 +366,23 @@ export class ImgHandler {
       }
     });
 
+    // Black & White mode checkbox real-time response
+    this.colorBWCheckbox = document.getElementById('color-bw-mode');
+    if (this.colorBWCheckbox) {
+      this.colorBWCheckbox.onchange = (e) => {
+        this.colorBWMode = e.target.checked;
+        this.renderPreview();
+      };
+    }
+
     if (this.btnColorReset) {
       this.btnColorReset.onclick = () => {
         const chan = this.colorChannelSelect ? this.colorChannelSelect.value : 'all';
         this.colorVal[chan] = { black: 0, gamma: 1.0, white: 255, outblack: 0, outwhite: 255 };
+        if (this.colorBWCheckbox) {
+          this.colorBWCheckbox.checked = false;
+        }
+        this.colorBWMode = false;
         this.syncColorSliders(chan);
         this.renderPreview();
       };
@@ -390,14 +412,13 @@ export class ImgHandler {
       };
     }
 
-    // Pointer/Dragging events on the interactive canvas
-    if (this.editorCanvas) {
-      this.editorCanvas.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
-      this.editorCanvas.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
-      this.editorCanvas.addEventListener('mouseup', (e) => this.handleCanvasMouseUp(e));
+    // Pointer/Dragging events on the interactive workspace area
+    const workspaceCol = document.getElementById('ref-editor-workspace-col');
+    if (workspaceCol) {
+      workspaceCol.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
 
       // Support touch events
-      this.editorCanvas.addEventListener('touchstart', (e) => {
+      workspaceCol.addEventListener('touchstart', (e) => {
         if (e.touches.length === 1) {
           const fakeEvent = {
             clientX: e.touches[0].clientX,
@@ -407,26 +428,49 @@ export class ImgHandler {
           this.handleCanvasMouseDown(fakeEvent);
         }
       });
-      this.editorCanvas.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 1) {
-          const fakeEvent = {
-            clientX: e.touches[0].clientX,
-            clientY: e.touches[0].clientY,
-            preventDefault: () => e.preventDefault()
-          };
-          this.handleCanvasMouseMove(fakeEvent);
-        }
-      });
-      this.editorCanvas.addEventListener('touchend', (e) => {
-        this.handleCanvasMouseUp(e);
-      });
     }
+
+    // Window level listeners make moving mouse outside the workspace extremely robust!
+    window.addEventListener('mousemove', (e) => {
+      if (this.isDraggingCrop) {
+        this.handleCanvasMouseMove(e);
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (this.isDraggingCrop) {
+        this.handleCanvasMouseUp(e);
+      }
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (this.isDraggingCrop && e.touches.length === 1) {
+        const fakeEvent = {
+          clientX: e.touches[0].clientX,
+          clientY: e.touches[0].clientY,
+          preventDefault: () => e.preventDefault()
+        };
+        this.handleCanvasMouseMove(fakeEvent);
+      }
+    });
+
+    window.addEventListener('touchend', (e) => {
+      if (this.isDraggingCrop) {
+        this.handleCanvasMouseUp(e);
+      }
+    });
   }
 
   // Syncing state views
   syncCropSliders() {
     Object.entries(this.cropSliders).forEach(([side, slider]) => {
-      if (slider) slider.value = this.cropVal[side];
+      if (slider) {
+        slider.value = this.cropVal[side];
+        const valSpan = document.getElementById(`crop-val-${side}`);
+        if (valSpan) {
+          valSpan.innerText = `${this.cropVal[side]}%`;
+        }
+      }
     });
   }
 
@@ -511,6 +555,10 @@ export class ImgHandler {
   renderPreview() {
     if (!this.selectedRef || !this.editorCanvas || !this.origImgData) return;
 
+    if (this.editorSvg) {
+      this.editorSvg.innerHTML = '';
+    }
+
     this.resizeEditorWorkspace();
 
     const w = this.origImgData.width;
@@ -548,9 +596,20 @@ export class ImgHandler {
 
     // 3. Render color tone pixels
     for (let i = 0; i < srcData.length; i += 4) {
-      destData[i]     = finalLUT_R[srcData[i]];
-      destData[i + 1] = finalLUT_G[srcData[i + 1]];
-      destData[i + 2] = finalLUT_B[srcData[i + 2]];
+      const r = finalLUT_R[srcData[i]];
+      const g = finalLUT_G[srcData[i + 1]];
+      const b = finalLUT_B[srcData[i + 2]];
+      
+      if (this.colorBWMode) {
+        const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        destData[i]     = lum;
+        destData[i + 1] = lum;
+        destData[i + 2] = lum;
+      } else {
+        destData[i]     = r;
+        destData[i + 1] = g;
+        destData[i + 2] = b;
+      }
       destData[i + 3] = srcData[i + 3];
     }
 
@@ -586,38 +645,41 @@ export class ImgHandler {
       ctx.shadowBlur = 0;
     } 
     else if (this.activeTab === 'knife') {
-      if (this.knifePoints.length > 0) {
-        // Draw cutting coordinates path
-        ctx.strokeStyle = '#ff0033';
-        ctx.lineWidth = 3;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 4;
-        ctx.beginPath();
-        ctx.moveTo(this.knifePoints[0].x, this.knifePoints[0].y);
+      if (this.knifePoints.length > 0 && this.editorSvg) {
+        this.editorSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        
+        let d = `M ${this.knifePoints[0].x} ${this.knifePoints[0].y}`;
         for (let i = 1; i < this.knifePoints.length; i++) {
-          ctx.lineTo(this.knifePoints[i].x, this.knifePoints[i].y);
+          d += ` L ${this.knifePoints[i].x} ${this.knifePoints[i].y}`;
         }
         
-        if (this.knifeMode === 'lasso' && this.knifePoints.length > 2) {
-          // Closed loop indicator
-          ctx.closePath();
-          ctx.fillStyle = 'rgba(255,0,50,0.15)';
-          ctx.fill();
-        }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathEl.setAttribute('d', this.knifeMode === 'lasso' && this.knifePoints.length > 2 ? d + ' Z' : d);
+        pathEl.setAttribute('stroke', '#ff0033');
+        
+        const sw = Math.max(3, w / 200);
+        pathEl.setAttribute('stroke-width', sw.toString());
+        pathEl.setAttribute('fill', this.knifeMode === 'lasso' && this.knifePoints.length > 2 ? 'rgba(255,0,50,0.15)' : 'none');
+        pathEl.setAttribute('stroke-linejoin', 'round');
+        pathEl.setAttribute('stroke-linecap', 'round');
+        pathEl.style.filter = 'drop-shadow(0px 2px 3px rgba(0,0,0,0.75))';
+        
+        this.editorSvg.appendChild(pathEl);
 
         // Draw point anchors
         this.knifePoints.forEach((pt, idx) => {
-          ctx.fillStyle = idx === 0 ? '#00f0ff' : '#ff0033';
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', pt.x.toString());
+          circle.setAttribute('cy', pt.y.toString());
+          
+          const radius = Math.max(6, w / 100);
+          circle.setAttribute('r', radius.toString());
+          circle.setAttribute('fill', idx === 0 ? '#00f0ff' : '#ff0033');
+          circle.setAttribute('stroke', '#ffffff');
+          circle.setAttribute('stroke-width', Math.max(1.5, w / 400).toString());
+          circle.style.filter = 'drop-shadow(0px 1px 2px rgba(0,0,0,0.6))';
+          
+          this.editorSvg.appendChild(circle);
         });
       }
     }
@@ -625,21 +687,26 @@ export class ImgHandler {
 
   // --- MOUSE TRACKING COORDINATES HELPERS ---
 
-  getMousePosOnImage(e) {
+  getMousePosOnImage(e, clamp = true) {
     if (!this.editorCanvas) return null;
     const rect = this.editorCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     // Map into original pixel boundary domain
-    const pxX = Math.max(0, Math.min(this.editorCanvas.width, (x / rect.width) * this.editorCanvas.width));
-    const pxY = Math.max(0, Math.min(this.editorCanvas.height, (y / rect.height) * this.editorCanvas.height));
+    let pxX = (x / rect.width) * this.editorCanvas.width;
+    let pxY = (y / rect.height) * this.editorCanvas.height;
+
+    if (clamp) {
+      pxX = Math.max(0, Math.min(this.editorCanvas.width, pxX));
+      pxY = Math.max(0, Math.min(this.editorCanvas.height, pxY));
+    }
     return { x: pxX, y: pxY };
   }
 
   handleCanvasMouseDown(e) {
     if (e.preventDefault) e.preventDefault();
-    const pos = this.getMousePosOnImage(e);
+    const pos = this.getMousePosOnImage(e, this.activeTab !== 'knife');
     if (!pos) return;
 
     if (this.activeTab === 'crop') {
@@ -678,7 +745,7 @@ export class ImgHandler {
 
   handleCanvasMouseMove(e) {
     if (!this.isDraggingCrop || !this.dragStartPos || this.activeTab !== 'crop') return;
-    const pos = this.getMousePosOnImage(e);
+    const pos = this.getMousePosOnImage(e, true);
     if (!pos) return;
 
     const w = this.editorCanvas.width;
@@ -800,9 +867,20 @@ export class ImgHandler {
       for (let y = cTop; y < cBottom; y++) {
         for (let x = cLeft; x < cRight; x++) {
           const srcIdx = (y * w + x) * 4;
-          dest[destIdx]     = finalLUT_R[src[srcIdx]];
-          dest[destIdx + 1] = finalLUT_G[src[srcIdx + 1]];
-          dest[destIdx + 2] = finalLUT_B[src[srcIdx + 2]];
+          const r = finalLUT_R[src[srcIdx]];
+          const g = finalLUT_G[src[srcIdx + 1]];
+          const b = finalLUT_B[src[srcIdx + 2]];
+          
+          if (this.colorBWMode) {
+            const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            dest[destIdx]     = lum;
+            dest[destIdx + 1] = lum;
+            dest[destIdx + 2] = lum;
+          } else {
+            dest[destIdx]     = r;
+            dest[destIdx + 1] = g;
+            dest[destIdx + 2] = b;
+          }
           dest[destIdx + 3] = src[srcIdx + 3];
           destIdx += 4;
         }
@@ -826,9 +904,19 @@ export class ImgHandler {
       const src = this.origImgData.data;
       const dest = colorImgData.data;
       for (let i = 0; i < src.length; i += 4) {
-        dest[i]     = finalLUT_R[src[i]];
-        dest[i + 1] = finalLUT_G[src[i + 1]];
-        dest[i + 2] = finalLUT_B[src[i + 2]];
+        const r = finalLUT_R[src[i]];
+        const g = finalLUT_G[src[i + 1]];
+        const b = finalLUT_B[src[i + 2]];
+        if (this.colorBWMode) {
+          const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+          dest[i]     = lum;
+          dest[i + 1] = lum;
+          dest[i + 2] = lum;
+        } else {
+          dest[i]     = r;
+          dest[i + 1] = g;
+          dest[i + 2] = b;
+        }
         dest[i + 3] = src[i + 3];
       }
       cctx.putImageData(colorImgData, 0, 0);
@@ -899,13 +987,49 @@ export class ImgHandler {
       ctxOut.fill();
       ctxOut.restore();
 
+      // Crop each canvas to its non-transparent bounds
+      const croppedIn = this.cropCanvasToContent(canvasIn);
+      const croppedOut = this.cropCanvasToContent(canvasOut);
+
+      // Local helper to calculate new world position after cropping
+      const getNewCenter = (croppedInfo) => {
+        const left = croppedInfo.offsetX;
+        const top = croppedInfo.offsetY;
+        const cW = croppedInfo.canvas.width;
+        const cH = croppedInfo.canvas.height;
+        
+        // Local shifts relative to original image center
+        const shiftX = (left + cW / 2) - w / 2;
+        const shiftY = (top + cH / 2) - h / 2;
+        
+        // Map to world coordinates based on scale, rotation and mirroring
+        const r = this.selectedRef.rotation || 0;
+        const s = this.selectedRef.scale || 1.0;
+        const mirX = this.selectedRef.mirrorX || false;
+        const mirY = this.selectedRef.mirrorY || false;
+        
+        const localShiftX = shiftX * (mirX ? -1 : 1);
+        const localShiftY = shiftY * (mirY ? -1 : 1);
+        
+        const worldShiftX = (localShiftX * Math.cos(r) - localShiftY * Math.sin(r)) * s;
+        const worldShiftY = (localShiftX * Math.sin(r) + localShiftY * Math.cos(r)) * s;
+        
+        return {
+          x: this.selectedRef.x + worldShiftX,
+          y: this.selectedRef.y + worldShiftY
+        };
+      };
+
+      const posA = getNewCenter(croppedIn);
+      const posB = getNewCenter(croppedOut);
+
       // Create new reference images in the engine
       let loadedCount = 0;
       const onSplitImgLoaded = () => {
         loadedCount++;
         if (loadedCount === 2) {
-          // Remove the original master reference image
-          this.engine.removeReferenceImage(this.engine.selectedRefIndex);
+          // Remove the original master reference image (do NOT push history again asynchronously here!)
+          this.engine.removeReferenceImage(this.engine.selectedRefIndex, false);
           this.engine.refsDirty = true;
           this.engine.refresh();
           if (this.onUpdate) this.onUpdate();
@@ -915,29 +1039,79 @@ export class ImgHandler {
 
       const imgIn = new Image();
       imgIn.onload = () => {
-        const refA = this.engine.addReferenceImage(imgIn, `${this.selectedRef.name} (Cut A)`, this.selectedRef.x, this.selectedRef.y, {
+        const refA = this.engine.addReferenceImage(imgIn, `${this.selectedRef.name} (Cut A)`, posA.x, posA.y, {
           rotation: this.selectedRef.rotation,
           scale: this.selectedRef.scale,
           opacity: this.selectedRef.opacity,
           mirrorX: this.selectedRef.mirrorX,
           mirrorY: this.selectedRef.mirrorY
-        }, false);
+        }, false, false); // autoSelect = false, pushHistory = false
         onSplitImgLoaded();
       };
-      imgIn.src = canvasIn.toDataURL();
+      imgIn.src = croppedIn.canvas.toDataURL();
 
       const imgOut = new Image();
       imgOut.onload = () => {
-        const refB = this.engine.addReferenceImage(imgOut, `${this.selectedRef.name} (Cut B)`, this.selectedRef.x, this.selectedRef.y, {
+        const refB = this.engine.addReferenceImage(imgOut, `${this.selectedRef.name} (Cut B)`, posB.x, posB.y, {
           rotation: this.selectedRef.rotation,
           scale: this.selectedRef.scale,
           opacity: this.selectedRef.opacity,
           mirrorX: this.selectedRef.mirrorX,
           mirrorY: this.selectedRef.mirrorY
-        }, false);
+        }, false, false); // autoSelect = false, pushHistory = false
         onSplitImgLoaded();
       };
-      imgOut.src = canvasOut.toDataURL();
+      imgOut.src = croppedOut.canvas.toDataURL();
     }
+  }
+
+  cropCanvasToContent(canvas) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { canvas, offsetX: 0, offsetY: 0 };
+    const w = canvas.width;
+    const h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    let minX = w;
+    let maxX = 0;
+    let minY = h;
+    let maxY = 0;
+    let hasPixels = false;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 4;
+        const alpha = data[idx + 3];
+        if (alpha > 0) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          hasPixels = true;
+        }
+      }
+    }
+
+    if (!hasPixels) {
+      return { canvas, offsetX: 0, offsetY: 0 };
+    }
+
+    const cropW = (maxX - minX) + 1;
+    const cropH = (maxY - minY) + 1;
+
+    const croppedCanvas = document.createElement('canvas');
+    croppedCanvas.width = cropW;
+    croppedCanvas.height = cropH;
+    const croppedCtx = croppedCanvas.getContext('2d');
+    if (croppedCtx) {
+      croppedCtx.putImageData(ctx.getImageData(minX, minY, cropW, cropH), 0, 0);
+    }
+
+    return {
+      canvas: croppedCanvas,
+      offsetX: minX,
+      offsetY: minY
+    };
   }
 }

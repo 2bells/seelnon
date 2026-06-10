@@ -2384,17 +2384,10 @@ export class Engine {
         if ((this.brush.type === TOOLS.SMUDGE || this.brush.type === TOOLS.LIQUIFY) && this.activeSelectionPath) {
             this.currentStrokeDirtyChunks.forEach((data, id) => {
                 const chunk = this.chunks.get(id);
-                if (chunk) {
+                if (chunk && data.canvas) {
                     const lx = this.isStatic ? -this.staticWidth / 2 : chunk.cx * this.chunkSize;
                     const ly = this.isStatic ? -this.staticHeight / 2 : chunk.cy * this.chunkSize;
                     
-                    // 1. Create temporary canvas and copy the current (unclipped) chunk content of the layer to it
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = chunk.width;
-                    tempCanvas.height = chunk.height;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    tempCtx.drawImage(chunk.canvases[this.activeLayer], 0, 0);
-
                     // Create selection mask
                     const maskCanvas = document.createElement('canvas');
                     maskCanvas.width = chunk.width;
@@ -2402,25 +2395,40 @@ export class Engine {
                     const maskCtx = maskCanvas.getContext('2d');
                     this.drawSelectionMask(maskCtx, this.activeSelectionPath, lx, ly);
 
-                    // Intersect tempCanvas with mask
-                    tempCtx.save();
-                    tempCtx.globalCompositeOperation = 'destination-in';
-                    tempCtx.drawImage(maskCanvas, 0, 0);
-                    tempCtx.restore();
+                    // 1. Create standard temp canvas containing the CURRENT canvas (drawn/smudged/liquified state)
+                    const tempCurrent = document.createElement('canvas');
+                    tempCurrent.width = chunk.width;
+                    tempCurrent.height = chunk.height;
+                    const tempCurrentCtx = tempCurrent.getContext('2d');
+                    tempCurrentCtx.drawImage(chunk.canvases[this.activeLayer], 0, 0);
 
-                    // 2. Clear layer and restore original pre-stroke snapshot
-                    const lCtx = chunk.ctxs[this.activeLayer];
-                    lCtx.clearRect(0, 0, chunk.width, chunk.height);
-                    lCtx.drawImage(data.canvas, 0, 0);
+                    // Retain only CURRENT pixels inside mask
+                    tempCurrentCtx.save();
+                    tempCurrentCtx.globalCompositeOperation = 'destination-in';
+                    tempCurrentCtx.drawImage(maskCanvas, 0, 0);
+                    tempCurrentCtx.restore();
 
-                    // 3. Clear the area of the selection from the restored layer first to prevent overlay blending
-                    lCtx.save();
-                    lCtx.globalCompositeOperation = 'destination-out';
-                    lCtx.drawImage(maskCanvas, 0, 0);
-                    lCtx.restore();
+                    // 2. Create a temp canvas containing original BACKUP pixels
+                    const tempBackup = document.createElement('canvas');
+                    tempBackup.width = chunk.width;
+                    tempBackup.height = chunk.height;
+                    const tempBackupCtx = tempBackup.getContext('2d');
+                    tempBackupCtx.drawImage(data.canvas, 0, 0);
 
-                    // 4. Draw the newly painted smudge back
-                    lCtx.drawImage(tempCanvas, 0, 0);
+                    // Retain only BACKUP pixels outside mask
+                    tempBackupCtx.save();
+                    tempBackupCtx.globalCompositeOperation = 'destination-out';
+                    tempBackupCtx.drawImage(maskCanvas, 0, 0);
+                    tempBackupCtx.restore();
+
+                    // 3. Combine them back using perfect additive blend to avoid edge antialiasing fringing
+                    const layerCtx = chunk.ctxs[this.activeLayer];
+                    layerCtx.clearRect(0, 0, chunk.width, chunk.height);
+                    layerCtx.drawImage(tempBackup, 0, 0);
+                    layerCtx.save();
+                    layerCtx.globalCompositeOperation = 'lighter';
+                    layerCtx.drawImage(tempCurrent, 0, 0);
+                    layerCtx.restore();
                 }
             });
         }
@@ -2470,10 +2478,13 @@ export class Engine {
                         tempBackupCtx.drawImage(maskCanvas, 0, 0);
                         tempBackupCtx.restore();
 
-                        // 4. Combine them back onto chunk's canvas
+                        // 4. Combine them back onto chunk's canvas with perfect additive blend to avoid edge antialiasing fringing
                         layerCtx.clearRect(0, 0, chunk.width, chunk.height);
-                        layerCtx.drawImage(tempCurrent, 0, 0);
                         layerCtx.drawImage(tempBackup, 0, 0);
+                        layerCtx.save();
+                        layerCtx.globalCompositeOperation = 'lighter';
+                        layerCtx.drawImage(tempCurrent, 0, 0);
+                        layerCtx.restore();
                     }
                 }
             });
@@ -2763,15 +2774,20 @@ export class Engine {
     this.selectedRefIndex = this.referenceImages.length - 1;
     this.refsDirty = true;
     this.refresh();
+    if (this.onReferenceImagesChange) {
+        this.onReferenceImagesChange();
+    }
   }
 
-  removeReferenceImage(index) {
+  removeReferenceImage(index, pushHistory = true) {
       if (index >= 0 && index < this.referenceImages.length) {
-          this._pushHistory({
-              type: 'reference_change',
-              referenceImagesState: this.captureReferenceImagesState()
-          });
-          this._clearStack(this.redoStack);
+          if (pushHistory) {
+              this._pushHistory({
+                  type: 'reference_change',
+                  referenceImagesState: this.captureReferenceImagesState()
+              });
+              this._clearStack(this.redoStack);
+          }
 
           const ref = this.referenceImages[index];
           if (ref.element) ref.element.remove();
@@ -2783,6 +2799,9 @@ export class Engine {
               this.selectedRefIndex--;
           }
           this.refresh();
+          if (this.onReferenceImagesChange) {
+              this.onReferenceImagesChange();
+          }
       }
   }
 
@@ -2937,27 +2956,130 @@ export class Engine {
           const pM = getDiverseColors(mids, totalSlots);
           const pS = getDiverseColors(shadows, totalSlots);
 
-          const wL = lights.length, wM = mids.length, wS = shadows.length;
-          const totalW = wL + wM + wS || 1;
-          const rL = wL / totalW;
-          const rM = wM / totalW;
-          const rS = wS / totalW;
-          
-          let nL, nM, nS;
-          
-          if (rM > 0.75) { // Extreme mid-bias
-            [nL, nM, nS] = [1, 10, 1];
-          } else if (rM > 0.6) { // Strong mid-bias
-            [nL, nM, nS] = [2, 8, 2];
-          } else if (rM > 0.45) { // Mild mid-bias
-            [nL, nM, nS] = [3, 6, 3];
-          } else { // Balanced
-            [nL, nM, nS] = [4, 4, 4];
+          // Convert diverse candidate colors to HSL for analytical diagnostics
+          const hslL = pL.map(c => rgbToHsl(c[0], c[1], c[2]));
+          const hslM = pM.map(c => rgbToHsl(c[0], c[1], c[2]));
+          const hslS = pS.map(c => rgbToHsl(c[0], c[1], c[2]));
+
+          // Function to determine if two HSL colors are relatively same-ish in hue and lightness value
+          function areSameIsh(cA, cB) {
+              const dh = Math.min(Math.abs(cA.h - cB.h), 360 - Math.abs(cA.h - cB.h));
+              const dl = Math.abs(cA.l - cB.l);
+              if (cA.s < 10 && cB.s < 10) {
+                  return dl < 8; // Under low saturation, lightness is the primary identifier
+              }
+              return (dh < 30 && dl < 12);
           }
-          
-          nL = Math.max(1, Math.min(pL.length, nL));
-          nS = Math.max(1, Math.min(pS.length, nS));
-          nM = Math.max(1, Math.min(pM.length, 12 - nL - nS));
+
+          // Runs diagnostics on 'how different are you?' to get number of unique hue/value actors
+          function getDistinctCount(hslList) {
+              if (hslList.length === 0) return 0;
+              const distinct = [];
+              for (const color of hslList) {
+                  let isNew = true;
+                  for (const existing of distinct) {
+                      if (areSameIsh(color, existing)) {
+                          isNew = false;
+                          break;
+                      }
+                  }
+                  if (isNew) {
+                      distinct.push(color);
+                  }
+              }
+              return distinct.length;
+          }
+
+          const hasL = pL.length > 0;
+          const hasM = pM.length > 0;
+          const hasS = pS.length > 0;
+
+          const minL = hasL ? 1 : 0;
+          const minM = hasM ? 1 : 0;
+          const minS = hasS ? 1 : 0;
+
+          const divL = hasL ? Math.max(1, getDistinctCount(hslL)) : 0;
+          const divM = hasM ? Math.max(1, getDistinctCount(hslM)) : 0;
+          const divS = hasS ? Math.max(1, getDistinctCount(hslS)) : 0;
+
+          const wL = Math.pow(divL, 1.5);
+          const wM = Math.pow(divM, 1.5);
+          const wS = Math.pow(divS, 1.5);
+
+          const totalWeight = wL + wM + wS;
+          const remSlots = Math.max(0, 12 - minL - minM - minS);
+
+          let shareL = 0, shareM = 0, shareS = 0;
+
+          if (totalWeight > 0 && remSlots > 0) {
+              const quotaL = remSlots * (wL / totalWeight);
+              const quotaM = remSlots * (wM / totalWeight);
+              const quotaS = remSlots * (wS / totalWeight);
+
+              shareL = Math.floor(quotaL);
+              shareM = Math.floor(quotaM);
+              shareS = Math.floor(quotaS);
+
+              let leftover = remSlots - (shareL + shareM + shareS);
+
+              if (leftover > 0) {
+                  const remL = quotaL - shareL;
+                  const remM = quotaM - shareM;
+                  const remS = quotaS - shareS;
+
+                  const sortCandidates = [
+                      { id: 'L', rem: remL, active: hasL },
+                      { id: 'M', rem: remM, active: hasM },
+                      { id: 'S', rem: remS, active: hasS }
+                  ].filter(c => c.active);
+
+                  sortCandidates.sort((a, b) => b.rem - a.rem);
+
+                  for (let i = 0; i < leftover && i < sortCandidates.length; i++) {
+                      if (sortCandidates[i].id === 'L') shareL++;
+                      else if (sortCandidates[i].id === 'M') shareM++;
+                      else if (sortCandidates[i].id === 'S') shareS++;
+                  }
+              }
+          }
+
+          let nL = minL + shareL;
+          let nM = minM + shareM;
+          let nS = minS + shareS;
+
+          const capL = pL.length;
+          const capM = pM.length;
+          const capS = pS.length;
+
+          let excess = 0;
+          if (nL > capL) { excess += (nL - capL); nL = capL; }
+          if (nS > capS) { excess += (nS - capS); nS = capS; }
+          if (nM > capM) { excess += (nM - capM); nM = capM; }
+
+          if (excess > 0) {
+              const capCats = [
+                  { id: 'M', cap: capM, cur: nM, weight: wM },
+                  { id: 'L', cap: capL, cur: nL, weight: wL },
+                  { id: 'S', cap: capS, cur: nS, weight: wS }
+              ];
+              capCats.sort((a, b) => b.weight - a.weight);
+
+              for (const cat of capCats) {
+                  const avail = cat.cap - cat.cur;
+                  if (avail > 0) {
+                      const toAdd = Math.min(excess, avail);
+                      cat.cur += toAdd;
+                      excess -= toAdd;
+                  }
+                  if (excess <= 0) break;
+              }
+
+              for (const cat of capCats) {
+                  if (cat.id === 'L') nL = cat.cur;
+                  else if (cat.id === 'M') nM = cat.cur;
+                  else if (cat.id === 'S') nS = cat.cur;
+              }
+          }
 
           const extractedLights = pL.slice(0, nL);
           const extractedMids = pM.slice(0, nM);
@@ -3726,12 +3848,14 @@ export class Engine {
     this._reliefCache = { shadow: shad, highlight: high, key: `${s}_${blur}`, srcTip: this.brush.tip };
   }
 
-  addReferenceImage(img, name, x = null, y = null, config = {}, autoSelect = true) {
-    this._pushHistory({
-        type: 'reference_change',
-        referenceImagesState: this.captureReferenceImagesState()
-    });
-    this._clearStack(this.redoStack);
+  addReferenceImage(img, name, x = null, y = null, config = {}, autoSelect = true, pushHistory = true) {
+    if (pushHistory) {
+      this._pushHistory({
+          type: 'reference_change',
+          referenceImagesState: this.captureReferenceImagesState()
+      });
+      this._clearStack(this.redoStack);
+    }
 
     const rect = this.container.getBoundingClientRect();
     const wx = x !== null ? x : (-this.pan.x) / this.zoom;
@@ -3783,6 +3907,9 @@ export class Engine {
         this.selectedRefIndex = this.referenceImages.length - 1;
     }
     this.refresh();
+    if (this.onReferenceImagesChange) {
+        this.onReferenceImagesChange();
+    }
     return ref;
   }
 

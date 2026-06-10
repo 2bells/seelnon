@@ -668,110 +668,111 @@
           </div>
         </div>
 
-        <!-- NEW PROJECT MODAL -->
-        <div id="modal-new-project" class="ui-panel hidden" style="width: 230px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10000; box-shadow: 10px 10px 0 0 #000;">
-            <div id="handle-new-project" class="panel-handle">
-                <span class="panel-title">NEW CANVAS</span>
-                <button id="btn-close-new-project" class="mini-btn">X</button>
-            </div>
-            <div class="panel-content">
-                 <div class="settings-divider"></div>
-                 <div class="settings-group" style="margin-top: 8px;">
-                     <label class="settings-label">NAME</label>
-                     <input type="text" id="new-project-name" class="brutal-input full-width" value="SKETCH_01" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px;">
-                 </div>
-                 <div class="settings-group" style="margin-top: 8px;">
-                     <label class="settings-label">CANVAS MODE</label>
-                     <select id="new-project-mode" class="full-width" style="border: 2px solid #000; font-family: inherit; font-size: 10px;">
-                         <option value="infinite" selected>INFINITE CANVAS</option>
-                         <option value="static">STATIC BOARD</option>
-                     </select>
-                 </div>
-                 <!-- Collapsible Custom static board attributes -->
-                 <div id="new-project-static-dimensions" class="hidden" style="margin-top: 8px; border: 2px dashed #000; padding: 6px;">
-                     <div class="settings-group">
-                         <label class="settings-label" style="font-size: 8px;">WIDTH (PX)</label>
-                         <input type="number" id="new-project-width" class="brutal-input full-width" value="2400" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px; width: 100%; box-sizing: border-box;">
-                     </div>
-                     <div class="settings-group" style="margin-top: 6px;">
-                         <label class="settings-label" style="font-size: 8px;">HEIGHT (PX)</label>
-                         <input type="number" id="new-project-height" class="brutal-input full-width" value="3600" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px; width: 100%; box-sizing: border-box;">
-                     </div>
-                     <div class="settings-group" style="margin-top: 6px;">
-                         <label class="settings-label" style="font-size: 8px;">INITIAL DPI</label>
-                         <input type="number" id="new-project-dpi" class="brutal-input full-width" value="300" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px; width: 100%; box-sizing: border-box;">
-                     </div>
-                     <div style="font-size: 8px; opacity: 0.6; margin-top: 6px; line-height: 1.2;">Default is 2400x3600 (ideal for painting). Default DPI is 300.</div>
-                 </div>
-                 <div class="settings-group" style="margin-top: 8px;">
-                     <label class="settings-label">CHUNK SIZE</label>
-                     <select id="new-project-chunk-size" class="full-width" style="border: 2px solid #000; font-family: inherit; font-size: 10px;">
-                         <option value="256">256 (TINY)</option>
-                         <option value="512" selected>512 (BALANCED)</option>
-                         <option value="1024">1024 (HD)</option>
-                     </select>
-                 </div>
-                 <div class="settings-group" style="margin-top: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label class="settings-label">WEBP QUALITY</label>
-                        <span id="new-quality-val" style="font-size: 9px; font-weight: 900;">0.5</span>
-                    </div>
-                    <input type="range" id="new-project-quality" min="0.1" max="1.0" step="0.1" value="0.5" class="minimal-range" style="width: 100%;">
-                 </div>
-                 <div style="height: 12px;"></div>
-                 <button id="btn-create-project-final" class="brutal-btn full-width">CREATE</button>
-            </div>
-        </div>
-
-        <!--  EXPORT MODAL -->
-        <div id="modal-export" class="ui-panel hidden" style="width: 280px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10002; box-shadow: 12px 12px 0 0 #000; height: auto; max-height: 90vh; overflow-y: auto;">
-            <div id="handle-export" class="panel-handle">
-                <span class="panel-title">EXPORT SELECTION</span>
-                <button id="btn-close-export" class="mini-btn">X</button>
-            </div>
-            <div class="panel-content" style="padding: 12px; padding-top: 0; display: flex; flex-direction: column;">
-                 <div class="settings-divider"></div>
-                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
-                    <div class="settings-group">
-                        <label class="settings-label">WIDTH</label>
-                        <input type="number" id="export-width" class="brutal-input full-width" style="border: 2px solid #000; padding: 4px; font-family: inherit; font-size: 11px; width: 100%; box-sizing: border-box;">
-                    </div>
-                    <div class="settings-group">
-                        <label class="settings-label">HEIGHT</label>
-                        <input type="number" id="export-height" class="brutal-input full-width" style="border: 2px solid #000; padding: 4px; font-family: inherit; font-size: 11px; width: 100%; box-sizing: border-box;">
-                    </div>
-                 </div>
-                 <div class="settings-row" style="margin: 12px 0 8px 0;">
-                    <label class="settings-label">KEEP RATIO</label>
-                    <div class="checkbox-wrapper">
-                       <input type="checkbox" id="export-keep-ratio" checked class="settings-input-check">
-                       <span class="checkbox-custom"></span>
-                    </div>
-                 </div>
-                 <div class="settings-divider"></div>
-                 <div class="settings-row" style="margin: 12px 0 8px 0;">
-                    <label class="settings-label">ALPHA CHANNEL</label>
-                    <div class="checkbox-wrapper">
-                       <input type="checkbox" id="export-alpha" class="settings-input-check">
-                       <span class="checkbox-custom"></span>
-                    </div>
-                 </div>
-                 <div class="settings-group" style="margin-top: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label class="settings-label">SCALE</label>
-                        <span id="export-scale-val" style="font-size: 10px; font-weight: 900;">100%</span>
-                    </div>
-                    <input type="range" id="export-scale" min="10" max="200" step="10" value="100" class="minimal-range" style="width: 100%; margin: 8px 0;">
-                 </div>
-                 <div style="height: 12px;"></div>
-                 <button id="btn-export-final" class="brutal-btn full-width" style="padding: 10px; font-weight: 900; letter-spacing: 1px;">DOWNLOAD .PNG</button>
-            </div>
-        </div>
       </div>
     </div>
 
+    <!-- NEW PROJECT MODAL -->
+    <div id="modal-new-project" class="ui-panel hidden" style="width: 230px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10000; box-shadow: 10px 10px 0 0 #000;">
+        <div id="handle-new-project" class="panel-handle">
+            <span class="panel-title">NEW CANVAS</span>
+            <button id="btn-close-new-project" class="mini-btn">X</button>
+        </div>
+        <div class="panel-content">
+             <div class="settings-divider"></div>
+             <div class="settings-group" style="margin-top: 8px;">
+                 <label class="settings-label">NAME</label>
+                 <input type="text" id="new-project-name" class="brutal-input full-width" value="SKETCH_01" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px;">
+             </div>
+             <div class="settings-group" style="margin-top: 8px;">
+                 <label class="settings-label">CANVAS MODE</label>
+                 <select id="new-project-mode" class="full-width" style="border: 2px solid #000; font-family: inherit; font-size: 10px;">
+                     <option value="infinite" selected>INFINITE CANVAS</option>
+                     <option value="static">STATIC BOARD</option>
+                 </select>
+             </div>
+             <!-- Collapsible Custom static board attributes -->
+             <div id="new-project-static-dimensions" class="hidden" style="margin-top: 8px; border: 2px dashed #000; padding: 6px;">
+                 <div class="settings-group">
+                     <label class="settings-label" style="font-size: 8px;">WIDTH (PX)</label>
+                     <input type="number" id="new-project-width" class="brutal-input full-width" value="2400" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px; width: 100%; box-sizing: border-box;">
+                 </div>
+                 <div class="settings-group" style="margin-top: 6px;">
+                     <label class="settings-label" style="font-size: 8px;">HEIGHT (PX)</label>
+                     <input type="number" id="new-project-height" class="brutal-input full-width" value="3600" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px; width: 100%; box-sizing: border-box;">
+                 </div>
+                 <div class="settings-group" style="margin-top: 6px;">
+                     <label class="settings-label" style="font-size: 8px;">INITIAL DPI</label>
+                     <input type="number" id="new-project-dpi" class="brutal-input full-width" value="300" style="border: 2px solid #000; padding: 2px 4px; font-family: inherit; font-size: 10px; width: 100%; box-sizing: border-box;">
+                 </div>
+                 <div style="font-size: 8px; opacity: 0.6; margin-top: 6px; line-height: 1.2;">Default is 2400x3600 (ideal for painting). Default DPI is 300.</div>
+             </div>
+             <div class="settings-group" style="margin-top: 8px;">
+                 <label class="settings-label">CHUNK SIZE</label>
+                 <select id="new-project-chunk-size" class="full-width" style="border: 2px solid #000; font-family: inherit; font-size: 10px;">
+                     <option value="256">256 (TINY)</option>
+                     <option value="512" selected>512 (BALANCED)</option>
+                     <option value="1024">1024 (HD)</option>
+                 </select>
+             </div>
+             <div class="settings-group" style="margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">WEBP QUALITY</label>
+                    <span id="new-quality-val" style="font-size: 9px; font-weight: 900;">0.5</span>
+                </div>
+                <input type="range" id="new-project-quality" min="0.1" max="1.0" step="0.1" value="0.5" class="minimal-range" style="width: 100%;">
+             </div>
+             <div style="height: 12px;"></div>
+             <button id="btn-create-project-final" class="brutal-btn full-width">CREATE</button>
+        </div>
+    </div>
+
+    <!--  EXPORT MODAL -->
+    <div id="modal-export" class="ui-panel hidden" style="width: 280px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10002; box-shadow: 12px 12px 0 0 #000; height: auto; max-height: 90vh; overflow-y: auto;">
+        <div id="handle-export" class="panel-handle">
+            <span class="panel-title">EXPORT SELECTION</span>
+            <button id="btn-close-export" class="mini-btn">X</button>
+        </div>
+        <div class="panel-content" style="padding: 12px; padding-top: 0; display: flex; flex-direction: column;">
+             <div class="settings-divider"></div>
+             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+                <div class="settings-group">
+                    <label class="settings-label">WIDTH</label>
+                    <input type="number" id="export-width" class="brutal-input full-width" style="border: 2px solid #000; padding: 4px; font-family: inherit; font-size: 11px; width: 100%; box-sizing: border-box;">
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">HEIGHT</label>
+                    <input type="number" id="export-height" class="brutal-input full-width" style="border: 2px solid #000; padding: 4px; font-family: inherit; font-size: 11px; width: 100%; box-sizing: border-box;">
+                </div>
+             </div>
+             <div class="settings-row" style="margin: 12px 0 8px 0;">
+                <label class="settings-label">KEEP RATIO</label>
+                <div class="checkbox-wrapper">
+                   <input type="checkbox" id="export-keep-ratio" checked class="settings-input-check">
+                   <span class="checkbox-custom"></span>
+                </div>
+             </div>
+             <div class="settings-divider"></div>
+             <div class="settings-row" style="margin: 12px 0 8px 0;">
+                <label class="settings-label">ALPHA CHANNEL</label>
+                <div class="checkbox-wrapper">
+                   <input type="checkbox" id="export-alpha" class="settings-input-check">
+                   <span class="checkbox-custom"></span>
+                </div>
+             </div>
+             <div class="settings-group" style="margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="settings-label">SCALE</label>
+                    <span id="export-scale-val" style="font-size: 10px; font-weight: 900;">100%</span>
+                </div>
+                <input type="range" id="export-scale" min="10" max="200" step="10" value="100" class="minimal-range" style="width: 100%; margin: 8px 0;">
+             </div>
+             <div style="height: 12px;"></div>
+             <button id="btn-export-final" class="brutal-btn full-width" style="padding: 10px; font-weight: 900; letter-spacing: 1px;">DOWNLOAD .PNG</button>
+        </div>
+    </div>
+
     <!-- REFERENCE IMAGE UTILITIES MODAL -->
-    <div id="modal-ref-editor" class="ui-panel hidden" style="width: 85vw; max-width: 900px; height: 80vh; max-height: 600px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10005; box-shadow: 12px 12px 0 0 #000; overflow: hidden; display: flex; flex-direction: column;">
+    <div id="modal-ref-editor" class="ui-panel hidden" style="width: 85vw; max-width: 900px; height: 86vh; max-height: 640px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10005; box-shadow: 12px 12px 0 0 #000; overflow: hidden; display: flex; flex-direction: column;">
         <div id="handle-ref-editor" class="panel-handle" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: black; color: white;">
             <span class="panel-title" style="font-weight: 950; letter-spacing: 1px; font-size: 11px;">EDIT REFERENCE IMAGE</span>
             <button id="btn-close-ref-editor" class="mini-btn" style="background: white; border: 1px solid black; font-weight: 950; font-size: 10px; padding: 2px 6px; cursor: pointer;">X</button>
@@ -780,10 +781,10 @@
             
             <!-- Left half: Interactive Canvas Area -->
             <div id="ref-editor-workspace-col" style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; min-width: 0; overflow: hidden; position: relative; background: #222;">
-                <div id="ref-editor-canvas-container" style="position: relative; max-width: 100%; max-height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                <div id="ref-editor-canvas-container" style="position: relative; max-width: 100%; max-height: 100%; display: flex; align-items: center; justify-content: center; overflow: visible;">
                     <canvas id="ref-editor-canvas" style="border: 2px solid #000; display: block; max-width: 100%; max-height: 100%; background: repeating-conic-gradient(#555 0% 25%, #666 0% 50%) 50% / 16px 16px; cursor: crosshair;"></canvas>
                     <!-- Interactive handle overlay (for knife or crop region) -->
-                    <svg id="ref-editor-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></svg>
+                    <svg id="ref-editor-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 50;"></svg>
                 </div>
             </div>
 
@@ -805,20 +806,32 @@
                         Slices pixels around the selected box. Click-and-drag directly on the image to select, or use the margins sliders below.
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
-                        <label class="settings-label" style="font-size: 8px;">CROP LEFT (%)</label>
-                        <input type="range" id="crop-slider-left" min="0" max="90" value="0" class="minimal-range" style="width:100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                            <label class="settings-label" style="font-size: 8px; margin: 0;">CROP LEFT</label>
+                            <span id="crop-val-left" style="font-size: 8px; font-weight: 900; font-family: monospace;">0%</span>
+                        </div>
+                        <input type="range" id="crop-slider-left" min="0" max="95" value="0" class="minimal-range" style="width:100%;">
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
-                        <label class="settings-label" style="font-size: 8px;">CROP RIGHT (%)</label>
-                        <input type="range" id="crop-slider-right" min="0" max="90" value="0" class="minimal-range" style="width:100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                            <label class="settings-label" style="font-size: 8px; margin: 0;">CROP RIGHT</label>
+                            <span id="crop-val-right" style="font-size: 8px; font-weight: 900; font-family: monospace;">0%</span>
+                        </div>
+                        <input type="range" id="crop-slider-right" min="0" max="95" value="0" class="minimal-range" style="width:100%;">
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
-                        <label class="settings-label" style="font-size: 8px;">CROP TOP (%)</label>
-                        <input type="range" id="crop-slider-top" min="0" max="90" value="0" class="minimal-range" style="width:100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                            <label class="settings-label" style="font-size: 8px; margin: 0;">CROP TOP</label>
+                            <span id="crop-val-top" style="font-size: 8px; font-weight: 900; font-family: monospace;">0%</span>
+                        </div>
+                        <input type="range" id="crop-slider-top" min="0" max="95" value="0" class="minimal-range" style="width:100%;">
                     </div>
                     <div class="settings-group" style="margin-top: 8px;">
-                        <label class="settings-label" style="font-size: 8px;">CROP BOTTOM (%)</label>
-                        <input type="range" id="crop-slider-bottom" min="0" max="90" value="0" class="minimal-range" style="width:100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                            <label class="settings-label" style="font-size: 8px; margin: 0;">CROP BOTTOM</label>
+                            <span id="crop-val-bottom" style="font-size: 8px; font-weight: 900; font-family: monospace;">0%</span>
+                        </div>
+                        <input type="range" id="crop-slider-bottom" min="0" max="95" value="0" class="minimal-range" style="width:100%;">
                     </div>
                     <button id="btn-crop-reset" class="brutal-btn full-width" style="margin-top: 12px; padding: 6px; font-size: 9px;">RESET BOUNDS</button>
                 </div>
@@ -859,6 +872,14 @@
                             <option value="g">GREEN CHANNEL</option>
                             <option value="b">BLUE CHANNEL</option>
                         </select>
+                    </div>
+
+                    <div class="settings-row" style="margin: 0 0 12px 0; display: flex; justify-content: space-between; align-items: center;">
+                        <label class="settings-label">BLACK & WHITE MODE</label>
+                        <div class="checkbox-wrapper">
+                           <input type="checkbox" id="color-bw-mode" class="settings-input-check">
+                           <span class="checkbox-custom"></span>
+                        </div>
                     </div>
                     
                     <!-- Mini Channel Sliders -->

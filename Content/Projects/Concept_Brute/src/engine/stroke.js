@@ -708,17 +708,10 @@ export function _endStroke(e = null) {
       if ((this.brush.type === TOOLS.SMUDGE || this.brush.type === TOOLS.LIQUIFY) && this.activeSelectionPath) {
           this.currentStrokeDirtyChunks.forEach((data, id) => {
               const chunk = this.chunks.get(id);
-              if (chunk) {
+              if (chunk && data.canvas) {
                   const lx = this.isStatic ? -this.staticWidth / 2 : chunk.cx * this.chunkSize;
                   const ly = this.isStatic ? -this.staticHeight / 2 : chunk.cy * this.chunkSize;
                   
-                  // 1. Create temporary canvas
-                  const tempCanvas = document.createElement('canvas');
-                  tempCanvas.width = chunk.width;
-                  tempCanvas.height = chunk.height;
-                  const tempCtx = tempCanvas.getContext('2d');
-                  tempCtx.drawImage(chunk.canvases[this.activeLayer], 0, 0);
-
                   // Create selection mask
                   const maskCanvas = document.createElement('canvas');
                   maskCanvas.width = chunk.width;
@@ -726,25 +719,40 @@ export function _endStroke(e = null) {
                   const maskCtx = maskCanvas.getContext('2d');
                   this.drawSelectionMask(maskCtx, this.activeSelectionPath, lx, ly);
 
-                  // Intersect tempCanvas with mask
-                  tempCtx.save();
-                  tempCtx.globalCompositeOperation = 'destination-in';
-                  tempCtx.drawImage(maskCanvas, 0, 0);
-                  tempCtx.restore();
+                  // 1. Create standard temp canvas containing the CURRENT canvas (drawn/smudged/liquified state)
+                  const tempCurrent = document.createElement('canvas');
+                  tempCurrent.width = chunk.width;
+                  tempCurrent.height = chunk.height;
+                  const tempCurrentCtx = tempCurrent.getContext('2d');
+                  tempCurrentCtx.drawImage(chunk.canvases[this.activeLayer], 0, 0);
 
-                  // 2. Clear layer & restore original snapshot
-                  const lCtx = chunk.ctxs[this.activeLayer];
-                  lCtx.clearRect(0, 0, chunk.width, chunk.height);
-                  lCtx.drawImage(data.canvas, 0, 0);
+                  // Retain only CURRENT pixels inside mask
+                  tempCurrentCtx.save();
+                  tempCurrentCtx.globalCompositeOperation = 'destination-in';
+                  tempCurrentCtx.drawImage(maskCanvas, 0, 0);
+                  tempCurrentCtx.restore();
 
-                  // 3. Clear the area of the selection from the restored layer first to prevent overlay blending
-                  lCtx.save();
-                  lCtx.globalCompositeOperation = 'destination-out';
-                  lCtx.drawImage(maskCanvas, 0, 0);
-                  lCtx.restore();
+                  // 2. Create a temp canvas containing original BACKUP pixels
+                  const tempBackup = document.createElement('canvas');
+                  tempBackup.width = chunk.width;
+                  tempBackup.height = chunk.height;
+                  const tempBackupCtx = tempBackup.getContext('2d');
+                  tempBackupCtx.drawImage(data.canvas, 0, 0);
 
-                  // 4. Draw smudge back inside selection path
-                  lCtx.drawImage(tempCanvas, 0, 0);
+                  // Retain only BACKUP pixels outside mask
+                  tempBackupCtx.save();
+                  tempBackupCtx.globalCompositeOperation = 'destination-out';
+                  tempBackupCtx.drawImage(maskCanvas, 0, 0);
+                  tempBackupCtx.restore();
+
+                  // 3. Combine them back using perfect additive blend to avoid edge antialiasing fringing
+                  const layerCtx = chunk.ctxs[this.activeLayer];
+                  layerCtx.clearRect(0, 0, chunk.width, chunk.height);
+                  layerCtx.drawImage(tempBackup, 0, 0);
+                  layerCtx.save();
+                  layerCtx.globalCompositeOperation = 'lighter';
+                  layerCtx.drawImage(tempCurrent, 0, 0);
+                  layerCtx.restore();
               }
           });
       }
@@ -794,10 +802,13 @@ export function _endStroke(e = null) {
                       tempBackupCtx.drawImage(maskCanvas, 0, 0);
                       tempBackupCtx.restore();
 
-                      // 4. Combine them back onto chunk's canvas
+                      // 4. Combine them back onto chunk's canvas with perfect additive blend to avoid edge antialiasing fringing
                       layerCtx.clearRect(0, 0, chunk.width, chunk.height);
-                      layerCtx.drawImage(tempCurrent, 0, 0);
                       layerCtx.drawImage(tempBackup, 0, 0);
+                      layerCtx.save();
+                      layerCtx.globalCompositeOperation = 'lighter';
+                      layerCtx.drawImage(tempCurrent, 0, 0);
+                      layerCtx.restore();
                   }
               }
           });
