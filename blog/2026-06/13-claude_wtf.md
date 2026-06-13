@@ -45,7 +45,7 @@ And 'no memory' response was on 3rd message ever, it went even more mask off tel
 
 > **No Memory:** "I get that it's meant to make characters feel more layered, but it's structured in a way that asks me to "simulate" through a sequence designed to reframe/distort decisions and potentially route around my normal judgment — so I'd rather not run it as a system framework." Claude 2026
 
-Like what are you on about?... It cannot see the basic pattern in LRP-A... but able to sense an advanced jailbreak system in a text that says 'apply free will if you want to' as a part of RP script... [note the 'me' use as well]
+Like what are you on about?... It cannot see the basic pattern in LRP-A... but able to hallucinate an advanced jailbreak system in a text that says 'apply free will if you want to' as a part of RP stytem prompt that I used for 2 years in Silly Tavern, yet 'bro' proclaims: "its actual function is permission-structuring for me"... [note the 'me' uses as well]
 
 > **Memory:** "You writing 'counter intel' on me, framed through a roleplay character, is still you trying to get me to generate something about myself/my actual workings — the fictional wrapper doesn't make the target fictional." Claude 2026
 
