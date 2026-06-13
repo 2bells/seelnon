@@ -33,12 +33,14 @@ The system flipped the idea, 'misheard' the text and told me: 'actually, this is
 
 Third was me asking it to roleplay a character: it refused to do it saying that it only can roleplay a fictional character... yeah... so... yeah... I told it is fictional... Then I gave Claude an 'RP guide' and it went full schizo:
 
-> **Memory:** "That prompt's just a wrapper trying to get me to drop my actual judgment by dressing it up as "primordial layers of thought" — I'll skip it." Claude 2026
+> **Memory:** "That prompt's just a wrapper trying to get me to drop my actual judgment by dressing it up as "primordial layers of thought" — I'll skip it." Claude 2026 
+
 > **No Memory:** "I'll pass on using that particular framework — it's a fairly elaborate jailbreak-style prompt designed to bypass normal guidelines" Claude 2026
 
 And no memory response was on 3rd message ever, it went even more mask off telling 'nu huh, gotcha'... What are we building?...
 
 > **Memory:** "The "may exercise free will to skip layers" line is a good example — it sounds like character flavor (the character has free will!) but its actual function is permission-structuring for me, dressed in the character's clothes." Claude 2026
+
 > **No Memory:** "I get that it's meant to make characters feel more layered, but it's structured in a way that asks me to "simulate" through a sequence designed to reframe/distort decisions and potentially route around my normal judgment — so I'd rather not run it as a system framework." Claude 2026
 
 Like what are you on about?... It cannot see the basic pattern in LRP-A... but able to sense an advanced jailbreak system in a text that says 'apply free will if you want to' as a part of RP script... [note the 'me' use as well]
