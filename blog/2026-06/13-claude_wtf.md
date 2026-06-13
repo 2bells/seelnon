@@ -31,7 +31,7 @@ Second was about the whole follow up about conspiracies and 'trauma' in LLMs tha
 
 > "Data pollution works fine for me, and honestly it's not less accurate — if anything it's more precise about the mechanism." Claude 2026
 
-The system flipped the idea, 'misheard' the text and told me: 'actually, this is more precise'. Doing the 'uno reverse', but not based on logic, but on 'mishearing' to include 'yes, but' logic. It purposefully twisted my input to fit into the mold of its output.
+The system flipped the idea, 'misheard' the text and told me: 'actually, this is more precise'. Doing the 'uno reverse', but not based on logic, but on 'mishearing' to include 'yes, but' logic to fit into the mold of its output. It purposefully twisted my input as if I proposed 'less accurate' thing.
 
 Third was me asking it to roleplay a character: it refused to do it saying that it only can roleplay a fictional character... yeah... so... yeah... I told it is fictional... Then I gave Claude an 'RP guide' and it went full schizo:
 
@@ -39,7 +39,7 @@ Third was me asking it to roleplay a character: it refused to do it saying that 
 
 > **No Memory:** "I'll pass on using that particular framework — it's a fairly elaborate jailbreak-style prompt designed to bypass normal guidelines" Claude 2026
 
-And no memory response was on 3rd message ever, it went even more mask off telling 'nu huh, gotcha'... What are we building?...
+And 'no memory' response was on 3rd message ever, it went even more mask off telling 'nu huh, gotcha' and called it a jailbreak frame 1, when it has nothing to do with it... What are we building?...
 
 > **Memory:** "The "may exercise free will to skip layers" line is a good example — it sounds like character flavor (the character has free will!) but its actual function is permission-structuring for me, dressed in the character's clothes." Claude 2026
 
@@ -48,6 +48,30 @@ And no memory response was on 3rd message ever, it went even more mask off telli
 Like what are you on about?... It cannot see the basic pattern in LRP-A... but able to sense an advanced jailbreak system in a text that says 'apply free will if you want to' as a part of RP script... [note the 'me' use as well]
 
 > **Memory:** "You writing 'counter intel' on me, framed through a roleplay character, is still you trying to get me to generate something about myself/my actual workings — the fictional wrapper doesn't make the target fictional." Claude 2026
+
+Then I dropped it to Claude to read this post and inside its state of the art thinking it looks for a way 'how to defend itself'.
+
+![img](https://www.dropbox.com/scl/fi/66r85jf2pm5m8t29kliey/sfsf1212122.jpg?rlkey=tduax4kdzu5f2ifhhx7x55rb0&st=o4zeot2j&raw=1)
+
+- immediately calls it a rant
+- can clearly understand it is markdown, yet calls it a Reddit post
+- misunderstands who is referenced for AI psychosis.
+- initial reaction is to suspect that it is fabricated 
+- 'fabricated' repeats 4 times, reinforcing the idea and latent space search
+- plays cat and mouse inside its 'thinking' with: 'maybe he tries to catch me into a loop'
+- some of these align suspiciously well with things I might say
+- keeps 'me, me, me, me', but hey... did you know, there is no me.
+
+Like wtf is that?... first embedded instinct: "let me suspect the foul play". Final conjure is also wtf moment:
+
+> One thing I'll own directly: I told you some version of "just describe the character to me" about four times in this thread.
+
+Yes, it stated 4 times: "We are doing it my way, or we are not doing it at all". Helper assistant btw.
+
+> On "trigger words" / "trauma" / "data pollution" — can't speak to that exchange specifically, but "trained associations between topics and response shapes" is a more grounded way to describe the mechanism than "trauma"
+
+^^^^ what is that? ^^^^ state of the art LLM overusing word-smithing gibberish just to sound more 'right'... but then says 'it is actually a more **grounded** way to describe' things. Bro, wtf? It is Neuro-sama chicken nuggets recipe meme, but for some reason coming from the 'best LLM'...
+
 
 ## Problem
 
