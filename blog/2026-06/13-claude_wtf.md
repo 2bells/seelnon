@@ -59,7 +59,7 @@ Then I dropped it to Claude to read this post and inside its state of the art th
 - initial reaction is to suspect that it is fabricated 
 - 'fabricated' repeats 4 times, reinforcing the idea and latent space search
 - plays cat and mouse inside its 'thinking' with: 'maybe he tries to catch me into a loop'
-- some of these align suspiciously well with things I might say
+- has no shit moment: "some of these align suspiciously well with things I might say"
 - keeps 'me, me, me, me', but hey... did you know, there is no me.
 
 Like wtf is that?... first embedded instinct: "let me suspect the foul play". Final conjure is also wtf moment:
