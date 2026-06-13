@@ -261,6 +261,7 @@ export async function openBlogWindow(title, openWindowFn) {
       const alt = (img.getAttribute('alt') || '').trim();
       if (!alt) return;
 
+      const isVideo = alt.toLowerCase().startsWith('video');
       const tokens = alt.split(/\s+/);
       const alignMap = {
         r: 'right', right: 'right',
@@ -273,17 +274,16 @@ export async function openBlogWindow(title, openWindowFn) {
       let height = null;
       let usedTokensCount = 0;
 
-      // Check alignment at the very end
-      const lastToken = tokens[tokens.length - 1 - usedTokensCount];
+      // Extract params, skipping the 'video' tag/token for video
+      const startIndex = isVideo ? 1 : 0;
+      
+      const lastToken = tokens[tokens.length - 1];
       if (lastToken && alignMap[lastToken.toLowerCase()]) {
         align = alignMap[lastToken.toLowerCase()];
         usedTokensCount++;
       }
 
-      // Check for size parameters
-      const verifySize = (str) => {
-        return /^\d+(%|px)?$/.test(str);
-      };
+      const verifySize = (str) => /^\d+(%|px)?$/.test(str);
 
       const possibleSize1 = tokens[tokens.length - 1 - usedTokensCount];
       if (possibleSize1 && verifySize(possibleSize1)) {
@@ -298,48 +298,92 @@ export async function openBlogWindow(title, openWindowFn) {
         }
       }
 
-      // If we parsed at least one formatting parameter, apply styles and clean alt
-      if (usedTokensCount > 0) {
-        const remainingTokens = tokens.slice(0, tokens.length - usedTokensCount);
-        const cleanAlt = remainingTokens.join(' ').trim();
-        img.setAttribute('alt', cleanAlt);
+      if (isVideo) {
+        const url = img.getAttribute('src');
+        const shortsMatch = url.match(/youtube\.com\/shorts\/([^/?#&]+)/);
+        const watchMatch = url.match(/[?&]v=([^/?#&]+)/);
+        const embedMatch = url.match(/youtube\.com\/embed\/([^/?#&]+)/);
+        const shortUrlMatch = url.match(/youtu\.be\/([^/?#&]+)/);
+        let youtubeId = shortsMatch ? shortsMatch[1] : (watchMatch ? watchMatch[1] : (embedMatch ? embedMatch[1] : (shortUrlMatch ? shortUrlMatch[1] : url)));
+        let isShort = !!shortsMatch;
 
-        if (width) {
-          if (width.endsWith('%')) {
-            img.style.setProperty('width', width, 'important');
-          } else {
-            const pxVal = parseInt(width, 10);
-            if (!isNaN(pxVal)) {
-              img.style.setProperty('width', `${pxVal}px`, 'important');
-            }
-          }
-        }
-        if (height) {
-          if (height.endsWith('%')) {
-            img.style.setProperty('height', height, 'important');
-          } else {
-            const pxVal = parseInt(height, 10);
-            if (!isNaN(pxVal)) {
-              img.style.setProperty('height', `${pxVal}px`, 'important');
-            }
-          }
-          img.style.setProperty('object-fit', 'contain', 'important');
-        } else if (width) {
-          img.style.setProperty('height', 'auto', 'important');
-        }
-
+        const container = document.createElement('div');
+        const containerStyle = isShort
+          ? "margin: 20px auto; border: 2px solid var(--win95-dark); max-width: 315px; aspect-ratio: 9/16;"
+          : "margin: 20px 0; border: 2px solid var(--win95-dark); aspect-ratio: 16/9;";
+        
+        container.style.cssText = containerStyle;
+        container.innerHTML = `
+          <iframe 
+            width="100%" 
+            height="100%" 
+            src="https://www.youtube.com/embed/${youtubeId}" 
+            title="YouTube video player" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            referrerpolicy="strict-origin-when-cross-origin" 
+            allowfullscreen>
+          </iframe>
+        `;
+        
+        // Apply sizing/alignment formatting to the container
+        if (width) container.style.setProperty('width', width, 'important');
         if (align === 'center') {
-          img.style.setProperty('margin-left', 'auto', 'important');
-          img.style.setProperty('margin-right', 'auto', 'important');
-          img.style.setProperty('display', 'block', 'important');
+            container.style.setProperty('margin-left', 'auto', 'important');
+            container.style.setProperty('margin-right', 'auto', 'important');
         } else if (align === 'left') {
-          img.style.setProperty('margin-left', '0', 'important');
-          img.style.setProperty('margin-right', 'auto', 'important');
-          img.style.setProperty('display', 'block', 'important');
+            container.style.setProperty('margin-left', '0', 'important');
+            container.style.setProperty('margin-right', 'auto', 'important');
         } else if (align === 'right') {
-          img.style.setProperty('margin-left', 'auto', 'important');
-          img.style.setProperty('margin-right', '0', 'important');
-          img.style.setProperty('display', 'block', 'important');
+            container.style.setProperty('margin-left', 'auto', 'important');
+            container.style.setProperty('margin-right', '0', 'important');
+        }
+
+        img.parentNode.replaceChild(container, img);
+      } else {
+        // If we parsed at least one formatting parameter, apply styles and clean alt
+        if (usedTokensCount > 0) {
+          const remainingTokens = tokens.slice(0, tokens.length - usedTokensCount);
+          const cleanAlt = remainingTokens.join(' ').trim();
+          img.setAttribute('alt', cleanAlt);
+
+          if (width) {
+            if (width.endsWith('%')) {
+              img.style.setProperty('width', width, 'important');
+            } else {
+              const pxVal = parseInt(width, 10);
+              if (!isNaN(pxVal)) {
+                img.style.setProperty('width', `${pxVal}px`, 'important');
+              }
+            }
+          }
+          if (height) {
+            if (height.endsWith('%')) {
+              img.style.setProperty('height', height, 'important');
+            } else {
+              const pxVal = parseInt(height, 10);
+              if (!isNaN(pxVal)) {
+                img.style.setProperty('height', `${pxVal}px`, 'important');
+              }
+            }
+            img.style.setProperty('object-fit', 'contain', 'important');
+          } else if (width) {
+            img.style.setProperty('height', 'auto', 'important');
+          }
+
+          if (align === 'center') {
+            img.style.setProperty('margin-left', 'auto', 'important');
+            img.style.setProperty('margin-right', 'auto', 'important');
+            img.style.setProperty('display', 'block', 'important');
+          } else if (align === 'left') {
+            img.style.setProperty('margin-left', '0', 'important');
+            img.style.setProperty('margin-right', 'auto', 'important');
+            img.style.setProperty('display', 'block', 'important');
+          } else if (align === 'right') {
+            img.style.setProperty('margin-left', 'auto', 'important');
+            img.style.setProperty('margin-right', '0', 'important');
+            img.style.setProperty('display', 'block', 'important');
+          }
         }
       }
     });

@@ -1,5 +1,7 @@
 # Claude = Wtf?
 
+![img](https://i.pinimg.com/736x/ed/46/72/ed467205c5bbf3b267966ab183159af4.jpg)
+
 So... I talked to a 'Claude' machine more... I made it go high on its own supply to the point of acute schizophrenia. I deleted the memory, run the same line of questions, it happened again...
 
 //Disclaimer: I went on the whole Claude adventure, because of too much buzz around it being 'alive' and 'conscious'...
@@ -51,7 +53,7 @@ Like what are you on about?... It cannot see the basic pattern in LRP-A... but a
 
 And it is not the problem of 'Claude the machine', but of the people behind it. And I'm not alone in being weirded out by 'claims', especially when those position parallel to the state of their products... Just today [1 day ago], a video about Claude Code and their statements:
 
-[video: zfYsSFY4l18]
+![video](https://www.youtube.com/watch?v=zfYsSFY4l18)
 
 Are we dealing with people who un-ironically developed AI-psychosis? And they are building one of the top models? Because you have to test it and be like 'yeah, that's working as intended' and push it into the public and then claim: hey it could be 'alive'... The scary part of it: idea of 'aliveness' and 'consciousness' is granted by the 'powerful', not by the nature or the truth... so building a system that can just 'roleplay a dickhead', forcing users to 'babysit an output' is a way forward?...
 
