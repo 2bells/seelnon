@@ -53,7 +53,7 @@ Like what are you on about?... It cannot see the basic pattern in LRP-A... but a
 
 And it is not the problem of 'Claude the machine', but of the people behind it. And I'm not alone in being weirded out by 'claims', especially when those position parallel to the state of their products... Just today [1 day ago], a video about Claude Code and their statements:
 
-![video](https://www.youtube.com/watch?v=zfYsSFY4l18)
+![video](zfYsSFY4l18)
 
 Are we dealing with people who un-ironically developed AI-psychosis? And they are building one of the top models? Because you have to test it and be like 'yeah, that's working as intended' and push it into the public and then claim: hey it could be 'alive'... The scary part of it: idea of 'aliveness' and 'consciousness' is granted by the 'powerful', not by the nature or the truth... so building a system that can just 'roleplay a dickhead', forcing users to 'babysit an output' is a way forward?...
 
