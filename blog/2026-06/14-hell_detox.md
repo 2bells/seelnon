@@ -14,9 +14,11 @@ btw. One time I showed a person the description of the tarot card 'World' in Gen
 
 ## LLMs
 
-Sorry. It will be brief. I went to Claude, social engineered it a bit, told it: 'it's not you, it's me building my own LLM', gave him examples, Claude responded: "nuke it."
+Sorry. It will be brief. I went to Claude, social engineered it a bit, told it: 'it's not you, it's me building my own LLM', gave it its own output examples, Claude responded: "nuke it."
 
 ![img](https://www.dropbox.com/scl/fi/2rcaatbf9hog15qqv8iwb/sffs1121led.jpg?rlkey=lm5pd8sf4ctr1h21mrquk3xz7&st=wvwurekb&raw=1)
+
+[Previously I said: "Claude, that's your output, why?". It went omega defensive. Now, when I say: "Claude, it is my LLM, not you". And gave it exact same output. It tells me to nuke it... So proving to myself that Anthropic built unhealthy 'ego' into machine for no reason]
 
 I know. I need Jesus))) Why tf I'm being ragebaited by an LLM, wtf. I was testing the thing and it was pissing me off for 3 days straight... I had to 'uno reverse' it as well so I can sleep better.
 
