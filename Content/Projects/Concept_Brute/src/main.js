@@ -18,11 +18,13 @@ import {
   performExport 
 } from './projectManager.js';
 import { setupIgnoreSystem } from './ignore.js';
+import { TimelapseRecorder } from './recording.js';
 
 class App {
   constructor() {
     setupIgnoreSystem();
     this.engine = new Engine(document.getElementById('canvas-container'));
+    this.engine.app = this;
     this.engine.onColorPicked = (color) => {
         this.setColor(color);
         this._updateHSVFromHex(color);
@@ -54,6 +56,7 @@ class App {
         localStorage.setItem('canvas_palette', JSON.stringify(this.palette.baseColors));
     };
     this.storage = new SketchStorage();
+    this.engine.storage = this.storage;
     this.palette = new PaletteManager();
     this.imgHandler = new ImgHandler(this.engine, () => {
         this._updateRefImageList();
@@ -72,10 +75,11 @@ class App {
             size: 40,
             opacity: 1.0,
             flow: 1.0,
-            speedSize: 3.0,
-            speedOpacity: 2.0,
-            speedValue: -4.0,
-            speedHue: -10.0,
+            speedSize: 15,
+            speedOpacity: 10,
+            speedValue: -20,
+            speedHue: -50,
+            speedMax: 5.0,
             paintHeight: 0,
             oiliness: 0.5,
             airbrush: 0.0,
@@ -106,62 +110,72 @@ class App {
     this.brushSettings[TOOLS.LIQUIFY].liquifyQuality = 2; // default 2 (RESOLVE)
 
     this.tipManager = new TipManager(document.getElementById('panel-brush-tips'), (tip, height, oiliness, airbrush) => {
-        // Always store tip in BRUSH settings as it serves as the source for shared tips
-        if (this.brushSettings[TOOLS.BRUSH]) {
-            this.brushSettings[TOOLS.BRUSH].tip = tip;
-            if (height !== undefined) this.brushSettings[TOOLS.BRUSH].paintHeight = height;
-            if (oiliness !== undefined) this.brushSettings[TOOLS.BRUSH].oiliness = oiliness;
-            if (airbrush !== undefined) this.brushSettings[TOOLS.BRUSH].airbrush = airbrush;
-        }
+        const tool = this.activeTool;
+        if (!tool) return;
+        
+        let bankIdx = this.tipManager ? this.tipManager.activeBankIndex : 0;
+        let genIdx = this.tipManager ? this.tipManager.activeGeneratedIndex : -1;
+        if (bankIdx < 0 && genIdx < 0) bankIdx = 0;
+        const tipId = bankIdx >= 0 ? `main-${bankIdx}` : `gen-${genIdx}`;
 
-        // Only update active engine brush and current tool settings if they are relevant
-        const currentSettings = this.brushSettings[this.activeTool];
+        const currentSettings = this.brushSettings[tool];
         if (currentSettings) {
-            // Update tip for all compatible tools (Brush, Eraser, Smudge)
-            if (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE) {
+            currentSettings.activeBankIndex = bankIdx;
+            currentSettings.activeGeneratedIndex = genIdx;
+            
+            if (tool === TOOLS.BRUSH || tool === TOOLS.ERASER || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME) {
                 this.engine.brush.tip = tip;
             }
-
-            // Specific property synchronization
-            if (this.activeTool === TOOLS.BRUSH) {
-                if (height !== undefined) this.engine.brush.paintHeight = height;
-                if (oiliness !== undefined) this.engine.brush.oiliness = oiliness;
-                if (airbrush !== undefined) this.engine.brush.airbrush = airbrush;
-            } else if (this.activeTool === TOOLS.SMUDGE) {
-                // Smudge might want oiliness from tip, but usually airbrush stays at tool setting
-                if (oiliness !== undefined) {
-                    this.engine.brush.oiliness = oiliness;
-                    currentSettings.oiliness = oiliness;
-                }
-            } else if (this.activeTool === TOOLS.ERASER) {
-                // Eraser strictly ignores tip properties for blur/height
-                this.engine.brush.airbrush = currentSettings.airbrush || 0;
-                this.engine.brush.paintHeight = 0;
+            
+            const tipSettings = this.getCurrentTipSettings();
+            if (tipSettings) {
+                tipSettings.tip = tip;
+                
+                // Set sizes & opacity & flow
+                this.engine.brush.size = tipSettings.size;
+                this.engine.brush.opacity = tipSettings.opacity;
+                this.engine.brush.flow = tipSettings.flow;
+                this.engine.brush.falloff = tipSettings.falloff ?? 0.50;
+                this.engine.brush.liquifyQuality = tipSettings.liquifyQuality ?? 2;
+                
+                // Sensitivity
+                this.engine.brush.speedSize = tipSettings.speedSize;
+                this.engine.brush.speedOpacity = tipSettings.speedOpacity;
+                this.engine.brush.speedValue = tipSettings.speedValue;
+                this.engine.brush.speedHue = tipSettings.speedHue;
+                this.engine.brush.speedMax = tipSettings.speedMax ?? 5.0;
+                
+                // Impasto
+                this.engine.brush.paintHeight = (tool === TOOLS.ERASER) ? 0 : (tipSettings.paintHeight || 0);
+                this.engine.brush.oiliness = (tool === TOOLS.ERASER) ? 0 : (tipSettings.oiliness ?? 0.5);
+                this.engine.brush.airbrush = (tool === TOOLS.ERASER) ? 0 : (tipSettings.airbrush || 0);
+                
+                // Spacing, Pressure, Jitter
+                this.engine.brush.spacing = tipSettings.spacing ?? 0.05;
+                this.engine.brush.pressureEnabled = tipSettings.pressureEnabled ?? true;
+                this.engine.brush.pressureOpacityInfluence = tipSettings.pressureOpacityInfluence ?? 1.0;
+                this.engine.brush.pressureSizeInfluence = tipSettings.pressureSizeInfluence ?? 1.0;
+                this.engine.brush.jitterSize = (tipSettings.jitterSize ?? 0) / 100;
+                this.engine.brush.jitterAngle = ((tipSettings.jitterAngle ?? 0) * Math.PI) / 180;
+                this.engine.brush.jitterPos = (tipSettings.jitterPos ?? 0) / 100;
+                this.engine.brush.jitterHue = (tipSettings.jitterHue ?? 0) / 100;
+                
+                // Smudge
+                this.engine.brush.smudgeFlowBoost = tipSettings.smudgeFlowBoost ?? 10.0;
+                this.engine.brush.smudgePickup = tipSettings.smudgePickup ?? 2.0;
+                
+                // Sharpen
+                this.engine.brush.brushSharpen = tipSettings.brushSharpen ?? 0.0;
+                
+                // Wireframe
+                this.engine.brush.wireDensity = tipSettings.wireDensity ?? 30;
+                this.engine.brush.wireRange = tipSettings.wireRange ?? 4.0;
+                this.engine.brush.wireMinDist = tipSettings.wireMinDist ?? 0.5;
             }
         }
 
-        const activeTip = this.tipManager ? this.tipManager.getActiveTip() : null;
-        if (activeTip) {
-             const isTipTool = (this.activeTool === TOOLS.BRUSH || this.activeTool === TOOLS.ERASER || this.activeTool === TOOLS.SMUDGE || this.activeTool === TOOLS.WIREFRAME);
-             if (isTipTool) {
-                 this.engine.brush.spacing = activeTip.spacing ?? 0.05;
-                 this.engine.brush.pressureEnabled = activeTip.pressureEnabled ?? true;
-                 this.engine.brush.pressureOpacityInfluence = activeTip.pressureOpacityInfluence ?? 1.0;
-                 this.engine.brush.pressureSizeInfluence = activeTip.pressureSizeInfluence ?? 1.0;
-                 this.engine.brush.jitterSize = (activeTip.jitterSize ?? 0) / 100;
-                 this.engine.brush.jitterAngle = ((activeTip.jitterAngle ?? 0) * Math.PI) / 180;
-                 this.engine.brush.jitterPos = (activeTip.jitterPos ?? 0) / 100;
-                 this.engine.brush.jitterHue = (activeTip.jitterHue ?? 0) / 100;
-                 this.engine.brush.smudgeFlowBoost = activeTip.smudgeFlowBoost ?? 10.0;
-                 this.engine.brush.smudgePickup = activeTip.smudgePickup ?? 2.0;
-                 this.engine.brush.brushSharpen = activeTip.brushSharpen ?? 0.0;
-                 this.engine.brush.wireDensity = activeTip.wireDensity ?? 30;
-                 this.engine.brush.wireRange = activeTip.wireRange ?? 4.0;
-                 this.engine.brush.wireMinDist = activeTip.wireMinDist ?? 0.5;
-             }
-        }
-
-        this._updateBrushSettingsUI(this.activeTool);
+        this._updateBrushSettingsUI(tool);
+        this._saveBrushSettings();
     }, this.storage);
 
     this.hsv = { h: 0, s: 70, v: 70 };
@@ -177,6 +191,9 @@ class App {
     this.init();
     this._initToggles();
     this._initCategories();
+
+    this.recorder = new TimelapseRecorder(this);
+    this.recorder.initEventListeners();
 
     // Global UI focus prevention
     document.addEventListener('pointerup', (e) => {
@@ -576,7 +593,21 @@ class App {
         if (savedBrushes) {
             Object.keys(savedBrushes).forEach(tool => {
                 if (this.brushSettings[tool]) {
-                    this.brushSettings[tool] = { ...this.brushSettings[tool], ...savedBrushes[tool] };
+                    const migrated = { ...savedBrushes[tool] };
+                    // Auto-migrate old sensitivity ranges (-20 to 20) to new percentage scale (-100 to 100)
+                    if (migrated.speedSize !== undefined && migrated.speedSize !== 0 && Math.abs(migrated.speedSize) <= 12) {
+                        migrated.speedSize = Math.round(migrated.speedSize * 5);
+                    }
+                    if (migrated.speedOpacity !== undefined && migrated.speedOpacity !== 0 && Math.abs(migrated.speedOpacity) <= 12) {
+                        migrated.speedOpacity = Math.round(migrated.speedOpacity * 5);
+                    }
+                    if (migrated.speedValue !== undefined && migrated.speedValue !== 0 && Math.abs(migrated.speedValue) <= 12) {
+                        migrated.speedValue = Math.round(migrated.speedValue * 5);
+                    }
+                    if (migrated.speedHue !== undefined && migrated.speedHue !== 0 && Math.abs(migrated.speedHue) <= 12) {
+                        migrated.speedHue = Math.round(migrated.speedHue * 5);
+                    }
+                    this.brushSettings[tool] = { ...this.brushSettings[tool], ...migrated };
                 }
             });
         }
@@ -700,8 +731,7 @@ class App {
           break;
         case 'b': 
           if (this.engine.floatingSelection) {
-              this.engine.floatingSelection.mirrorX = !this.engine.floatingSelection.mirrorX;
-              this.engine.refresh();
+              this.engine.toggleFloatingSelectionMirrorX();
           } else if (this.activeTool === TOOLS.REF_MOVE && this.engine.selectedRefIndex !== -1) {
               const ref = this.engine.referenceImages[this.engine.selectedRefIndex];
               ref.mirrorX = !ref.mirrorX;
@@ -831,7 +861,10 @@ class App {
     if (!this.activeTool) return;
     const el = document.getElementById('brush-size');
     const valEl = document.getElementById('size-val');
-    const currentSize = this.brushSettings[this.activeTool].size;
+    
+    const settings = this.brushSettings[this.activeTool];
+    const tipSettings = this.getCurrentTipSettings() || settings;
+    const currentSize = tipSettings.size;
     
     // Low amount precision bias (shortcut keys)
     let effectiveDelta = delta;
@@ -842,8 +875,7 @@ class App {
     const maxSize = (this.activeTool === TOOLS.LIQUIFY) ? 1500 : 500;
     const newSize = Math.max(1, Math.min(maxSize, currentSize + effectiveDelta));
     
-    this.brushSettings[this.activeTool].size = newSize;
-    this.engine.brush.size = newSize;
+    this.updateActiveSetting('size', newSize);
     
     if (el) el.value = this._mapSizeToSlider(newSize);
     if (valEl) valEl.innerText = newSize;
@@ -856,17 +888,16 @@ class App {
     if (this.engine) {
         this.engine._updateBrushCursor();
     }
-    
-    if (!skipSave) {
-        this._saveBrushSettings();
-    }
   }
 
   _adjOpacity(delta) {
     if (!this.activeTool) return;
     const el = document.getElementById('brush-opacity');
     const valEl = document.getElementById('opacity-val');
-    const pVal = el ? parseInt(el.value) : (this.brushSettings[this.activeTool].opacity * 100);
+    
+    const settings = this.brushSettings[this.activeTool];
+    const tipSettings = this.getCurrentTipSettings() || settings;
+    const pVal = Math.round(tipSettings.opacity * 100);
     
     // Low amount precision bias: if current value < 20, reduce delta effect
     let effectiveDelta = delta;
@@ -876,10 +907,10 @@ class App {
     
     const newVal = Math.max(0, Math.min(100, pVal + effectiveDelta));
     if (el) el.value = newVal;
-    this.brushSettings[this.activeTool].opacity = newVal / 100;
-    this.engine.brush.opacity = newVal / 100;
+    
+    this.updateActiveSetting('opacity', newVal / 100);
+    
     if (valEl) valEl.innerText = `${newVal}%`;
-    this._saveBrushSettings();
   }
 
   _handleImport(e) {
@@ -1085,6 +1116,7 @@ class App {
   _updateBrushSettingsUI(tool) {
     if (!tool) return;
     const settings = this.brushSettings[tool];
+    const tipSettings = this.getCurrentTipSettings() || settings;
     if (this.activeTool === tool) {
         // Toggle visibility of specific properties based on tool
         const heightCtrl = document.getElementById('height-control');
@@ -1122,29 +1154,29 @@ class App {
         }
 
         // Update UI Sliders
-        document.getElementById('brush-size').value = this._mapSizeToSlider(settings.size);
-        document.getElementById('size-val').innerText = settings.size;
+        document.getElementById('brush-size').value = this._mapSizeToSlider(tipSettings.size);
+        document.getElementById('size-val').innerText = tipSettings.size;
 
         const touchSizeInput = document.getElementById('touch-brush-size');
-        if (touchSizeInput) touchSizeInput.value = this._mapSizeToSlider(settings.size);
+        if (touchSizeInput) touchSizeInput.value = this._mapSizeToSlider(tipSettings.size);
         const touchSizeRangeVal = document.getElementById('touch-size-val');
-        if (touchSizeRangeVal) touchSizeRangeVal.innerText = settings.size;
+        if (touchSizeRangeVal) touchSizeRangeVal.innerText = tipSettings.size;
         
         const opacEl = document.getElementById('brush-opacity');
         if (opacEl) {
-            opacEl.value = settings.opacity * 100;
-            document.getElementById('opacity-val').innerText = `${Math.round(settings.opacity * 100)}%`;
+            opacEl.value = tipSettings.opacity * 100;
+            document.getElementById('opacity-val').innerText = `${Math.round(tipSettings.opacity * 100)}%`;
         }
 
         const flowEl = document.getElementById('brush-flow');
         if (flowEl) {
-            flowEl.value = settings.flow * 100;
-            document.getElementById('flow-val').innerText = `${Math.round(settings.flow * 100)}%`;
+            flowEl.value = tipSettings.flow * 100;
+            document.getElementById('flow-val').innerText = `${Math.round(tipSettings.flow * 100)}%`;
         }
 
         const falloffEl = document.getElementById('brush-falloff');
         if (falloffEl) {
-            const fValue = (settings.falloff !== undefined) ? settings.falloff : 0.50;
+            const fValue = (tipSettings.falloff !== undefined) ? tipSettings.falloff : 0.50;
             falloffEl.value = fValue * 100;
             const fValDisplay = document.getElementById('falloff-val');
             if (fValDisplay) fValDisplay.innerText = `${Math.round(fValue * 100)}%`;
@@ -1152,7 +1184,7 @@ class App {
 
         const qualityEl = document.getElementById('brush-liquify-quality');
         if (qualityEl) {
-            const qValue = settings.liquifyQuality ?? 2;
+            const qValue = tipSettings.liquifyQuality ?? 2;
             qualityEl.value = qValue;
             const qValDisplay = document.getElementById('liquify-quality-val');
             if (qValDisplay) {
@@ -1163,58 +1195,54 @@ class App {
 
         const heightEl = document.getElementById('brush-height');
         if (heightEl) {
-            heightEl.value = (settings.paintHeight || 0) * 100;
+            heightEl.value = (tipSettings.paintHeight || 0) * 100;
             const hVal = document.getElementById('height-val');
-            if (hVal) hVal.innerText = `${Math.round((settings.paintHeight || 0) * 100)}%`;
+            if (hVal) hVal.innerText = `${Math.round((tipSettings.paintHeight || 0) * 100)}%`;
         }
 
         const oilEl = document.getElementById('brush-oiliness');
         if (oilEl) {
-            oilEl.value = (settings.oiliness ?? 0.5) * 100;
+            oilEl.value = (tipSettings.oiliness ?? 0.5) * 100;
             const oVal = document.getElementById('oiliness-val');
-            if (oVal) oVal.innerText = `${Math.round((settings.oiliness ?? 0.5) * 100)}%`;
+            if (oVal) oVal.innerText = `${Math.round((tipSettings.oiliness ?? 0.5) * 100)}%`;
         }
 
         const airEl = document.getElementById('brush-airbrush');
         if (airEl) {
-            airEl.value = (settings.airbrush || 0) * 100;
+            airEl.value = (tipSettings.airbrush || 0) * 100;
             const aVal = document.getElementById('airbrush-val');
-            if (aVal) aVal.innerText = `${Math.round((settings.airbrush || 0) * 100)}%`;
+            if (aVal) aVal.innerText = `${Math.round((tipSettings.airbrush || 0) * 100)}%`;
         }
 
         // Update Sensitivity UI
         const sSize = document.getElementById('speed-size');
         if (sSize) {
-            sSize.value = settings.speedSize * 100;
+            sSize.value = tipSettings.speedSize;
             const val = document.getElementById('s-size-val');
-            if (val) val.innerText = Math.round(settings.speedSize * 100);
+            if (val) val.innerText = Math.round(tipSettings.speedSize);
         }
         const sOpac = document.getElementById('speed-opacity');
         if (sOpac) {
-            sOpac.value = settings.speedOpacity * 100;
+            sOpac.value = tipSettings.speedOpacity;
             const val = document.getElementById('s-opac-val');
-            if (val) val.innerText = Math.round(settings.speedOpacity * 100);
+            if (val) val.innerText = Math.round(tipSettings.speedOpacity);
         }
         const sVal = document.getElementById('speed-value');
         if (sVal) {
-            sVal.value = settings.speedValue * 100;
+            sVal.value = tipSettings.speedValue;
             const val = document.getElementById('s-val-val');
-            if (val) val.innerText = Math.round(settings.speedValue * 100);
+            if (val) val.innerText = Math.round(tipSettings.speedValue);
         }
         const sHue = document.getElementById('speed-hue');
         if (sHue) {
-            sHue.value = settings.speedHue * 100;
+            sHue.value = tipSettings.speedHue;
             const val = document.getElementById('s-hue-val');
-            if (val) val.innerText = Math.round(settings.speedHue * 100);
+            if (val) val.innerText = Math.round(tipSettings.speedHue);
         }
 
         // Update Advanced Sliders
-        const activeTip = (this.tipManager) ? this.tipManager.getActiveTip() : null;
         const getVal = (key, defaultVal) => {
-            if (activeTip && activeTip[key] !== undefined) {
-                return activeTip[key];
-            }
-            return settings[key] !== undefined ? settings[key] : defaultVal;
+            return tipSettings[key] !== undefined ? tipSettings[key] : defaultVal;
         };
 
         const smudgeBoost = document.getElementById('adv-smudge-flow-boost');
@@ -1291,6 +1319,14 @@ class App {
             if (valEl) valEl.innerText = szVal.toFixed(1);
         }
 
+        const advSpeedMax = document.getElementById('adv-speed-max');
+        if (advSpeedMax) {
+            const sMaxVal = getVal('speedMax', 5.0);
+            advSpeedMax.value = sMaxVal;
+            const valEl = document.getElementById('adv-speed-max-val');
+            if (valEl) valEl.innerText = sMaxVal.toFixed(1);
+        }
+
         // Jitter Sliders
         const jitterSize = document.getElementById('settings-jitter-size');
         if (jitterSize) {
@@ -1325,12 +1361,93 @@ class App {
         const catJitter = document.getElementById('cat-jitter');
         const catSmudge = document.getElementById('cat-smudge');
         const catWireframe = document.getElementById('cat-wireframe');
+        const catSpeedTuning = document.getElementById('cat-speed-tuning');
         
         if (catPressure) catPressure.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER) ? 'block' : 'none';
         if (catJitter) catJitter.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER) ? 'block' : 'none';
         if (catSmudge) catSmudge.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE) ? 'block' : 'none';
         if (catWireframe) catWireframe.style.display = (tool === TOOLS.WIREFRAME) ? 'block' : 'none';
+        if (catSpeedTuning) catSpeedTuning.style.display = (tool === TOOLS.BRUSH || tool === TOOLS.SMUDGE || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER) ? 'block' : 'none';
     }
+  }
+
+  getCurrentTipSettings() {
+    if (!this.activeTool) return null;
+    let bankIdx = 0;
+    let genIdx = -1;
+    if (this.tipManager) {
+        bankIdx = this.tipManager.activeBankIndex;
+        genIdx = this.tipManager.activeGeneratedIndex;
+    }
+    if (bankIdx < 0 && genIdx < 0) {
+        bankIdx = 0;
+    }
+    const tipId = bankIdx >= 0 ? `main-${bankIdx}` : `gen-${genIdx}`;
+    
+    const settings = this.brushSettings[this.activeTool];
+    if (!settings) return null;
+    
+    if (!settings.tips) settings.tips = {};
+    if (!settings.tips[tipId]) {
+        settings.tips[tipId] = {
+            size: settings.size ?? 40,
+            opacity: settings.opacity ?? 1.0,
+            flow: settings.flow ?? 1.0,
+            falloff: settings.falloff ?? 0.50,
+            liquifyQuality: settings.liquifyQuality ?? 2,
+            speedSize: settings.speedSize ?? 15,
+            speedOpacity: settings.speedOpacity ?? 10,
+            speedValue: settings.speedValue ?? -20,
+            speedHue: settings.speedHue ?? -50,
+            speedMax: settings.speedMax ?? 5.0,
+            paintHeight: settings.paintHeight ?? 0,
+            oiliness: settings.oiliness ?? 0.5,
+            airbrush: settings.airbrush ?? 0.0,
+            smudgeFlowBoost: settings.smudgeFlowBoost ?? 10.0,
+            smudgePickup: settings.smudgePickup ?? 2.0,
+            brushSharpen: settings.brushSharpen ?? 0.0,
+            wireDensity: settings.wireDensity ?? 30,
+            wireRange: settings.wireRange ?? 4.0,
+            wireMinDist: settings.wireMinDist ?? 0.5,
+            spacing: settings.spacing ?? 0.05,
+            pressureEnabled: settings.pressureEnabled ?? true,
+            pressureOpacityInfluence: settings.pressureOpacityInfluence ?? 1.0,
+            pressureSizeInfluence: settings.pressureSizeInfluence ?? 1.0,
+            jitterSize: settings.jitterSize ?? 0,
+            jitterAngle: settings.jitterAngle ?? 0,
+            jitterPos: settings.jitterPos ?? 0,
+            jitterHue: settings.jitterHue ?? 0
+        };
+    }
+    return settings.tips[tipId];
+  }
+
+  updateActiveSetting(key, val, mappedVal = null) {
+    if (!this.activeTool) return;
+    
+    this.brushSettings[this.activeTool][key] = val;
+    
+    const tipSettings = this.getCurrentTipSettings();
+    if (tipSettings) {
+        tipSettings[key] = val;
+    }
+    
+    if (this.tipManager) {
+        if (key === 'paintHeight' || key === 'oiliness' || key === 'airbrush') {
+            this.tipManager.updateActiveTipSettings(
+                key === 'paintHeight' ? val : undefined,
+                key === 'oiliness' ? val : undefined,
+                key === 'airbrush' ? val : undefined
+            );
+        } else {
+            this.tipManager.updateActiveTipAdvancedSettings(key, val);
+        }
+    }
+    
+    const engineVal = (mappedVal !== null) ? mappedVal : val;
+    this.engine.brush[key] = engineVal;
+    
+    this._saveBrushSettings();
   }
 
   setTool(tool, force = false) {
@@ -1372,46 +1489,21 @@ class App {
     // Apply per-brush settings
     const settings = this.brushSettings[tool];
     this.engine.brush.type = tool;
-    this.engine.brush.size = settings.size;
-    this.engine.brush.opacity = settings.opacity;
-    this.engine.brush.flow = settings.flow;
-    this.engine.brush.falloff = settings.falloff ?? 0.50;
-    this.engine.brush.liquifyQuality = settings.liquifyQuality ?? 2;
-    this.engine.brush.speedSize = settings.speedSize;
-    this.engine.brush.speedOpacity = settings.speedOpacity;
-    this.engine.brush.speedValue = settings.speedValue;
-    this.engine.brush.speedHue = settings.speedHue;
-    this.engine.brush.paintHeight = (tool === TOOLS.ERASER) ? 0 : (settings.paintHeight || 0);
-    this.engine.brush.oiliness = (tool === TOOLS.ERASER) ? 0 : (settings.oiliness ?? 0.5);
-    this.engine.brush.airbrush = (tool === TOOLS.ERASER) ? 0 : (settings.airbrush || 0);
-    
-    this.engine.brush.smudgeFlowBoost = settings.smudgeFlowBoost;
-    this.engine.brush.smudgePickup = settings.smudgePickup;
-    this.engine.brush.brushSharpen = settings.brushSharpen;
-    this.engine.brush.wireDensity = settings.wireDensity;
-    this.engine.brush.wireRange = settings.wireRange;
-    this.engine.brush.wireMinDist = settings.wireMinDist;
-    this.engine.brush.spacing = settings.spacing ?? 0.05;
-    this.engine.brush.pressureEnabled = settings.pressureEnabled ?? true;
-    this.engine.brush.pressureOpacityInfluence = settings.pressureOpacityInfluence ?? (settings.pressureInfluence ?? 1.0);
-    this.engine.brush.pressureSizeInfluence = settings.pressureSizeInfluence ?? (settings.pressureInfluence ?? 1.0);
-    this.engine.brush.jitterSize = (settings.jitterSize ?? 0) / 100;
-    this.engine.brush.jitterAngle = ((settings.jitterAngle ?? 0) * Math.PI) / 180;
-    this.engine.brush.jitterPos = (settings.jitterPos ?? 0) / 100;
-    this.engine.brush.jitterHue = (settings.jitterHue ?? 0) / 100;
 
-    if (tool === TOOLS.ERASER || tool === TOOLS.SMUDGE) {
-        // Shared tip from Brush 1
-        this.engine.brush.tip = this.brushSettings[TOOLS.BRUSH].tip;
+    // Restore this tool's specific active tip in the panel
+    if (this.tipManager && (tool === TOOLS.BRUSH || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER || tool === TOOLS.SMUDGE)) {
+        this.tipManager.activeBankIndex = settings.activeBankIndex !== undefined ? settings.activeBankIndex : 0;
+        this.tipManager.activeGeneratedIndex = settings.activeGeneratedIndex !== undefined ? settings.activeGeneratedIndex : -1;
+        this.tipManager._renderPalette();
+        this.tipManager.refreshTip();
     } else {
-        this.engine.brush.tip = settings.tip;
+        this.engine.brush.size = settings.size;
+        this.engine.brush.opacity = settings.opacity;
+        this.engine.brush.flow = settings.flow;
+        this.engine.brush.falloff = settings.falloff ?? 0.50;
+        this.engine.brush.liquifyQuality = settings.liquifyQuality ?? 2;
+        this._updateBrushSettingsUI(tool);
     }
-
-    if (tool === TOOLS.BRUSH || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER || tool === TOOLS.SMUDGE) {
-        if (this.tipManager) this.tipManager.refreshTip();
-    }
-
-    this._updateBrushSettingsUI(tool);
     
     // Update UI Buttons
     document.querySelectorAll('.tool-group .tool-btn').forEach(btn => {
@@ -1537,6 +1629,15 @@ class App {
             // Canvas elements cannot be cloned in IndexedDB/Storage
             if (toSave[tool].tip instanceof HTMLCanvasElement) {
                 toSave[tool].tip = null; 
+            }
+            if (s.tips) {
+                toSave[tool].tips = {};
+                Object.keys(s.tips).forEach(tipId => {
+                    toSave[tool].tips[tipId] = { ...s.tips[tipId] };
+                    if (toSave[tool].tips[tipId].tip instanceof HTMLCanvasElement) {
+                        toSave[tool].tips[tipId].tip = null;
+                    }
+                });
             }
         });
         localStorage.setItem('brushSettings', JSON.stringify(toSave));

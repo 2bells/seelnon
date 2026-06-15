@@ -43,7 +43,13 @@ import {
   _clearStack,
   compact,
   undo,
-  redo
+  redo,
+  captureFloatingSelectionState,
+  restoreFloatingSelectionState,
+  recordTransformAdjustment,
+  toggleFloatingSelectionMirrorX,
+  saveHistoryStackToStorage,
+  loadHistoryStackFromStorage
 } from './engine/history.js';
 import {
   _updateMobileGridPosition,
@@ -101,6 +107,8 @@ export class Engine {
 
     this.history = [];
     this.redoStack = [];
+    this.transformHistory = [];
+    this.transformRedoHistory = [];
     this.currentStrokeDirtyChunks = new Map();
 
     this.layerSettings = Array.from({ length: LAYERS_COUNT }, () => ({ 
@@ -255,6 +263,8 @@ export class Engine {
       
       this.history = [];
       this.redoStack = [];
+      this.transformHistory = [];
+      this.transformRedoHistory = [];
       this.activeSelectionPath = null;
       this.floatingSelection = null;
       this.activeLayer = 2; // Default to layer 2
@@ -329,7 +339,7 @@ export class Engine {
         }
 
         // UI SHIELD: Ignore if hitting any UI element
-        if (e.target !== this.container && e.target.closest('.ui-panel, .tool-btn, .brutal-btn, .dots-btn, #top-bar, #top-bar-ref, .brutal-range, button, input, select')) {
+        if (e.target !== this.container && e.target.closest('.ui-panel, .tool-btn, .brutal-btn, .dots-btn, #top-bar, #top-bar-ref, .brutal-range, button, input, select, #recording-selection-box, .rec-handle')) {
             return;
         }
 
@@ -1538,6 +1548,8 @@ export class Engine {
       const center = this._getMousePos({ clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2 });
       
       const clip = this.clipboard;
+      this.transformHistory = [];
+      this.transformRedoHistory = [];
       this.floatingSelection = {
           canvas: clip,
           x: center.wx - clip.width/2,
@@ -1572,6 +1584,8 @@ export class Engine {
       const data = this._getSelectionData(true);
       if (!data) return;
 
+      this.transformHistory = [];
+      this.transformRedoHistory = [];
       this.floatingSelection = {
           canvas: data.canvas,
           x: data.x,
@@ -2070,8 +2084,8 @@ export class Engine {
 
     const dx = currentPos.x - this.lastPos.x;
     const dy = currentPos.y - this.lastPos.y;
-    // dt: increase min to 20ms to smooth out sudden hardware micro-burst touch events
-    const dt = Math.max(20, currentTime - this.lastTime); 
+    // dt: use a minimum of 1ms to allow high-frequency polling devices (such as modern mice and tablets) to have accurate velocity readings!
+    const dt = Math.max(1, currentTime - this.lastTime); 
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (!Number.isFinite(dist)) return;
@@ -2091,43 +2105,48 @@ export class Engine {
       y: m.wy
     };
 
-    // --- Brush Sensitivity ---
-    // Higher threshold means you need to move faster to see the effect
-    const threshold = 35 + (this.brush.flow * 50); 
-    // Lower exponent (0.75) makes the response much less explosive
-    const vFactor = Math.pow(Math.min(velocity / threshold, 1.8), 0.75); 
-    
-    const sensitivityMult = 1.0; // Reduced further from 1.2 for more control
-    
-    // Size: Clamp sizeMod
-    const speedSizeFactor = this.brush.speedSize || 0;
-    const sizeMod = 1 - (vFactor * speedSizeFactor * sensitivityMult); 
-    let dynamicSize = this.brush.size * Math.max(0.01, sizeMod);
-    
-    if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
-        const inf = this.brush.pressureSizeInfluence !== undefined ? this.brush.pressureSizeInfluence : (this.brush.pressureInfluence ?? 1.0);
-        dynamicSize *= ( (1 - inf) + this.lastPressure * inf );
-    }
-    // Final clamp to prevent "crashed chunks" (e.g. 5000px stamps)
-    dynamicSize = Math.max(0.1, Math.min(1500, dynamicSize));
-    if (!Number.isFinite(dynamicSize)) dynamicSize = this.brush.size;
-    
-    // Opacity: Clamp opacMod
-    const opacBase = 1 - (vFactor * this.brush.speedOpacity * sensitivityMult);
-    let opacMod = Math.max(0.01, Math.min(1.0, opacBase));
-    
-    if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
-        const inf = this.brush.pressureOpacityInfluence !== undefined ? this.brush.pressureOpacityInfluence : (this.brush.pressureInfluence ?? 1.0);
-        opacMod *= ( (1 - inf) + this.lastPressure * inf );
-    }
-    opacMod = Math.max(0.005, Math.min(1.0, opacMod));
-    if (!Number.isFinite(opacMod)) opacMod = 1.0;
+     // --- Brush Sensitivity ---
+     // Deadzone from 0.0 to 0.7 px/ms. Max speed ranges from 1.0 to 10.0 px/ms.
+     const maxSpeed = this.brush.speedMax || 5.0;
+     let normSpeed = 0.0;
+     if (velocity > 0.7) {
+         normSpeed = Math.min((velocity - 0.7) / (Math.max(1.0, maxSpeed) - 0.7), 1.0);
+     }
+     const vFactor = normSpeed * normSpeed; // Pure quadratic ease-in
+     
+     // Size Modifier: -100% to +100% compounding on current value.
+     const speedSizeFactor = this.brush.speedSize || 0;
+     const k_sz = speedSizeFactor / 100;
+     const sizeMod = 1.0 + vFactor * k_sz;
+     let dynamicSize = this.brush.size * sizeMod;
+     
+     if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
+         const inf = this.brush.pressureSizeInfluence !== undefined ? this.brush.pressureSizeInfluence : (this.brush.pressureInfluence ?? 1.0);
+         dynamicSize *= ( (1 - inf) + this.lastPressure * inf );
+     }
+     // Final clamp to prevent "crashed chunks" (e.g. 1500px stamps)
+     dynamicSize = Math.max(0.1, Math.min(1500, dynamicSize));
+     if (!Number.isFinite(dynamicSize)) dynamicSize = this.brush.size;
+     
+     // Opacity Modifier: -100% to +100% compounding on current value.
+     const speedOpacityFactor = this.brush.speedOpacity || 0;
+     const k_op = speedOpacityFactor / 100;
+     let opacMod = 1.0 + vFactor * k_op;
+     
+     if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
+         const inf = this.brush.pressureOpacityInfluence !== undefined ? this.brush.pressureOpacityInfluence : (this.brush.pressureInfluence ?? 1.0);
+         opacMod *= ( (1 - inf) + this.lastPressure * inf );
+     }
+     opacMod = Math.max(0.005, Math.min(1.0, opacMod));
+     if (!Number.isFinite(opacMod)) opacMod = 1.0;
 
-    let color = this.brush.color;
-    if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
-        // Reduced color shift sensitivity
-        color = this._shiftColor(color, vFactor * this.brush.speedHue * 40, -vFactor * (this.brush.speedValue / 8)); 
-    }
+     let color = this.brush.color;
+     if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
+         // Speed-based color shift: gradual and beautiful
+         const hShift = vFactor * (this.brush.speedHue / 100) * 90; // S-HUE ranges from -100 to 100
+         const lShift = vFactor * (this.brush.speedValue / 100);    // S-VAL ranges from -100 to 100
+         color = this._shiftColor(color, hShift, lShift); 
+     }
 
     const worldPos = {
         ...worldTo,
@@ -2159,18 +2178,34 @@ export class Engine {
         
         if (dist >= minWarpDist) {
             // Determine intermediate points to create "arcs that are smooth" (interpolation)
-            // Tighter stepSize ensures smooth curvature even on fast drags with high-DPI input
-            let stepSize = Math.max(3, Math.min(10, this.brush.size * 0.02));
-            if (this.brush.type === TOOLS.LIQUIFY) {
-                if (this.brush.liquifyQuality === 1) {
-                    // FAST mode: large step size, very few sub-steps or none at all (boosting dragging speed massively)
-                    stepSize = Math.max(30, this.brush.size * 0.30);
-                } else if (this.brush.liquifyQuality === 3) {
-                    // ULTRA mode: tighter sub-steps for sub-pixel accuracy
-                    stepSize = Math.max(2, Math.min(6, this.brush.size * 0.015));
-                }
+            // Adaptive Step Size: scales up when dragging quickly to guarantee standard 60fps frame rates
+            let stepSize = Math.max(4, this.brush.size * 0.06);
+            if (this.brush.liquifyQuality === 1) {
+                // FAST mode: huge steps
+                stepSize = Math.max(30, this.brush.size * 0.35);
+            } else if (this.brush.liquifyQuality === 3) {
+                // ULTRA mode: tighter spacing for precision work
+                stepSize = Math.max(3, this.brush.size * 0.03);
             }
-            const numSteps = Math.max(1, Math.floor(dist / stepSize));
+            
+            // Speed throttle: if distance (velocity) is high, scale up stepSize so we run far fewer steps
+            const velocityThreshold = this.brush.size * 0.25;
+            if (dist > velocityThreshold) {
+                const speedRatio = dist / velocityThreshold;
+                // Dampen speed scale to retain smooth curves near stroke boundaries
+                stepSize *= Math.max(1.0, Math.min(3.5, 1.0 + (speedRatio - 1.0) * 0.8));
+            }
+            
+            let numSteps = Math.max(1, Math.floor(dist / stepSize));
+            
+            // Enforce absolute stable frame rate lock upper ceiling
+            let maxSteps = 8;
+            if (this.brush.liquifyQuality === 1) maxSteps = 3;
+            else if (this.brush.liquifyQuality === 3) maxSteps = 16;
+            
+            if (numSteps > maxSteps) {
+                numSteps = maxSteps;
+            }
             
             let prevPt = lastP;
             const affectedThisFrame = new Map();
@@ -2208,12 +2243,11 @@ export class Engine {
             // First segment: P0 -> Mid(P0, P1)
             const p0 = this.strokePoints[0];
             
-            // Recalibrate start point's size & opacity to align with first move/pressure
-            if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
-                p0.size = dynamicSize;
-                p0.opacity = opacMod;
-                p0.pressure = pressure;
-            }
+            // Recalibrate start point's parameters to align with first move/pressure (always recalibrate so 1st stamp is perfectly speed-modulated)
+            p0.size = dynamicSize;
+            p0.opacity = opacMod;
+            p0.color = color;
+            p0.pressure = pressure;
             
             const mid = { x: (p0.x + worldPos.x) / 2, y: (p0.y + worldPos.y) / 2 };
             this._paintOnChunks(p0, mid, p0.size, p0.opacity, p0.color);
@@ -3139,6 +3173,8 @@ export class Engine {
   clearSelection() {
       this.activeSelectionPath = null;
       this.floatingSelection = null;
+      this.transformHistory = [];
+      this.transformRedoHistory = [];
       this._updateSelectionPreview();
       this.refresh();
       this._status('READY');
@@ -3219,7 +3255,14 @@ export class Engine {
     // Apply shifts
     h = (h + hDelta / 360) % 1;
     if (h < 0) h += 1;
-    l = Math.max(0, Math.min(1, l + lDelta));
+
+    // Extrapolate lightness shift based on current lightness l
+    if (lDelta > 0) {
+        l = l + lDelta * (1.0 - l);
+    } else if (lDelta < 0) {
+        l = l + lDelta * l;
+    }
+    l = Math.max(0, Math.min(1, l));
 
     // hsl to rgb
     const hue2rgb = (p, q, t) => {
@@ -3295,19 +3338,18 @@ export class Engine {
     const height = this.brush.paintHeight || 0;
 
     // 2. Generate Stamp Positions
-    // Airbrush step optimization: higher airbrush = fewer stamps (capped at ~0.3 steps at 65% airbrush)
-    // Most important for performance and visual consistency of overlapping blurs.
+    // Airbrush step optimization: higher airbrush = fewer stamps. We increase spacing proportionally to brush size
+    // and blur level to prevent over-concentrating millions of soft stamps at slow speed, while keeping it perfectly smooth.
     let currentSpacing = spacing;
-    if (!isSmudge && !isWire && airbrush > 0 && dist > 1) {
-        const airWeight = Math.min(1.0, airbrush / 0.65);
-        const airSpacing = dist / 0.3;
+    if (!isSmudge && !isWire && airbrush > 0) {
+        const airSpacing = Math.max(3, bSize * (this.brush.spacing + airbrush * 0.15));
         if (airSpacing > currentSpacing) {
-            currentSpacing = currentSpacing + (airSpacing - currentSpacing) * airWeight;
+            currentSpacing = airSpacing;
         }
     }
 
     // Additional heavy stamp optimization for impasto / wet oil brushes at speed to prevent clogging up browser queue
-    if (!isSmudge && !isWire && (oil > 0 || height > 0) && this.smoothedVelocity > 5) {
+    if (!isSmudge && !isWire && (oil > 0.005 || height > 0.005) && this.smoothedVelocity > 5) {
         // Scaled up to 3x standard spacing as velocity goes from 5 to 50
         const speedScale = 1 + Math.min(2.0, (this.smoothedVelocity - 5) / 22.5);
         currentSpacing *= speedScale;
@@ -3380,14 +3422,14 @@ export class Engine {
         // Round size for caching to prevent constant canvas/filter redevelopment overhead
         const cacheSize = this._getCacheSize(bSize);
         const cacheKey = `${airbrush}_${cacheSize}_${sharpen}`;
-        if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color) {
+        if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color || this._tipColorCache.srcTip !== this.brush.tip) {
             this._updateTipCache(cacheSize, airbrush, color);
         }
-        if ((oil > 0 || height > 0) && dist < 500) {
+        if ((oil > 0.005 || height > 0.005) && dist < 500) {
             // Oiliness now produces sharper highlights for a "wet" look, while impasto stays soft
             const reliefBlur = Math.max(0.2, (height * 0.1 + oil * 0.02)) * 4 * (1 - airbrush * 0.4);
             const reliefKey = `${cacheSize}_${reliefBlur}`;
-            if (!this._reliefCache || this._reliefCache.key !== reliefKey) {
+            if (!this._reliefCache || this._reliefCache.key !== reliefKey || this._reliefCache.srcTip !== this.brush.tip) {
                 this._updateReliefCache(cacheSize, reliefBlur);
             }
         }
@@ -3529,7 +3571,7 @@ export class Engine {
                                 ctx.fill();
                             } else {
                                 // Relief / Impasto effect
-                                if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
+                                if ((oil > 0.005 || height > 0.005) && dist < 500 && !isEraser) {
                                     // Sync color for tip if jittered
                                     if (jHue > 0) {
                                         if (!this.scratchCanvas) {
@@ -3555,27 +3597,27 @@ export class Engine {
                                     const origGCO = ctx.globalCompositeOperation;
 
                                     // 1. Shadow Pass (Multiply) - Strictly reserved for Impasto (Paint Height)
-                                    if (height > 0 && !(this.smoothedVelocity > 35) && this._reliefCache) {
+                                    if (height > 0.005 && !(this.smoothedVelocity > 35) && this._reliefCache) {
                                         ctx.globalCompositeOperation = 'multiply';
                                         ctx.globalAlpha = origAlpha * height * 0.22;
-                                        ctx.drawImage(this._reliefCache.shadow, -curR + 1, -curR + 1, curSize, curSize);
+                                        ctx.drawImage(this._reliefCache.shadow, -curR, -curR, curSize, curSize);
                                     }
 
                                     // 2. Base Highlight Pass - Using screen for volumetric height stability
                                     const baseHighlightOpacity = height * 0.15;
                                     const oilOpacity = oil * 0.35;
                                     const skipBaseHighlight = (this.smoothedVelocity > 15);
-                                    if (baseHighlightOpacity > 0 && (!skipBaseHighlight || oilOpacity <= 0) && this._reliefCache) {
+                                    if (baseHighlightOpacity > 0.005 && (!skipBaseHighlight || oilOpacity <= 0.005) && this._reliefCache) {
                                         ctx.globalCompositeOperation = 'screen';
                                         ctx.globalAlpha = origAlpha * Math.min(1.0, baseHighlightOpacity);
-                                        ctx.drawImage(this._reliefCache.highlight, -curR - 1, -curR - 1, curSize, curSize);
+                                        ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
                                     }
 
                                     // 3. Wet/Oil Pass - Using overlay or dodge for that high-specular shiny look
-                                    if (oilOpacity > 0 && this._reliefCache) {
-                                        ctx.globalCompositeOperation = 'overlay'; 
-                                        ctx.globalAlpha = origAlpha * Math.min(0.8, oilOpacity);
-                                        ctx.drawImage(this._reliefCache.highlight, -curR - 1.5, -curR - 1.5, curSize, curSize);
+                                    if (oilOpacity > 0.005 && this._reliefCache) {
+                                        ctx.globalCompositeOperation = 'screen';
+                                        ctx.globalAlpha = origAlpha * Math.min(0.95, oilOpacity * 1.25);
+                                        ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
                                     }
 
                                     // Restore original properties directly
@@ -3733,21 +3775,41 @@ export class Engine {
     const supportsFilters = typeof tctx.filter !== 'undefined' && !isIOS && !isSafari;
     
     if (airbrush > 0 && blur > 0) {
+        // Create an offscreen temp canvas to draw the raw brush mask (we don't colorize it yet)
+        const tempMaskCanv = document.createElement('canvas');
+        tempMaskCanv.width = dSize;
+        tempMaskCanv.height = dSize;
+        const tempMaskCtx = tempMaskCanv.getContext('2d');
+        tempMaskCtx.drawImage(this.brush.tip, 0, 0, dSize, dSize);
+
+        // Make sure it's purely black to prevent any weird embedded colors in custom brush images from leaking
+        tempMaskCtx.globalCompositeOperation = 'source-in';
+        tempMaskCtx.fillStyle = '#000000';
+        tempMaskCtx.fillRect(0, 0, dSize, dSize);
+
         if (supportsFilters) {
             tctx.filter = `blur(${blur}px)`;
-            tctx.drawImage(this.brush.tip, (s-dSize)/2, (s-dSize)/2, dSize, dSize);
-            tctx.globalCompositeOperation = 'source-in';
-            tctx.fillStyle = color; 
-            tctx.fillRect(0,0,s,s);
+            tctx.drawImage(tempMaskCanv, (s-dSize)/2, (s-dSize)/2);
         } else {
-            // Shadow fallback for mobile/Safari
+            // Shadow fallback for mobile/Safari using black shadow first
             tctx.shadowBlur = blur;
-            tctx.shadowColor = color;
+            tctx.shadowColor = '#000000';
             tctx.shadowOffsetX = s;
             tctx.shadowOffsetY = 0;
-            // Draw off-canvas to only see the shadow
-            tctx.drawImage(this.brush.tip, (s-dSize)/2 - s, (s-dSize)/2, dSize, dSize);
+            tctx.drawImage(tempMaskCanv, (s-dSize)/2 - s, (s-dSize)/2);
         }
+
+        // Post-colorize: Replace the entire blurred mask's pixels with the exact target 'color',
+        // completely eliminating any GPU chromatism or rainbow artifacts at semi-transparent borders.
+        // The final canvas will strictly have only the RGB values of 'color'!
+        tctx.filter = 'none'; // reset filter
+        tctx.shadowBlur = 0;  // reset shadow
+        tctx.shadowColor = 'transparent';
+        tctx.shadowOffsetX = 0;
+        tctx.shadowOffsetY = 0;
+        tctx.globalCompositeOperation = 'source-in';
+        tctx.fillStyle = color;
+        tctx.fillRect(0, 0, s, s);
     } else {
         const sharpen = this.brush.brushSharpen || 0;
         if (sharpen > 0 && supportsFilters) {
@@ -3765,86 +3827,138 @@ export class Engine {
 
   _updateReliefCache(s, blur) {
     if (!this.brush.tip || this.brush.tip.width === 0 || s < 1) return;
-    const shad = document.createElement('canvas'); shad.width = s; shad.height = s;
-    const sctx = shad.getContext('2d');
-    
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const supportsFilters = typeof sctx.filter !== 'undefined' && !isIOS && !isSafari;
 
-    if (blur > 0) {
-        if (supportsFilters) {
-            sctx.filter = `blur(${blur}px)`;
-            try {
-                sctx.drawImage(this.brush.tip, 0, 0, s, s);
-            } catch(e) { return; }
-            sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
-        } else {
-            // Shadow fallback
-            sctx.shadowBlur = blur;
-            sctx.shadowColor = 'black';
-            sctx.shadowOffsetX = s;
-            sctx.shadowOffsetY = 0;
-            try {
-                sctx.drawImage(this.brush.tip, -s, 0, s, s);
-            } catch(e) { return; }
+    const M = 256;
+    const nominalSize = Math.max(1, this.brush.size || 100);
+    let masterBlur = blur * (M / nominalSize);
+    masterBlur = Math.min(Math.max(0.1, masterBlur), 30);
+
+    const masterKey = `${masterBlur.toFixed(2)}_${this.brush.brushSharpen || 0}`;
+
+    if (!this._masterReliefCache || 
+        this._masterReliefCache.key !== masterKey || 
+        this._masterReliefCache.srcTip !== this.brush.tip) {
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = M;
+        tempCanvas.height = M;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (!tempCtx) return;
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const supportsFilters = typeof tempCtx.filter !== 'undefined' && !isIOS && !isSafari;
+
+        if (masterBlur > 0) {
+            if (supportsFilters) {
+                tempCtx.filter = `blur(${masterBlur}px)`;
+            } else {
+                tempCtx.shadowBlur = masterBlur;
+                tempCtx.shadowColor = 'black';
+            }
         }
-    } else {
+
         try {
-            sctx.drawImage(this.brush.tip, 0, 0, s, s);
-        } catch(e) { return; }
-        sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = 'black'; sctx.fillRect(0,0,s,s);
+            tempCtx.drawImage(this.brush.tip, 0, 0, M, M);
+        } catch (e) {
+            return;
+        }
+
+        const imgData = tempCtx.getImageData(0, 0, M, M);
+        const data = imgData.data;
+
+        const getH = (nx, ny) => {
+            if (nx < 0 || nx >= M || ny < 0 || ny >= M) return 0;
+            const nIdx = (ny * M + nx) * 4;
+            const r = data[nIdx];
+            const g = data[nIdx+1];
+            const b = data[nIdx+2];
+            const a = data[nIdx+3];
+            const gray = (r * 0.299 + g * 0.587 + b * 0.114);
+            return (a / 255) * (0.35 + 0.65 * (gray / 255));
+        };
+
+        const procShad = document.createElement('canvas'); procShad.width = M; procShad.height = M;
+        const psCtx = procShad.getContext('2d');
+        const shadImgData = psCtx.createImageData(M, M);
+        const sData = shadImgData.data;
+
+        const procHigh = document.createElement('canvas'); procHigh.width = M; procHigh.height = M;
+        const phCtx = procHigh.getContext('2d');
+        const highImgData = phCtx.createImageData(M, M);
+        const hData = highImgData.data;
+
+        const lx = 0.707;
+        const ly = 0.707;
+        const bumpStrength = 16.0;
+
+        for (let y = 0; y < M; y++) {
+            for (let x = 0; x < M; x++) {
+                const idx = (y * M + x) * 4;
+                const hc = getH(x, y);
+                const a = data[idx+3];
+
+                if (a === 0 || hc <= 0.01) {
+                    sData[idx+3] = 0;
+                    hData[idx+3] = 0;
+                    continue;
+                }
+
+                const hTL = getH(x - 1, y - 1);
+                const hTR = getH(x + 1, y - 1);
+                const hBL = getH(x - 1, y + 1);
+                const hBR = getH(x + 1, y + 1);
+                const hL  = getH(x - 1, y);
+                const hR  = getH(x + 1, y);
+                const hU  = getH(x, y - 1);
+                const hD  = getH(x, y + 1);
+
+                const dx = ((hTR + 2 * hR + hBR) - (hTL + 2 * hL + hBL)) * 0.125;
+                const dy = ((hBL + 2 * hD + hBR) - (hTL + 2 * hU + hTR)) * 0.125;
+
+                const dot = dx * lx + dy * ly;
+                const flow = dot * bumpStrength;
+
+                if (flow > 0) {
+                    const intensity = Math.min(1.0, flow * 2.5);
+                    hData[idx] = 255;
+                    hData[idx+1] = 255;
+                    hData[idx+2] = 255;
+                    hData[idx+3] = Math.round(intensity * a * 0.85);
+                    sData[idx+3] = 0;
+                } else if (flow < 0) {
+                    const intensity = Math.min(1.0, -flow * 3.0);
+                    sData[idx] = 0;
+                    sData[idx+1] = 0;
+                    sData[idx+2] = 0;
+                    sData[idx+3] = Math.round(intensity * a * 0.95);
+                    hData[idx+3] = 0;
+                } else {
+                    sData[idx+3] = 0;
+                    hData[idx+3] = 0;
+                }
+            }
+        }
+
+        psCtx.putImageData(shadImgData, 0, 0);
+        phCtx.putImageData(highImgData, 0, 0);
+
+        this._masterReliefCache = {
+            shadow: procShad,
+            highlight: procHigh,
+            key: masterKey,
+            srcTip: this.brush.tip
+        };
     }
 
-    // Erase the solid core of the brush tip to prevent value/hue shifts in the flat middle of strokes
-    sctx.save();
-    sctx.globalCompositeOperation = 'destination-out';
-    if (supportsFilters) sctx.filter = 'none';
-    sctx.shadowBlur = 0;
-    sctx.shadowOffsetX = 0;
-    try {
-        sctx.drawImage(this.brush.tip, 0, 0, s, s);
-    } catch (e) {}
-    sctx.restore();
+    const shad = document.createElement('canvas'); shad.width = s; shad.height = s;
+    const hshadCtx = shad.getContext('2d');
+    hshadCtx.drawImage(this._masterReliefCache.shadow, 0, 0, s, s);
 
     const high = document.createElement('canvas'); high.width = s; high.height = s;
-    const hctx = high.getContext('2d');
-    
-    if (blur > 0) {
-        if (supportsFilters) {
-            hctx.filter = `blur(${blur}px)`;
-            try {
-                hctx.drawImage(this.brush.tip, 0, 0, s, s);
-            } catch(e) { return; }
-            hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
-        } else {
-            // Shadow fallback
-            hctx.shadowBlur = blur;
-            hctx.shadowColor = 'white';
-            hctx.shadowOffsetX = s;
-            hctx.shadowOffsetY = 0;
-            try {
-                hctx.drawImage(this.brush.tip, -s, 0, s, s);
-            } catch(e) { return; }
-        }
-    } else {
-        try {
-            hctx.drawImage(this.brush.tip, 0, 0, s, s);
-        } catch(e) { return; }
-        hctx.globalCompositeOperation = 'source-in'; hctx.fillStyle = 'white'; hctx.fillRect(0,0,s,s);
-    }
+    const hhighCtx = high.getContext('2d');
+    hhighCtx.drawImage(this._masterReliefCache.highlight, 0, 0, s, s);
 
-    // Erase the solid core of the brush tip to prevent value/hue shifts in the flat middle of strokes
-    hctx.save();
-    hctx.globalCompositeOperation = 'destination-out';
-    if (supportsFilters) hctx.filter = 'none';
-    hctx.shadowBlur = 0;
-    hctx.shadowOffsetX = 0;
-    try {
-        hctx.drawImage(this.brush.tip, 0, 0, s, s);
-    } catch (e) {}
-    hctx.restore();
-    
     this._reliefCache = { shadow: shad, highlight: high, key: `${s}_${blur}`, srcTip: this.brush.tip };
   }
 
@@ -4322,6 +4436,12 @@ Engine.prototype._clearStack = _clearStack;
 Engine.prototype.compact = compact;
 Engine.prototype.undo = undo;
 Engine.prototype.redo = redo;
+Engine.prototype.captureFloatingSelectionState = captureFloatingSelectionState;
+Engine.prototype.restoreFloatingSelectionState = restoreFloatingSelectionState;
+Engine.prototype.recordTransformAdjustment = recordTransformAdjustment;
+Engine.prototype.toggleFloatingSelectionMirrorX = toggleFloatingSelectionMirrorX;
+Engine.prototype.saveHistoryStackToStorage = saveHistoryStackToStorage;
+Engine.prototype.loadHistoryStackFromStorage = loadHistoryStackFromStorage;
 
 // Assign grid prototype methods
 Engine.prototype._updateMobileGridPosition = _updateMobileGridPosition;

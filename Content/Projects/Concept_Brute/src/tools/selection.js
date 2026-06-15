@@ -300,8 +300,7 @@ export function updateSelectionPreview(engine) {
         mirrorBtn.onclick = (e) => {
             e.stopPropagation();
             e.preventDefault();
-            engine.floatingSelection.mirrorX = !engine.floatingSelection.mirrorX;
-            engine.refresh();
+            engine.toggleFloatingSelectionMirrorX();
         };
         modesContainer.appendChild(mirrorBtn);
         
@@ -523,6 +522,8 @@ export function applySelection(engine) {
         selection: { ...engine.floatingSelection } 
     });
     engine.floatingSelection = null;
+    engine.transformHistory = [];
+    engine.transformRedoHistory = [];
     engine._updateSelectionPreview();
     engine.refresh();
     engine._status('APPLIED');

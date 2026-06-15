@@ -9,7 +9,7 @@
   </head>
   <body>
     <div id="app">
-      <!-- BRUTALIST TOOLBAR -->
+      <!--  BRUTALIST TOOLBAR  -->
       <div id="top-bar">
         <div class="history-group">
           <button id="btn-save" title="Save" class="tool-btn">
@@ -99,41 +99,41 @@
           <div class="slider-container">
             <div class="slider-header">
                 <label class="slider-label" title="Speed Size Sensitivity">S-SIZE</label>
-                <span id="s-size-val" class="slider-value">300</span>
+                <span id="s-size-val" class="slider-value">15</span>
             </div>
             <div class="brutal-slider-wrapper">
               <button class="slider-reset-arrow" data-target="speed-size" title="Reset to 0">▼</button>
-              <input type="range" id="speed-size" min="-2000" max="2000" value="300" class="brutal-range s-range">
+              <input type="range" id="speed-size" min="-100" max="100" value="15" class="brutal-range s-range">
             </div>
           </div>
           <div class="slider-container">
             <div class="slider-header">
                 <label class="slider-label" title="Speed Opacity Sensitivity">S-OPAC</label>
-                <span id="s-opac-val" class="slider-value">200</span>
+                <span id="s-opac-val" class="slider-value">10</span>
             </div>
             <div class="brutal-slider-wrapper">
               <button class="slider-reset-arrow" data-target="speed-opacity" title="Reset to 0">▼</button>
-              <input type="range" id="speed-opacity" min="-2000" max="2000" value="200" class="brutal-range s-range">
+              <input type="range" id="speed-opacity" min="-100" max="100" value="10" class="brutal-range s-range">
             </div>
           </div>
           <div class="slider-container">
             <div class="slider-header">
                 <label class="slider-label" title="Speed Value Sensitivity">S-VAL</label>
-                <span id="s-val-val" class="slider-value">-400</span>
+                <span id="s-val-val" class="slider-value">-20</span>
             </div>
             <div class="brutal-slider-wrapper">
               <button class="slider-reset-arrow" data-target="speed-value" title="Reset to 0">▼</button>
-              <input type="range" id="speed-value" min="-2000" max="2000" value="-400" class="brutal-range s-range">
+              <input type="range" id="speed-value" min="-100" max="100" value="-20" class="brutal-range s-range">
             </div>
           </div>
           <div class="slider-container">
             <div class="slider-header">
                 <label class="slider-label" title="Speed Hue Sensitivity">S-HUE</label>
-                <span id="s-hue-val" class="slider-value">-1000</span>
+                <span id="s-hue-val" class="slider-value">-50</span>
             </div>
             <div class="brutal-slider-wrapper">
               <button class="slider-reset-arrow" data-target="speed-hue" title="Reset to 0">▼</button>
-              <input type="range" id="speed-hue" min="-2000" max="2000" value="-1000" class="brutal-range s-range">
+              <input type="range" id="speed-hue" min="-100" max="100" value="-50" class="brutal-range s-range">
             </div>
           </div>
         </div>
@@ -245,6 +245,7 @@
         <div id="panel-images" class="ui-panel">
            <div id="handle-images" class="panel-handle">
             <span class="panel-title">REFERENCE</span>
+            <button id="btn-open-recording" class="panel-toggle" title="Timelapse Recording" style="color: red; font-size: 14px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; background: transparent; border: none; cursor: pointer;">●</button>
           </div>
           <div class="panel-content">
             <div id="image-list">
@@ -333,6 +334,139 @@
                 <button id="btn-zoom-in" class="mini-btn">+</button>
                 <div style="width: 8px;"></div>
                 <button id="btn-zoom-fit" class="mini-btn" style="height: 16px; padding: 0 4px;">FIT</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TIMELAPSE RECORDING PANEL -->
+        <div id="panel-recording" class="ui-panel hidden" style="width: 290px; left: 340px; top: 180px; z-index: 10001; max-height: 90vh; overflow-y: auto;">
+          <div id="handle-recording" class="panel-handle">
+            <span class="panel-title" style="letter-spacing: 0.05em; color: red; font-weight: 900;">● TIMELAPSE RECORDER</span>
+            <button id="btn-recording-close" class="mini-btn">X</button>
+          </div>
+          <div class="panel-content" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 900; background: #e0e0e0; padding: 4px; border: 2px solid #000;">
+              <span>SESSION ID: <strong id="rec-session-id" style="color: blue;">NONE</strong></span>
+              <span>FRAMES: <strong id="rec-frame-count">0</strong></span>
+            </div>
+            
+            <!-- RECORD & STOP BUTTONS -->
+            <div style="display: flex; gap: 6px;">
+              <button id="btn-rec-toggle" class="brutal-btn" style="flex: 1; height: 32px; font-weight: 900; background: #fff; color: red; border-color: #000; font-size: 11px;" title="Start/Pause recording active changes">
+                ● RECORD
+              </button>
+              <button id="btn-rec-clear" class="brutal-btn" style="height: 32px; width: 32px; padding: 0; font-weight: bold; background: #fcc;" title="Clear timeline completely">
+                ■
+              </button>
+            </div>
+
+            <!-- REGION CONFIGURATION -->
+            <div class="settings-category" id="cat-rec-bounds">
+              <div class="category-header">CAPTURE BOUNDS</div>
+              <div class="category-content" style="padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+                <div id="rec-mode-info" style="font-size: 10px; line-height: 1.3; margin-bottom: 4px;">
+                  Mode: <strong id="rec-mode-type">Infinite Selection</strong>
+                </div>
+                <div id="rec-infinite-controls" style="display: flex; flex-direction: column; gap: 4px;">
+                  <button id="btn-rec-toggle-box" class="brutal-btn full-width" style="height: 24px; font-size: 9px; font-weight: 900; margin-bottom: 4px;">
+                    SHOW/EDIT SELECTION BOX
+                  </button>
+                  <div style="display: flex; gap: 4px; align-items: center; justify-content: space-between; font-size: 9px; margin-top: 2px;">
+                    <span style="font-weight: 900;">BOX SIZE:</span>
+                    <div style="display: flex; gap: 2px;">
+                      <button id="btn-rec-size-small" class="mini-btn" style="height: 16px; font-size: 8px; padding: 0 4px;">300SQ</button>
+                      <button id="btn-rec-size-medium" class="mini-btn" style="height: 16px; font-size: 8px; padding: 0 4px;">500SQ</button>
+                      <button id="btn-rec-size-large" class="mini-btn" style="height: 16px; font-size: 8px; padding: 0 4px;">800SQ</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SETTINGS: Quality & Threshold -->
+            <div class="settings-category" id="cat-rec-settings">
+              <div class="category-header">SNAPSHOT SETTINGS</div>
+              <div class="category-content" style="padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                <!-- Quality slider / setting -->
+                <div style="display: flex; justify-content: space-between; font-size: 9px; font-weight: 900; align-items: center;">
+                  <span>RESOLUTION</span>
+                  <span id="rec-quality-val" style="color: blue;">1/4 SIZE</span>
+                </div>
+                <div style="display: flex; gap: 3px;">
+                  <button id="btn-rec-res-14" class="mini-btn active-btn" style="flex: 1; font-size: 8px; padding: 2px 0;">1/4 (FAST)</button>
+                  <button id="btn-rec-res-12" class="mini-btn" style="flex: 1; font-size: 8px; padding: 2px 0;">1/2 (MED)</button>
+                  <button id="btn-rec-res-11" class="mini-btn" style="flex: 1; font-size: 8px; padding: 2px 0;">FULL (HIGH)</button>
+                </div>
+
+                <!-- Stroke trigger slider / setting -->
+                <div style="display: flex; justify-content: space-between; font-size: 9px; font-weight: 900; margin-top: 2px;">
+                  <span>SNAP INTERVAL (STROKES)</span>
+                  <span id="rec-stride-val">4 strokes</span>
+                </div>
+                <input type="range" id="rec-stride-slider" min="1" max="15" value="4" class="brutal-range" style="width: 100%; height: 12px; cursor: pointer;">
+                
+                <!-- Manual snapshot -->
+                <button id="btn-rec-snap-manual" class="brutal-btn full-width" style="height: 24px; font-size: 9px; font-weight: 900; background: #eef; margin-top: 2px;">
+                  📸 SNAP FRAME NOW
+                </button>
+              </div>
+            </div>
+
+            <!-- PLAYER SECTION -->
+            <div class="settings-category" id="cat-rec-preview">
+              <div class="category-header">TIMELINE PREVIEW</div>
+              <div class="category-content" style="padding: 4px; background: #000; display: flex; flex-direction: column;">
+                <div style="background: #e0e0e0; border-bottom: 2px solid #000; padding: 4px; font-size: 9px; font-weight: 900; text-transform: uppercase; color: #000; display: flex; justify-content: space-between;">
+                  <span>FRAME PREVIEW</span>
+                  <span id="rec-player-frame-info">FRAME 0 / 0</span>
+                </div>
+                <div id="rec-player-wrapper" style="position: relative; width: 100%; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #111;">
+                  <img id="rec-player-screen" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;">
+                  <div id="rec-player-empty" style="color: #888; font-size: 9px; text-transform: uppercase; font-weight: bold; text-align: center; padding: 20px; line-height: 1.5;">
+                    No frames snapped<br><span style="font-size: 8px; color: #555;">Start painting to record!</span>
+                  </div>
+                </div>
+                
+                <!-- SCRUBBER -->
+                <div style="background: #222; padding: 4px; border-top: 2px solid #000;">
+                  <input type="range" id="rec-scrubber" min="0" max="0" value="0" class="brutal-range" style="width: 100%; height: 12px; cursor: pointer; background: #444; margin-bottom: 4px;">
+                  
+                  <!-- PLAYBACK CONTROLS -->
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                    <div style="display: flex; gap: 2px;">
+                      <button id="btn-player-prev" class="mini-btn" style="color: #fff; background: #333; height: 16px; font-size: 8px;">◀◀</button>
+                      <button id="btn-player-play" class="mini-btn" style="color: #fff; background: #333; height: 16px; font-size: 8px; font-weight: bold;">▶ PLAY</button>
+                      <button id="btn-player-next" class="mini-btn" style="color: #fff; background: #333; height: 16px; font-size: 8px;">▶▶</button>
+                    </div>
+                    <div style="display: flex; font-size: 8px; color: #aaa; gap: 4px; align-items: center;">
+                      <span>FPS:</span>
+                      <input type="number" id="rec-fps" value="12" style="width: 42px; background: #333; color: #fff; border: 1px solid #555; font-size: 9px; padding: 0 1px; text-align: center;">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- TIMELINE OPERATIONS & EDITING INSIDE COLLAPSIBLE -->
+                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px; background: #f0f0f0; padding: 4px; border: 2px solid #000;">
+                  <div style="display: flex; gap: 4px;">
+                    <button id="btn-rec-trim-start" class="brutal-btn" style="flex: 1; height: 20px; font-size: 8px; font-weight: bold; padding: 0;" title="Delete all frames before currently chosen frame">
+                      ✂ TRIM START
+                    </button>
+                    <button id="btn-rec-trim-end" class="brutal-btn" style="flex: 1; height: 20px; font-size: 8px; font-weight: bold; padding: 0;" title="Delete all frames after currently chosen frame">
+                      ✂ TRIM END
+                    </button>
+                    <button id="btn-rec-del-frame" class="brutal-btn" style="height: 20px; font-size: 8px; font-weight: bold; padding: 0 8px; background: #fbb;" title="Delete currently selected frame only">
+                      DEL FRAME
+                    </button>
+                  </div>
+                  <button id="btn-rec-export-video" class="brutal-btn full-width" style="height: 26px; font-size: 10px; font-weight: 900; background: #ddf; color: #000;" title="Export frames sequence as a high-quality MP4 or WebM video file">
+                    🎬 EXPORT MP4/WEBM VIDEO
+                  </button>
+                  <button id="btn-rec-export-json" class="brutal-btn full-width" style="height: 24px; font-size: 9px; font-weight: 900; background: #dfd; border-style: dotted;" title="Export frames sequence as JSON payload">
+                    💾 DOWNLOAD JSON SEQUENCE BACKUP
+                  </button>
+                </div>
+
+              </div>
             </div>
           </div>
         </div>
@@ -573,6 +707,20 @@
                      <input type="range" id="settings-brush-spacing" min="0.01" max="0.5" step="0.01" value="0.05" class="brutal-range" style="width: 100%;">
                   </div>
                </div>
+             </div>
+
+             <!-- SPEED CONFIG CATEGORY -->
+             <div class="settings-category" id="cat-speed-tuning">
+                <div class="category-header">SPEED CONFIG</div>
+                <div class="category-content">
+                   <div class="settings-group">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                          <label class="settings-label" title="Max speed at which sensitivity caps out">LIMIT SPEED</label>
+                          <span id="adv-speed-max-val" style="font-size: 9px; font-weight: 900;">5.0</span>
+                      </div>
+                      <input type="range" id="adv-speed-max" min="1" max="10" step="0.5" value="5.0" class="brutal-range" style="width: 100%;">
+                   </div>
+                </div>
              </div>
 
              <!-- JITTER CATEGORY -->

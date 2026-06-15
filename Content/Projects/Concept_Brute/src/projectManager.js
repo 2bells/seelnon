@@ -160,6 +160,10 @@ export async function switchProject(app, id) {
     await loadProject(app);
     app._updateRefImageList();
     await renderProjectList(app);
+
+    if (app.recorder && typeof app.recorder.onProjectSwitched === 'function') {
+        app.recorder.onProjectSwitched();
+    }
 }
 
 export async function deleteProject(app, id) {
@@ -365,6 +369,9 @@ export async function loadProject(app) {
         console.log(`[PERF] runInBatches() completed in ${(performance.now() - tBatchRunStart).toFixed(2)}ms for ${chunkLoadPromises.length} chunks`);
 
         app.engine.refresh();
+        if (app.engine && app.engine.loadHistoryStackFromStorage) {
+            await app.engine.loadHistoryStackFromStorage();
+        }
         app._status('READY');
         console.log(`[PERF] loadProject() completed in ${(performance.now() - tLoadStart).toFixed(2)}ms`);
     } catch (e) {
@@ -381,6 +388,10 @@ export async function saveProject(app) {
     
     app._status('SAVING...');
     try {
+        if (app.engine && app.engine.saveHistoryStackToStorage) {
+            await app.engine.saveHistoryStackToStorage();
+        }
+
         if (app.engine.refsDirty) {
             const refData = app.engine.referenceImages.map(r => ({
                 id: r.id,

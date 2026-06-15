@@ -489,15 +489,27 @@ export class TipManager {
   }
 
   refreshTip() {
+    let tip = null;
+    if (this.activeBankIndex >= 0) {
+        tip = this.tips[this.activeBankIndex];
+    } else if (this.activeGeneratedIndex >= 0) {
+        tip = this.generatedTips[this.activeGeneratedIndex];
+    } else {
+        tip = { canvas: this.selectedTipCanvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 };
+    }
+
+    if (tip && tip.canvas) {
+        this.selectedTipCanvas = tip.canvas;
+        if (this.editorCtx) {
+            this.editorCtx.save();
+            this.editorCtx.globalCompositeOperation = 'source-over';
+            this.editorCtx.clearRect(0, 0, 128, 128);
+            this.editorCtx.drawImage(tip.canvas, 0, 0);
+            this.editorCtx.restore();
+        }
+    }
+
     if (this.onTipChange) {
-      let tip = null;
-      if (this.activeBankIndex >= 0) {
-          tip = this.tips[this.activeBankIndex];
-      } else if (this.activeGeneratedIndex >= 0) {
-          tip = this.generatedTips[this.activeGeneratedIndex];
-      } else {
-          tip = { canvas: this.selectedTipCanvas, paintHeight: 0, oiliness: 0.5, airbrush: 0 };
-      }
       this.onTipChange(tip.canvas, tip.paintHeight, tip.oiliness, tip.airbrush);
     }
   }

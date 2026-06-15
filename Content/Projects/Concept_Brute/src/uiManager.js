@@ -486,14 +486,7 @@ export function setupUI(app) {
     };
     document.getElementById('settings-brush-spacing').oninput = (e) => {
         const val = parseFloat(e.target.value);
-        app.engine.brush.spacing = val;
-        if (app.tipManager) {
-            app.tipManager.updateActiveTipAdvancedSettings('spacing', val);
-        }
-        if (app.brushSettings[app.activeTool]) {
-            app.brushSettings[app.activeTool].spacing = val;
-            app._saveBrushSettings();
-        }
+        app.updateActiveSetting('spacing', val);
     };
 
     const pressureEnable = document.getElementById('settings-pressure-enable');
@@ -502,47 +495,25 @@ export function setupUI(app) {
 
     if (pressureEnable) {
         pressureEnable.onchange = (e) => {
-            const val = e.target.checked;
-            app.engine.brush.pressureEnabled = val;
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('pressureEnabled', val);
-            }
-            if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].pressureEnabled = val;
-                app._saveBrushSettings();
-            }
+            app.updateActiveSetting('pressureEnabled', e.target.checked);
         };
     }
 
     if (pressureOpacityInf) {
         pressureOpacityInf.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            app.engine.brush.pressureOpacityInfluence = val;
             const displayEl = document.getElementById('pressure-opacity-val');
             if (displayEl) displayEl.innerText = val.toFixed(1);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('pressureOpacityInfluence', val);
-            }
-            if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].pressureOpacityInfluence = val;
-                app._saveBrushSettings();
-            }
+            app.updateActiveSetting('pressureOpacityInfluence', val);
         };
     }
 
     if (pressureSizeInf) {
         pressureSizeInf.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            app.engine.brush.pressureSizeInfluence = val;
             const displayEl = document.getElementById('pressure-size-val');
             if (displayEl) displayEl.innerText = val.toFixed(1);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('pressureSizeInfluence', val);
-            }
-            if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].pressureSizeInfluence = val;
-                app._saveBrushSettings();
-            }
+            app.updateActiveSetting('pressureSizeInfluence', val);
         };
     }
 
@@ -556,64 +527,36 @@ export function setupUI(app) {
         jitterSizeInput.oninput = (e) => {
             const rawVal = parseFloat(e.target.value);
             const val = Math.round(app._mapSliderToPrecision(rawVal, 100));
-            app.engine.brush.jitterSize = val / 100;
             const valEl = document.getElementById('jitter-size-val');
             if (valEl) valEl.innerText = `${val}%`;
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('jitterSize', val);
-            }
-            if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].jitterSize = val;
-                app._saveBrushSettings();
-            }
+            app.updateActiveSetting('jitterSize', val, val / 100);
         };
     }
     if (jitterAngleInput) {
         jitterAngleInput.oninput = (e) => {
             const rawVal = parseFloat(e.target.value);
             const val = Math.round(app._mapSliderToPrecision(rawVal, 180));
-            app.engine.brush.jitterAngle = (val * Math.PI) / 180;
             const valEl = document.getElementById('jitter-angle-val');
             if (valEl) valEl.innerText = `${val}°`;
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('jitterAngle', val);
-            }
-            if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].jitterAngle = val;
-                app._saveBrushSettings();
-            }
+            app.updateActiveSetting('jitterAngle', val, (val * Math.PI) / 180);
         };
     }
     if (jitterPosInput) {
         jitterPosInput.oninput = (e) => {
             const rawVal = parseFloat(e.target.value);
             const val = Math.round(app._mapSliderToPrecision(rawVal, 200));
-            app.engine.brush.jitterPos = val / 100;
             const valEl = document.getElementById('jitter-pos-val');
             if (valEl) valEl.innerText = `${val}%`;
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('jitterPos', val);
-            }
-            if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].jitterPos = val;
-                app._saveBrushSettings();
-            }
+            app.updateActiveSetting('jitterPos', val, val / 100);
         };
     }
     if (jitterHueInput) {
         jitterHueInput.oninput = (e) => {
             const rawVal = parseFloat(e.target.value);
             const val = Math.round(app._mapSliderToPrecision(rawVal, 100));
-            app.engine.brush.jitterHue = val / 100;
             const valEl = document.getElementById('jitter-hue-val');
             if (valEl) valEl.innerText = `${val}%`;
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('jitterHue', val);
-            }
-            if (app.brushSettings[app.activeTool]) {
-                app.brushSettings[app.activeTool].jitterHue = val;
-                app._saveBrushSettings();
-            }
+            app.updateActiveSetting('jitterHue', val, val / 100);
         };
     }
 
@@ -747,12 +690,9 @@ export function setupUI(app) {
     sizeSlider.oninput = (e) => {
       const val = parseInt(e.target.value);
       const size = Math.round(app._mapSliderToSize(val));
-      if (!app.activeTool) return;
-      app.brushSettings[app.activeTool].size = size;
-      app.engine.brush.size = size;
       sizeVal.innerText = size;
+      app.updateActiveSetting('size', size);
       if (app.engine) app.engine._updateBrushCursor();
-      app._saveBrushSettings();
     };
 
     const opacitySlider = document.getElementById('brush-opacity');
@@ -760,11 +700,8 @@ export function setupUI(app) {
     if (opacitySlider) {
         opacitySlider.oninput = (e) => {
           const val = parseInt(e.target.value);
-          if (!app.activeTool) return;
-          app.brushSettings[app.activeTool].opacity = val / 100;
-          app.engine.brush.opacity = val / 100;
           opacityVal.innerText = `${val}%`;
-          app._saveBrushSettings();
+          app.updateActiveSetting('opacity', val / 100);
         };
     }
 
@@ -773,11 +710,8 @@ export function setupUI(app) {
     if (flowSlider) {
         flowSlider.oninput = (e) => {
           const val = parseInt(e.target.value);
-          if (!app.activeTool) return;
-          app.brushSettings[app.activeTool].flow = val / 100;
-          app.engine.brush.flow = val / 100;
           flowVal.innerText = `${val}%`;
-          app._saveBrushSettings();
+          app.updateActiveSetting('flow', val / 100);
         };
     }
 
@@ -786,11 +720,8 @@ export function setupUI(app) {
     if (falloffSlider) {
         falloffSlider.oninput = (e) => {
           const val = parseInt(e.target.value);
-          if (!app.activeTool) return;
-          app.brushSettings[app.activeTool].falloff = val / 100;
-          app.engine.brush.falloff = val / 100;
           if (falloffVal) falloffVal.innerText = `${val}%`;
-          app._saveBrushSettings();
+          app.updateActiveSetting('falloff', val / 100);
         };
     }
 
@@ -799,12 +730,9 @@ export function setupUI(app) {
     if (qualitySlider) {
         qualitySlider.oninput = (e) => {
           const val = parseInt(e.target.value);
-          if (!app.activeTool) return;
-          app.brushSettings[app.activeTool].liquifyQuality = val;
-          app.engine.brush.liquifyQuality = val;
           const labels = { 1: 'FAST', 2: 'RESOLVE', 3: 'ULTRA' };
           if (qualityVal) qualityVal.innerText = labels[val] || 'RESOLVE';
-          app._saveBrushSettings();
+          app.updateActiveSetting('liquifyQuality', val);
         };
     }
 
@@ -813,15 +741,8 @@ export function setupUI(app) {
     if (heightSlider) {
         heightSlider.oninput = (e) => {
             const val = parseInt(e.target.value);
-            if (!app.activeTool) return;
-            app.brushSettings[app.activeTool].paintHeight = val / 100;
-            app.engine.brush.paintHeight = val / 100;
             heightVal.innerText = `${val}%`;
-            
-            if (app.activeTool === TOOLS.BRUSH || app.activeTool === TOOLS.SMUDGE) {
-                app.tipManager.updateActiveTipSettings(val / 100, undefined, undefined);
-            }
-            app._saveBrushSettings();
+            app.updateActiveSetting('paintHeight', val / 100);
         };
     }
 
@@ -830,15 +751,8 @@ export function setupUI(app) {
     if (oilinessSlider) {
         oilinessSlider.oninput = (e) => {
             const val = parseInt(e.target.value);
-            if (!app.activeTool) return;
-            app.brushSettings[app.activeTool].oiliness = val / 100;
-            app.engine.brush.oiliness = val / 100;
             oilinessVal.innerText = `${val}%`;
-            
-            if (app.activeTool === TOOLS.BRUSH || app.activeTool === TOOLS.SMUDGE) {
-                app.tipManager.updateActiveTipSettings(undefined, val / 100, undefined);
-            }
-            app._saveBrushSettings();
+            app.updateActiveSetting('oiliness', val / 100);
         };
     }
 
@@ -847,15 +761,8 @@ export function setupUI(app) {
     if (airbrushSlider) {
         airbrushSlider.oninput = (e) => {
             const val = parseInt(e.target.value);
-            if (!app.activeTool) return;
-            app.brushSettings[app.activeTool].airbrush = val / 100;
-            app.engine.brush.airbrush = val / 100;
             airbrushVal.innerText = `${val}%`;
-            
-            if (app.activeTool === TOOLS.BRUSH || app.activeTool === TOOLS.SMUDGE) {
-                app.tipManager.updateActiveTipSettings(undefined, undefined, val / 100);
-            }
-            app._saveBrushSettings();
+            app.updateActiveSetting('airbrush', val / 100);
         };
     }
 
@@ -866,45 +773,39 @@ export function setupUI(app) {
     const sHue = document.getElementById('speed-hue');
 
     if (sSize) sSize.oninput = (e) => {
-        const val = parseInt(e.target.value) / 100;
-        app.engine.brush.speedSize = val;
+        const val = parseInt(e.target.value);
         const el = document.getElementById('s-size-val');
         if (el) el.innerText = e.target.value;
-        if (app.activeTool) {
-            app.brushSettings[app.activeTool].speedSize = val;
-            app._saveBrushSettings();
-        }
+        app.updateActiveSetting('speedSize', val);
     };
     if (sOpac) sOpac.oninput = (e) => {
-        const val = parseInt(e.target.value) / 100;
-        app.engine.brush.speedOpacity = val;
+        const val = parseInt(e.target.value);
         const el = document.getElementById('s-opac-val');
         if (el) el.innerText = e.target.value;
-        if (app.activeTool) {
-            app.brushSettings[app.activeTool].speedOpacity = val;
-            app._saveBrushSettings();
-        }
+        app.updateActiveSetting('speedOpacity', val);
     };
     if (sVal) sVal.oninput = (e) => {
-        const val = parseInt(e.target.value) / 100;
-        app.engine.brush.speedValue = val;
+        const val = parseInt(e.target.value);
         const el = document.getElementById('s-val-val');
         if (el) el.innerText = e.target.value;
-        if (app.activeTool) {
-            app.brushSettings[app.activeTool].speedValue = val;
-            app._saveBrushSettings();
-        }
+        app.updateActiveSetting('speedValue', val);
     };
     if (sHue) sHue.oninput = (e) => {
-        const val = parseInt(e.target.value) / 100;
-        app.engine.brush.speedHue = val;
+        const val = parseInt(e.target.value);
         const el = document.getElementById('s-hue-val');
         if (el) el.innerText = e.target.value;
-        if (app.activeTool) {
-            app.brushSettings[app.activeTool].speedHue = val;
-            app._saveBrushSettings();
-        }
+        app.updateActiveSetting('speedHue', val);
     };
+
+    const speedMaxSlider = document.getElementById('adv-speed-max');
+    const speedMaxVal = document.getElementById('adv-speed-max-val');
+    if (speedMaxSlider) {
+        speedMaxSlider.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            if (speedMaxVal) speedMaxVal.innerText = val.toFixed(1);
+            app.updateActiveSetting('speedMax', val);
+        };
+    }
 
     // Wire up speed sliders reset arrows to snap back to 0
     document.querySelectorAll('.slider-reset-arrow').forEach(btn => {
@@ -922,6 +823,7 @@ export function setupUI(app) {
     app._makeDraggable(document.getElementById('panel-color'), document.getElementById('handle-color'));
     app._makeDraggable(document.getElementById('panel-images'), document.getElementById('handle-images'));
     app._makeDraggable(document.getElementById('panel-layers'), document.getElementById('handle-layers'));
+    app._makeDraggable(document.getElementById('panel-recording'), document.getElementById('handle-recording'));
     app._makeDraggable(app.settingsPanel, document.getElementById('handle-settings'));
     app._makeDraggable(document.getElementById('panel-brush-tips'), document.getElementById('handle-brush-tips'));
     app._makeDraggable(document.getElementById('panel-advanced-brush'), document.getElementById('handle-advanced-brush'));
@@ -1017,8 +919,7 @@ export function setupUI(app) {
         btnTouchMirror.onclick = () => {
             if (app.engine) {
                 if (app.engine.floatingSelection) {
-                    app.engine.floatingSelection.mirrorX = !app.engine.floatingSelection.mirrorX;
-                    app.engine.refresh();
+                    app.engine.toggleFloatingSelectionMirrorX();
                 } else if (app.activeTool === TOOLS.REF_MOVE && app.engine.selectedRefIndex !== -1) {
                     const ref = app.engine.referenceImages[app.engine.selectedRefIndex];
                     ref.mirrorX = !ref.mirrorX;
@@ -1123,13 +1024,8 @@ export function setupUI(app) {
     if (smudgeBoostInput) {
         smudgeBoostInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('smudgeFlowBoost', val);
-            }
-            app.brushSettings[TOOLS.SMUDGE].smudgeFlowBoost = val;
-            if (app.activeTool === TOOLS.SMUDGE) app.engine.brush.smudgeFlowBoost = val;
             document.getElementById('adv-smudge-flow-boost-val').innerText = val.toFixed(1);
-            app._saveBrushSettings();
+            app.updateActiveSetting('smudgeFlowBoost', val);
         };
     }
 
@@ -1137,13 +1033,8 @@ export function setupUI(app) {
     if (smudgePickupInput) {
         smudgePickupInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('smudgePickup', val);
-            }
-            app.brushSettings[TOOLS.SMUDGE].smudgePickup = val;
-            if (app.activeTool === TOOLS.SMUDGE) app.engine.brush.smudgePickup = val;
             document.getElementById('adv-smudge-pickup-val').innerText = val.toFixed(1);
-            app._saveBrushSettings();
+            app.updateActiveSetting('smudgePickup', val);
         };
     }
 
@@ -1151,13 +1042,8 @@ export function setupUI(app) {
     if (sharpenInput) {
         sharpenInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('brushSharpen', val);
-            }
-            app.brushSettings[TOOLS.BRUSH].brushSharpen = val;
-            if (app.activeTool === TOOLS.BRUSH) app.engine.brush.brushSharpen = val;
             document.getElementById('adv-brush-sharpen-val').innerText = val.toFixed(2);
-            app._saveBrushSettings();
+            app.updateActiveSetting('brushSharpen', val);
         };
     }
 
@@ -1166,13 +1052,8 @@ export function setupUI(app) {
     if (wireDensityInput) {
         wireDensityInput.oninput = (e) => {
             const val = parseInt(e.target.value);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('wireDensity', val);
-            }
-            app.brushSettings[TOOLS.WIREFRAME].wireDensity = val;
-            if (app.activeTool === TOOLS.WIREFRAME) app.engine.brush.wireDensity = val;
             document.getElementById('adv-wire-density-val').innerText = val;
-            app._saveBrushSettings();
+            app.updateActiveSetting('wireDensity', val);
         };
     }
 
@@ -1180,13 +1061,8 @@ export function setupUI(app) {
     if (wireRangeInput) {
         wireRangeInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('wireRange', val);
-            }
-            app.brushSettings[TOOLS.WIREFRAME].wireRange = val;
-            if (app.activeTool === TOOLS.WIREFRAME) app.engine.brush.wireRange = val;
             document.getElementById('adv-wire-range-val').innerText = val.toFixed(1);
-            app._saveBrushSettings();
+            app.updateActiveSetting('wireRange', val);
         };
     }
 
@@ -1194,13 +1070,8 @@ export function setupUI(app) {
     if (wireMinDistInput) {
         wireMinDistInput.oninput = (e) => {
             const val = parseFloat(e.target.value);
-            if (app.tipManager) {
-                app.tipManager.updateActiveTipAdvancedSettings('wireMinDist', val);
-            }
-            app.brushSettings[TOOLS.WIREFRAME].wireMinDist = val;
-            if (app.activeTool === TOOLS.WIREFRAME) app.engine.brush.wireMinDist = val;
             document.getElementById('adv-wire-min-dist-val').innerText = val.toFixed(1);
-            app._saveBrushSettings();
+            app.updateActiveSetting('wireMinDist', val);
         };
     }
 

@@ -93,6 +93,7 @@ export function _startStroke(e) {
           if (this.onDrawStart) this.onDrawStart();
           this.isDrawing = true;
           this.lastMousePos = { x: e.clientX, y: e.clientY };
+          this._transformStateBeforeDrag = this.captureFloatingSelectionState ? this.captureFloatingSelectionState() : null;
           return;
       } else {
           // Click outside selection: apply it
@@ -386,8 +387,8 @@ export function _moveStroke(e) {
 
   const dx = currentPos.x - this.lastPos.x;
   const dy = currentPos.y - this.lastPos.y;
-  // dt: increase min to 20ms to smooth out sudden hardware micro-burst touch events
-  const dt = Math.max(20, currentTime - this.lastTime); 
+  // dt: use a minimum of 1ms to allow high-frequency polling devices (such as modern mice and tablets) to have accurate velocity readings!
+  const dt = Math.max(1, currentTime - this.lastTime); 
   const dist = Math.sqrt(dx * dx + dy * dy);
   
   if (!Number.isFinite(dist)) return;
@@ -408,29 +409,32 @@ export function _moveStroke(e) {
   };
 
   // --- Brush Sensitivity ---
-  // Higher threshold means you need to move faster to see the effect
-  const threshold = 35 + (this.brush.flow * 50); 
-  // Lower exponent (0.75) makes the response much less explosive
-  const vFactor = Math.pow(Math.min(velocity / threshold, 1.8), 0.75); 
+  // Deadzone from 0.0 to 0.7 px/ms. Max speed ranges from 1.0 to 10.0 px/ms.
+  const maxSpeed = this.brush.speedMax || 5.0;
+  let normSpeed = 0.0;
+  if (velocity > 0.7) {
+      normSpeed = Math.min((velocity - 0.7) / (Math.max(1.0, maxSpeed) - 0.7), 1.0);
+  }
+  const vFactor = normSpeed * normSpeed; // Pure quadratic ease-in
   
-  const sensitivityMult = 1.0; 
-  
-  // Size: Clamp sizeMod
+  // Size Modifier: -100% to +100% compounding on current value.
   const speedSizeFactor = this.brush.speedSize || 0;
-  const sizeMod = 1 - (vFactor * speedSizeFactor * sensitivityMult); 
-  let dynamicSize = this.brush.size * Math.max(0.01, sizeMod);
+  const k_sz = speedSizeFactor / 100;
+  const sizeMod = 1.0 + vFactor * k_sz;
+  let dynamicSize = this.brush.size * sizeMod;
   
   if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
       const inf = this.brush.pressureSizeInfluence !== undefined ? this.brush.pressureSizeInfluence : (this.brush.pressureInfluence ?? 1.0);
       dynamicSize *= ( (1 - inf) + this.lastPressure * inf );
   }
-  // Final clamp to prevent "crashed chunks" (e.g. 5000px stamps)
+  // Final clamp to prevent "crashed chunks" (e.g. 1500px stamps)
   dynamicSize = Math.max(0.1, Math.min(1500, dynamicSize));
   if (!Number.isFinite(dynamicSize)) dynamicSize = this.brush.size;
   
-  // Opacity: Clamp opacMod
-  const opacBase = 1 - (vFactor * this.brush.speedOpacity * sensitivityMult);
-  let opacMod = Math.max(0.01, Math.min(1.0, opacBase));
+  // Opacity Modifier: -100% to +100% compounding on current value.
+  const speedOpacityFactor = this.brush.speedOpacity || 0;
+  const k_op = speedOpacityFactor / 100;
+  let opacMod = 1.0 + vFactor * k_op;
   
   if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
       const inf = this.brush.pressureOpacityInfluence !== undefined ? this.brush.pressureOpacityInfluence : (this.brush.pressureInfluence ?? 1.0);
@@ -441,8 +445,10 @@ export function _moveStroke(e) {
 
   let color = this.brush.color;
   if (this.brush.speedValue !== 0 || this.brush.speedHue !== 0) {
-      // Reduced color shift sensitivity
-      color = this._shiftColor(color, vFactor * this.brush.speedHue * 40, -vFactor * (this.brush.speedValue / 8)); 
+      // Speed-based color shift: gradual and beautiful
+      const hShift = vFactor * (this.brush.speedHue / 100) * 90; // S-HUE ranges from -100 to 100
+      const lShift = vFactor * (this.brush.speedValue / 100);    // S-VAL ranges from -100 to 100
+      color = this._shiftColor(color, hShift, lShift); 
   }
 
   const worldPos = {
@@ -474,17 +480,34 @@ export function _moveStroke(e) {
       
       if (dist >= minWarpDist) {
           // Determine intermediate points to create "arcs that are smooth" (interpolation)
-          let stepSize = Math.max(3, Math.min(10, this.brush.size * 0.02));
-          if (this.brush.type === TOOLS.LIQUIFY) {
-              if (this.brush.liquifyQuality === 1) {
-                  // FAST mode
-                  stepSize = Math.max(30, this.brush.size * 0.30);
-              } else if (this.brush.liquifyQuality === 3) {
-                  // ULTRA mode
-                  stepSize = Math.max(2, Math.min(6, this.brush.size * 0.015));
-              }
+          // Adaptive Step Size: scales up when dragging quickly to guarantee standard 60fps frame rates
+          let stepSize = Math.max(4, this.brush.size * 0.06);
+          if (this.brush.liquifyQuality === 1) {
+              // FAST mode: huge steps
+              stepSize = Math.max(30, this.brush.size * 0.35);
+          } else if (this.brush.liquifyQuality === 3) {
+              // ULTRA mode: tighter spacing for precision work
+              stepSize = Math.max(3, this.brush.size * 0.03);
           }
-          const numSteps = Math.max(1, Math.floor(dist / stepSize));
+          
+          // Speed throttle: if distance (velocity) is high, scale up stepSize so we run far fewer steps
+          const velocityThreshold = this.brush.size * 0.25;
+          if (dist > velocityThreshold) {
+              const speedRatio = dist / velocityThreshold;
+              // Dampen speed scale to retain smooth curves near stroke boundaries
+              stepSize *= Math.max(1.0, Math.min(3.5, 1.0 + (speedRatio - 1.0) * 0.8));
+          }
+          
+          let numSteps = Math.max(1, Math.floor(dist / stepSize));
+          
+          // Enforce absolute stable frame rate lock upper ceiling
+          let maxSteps = 8;
+          if (this.brush.liquifyQuality === 1) maxSteps = 3;
+          else if (this.brush.liquifyQuality === 3) maxSteps = 16;
+          
+          if (numSteps > maxSteps) {
+              numSteps = maxSteps;
+          }
           
           let prevPt = lastP;
           const affectedThisFrame = new Map();
@@ -522,12 +545,11 @@ export function _moveStroke(e) {
           // First segment: P0 -> Mid(P0, P1)
           const p0 = this.strokePoints[0];
           
-          // Recalibrate start point's size & opacity to align with first move/pressure
-          if (this.brush.pressureEnabled && (e.pointerType === 'pen' || e.pointerType === 'touch')) {
-              p0.size = dynamicSize;
-              p0.opacity = opacMod;
-              p0.pressure = pressure;
-          }
+          // Recalibrate start point's parameters to align with first move/pressure (always recalibrate so 1st stamp is perfectly speed-modulated)
+          p0.size = dynamicSize;
+          p0.opacity = opacMod;
+          p0.color = color;
+          p0.pressure = pressure;
           
           const mid = { x: (p0.x + worldPos.x) / 2, y: (p0.y + worldPos.y) / 2 };
           this._paintOnChunks(p0, mid, p0.size, p0.opacity, p0.color);
@@ -869,6 +891,19 @@ export function _endStroke(e = null) {
       this.clearAllOffscreenCanvases();
   }
   
+  if (this._transformStateBeforeDrag && this.isDrawing) {
+      const currentState = this.captureFloatingSelectionState ? this.captureFloatingSelectionState() : null;
+      if (currentState && JSON.stringify(this._transformStateBeforeDrag) !== JSON.stringify(currentState)) {
+          if (!this.transformHistory) this.transformHistory = [];
+          this.transformHistory.push({
+              before: this._transformStateBeforeDrag,
+              after: currentState
+          });
+          this.transformRedoHistory = [];
+      }
+  }
+  this._transformStateBeforeDrag = null;
+
   if (this.onDrawEnd && this.isDrawing) this.onDrawEnd();
   
   this.isDrawing = false;
@@ -946,17 +981,18 @@ export function _paintOnChunks(from, to, size, opacity, color) {
   const height = this.brush.paintHeight || 0;
 
   // 2. Generate Stamp Positions
+  // Airbrush step optimization: higher airbrush = fewer stamps. We increase spacing proportionally to brush size
+  // and blur level to prevent over-concentrating millions of soft stamps at slow speed, while keeping it perfectly smooth.
   let currentSpacing = spacing;
-  if (!isSmudge && !isWire && airbrush > 0 && dist > 1) {
-      const airWeight = Math.min(1.0, airbrush / 0.65);
-      const airSpacing = dist / 0.3;
+  if (!isSmudge && !isWire && airbrush > 0) {
+      const airSpacing = Math.max(3, bSize * (this.brush.spacing + airbrush * 0.15));
       if (airSpacing > currentSpacing) {
-          currentSpacing = currentSpacing + (airSpacing - currentSpacing) * airWeight;
+          currentSpacing = airSpacing;
       }
   }
 
   // Additional heavy stamp optimization
-  if (!isSmudge && !isWire && (oil > 0 || height > 0) && this.smoothedVelocity > 5) {
+  if (!isSmudge && !isWire && (oil > 0.005 || height > 0.005) && this.smoothedVelocity > 5) {
       const speedScale = 1 + Math.min(2.0, (this.smoothedVelocity - 5) / 22.5);
       currentSpacing *= speedScale;
   }
@@ -1027,13 +1063,13 @@ export function _paintOnChunks(from, to, size, opacity, color) {
       const sharpen = this.brush.brushSharpen || 0;
       const cacheSize = this._getCacheSize(bSize);
       const cacheKey = `${airbrush}_${cacheSize}_${sharpen}`;
-      if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color) {
+      if (!this._tipColorCache || this._tipColorCache.key !== cacheKey || this._tipColorCache.color !== color || this._tipColorCache.srcTip !== this.brush.tip) {
           this._updateTipCache(cacheSize, airbrush, color);
       }
-      if ((oil > 0 || height > 0) && dist < 500) {
+      if ((oil > 0.005 || height > 0.005) && dist < 500) {
           const reliefBlur = Math.max(0.2, (height * 0.1 + oil * 0.02)) * 4 * (1 - airbrush * 0.4);
           const reliefKey = `${cacheSize}_${reliefBlur}`;
-          if (!this._reliefCache || this._reliefCache.key !== reliefKey) {
+          if (!this._reliefCache || this._reliefCache.key !== reliefKey || this._reliefCache.srcTip !== this.brush.tip) {
               this._updateReliefCache(cacheSize, reliefBlur);
           }
       }
@@ -1166,7 +1202,7 @@ export function _paintOnChunks(from, to, size, opacity, color) {
                               ctx.arc(0, 0, curR, 0, Math.PI * 2);
                               ctx.fill();
                           } else {
-                              if ((oil > 0 || height > 0) && dist < 500 && !isEraser) {
+                              if ((oil > 0.005 || height > 0.005) && dist < 500 && !isEraser) {
                                   if (jHue > 0) {
                                       if (!this.scratchCanvas) {
                                           this.scratchCanvas = document.createElement('canvas');
@@ -1190,25 +1226,25 @@ export function _paintOnChunks(from, to, size, opacity, color) {
                                   const origAlpha = ctx.globalAlpha;
                                   const origGCO = ctx.globalCompositeOperation;
 
-                                  if (height > 0 && !(this.smoothedVelocity > 35) && this._reliefCache) {
+                                  if (height > 0.005 && !(this.smoothedVelocity > 35) && this._reliefCache) {
                                       ctx.globalCompositeOperation = 'multiply';
                                       ctx.globalAlpha = origAlpha * height * 0.22;
-                                      ctx.drawImage(this._reliefCache.shadow, -curR + 1, -curR + 1, curSize, curSize);
+                                      ctx.drawImage(this._reliefCache.shadow, -curR, -curR, curSize, curSize);
                                   }
 
                                   const baseHighlightOpacity = height * 0.15;
                                   const oilOpacity = oil * 0.35;
                                   const skipBaseHighlight = (this.smoothedVelocity > 15);
-                                  if (baseHighlightOpacity > 0 && (!skipBaseHighlight || oilOpacity <= 0) && this._reliefCache) {
+                                  if (baseHighlightOpacity > 0.005 && (!skipBaseHighlight || oilOpacity <= 0.005) && this._reliefCache) {
                                       ctx.globalCompositeOperation = 'screen';
                                       ctx.globalAlpha = origAlpha * Math.min(1.0, baseHighlightOpacity);
-                                      ctx.drawImage(this._reliefCache.highlight, -curR - 1, -curR - 1, curSize, curSize);
+                                      ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
                                   }
 
-                                  if (oilOpacity > 0 && this._reliefCache) {
-                                      ctx.globalCompositeOperation = 'overlay'; 
-                                      ctx.globalAlpha = origAlpha * Math.min(0.8, oilOpacity);
-                                      ctx.drawImage(this._reliefCache.highlight, -curR - 1.5, -curR - 1.5, curSize, curSize);
+                                  if (oilOpacity > 0.005 && this._reliefCache) {
+                                      ctx.globalCompositeOperation = 'screen';
+                                      ctx.globalAlpha = origAlpha * Math.min(0.95, oilOpacity * 1.25);
+                                      ctx.drawImage(this._reliefCache.highlight, -curR, -curR, curSize, curSize);
                                   }
 
                                   ctx.globalAlpha = origAlpha;
