@@ -267,6 +267,29 @@ export function toggleFloatingSelectionMirrorX() {
 // HISTORY STORAGE CACHE / INDEXDB SERIALIZATION
 // -------------------------------------------------------------
 
+function canvasToDataURLAsync(canvas, type = 'image/png', quality) {
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(canvas.toDataURL(type, quality));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result);
+        };
+        reader.onerror = () => {
+          resolve(canvas.toDataURL(type, quality));
+        };
+        reader.readAsDataURL(blob);
+      }, type, quality);
+    } catch (e) {
+      resolve(canvas.toDataURL(type, quality));
+    }
+  });
+}
+
 async function serializeHistoryState(historyArray) {
   if (!historyArray) return [];
   const serialized = [];
@@ -301,7 +324,7 @@ async function serializeHistoryState(historyArray) {
     if (action.chunks) {
       const chunksArr = [];
       for (const [chunkId, data] of action.chunks.entries()) {
-        const dataUrl = data.canvas ? data.canvas.toDataURL('image/png') : null;
+        const dataUrl = data.canvas ? await canvasToDataURLAsync(data.canvas, 'image/png') : null;
         chunksArr.push({
           chunkId,
           layer: data.layer,
@@ -314,6 +337,7 @@ async function serializeHistoryState(historyArray) {
     }
 
     if (action.selection) {
+      const canvasDataUrl = action.selection.canvas ? await canvasToDataURLAsync(action.selection.canvas, 'image/png') : null;
       act.selection = {
         x: action.selection.x,
         y: action.selection.y,
@@ -326,7 +350,7 @@ async function serializeHistoryState(historyArray) {
         opacity: action.selection.opacity,
         mirrorX: action.selection.mirrorX,
         mirrorY: action.selection.mirrorY,
-        canvasDataUrl: action.selection.canvas ? action.selection.canvas.toDataURL('image/png') : null
+        canvasDataUrl: canvasDataUrl
       };
     }
 

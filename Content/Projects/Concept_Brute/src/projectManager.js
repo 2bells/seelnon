@@ -1,6 +1,29 @@
 import { LAYERS_COUNT, SECTOR_SIZE } from './constants.js';
 import { isCanvasEmpty, isMobileDevice } from './colorUtils.js';
 
+export function canvasToDataURLAsync(canvas, type = 'image/png', quality) {
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(canvas.toDataURL(type, quality));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result);
+        };
+        reader.onerror = () => {
+          resolve(canvas.toDataURL(type, quality));
+        };
+        reader.readAsDataURL(blob);
+      }, type, quality);
+    } catch (e) {
+      resolve(canvas.toDataURL(type, quality));
+    }
+  });
+}
+
 export async function initProjectSystem(app) {
     const list = await app.storage.loadGlobalSetting('projects_list') || [{id: 'default', name: 'ORIGINAL', settings: { chunkSize: 1024, quality: 0.92 }}];
     app.projects = list;
@@ -454,38 +477,40 @@ export async function saveProject(app) {
         for (const [sKey, affectedItems] of sectorGroups) {
             const [sx, sy] = sKey.split(',').map(Number);
             
-            let sector = await app.storage.loadSector(sx, sy);
-            if (!sector) {
-                sector = { chunks: {} };
-            }
+            promises.push((async () => {
+                let sector = await app.storage.loadSector(sx, sy);
+                if (!sector) {
+                    sector = { chunks: {} };
+                }
 
-            for (const item of affectedItems) {
-                const [chunkId, layerStr] = item.split('|');
-                const l = parseInt(layerStr);
-                const [cx, cy] = chunkId.split(',').map(Number);
-                const chunkKey = `${l}_${cx}_${cy}`;
+                for (const item of affectedItems) {
+                    const [chunkId, layerStr] = item.split('|');
+                    const l = parseInt(layerStr);
+                    const [cx, cy] = chunkId.split(',').map(Number);
+                    const chunkKey = `${l}_${cx}_${cy}`;
 
-                const chunk = app.engine.chunks.get(chunkId);
-                if (chunk) {
-                    if (!isMobileDevice) {
-                        // Ensure the offscreen canvas for this layer is initialized and fully synced
-                        app.engine._syncChunkOffscreen(chunk, l);
-                    }
-                    
-                    const sourceCanvas = isMobileDevice ? chunk.canvases[l] : (chunk.offscreenCanvases && chunk.offscreenCanvases[l] ? chunk.offscreenCanvases[l] : chunk.canvases[l]);
-                    const isEmpty = chunk.isEmpty[l] || isCanvasEmpty(sourceCanvas);
-                    
-                    if (isEmpty) {
-                        delete sector.chunks[chunkKey];
-                    } else {
-                        // Obtain data URL from our canvas
-                        const dataUrl = sourceCanvas.toDataURL('image/png'); 
-                        sector.chunks[chunkKey] = dataUrl;
+                    const chunk = app.engine.chunks.get(chunkId);
+                    if (chunk) {
+                        if (!isMobileDevice) {
+                            // Ensure the offscreen canvas for this layer is initialized and fully synced
+                            app.engine._syncChunkOffscreen(chunk, l);
+                        }
+                        
+                        const sourceCanvas = isMobileDevice ? chunk.canvases[l] : (chunk.offscreenCanvases && chunk.offscreenCanvases[l] ? chunk.offscreenCanvases[l] : chunk.canvases[l]);
+                        const isEmpty = chunk.isEmpty[l] || isCanvasEmpty(sourceCanvas);
+                        
+                        if (isEmpty) {
+                            delete sector.chunks[chunkKey];
+                        } else {
+                            // Obtain data URL from our canvas asynchronously on background thread
+                            const dataUrl = await canvasToDataURLAsync(sourceCanvas, 'image/png'); 
+                            sector.chunks[chunkKey] = dataUrl;
+                        }
                     }
                 }
-            }
 
-            promises.push(app.storage.saveSector(sx, sy, sector));
+                await app.storage.saveSector(sx, sy, sector);
+            })());
         }
         
         await Promise.all(promises);
