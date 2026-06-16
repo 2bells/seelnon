@@ -173,6 +173,14 @@ export async function deleteProject(app, id) {
     }
     
     app._status('DELETING...');
+    try {
+        if (app.storage && typeof app.storage.deleteProjectStoredData === 'function') {
+            await app.storage.deleteProjectStoredData(id);
+        }
+    } catch (e) {
+        console.error("Purging storage for deleted project failed", e);
+    }
+    
     app.projects = app.projects.filter(p => p.id !== id);
     await app.storage.saveGlobalSetting('projects_list', app.projects);
     
@@ -388,6 +396,10 @@ export async function saveProject(app) {
     
     app._status('SAVING...');
     try {
+        if (app.recorder && typeof app.recorder.saveCurrentSession === 'function') {
+            await app.recorder.saveCurrentSession();
+        }
+
         if (app.engine && app.engine.saveHistoryStackToStorage) {
             await app.engine.saveHistoryStackToStorage();
         }

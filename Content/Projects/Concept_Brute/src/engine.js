@@ -254,6 +254,9 @@ export class Engine {
           if (ref.element && ref.element.parentNode) {
               ref.element.remove();
           }
+          if (ref.img) {
+              ref.img.src = '';
+          }
       });
       this.referenceImages = [];
       this.selectedRefIndex = -1;

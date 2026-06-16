@@ -468,6 +468,67 @@ export class SketchStorage {
     });
   }
 
+  async deleteProjectStoredData(targetProjectId) {
+    if (this.isFallback) {
+      // 1. Delete matching sectors from fallback model
+      const sectorPrefix = `p_${targetProjectId}_s_`;
+      for (const k in this.fallbackStore.sectors) {
+        if (k.startsWith(sectorPrefix)) {
+          delete this.fallbackStore.sectors[k];
+          try { localStorage.removeItem(k); } catch (e) {}
+        }
+      }
+      // 2. Delete matching settings from fallback model
+      const settingPrefix = `p_${targetProjectId}_s_`;
+      for (const k in this.fallbackStore.settings) {
+        if (k.startsWith(settingPrefix)) {
+          delete this.fallbackStore.settings[k];
+          try { localStorage.removeItem(k); } catch (e) {}
+        }
+      }
+      // 3. Delete matching legacy chunks from fallback model
+      const chunkPrefix = `p_${targetProjectId}_c_`;
+      for (const k in this.fallbackStore.chunks) {
+        if (k.startsWith(chunkPrefix)) {
+          delete this.fallbackStore.chunks[k];
+          try { localStorage.removeItem(k); } catch (e) {}
+        }
+      }
+      return;
+    }
+
+    if (!this.db) return;
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['sectors', 'settings', 'chunks'], 'readwrite');
+      const sectorsStore = transaction.objectStore('sectors');
+      const settingsStore = transaction.objectStore('settings');
+      const chunksStore = transaction.objectStore('chunks');
+
+      const deletePrefixFromStore = (store, prefix) => {
+        const range = IDBKeyRange.bound(prefix, prefix + '\uffff');
+        const req = store.openCursor(range);
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            store.delete(cursor.key);
+            cursor.continue();
+          }
+        };
+      };
+
+      deletePrefixFromStore(sectorsStore, `p_${targetProjectId}_s_`);
+      deletePrefixFromStore(settingsStore, `p_${targetProjectId}_s_`);
+      deletePrefixFromStore(chunksStore, `p_${targetProjectId}_c_`);
+
+      transaction.oncomplete = () => {
+        console.log(`[STORAGE] Completed storage purge for project ID: ${targetProjectId}`);
+        resolve();
+      };
+      transaction.onerror = (event) => reject(event.target.error || new Error('Delete project stored data failed'));
+    });
+  }
+
   async clearDatabase() {
     if (this.isFallback) {
       this.fallbackStore = {

@@ -99,6 +99,30 @@ export class TimelapseRecorder {
     this.updateUI();
   }
 
+  async saveCurrentSession() {
+    if (!this.app || !this.app.storage) return;
+    const data = {
+      sessionId: this.sessionId,
+      frames: this.frames,
+      selectionBox: this.selectionBox,
+      isRecording: this.isRecording,
+      isBoxVisible: this.isBoxVisible
+    };
+    try {
+      await this.app.storage.saveSetting('timelapse_data', data);
+    } catch (e) {
+      console.warn("Failed saving timelapse_data session", e);
+    }
+  }
+
+  async asyncSave() {
+    try {
+      await this.saveCurrentSession();
+    } catch (e) {
+      console.error("Timelapse asyncSave failed", e);
+    }
+  }
+
   toggleRecording() {
     this.isRecording = !this.isRecording;
     const btn = document.getElementById('btn-rec-toggle');
@@ -431,6 +455,7 @@ export class TimelapseRecorder {
       this.currentFrameIdx = this.frames.length - 1;
 
       this.updateUI();
+      this.asyncSave();
     } catch (e) {
       console.error('Timelapse Frame Capture Failed:', e);
     }
@@ -442,6 +467,7 @@ export class TimelapseRecorder {
     this.frames.splice(this.currentFrameIdx, 1);
     this.currentFrameIdx = Math.max(0, Math.min(this.currentFrameIdx, this.frames.length - 1));
     this.updateUI();
+    this.asyncSave();
   }
 
   trimTimelineStart() {
@@ -450,6 +476,7 @@ export class TimelapseRecorder {
     this.frames = this.frames.slice(this.currentFrameIdx);
     this.currentFrameIdx = 0;
     this.updateUI();
+    this.asyncSave();
   }
 
   trimTimelineEnd() {
@@ -458,11 +485,13 @@ export class TimelapseRecorder {
     this.frames = this.frames.slice(0, this.currentFrameIdx + 1);
     this.currentFrameIdx = this.frames.length - 1;
     this.updateUI();
+    this.asyncSave();
   }
 
   clearTimeline() {
     if (confirm('Clear the current timelapse recording completely? All captured frames under this session will be wiped.')) {
       this.resetSession();
+      this.asyncSave();
     }
   }
 
@@ -911,25 +940,79 @@ export class TimelapseRecorder {
     if (exportVideoBtn) exportVideoBtn.onclick = () => this.exportVideo();
   }
 
-  onProjectSwitched() {
+  async onProjectSwitched() {
     // 1. If currently playing, stop it cleanly
     if (this.isPlaying) {
       this.togglePlayback();
     }
-    // 2. Stop active recording, restore default state
-    this.isRecording = false;
-    const btn = document.getElementById('btn-rec-toggle');
-    if (btn) {
-      btn.innerHTML = '● RECORD';
-      btn.style.background = '#fff';
-      btn.style.color = 'red';
+    
+    // Purge active preview screen image to prevent RAM/GPU leaks
+    const screen = document.getElementById('rec-player-screen');
+    if (screen) {
+      screen.src = '';
+      screen.style.display = 'none';
     }
-    // 3. Force remove/destroy the infinite selection box element from DOM
+    const emptyMsg = document.getElementById('rec-player-empty');
+    if (emptyMsg) {
+      emptyMsg.style.display = 'block';
+    }
+
+    // 2. Stop active recording temporarily before restoring
+    this.isRecording = false;
     this.removeSelectionBox();
     this.isBoxVisible = false;
 
-    // 4. Create a fresh session and clear frames sequence
-    this.resetSession();
+    // 3. Load the lapse session data for the newly active project ID
+    let data = null;
+    try {
+      if (this.app && this.app.storage) {
+        data = await this.app.storage.loadSetting('timelapse_data');
+      }
+    } catch (e) {
+      console.warn("Failed to load timelapse data on switch", e);
+    }
+
+    if (data && data.sessionId) {
+      this.sessionId = data.sessionId;
+      this.frames = data.frames || [];
+      this.selectionBox = data.selectionBox || { cx: 0, cy: 0, w: 500, h: 500 };
+      this.isRecording = data.isRecording || false;
+      this.isBoxVisible = data.isBoxVisible || false;
+    } else {
+      // Create a fresh session and clear frames sequence
+      this.sessionId = 'REC-' + new Date().toISOString().replace(/[-:T]/g, '').slice(2, 14);
+      this.frames = [];
+      this.selectionBox = { cx: 0, cy: 0, w: 500, h: 500 };
+      this.isRecording = false;
+      this.isBoxVisible = false;
+    }
+
+    this.currentFrameIdx = this.frames.length > 0 ? this.frames.length - 1 : 0;
+    this.strokeCounter = 0;
+
+    // Sync elements
+    const btn = document.getElementById('btn-rec-toggle');
+    if (btn) {
+      if (this.isRecording) {
+        btn.innerHTML = '● RECORDING (ACTIVE)...';
+        btn.style.background = 'red';
+        btn.style.color = 'white';
+      } else {
+        btn.innerHTML = '● RECORD';
+        btn.style.background = '#fff';
+        btn.style.color = 'red';
+      }
+    }
+
+    const boxBtn = document.getElementById('btn-rec-toggle-box');
+    if (boxBtn) {
+      boxBtn.classList.toggle('active-btn', this.isBoxVisible);
+    }
+
+    if (this.isBoxVisible && !this.engine.isStatic) {
+      this.renderSelectionBox();
+    }
+
     this.updateUI();
   }
 }
