@@ -1,5 +1,28 @@
 import { TOOLS, LAYERS_COUNT } from './constants.js';
 
+function canvasToDataURLAsync(canvas, type = 'image/png', quality) {
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(canvas.toDataURL(type, quality));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result);
+        };
+        reader.onerror = () => {
+          resolve(canvas.toDataURL(type, quality));
+        };
+        reader.readAsDataURL(blob);
+      }, type, quality);
+    } catch (e) {
+      resolve(canvas.toDataURL(type, quality));
+    }
+  });
+}
+
 export class TimelapseRecorder {
   constructor(app) {
     this.app = app;
@@ -361,7 +384,7 @@ export class TimelapseRecorder {
     }
   }
 
-  captureFrame() {
+  async captureFrame() {
     try {
       let cropX = 0;
       let cropY = 0;
@@ -447,8 +470,8 @@ export class TimelapseRecorder {
       outCtx.imageSmoothingQuality = 'medium';
       outCtx.drawImage(tempCanvas, 0, 0, exactW, exactH, 0, 0, outW, outH);
 
-      // Compress to high performance low-weight JPEG
-      const dataUrl = outCanvas.toDataURL('image/jpeg', 0.8);
+      // Compress to high performance low-weight JPEG asynchronously
+      const dataUrl = await canvasToDataURLAsync(outCanvas, 'image/jpeg', 0.8);
       
       // Append to timeline frames list
       this.frames.push(dataUrl);
