@@ -1,0 +1,133 @@
+<div class="gematria-container">
+    <div class="gematria-header">HEBREW MATRIX CALCULATOR</div>
+    <div class="input-row">
+        <input type="text" id="hebrewInput" placeholder="Paste Hebrew text here... (e.g., הטבע אוֹר)" oninput="processText()">
+    </div>
+    <div id="gematriaOutput" class="output-display"></div>
+</div>
+
+<style>
+/* Clean, low-contrast dark terminal styling */
+.gematria-container {
+    background: #0d0d0d;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 16px;
+    font-family: monospace;
+    max-width: 600px;
+    margin: 10px auto;
+}
+.gematria-header {
+    color: #555;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #222;
+    padding-bottom: 4px;
+}
+.input-row input {
+    width: 100%;
+    background: #151515;
+    border: 1px solid #333;
+    color: #e0e0e0;
+    padding: 10px;
+    font-size: 1.1rem;
+    font-family: monospace;
+    border-radius: 4px;
+    box-sizing: border-box;
+    outline: none;
+}
+.input-row input:focus {
+    border-color: #ff9900;
+}
+.output-display {
+    margin-top: 14px;
+}
+.word-block {
+    background: #111;
+    border-left: 3px solid #ff9900;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 0 4px 4px 0;
+}
+.word-title {
+    font-size: 1.2rem;
+    color: #e0e0e0;
+    margin-bottom: 4px;
+    direction: rtl;
+    text-align: right;
+}
+.word-math {
+    color: #888;
+    font-size: 0.9rem;
+}
+.word-total {
+    color: #00aaff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-top: 4px;
+}
+</style>
+
+<script>
+// Complete dictionary matching characters to values and names
+const letterData = {
+    'א': { name: 'Aleph', val: 1 },   'ב': { name: 'Bet', val: 2 }, 
+    'ג': { name: 'Gimel', val: 3 },  'ד': { name: 'Dalet', val: 4 }, 
+    'ה': { name: 'Hey', val: 5 },    'ו': { name: 'Vav', val: 6 }, 
+    'ז': { name: 'Zayin', val: 7 },  'ח': { name: 'Chet', val: 8 }, 
+    'ט': { name: 'Tet', val: 9 },    'י': { name: 'Yod', val: 10 },
+    'כ': { name: 'Kaf', val: 20 },   'ל': { name: 'Lamed', val: 30 }, 
+    'מ': { name: 'Mem', val: 40 },   'נ': { name: 'Nun', val: 50 }, 
+    'ס': { name: 'Samekh', val: 60 },'ע': { name: 'Ayin', val: 70 }, 
+    'פ': { name: 'Pe', val: 80 },    'צ': { name: 'Tsadi', val: 90 }, 
+    'ק': { name: 'Kof', val: 100 },  'ר': { name: 'Resh', val: 200 }, 
+    'ש': { name: 'Shin', val: 300 }, 'ת': { name: 'Tav', val: 400 },
+    // Standard contextual replacements for final shapes (Sofiit)
+    'ך': { name: 'Kaf (Final)', val: 20 }, 
+    'ם': { name: 'Mem (Final)', val: 40 }, 
+    'ן': { name: 'Nun (Final)', val: 50 }, 
+    'ף': { name: 'Pe (Final)', val: 80 }, 
+    'ץ': { name: 'Tsadi (Final)', val: 90 }
+};
+
+function processText() {
+    const input = document.getElementById('hebrewInput').value;
+    const outputDiv = document.getElementById('gematriaOutput');
+    outputDiv.innerHTML = ''; // Clear previous frame
+    
+    if (!input.trim()) return;
+
+    // Split input string by spaces to handle individual nodes sequentially
+    const words = input.trim().split(/\s+/);
+
+    words.forEach(rawWord => {
+        // Regex sweep to purge Hebrew diacritics/vowels (Nikud codes U+0591 to U+05C7)
+        const cleanWord = rawWord.replace(/[\u0591-\u05C7]/g, "");
+        
+        let totalSum = 0;
+        let equations = [];
+
+        // Loop from left to right through the array strings
+        for (let char of cleanWord) {
+            if (letterData[char]) {
+                const data = letterData[char];
+                equations.push(`${data.name} (${data.val})`);
+                totalSum += data.val;
+            }
+        }
+
+        if (totalSum > 0) {
+            const wordBlock = document.createElement('div');
+            wordBlock.className = 'word-block';
+            
+            wordBlock.innerHTML = `
+                <div class="word-title">${rawWord}</div>
+                <div class="word-math">${equations.join(' + ')}</div>
+                <div class="word-total">= ${totalSum}</div>
+            `;
+            outputDiv.appendChild(wordBlock);
+        }
+    });
+}
+</script>
