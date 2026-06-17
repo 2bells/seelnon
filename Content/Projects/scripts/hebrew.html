@@ -148,7 +148,7 @@ const translationCache = {
     'השמים': { eng: 'The heavens / sky', phn: 'haš·šā·ma·yim' }
 };
 
-function processText() {
+async function processText() {
     const input = document.getElementById('hebrewInput').value;
     const outputDiv = document.getElementById('gematriaOutput');
     const summaryDiv = document.getElementById('sentenceSummary');
@@ -163,9 +163,8 @@ function processText() {
     let totalSentenceSum = 0;
     let validWordCount = 0;
 
-    words.forEach(rawWord => {
+    for (let rawWord of words) {
         const cleanWord = rawWord.replace(/[\u0591-\u05C7]/g, "");
-        
         let totalSum = 0;
         let equations = [];
 
@@ -181,14 +180,32 @@ function processText() {
             totalSentenceSum += totalSum;
             validWordCount++;
             
-            // Check cache dictionary for complex data object
-            const cached = translationCache[cleanWord];
-            const translation = cached ? cached.eng : 'Unknown node';
-            const phonetics = cached ? cached.phn : '';
+            let translation = 'Scanning...';
+            let phonetics = '';
+
+            // Check local macro-cache first
+            if (translationCache[cleanWord]) {
+                translation = translationCache[cleanWord].eng;
+                phonetics = translationCache[cleanWord].phn;
+            } else {
+                // Async fallback to the open Wiktionary database
+                try {
+                    const response = await fetch(`https://api.freedictionaryapi.dev/api/v2/entries/he/${encodeURIComponent(cleanWord)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Pull out first definition match
+                        translation = data[0].meanings[0].definitions[0].definition || 'Unknown node';
+                        phonetics = data[0].phonetic || '';
+                    } else {
+                        translation = 'External Node';
+                    }
+                } catch (err) {
+                    translation = 'Offline Mode';
+                }
+            }
 
             const wordBlock = document.createElement('div');
             wordBlock.className = 'word-block';
-            
             wordBlock.innerHTML = `
                 <div class="word-meta-row">
                     <span class="word-translation">[ ${translation} ]</span>
@@ -202,7 +219,7 @@ function processText() {
             `;
             outputDiv.appendChild(wordBlock);
         }
-    });
+    }
 
     if (validWordCount > 1) {
         summaryDiv.style.display = 'block';
