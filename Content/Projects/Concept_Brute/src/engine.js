@@ -360,6 +360,26 @@ export class Engine {
             return;
         }
 
+        // Right click cancels active lasso selection
+        if (e.button === 2) { 
+            if (this.brush.type === TOOLS.LASSO && (this.isDrawing || (this.lassoPath && this.lassoPath.length > 0))) {
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
+                this.isDrawing = false;
+                this.lassoPath = null;
+                this.lassoStrokeMode = null;
+                this._selectionBeforeStroke = null;
+                this.refresh();
+                this._status('LASSO CANCELLED');
+                this.activePointers.delete(e.pointerId);
+                this.isMouseDown = false;
+                
+                this._lassoJustCancelled = true;
+                setTimeout(() => { this._lassoJustCancelled = false; }, 100);
+                return;
+            }
+        }
+
         // Stop browser gestures, drag-outs, selection, especially for Alt-click and Windows Ink
         if (e.cancelable) e.preventDefault();
         
@@ -996,10 +1016,13 @@ export class Engine {
             const bbW = (sel.canvas.width * scX * cos + sel.canvas.height * scY * sin);
             const bbH = (sel.canvas.width * scX * sin + sel.canvas.height * scY * cos);
 
-            const startCX = this.isStatic ? 0 : Math.floor((sel.x + sel.canvas.width / 2 - bbW / 2) / this.chunkSize);
-            const startCY = this.isStatic ? 0 : Math.floor((sel.y + sel.canvas.height / 2 - bbH / 2) / this.chunkSize);
-            const endCX = this.isStatic ? 0 : Math.floor((sel.x + sel.canvas.width / 2 + bbW / 2) / this.chunkSize);
-            const endCY = this.isStatic ? 0 : Math.floor((sel.y + sel.canvas.height / 2 + bbH / 2) / this.chunkSize);
+            const selW = sel.width || sel.canvas.width;
+            const selH = sel.height || sel.canvas.height;
+
+            const startCX = this.isStatic ? 0 : Math.floor((sel.x + selW / 2 - bbW / 2) / this.chunkSize);
+            const startCY = this.isStatic ? 0 : Math.floor((sel.y + selH / 2 - bbH / 2) / this.chunkSize);
+            const endCX = this.isStatic ? 0 : Math.floor((sel.x + selW / 2 + bbW / 2) / this.chunkSize);
+            const endCY = this.isStatic ? 0 : Math.floor((sel.y + selH / 2 + bbH / 2) / this.chunkSize);
 
             if (chunk.cx >= startCX && chunk.cx <= endCX && chunk.cy >= startCY && chunk.cy <= endCY) {
                 isVisible = true;
@@ -3190,6 +3213,9 @@ export class Engine {
             ly >= -ref.img.height/2 && ly <= ref.img.height/2) {
             this.selectedRefIndex = i;
             this.refresh();
+            if (this.onRefSelectionChanged) {
+                this.onRefSelectionChanged(i);
+            }
             return true;
         }
     }

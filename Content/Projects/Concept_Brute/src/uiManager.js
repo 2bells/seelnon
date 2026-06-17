@@ -38,6 +38,7 @@ export function setupUI(app) {
     document.getElementById('btn-lasso').onclick = () => app.setTool(TOOLS.LASSO);
     document.getElementById('btn-smudge').onclick = () => app.setTool(TOOLS.SMUDGE);
     document.getElementById('btn-liquify').onclick = () => app.setTool(TOOLS.LIQUIFY);
+
     document.getElementById('btn-ref_move').onclick = () => app.setTool(TOOLS.REF_MOVE);
     document.getElementById('btn-save').onclick = () => {
         if (app.engine.isStatic) {

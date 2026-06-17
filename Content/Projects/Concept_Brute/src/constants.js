@@ -13,5 +13,6 @@ export const TOOLS = {
   SMUDGE: 'smudge',
   REF_MOVE: 'ref_move',
   EXPORT: 'export',
-  LIQUIFY: 'liquify'
+  LIQUIFY: 'liquify',
+  DEFORM: 'deform'
 };

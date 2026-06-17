@@ -129,7 +129,10 @@ export class TimelapseRecorder {
       frames: this.frames,
       selectionBox: this.selectionBox,
       isRecording: this.isRecording,
-      isBoxVisible: this.isBoxVisible
+      isBoxVisible: this.isBoxVisible,
+      qualityScale: this.qualityScale,
+      strideInterval: this.strideInterval,
+      playbackFps: this.playbackFps
     };
     try {
       await this.app.storage.saveSetting('timelapse_data', data);
@@ -148,22 +151,81 @@ export class TimelapseRecorder {
 
   toggleRecording() {
     this.isRecording = !this.isRecording;
-    const btn = document.getElementById('btn-rec-toggle');
-    if (btn) {
-      if (this.isRecording) {
-        btn.innerHTML = '● RECORDING (ACTIVE)...';
-        btn.style.background = 'red';
-        btn.style.color = 'white';
-        // Auto show selection box if in infinite mode
-        if (!this.engine.isStatic && !this.isBoxVisible) {
-          this.toggleSelectionBox(true);
-        }
-      } else {
-        btn.innerHTML = '● RECORD';
-        btn.style.background = '#fff';
-        btn.style.color = 'red';
+    this.updateRecordingIndicator();
+    if (this.isRecording) {
+      // Auto show selection box if in infinite mode
+      if (!this.engine.isStatic && !this.isBoxVisible) {
+        this.toggleSelectionBox(true);
       }
     }
+    this.asyncSave();
+  }
+
+  updateRecordingIndicator() {
+    const mainBtn = document.getElementById('btn-rec-toggle');
+    if (mainBtn) {
+      if (this.isRecording) {
+        mainBtn.innerHTML = '● RECORDING (ACTIVE)...';
+        mainBtn.style.background = 'red';
+        mainBtn.style.color = 'white';
+      } else {
+        mainBtn.innerHTML = '● RECORD';
+        mainBtn.style.background = '#fff';
+        mainBtn.style.color = 'red';
+      }
+    }
+
+    const refBtn = document.getElementById('btn-open-recording');
+    if (refBtn) {
+      if (this.isRecording) {
+        refBtn.innerHTML = '●';
+        refBtn.style.color = 'red';
+        refBtn.title = 'Timelapse Recording (ACTIVE)';
+      } else {
+        refBtn.innerHTML = '■';
+        refBtn.style.color = '#777';
+        refBtn.title = 'Timelapse Recording (STOPPED)';
+      }
+    }
+  }
+
+  syncSettingsUI() {
+    // 1. Stride interval
+    const strideSl = document.getElementById('rec-stride-slider');
+    const strideVal = document.getElementById('rec-stride-val');
+    if (strideSl) {
+      strideSl.value = this.strideInterval;
+    }
+    if (strideVal) {
+      strideVal.innerText = `${this.strideInterval} strokes`;
+    }
+
+    // 2. Resolution buttons & label
+    const r14 = document.getElementById('btn-rec-res-14');
+    const r12 = document.getElementById('btn-rec-res-12');
+    const r11 = document.getElementById('btn-rec-res-11');
+    const valLab = document.getElementById('rec-quality-val');
+
+    [r14, r12, r11].forEach(r => r && r.classList.remove('active-btn'));
+    if (this.qualityScale === 0.25) {
+      if (r14) r14.classList.add('active-btn');
+      if (valLab) valLab.innerText = '1/4 SIZE';
+    } else if (this.qualityScale === 0.50) {
+      if (r12) r12.classList.add('active-btn');
+      if (valLab) valLab.innerText = '1/2 SIZE';
+    } else if (this.qualityScale === 1.0) {
+      if (r11) r11.classList.add('active-btn');
+      if (valLab) valLab.innerText = 'FULL SIZE';
+    }
+
+    // 3. Playback FPS
+    const fpsIn = document.getElementById('rec-fps');
+    if (fpsIn) {
+      fpsIn.value = this.playbackFps;
+    }
+
+    // 4. Update indicators
+    this.updateRecordingIndicator();
   }
 
   toggleSelectionBox(forceState = null) {
@@ -271,6 +333,7 @@ export class TimelapseRecorder {
           window.removeEventListener('pointermove', handleMove);
           window.removeEventListener('pointerup', handleUp);
           window.removeEventListener('pointercancel', handleUp);
+          this.asyncSave();
         };
 
         window.addEventListener('pointermove', handleMove);
@@ -318,8 +381,8 @@ export class TimelapseRecorder {
         window.removeEventListener('pointermove', bodyMove);
         window.removeEventListener('pointerup', bodyUp);
         window.removeEventListener('pointercancel', bodyUp);
-        // Mark session change since we moved selection parameters
-        this.resetSession();
+        // Save the updated box coordinates
+        this.asyncSave();
       };
 
       window.addEventListener('pointermove', bodyMove);
@@ -392,21 +455,21 @@ export class TimelapseRecorder {
       let cropH = 0;
 
       if (this.engine.isStatic) {
-        cropW = this.engine.staticWidth;
-        cropH = this.engine.staticHeight;
-        cropX = -cropW / 2;
-        cropY = -cropH / 2;
+        cropW = Math.round(this.engine.staticWidth);
+        cropH = Math.round(this.engine.staticHeight);
+        cropX = Math.round(-cropW / 2);
+        cropY = Math.round(-cropH / 2);
       } else {
-        cropW = this.selectionBox.w;
-        cropH = this.selectionBox.h;
-        cropX = this.selectionBox.cx - cropW / 2;
-        cropY = this.selectionBox.cy - cropH / 2;
+        cropW = Math.round(this.selectionBox.w);
+        cropH = Math.round(this.selectionBox.h);
+        cropX = Math.round(this.selectionBox.cx - cropW / 2);
+        cropY = Math.round(this.selectionBox.cy - cropH / 2);
       }
 
       if (cropW <= 0 || cropH <= 0) return;
 
-      const exactW = Math.ceil(cropW);
-      const exactH = Math.ceil(cropH);
+      const exactW = cropW;
+      const exactH = cropH;
 
       // Create primary snapshot canvas at cropped bounding dimensions
       const tempCanvas = document.createElement('canvas');
@@ -414,6 +477,10 @@ export class TimelapseRecorder {
       tempCanvas.height = exactH;
       const tempCtx = tempCanvas.getContext('2d');
       if (!tempCtx) return;
+
+      // Disable image smoothing on tempCtx for the 1:1 tile composition.
+      // This prevents subpixel anti-aliasing / blurry interpolation at chunk edges!
+      tempCtx.imageSmoothingEnabled = false;
 
       // Fill Background color
       tempCtx.fillStyle = this.engine.canvasBg || '#ffffff';
@@ -439,10 +506,10 @@ export class TimelapseRecorder {
 
       // Render Active paint chunks
       this.engine.chunks.forEach(chunk => {
-        const lx = this.engine.isStatic ? -this.engine.staticWidth / 2 : chunk.cx * this.engine.chunkSize;
-        const ly = this.engine.isStatic ? -this.engine.staticHeight / 2 : chunk.cy * this.engine.chunkSize;
-        const chunkW = this.engine.isStatic ? this.engine.staticWidth : this.engine.chunkSize;
-        const chunkH = this.engine.isStatic ? this.engine.staticHeight : this.engine.chunkSize;
+        const lx = Math.round(this.engine.isStatic ? -this.engine.staticWidth / 2 : chunk.cx * this.engine.chunkSize);
+        const ly = Math.round(this.engine.isStatic ? -this.engine.staticHeight / 2 : chunk.cy * this.engine.chunkSize);
+        const chunkW = Math.round(this.engine.isStatic ? this.engine.staticWidth : this.engine.chunkSize);
+        const chunkH = Math.round(this.engine.isStatic ? this.engine.staticHeight : this.engine.chunkSize);
 
         if (lx < (cropX + cropW) && lx + chunkW > cropX &&
             ly < (cropY + cropH) && ly + chunkH > cropY) {
@@ -451,7 +518,10 @@ export class TimelapseRecorder {
             if (this.engine.layerSettings[i] && !this.engine.layerSettings[i].visible) {
               continue;
             }
-            tempCtx.drawImage(chunk.canvases[i], lx - cropX, ly - cropY, chunkW, chunkH);
+            // Align destination coordinates perfectly on integer pixels to avoid boundary seams/lines
+            const destX = lx - cropX;
+            const destY = ly - cropY;
+            tempCtx.drawImage(chunk.canvases[i], destX, destY, chunkW, chunkH);
           }
         }
       });
@@ -717,6 +787,7 @@ export class TimelapseRecorder {
   }
 
   updateUI() {
+    this.updateRecordingIndicator();
     // Clamp currentFrameIdx safely to actual bounds
     if (this.frames.length === 0) {
       this.currentFrameIdx = 0;
@@ -828,7 +899,7 @@ export class TimelapseRecorder {
       smBtn.onclick = () => {
         this.selectionBox.w = 300;
         this.selectionBox.h = 300;
-        this.resetSession();
+        this.asyncSave();
         this.toggleSelectionBox(true);
       };
     }
@@ -837,7 +908,7 @@ export class TimelapseRecorder {
       mdBtn.onclick = () => {
         this.selectionBox.w = 500;
         this.selectionBox.h = 500;
-        this.resetSession();
+        this.asyncSave();
         this.toggleSelectionBox(true);
       };
     }
@@ -846,7 +917,7 @@ export class TimelapseRecorder {
       lgBtn.onclick = () => {
         this.selectionBox.w = 800;
         this.selectionBox.h = 800;
-        this.resetSession();
+        this.asyncSave();
         this.toggleSelectionBox(true);
       };
     }
@@ -871,6 +942,7 @@ export class TimelapseRecorder {
         this.qualityScale = 0.25;
         if (valLab) valLab.innerText = '1/4 SIZE';
         updateResUI(r14);
+        this.asyncSave();
       };
     }
     if (r12) {
@@ -878,6 +950,7 @@ export class TimelapseRecorder {
         this.qualityScale = 0.50;
         if (valLab) valLab.innerText = '1/2 SIZE';
         updateResUI(r12);
+        this.asyncSave();
       };
     }
     if (r11) {
@@ -885,6 +958,7 @@ export class TimelapseRecorder {
         this.qualityScale = 1.0;
         if (valLab) valLab.innerText = 'FULL SIZE';
         updateResUI(r11);
+        this.asyncSave();
       };
     }
 
@@ -896,6 +970,9 @@ export class TimelapseRecorder {
         const val = parseInt(e.target.value);
         this.strideInterval = val;
         if (strideVal) strideVal.innerText = `${val} strokes`;
+      };
+      strideSl.onchange = () => {
+        this.asyncSave();
       };
     }
 
@@ -936,6 +1013,7 @@ export class TimelapseRecorder {
         const val = Math.max(1, Math.min(60, parseInt(e.target.value) || 12));
         fpsIn.value = val;
         this.playbackFps = val;
+        this.asyncSave();
         if (this.isPlaying) {
           // Restart player interval with new delay
           this.togglePlayback();
@@ -1001,6 +1079,9 @@ export class TimelapseRecorder {
       this.selectionBox = data.selectionBox || { cx: 0, cy: 0, w: 500, h: 500 };
       this.isRecording = data.isRecording || false;
       this.isBoxVisible = data.isBoxVisible || false;
+      this.qualityScale = data.qualityScale !== undefined ? data.qualityScale : 0.25;
+      this.strideInterval = data.strideInterval !== undefined ? data.strideInterval : 4;
+      this.playbackFps = data.playbackFps !== undefined ? data.playbackFps : 12;
     } else {
       // Create a fresh session and clear frames sequence
       this.sessionId = 'REC-' + new Date().toISOString().replace(/[-:T]/g, '').slice(2, 14);
@@ -1008,24 +1089,16 @@ export class TimelapseRecorder {
       this.selectionBox = { cx: 0, cy: 0, w: 500, h: 500 };
       this.isRecording = false;
       this.isBoxVisible = false;
+      this.qualityScale = 0.25;
+      this.strideInterval = 4;
+      this.playbackFps = 12;
     }
 
     this.currentFrameIdx = this.frames.length > 0 ? this.frames.length - 1 : 0;
     this.strokeCounter = 0;
 
-    // Sync elements
-    const btn = document.getElementById('btn-rec-toggle');
-    if (btn) {
-      if (this.isRecording) {
-        btn.innerHTML = '● RECORDING (ACTIVE)...';
-        btn.style.background = 'red';
-        btn.style.color = 'white';
-      } else {
-        btn.innerHTML = '● RECORD';
-        btn.style.background = '#fff';
-        btn.style.color = 'red';
-      }
-    }
+    // Sync elements and snapshot settings
+    this.syncSettingsUI();
 
     const boxBtn = document.getElementById('btn-rec-toggle-box');
     if (boxBtn) {

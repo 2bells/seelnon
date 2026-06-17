@@ -52,6 +52,9 @@ export function _startStroke(e) {
       } else {
           this.selectedRefIndex = -1;
           this.refresh();
+          if (this.onRefSelectionChanged) {
+              this.onRefSelectionChanged(-1);
+          }
           return; // STOP HERE, don't start painting
       }
   }

@@ -864,8 +864,23 @@ button, input, select {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
+    cursor: grab;
     margin-bottom: 2px;
+    user-select: none;
+}
+
+.image-item:active {
+    cursor: grabbing;
+}
+
+.image-item.dragging {
+    opacity: 0.4;
+    border-style: dashed;
+}
+
+.image-item.drag-over {
+    border-color: blue;
+    background-color: #e6f0ff;
 }
 
 .image-item:hover, .image-item.active-ref {

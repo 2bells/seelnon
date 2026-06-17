@@ -220,7 +220,8 @@ export function captureFloatingSelectionState() {
     rotation: sel.rotation || 0,
     opacity: sel.opacity !== undefined ? sel.opacity : 1,
     mirrorX: !!sel.mirrorX,
-    mirrorY: !!sel.mirrorY
+    mirrorY: !!sel.mirrorY,
+    pins: sel.pins ? sel.pins.map(p => ({ ...p })) : null
   };
 }
 
@@ -236,6 +237,15 @@ export function restoreFloatingSelectionState(state) {
   sel.opacity = state.opacity;
   sel.mirrorX = state.mirrorX;
   sel.mirrorY = state.mirrorY;
+  if (state.pins) {
+    sel.pins = state.pins.map(p => ({ ...p }));
+  } else {
+    sel.pins = null;
+  }
+  
+  if (this.warpSelectionImage) {
+      this.warpSelectionImage(this);
+  }
   this._updateSelectionPreview();
   this.refresh();
 }

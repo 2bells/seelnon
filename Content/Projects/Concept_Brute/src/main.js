@@ -22,9 +22,9 @@ import { TimelapseRecorder } from './recording.js';
 
 class App {
   constructor() {
-    setupIgnoreSystem();
     this.engine = new Engine(document.getElementById('canvas-container'));
     this.engine.app = this;
+    setupIgnoreSystem(this.engine);
     this.engine.onColorPicked = (color) => {
         this.setColor(color);
         this._updateHSVFromHex(color);
@@ -36,6 +36,9 @@ class App {
     this.engine.onReferenceImagesChange = () => {
         this._updateRefImageList();
         if (this.autosaveEnabled) this._triggerAutoSave();
+    };
+    this.engine.onRefSelectionChanged = (index) => {
+        this._updateRefImageList();
     };
     this.engine.onPaletteExtracted = (colors) => {
         // Pick 2 bright, 2 mid, 2 dark from the 12 extracted values
@@ -328,6 +331,15 @@ class App {
     const tRefreshStart = performance.now();
     this.engine.refresh();
     console.log(`[PERF] engine.refresh() took ${(performance.now() - tRefreshStart).toFixed(2)}ms`);
+
+    // Query and restore the saved recording state for the active project
+    if (this.recorder && typeof this.recorder.onProjectSwitched === "function") {
+        try {
+            await this.recorder.onProjectSwitched();
+        } catch(err) {
+            console.error("Failed to restore initial recording state:", err);
+        }
+    }
 
     this._status('READY');
     console.log(`[PERF] --- TOTAL INITIALIZATION TIME: ${(performance.now() - t0).toFixed(2)}ms ---`);
@@ -721,6 +733,21 @@ class App {
         case 'g':
           this.setTool(TOOLS.LIQUIFY);
           break;
+        case '7':
+          this.setTool(TOOLS.LASSO);
+          if (this.engine.floatingSelection) {
+              this.engine.transformMode = 'deform';
+              this.engine._updateSelectionPreview();
+              this._status('PUPPET DEFORM ACTIVE');
+          } else if (this.engine.activeSelectionPath) {
+              this.engine.startTransform();
+              this.engine.transformMode = 'deform';
+              this.engine._updateSelectionPreview();
+              this._status('PUPPET DEFORM ACTIVE');
+          } else {
+              this._status('LASSO AN AREA FIRST THEN DEFORM');
+          }
+          break;
         case 'i':
           if (this.engine.activeLayer === 0) {
               this.setLayer(this.lastPaintLayer || 2);
@@ -953,6 +980,66 @@ class App {
               this.engine.refresh();
               this._updateRefImageList();
           };
+
+          // Drag and drop mechanics for item reordering
+          item.draggable = true;
+          item.dataset.index = index;
+
+          item.addEventListener('dragstart', (e) => {
+              e.dataTransfer.setData('text/plain', index);
+              item.classList.add('dragging');
+              e.dataTransfer.effectAllowed = 'move';
+          });
+
+          item.addEventListener('dragend', () => {
+              item.classList.remove('dragging');
+              list.querySelectorAll('.image-item').forEach(el => {
+                  el.classList.remove('drag-over');
+              });
+          });
+
+          item.addEventListener('dragover', (e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              item.classList.add('drag-over');
+          });
+
+          item.addEventListener('dragleave', () => {
+              item.classList.remove('drag-over');
+          });
+
+          item.addEventListener('drop', (e) => {
+              e.preventDefault();
+              item.classList.remove('drag-over');
+              const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+              if (isNaN(draggedIndex) || draggedIndex === index) return;
+
+              // Record State / Undo History entry
+              this.engine._pushHistory({
+                  type: 'reference_change',
+                  referenceImagesState: this.engine.captureReferenceImagesState()
+              });
+              this.engine._clearStack(this.engine.redoStack);
+
+              // Reorder array list
+              const draggedItem = this.engine.referenceImages[draggedIndex];
+              const selectedRef = this.engine.referenceImages[this.engine.selectedRefIndex];
+
+              this.engine.referenceImages.splice(draggedIndex, 1);
+              this.engine.referenceImages.splice(index, 0, draggedItem);
+
+              // Restore selection target
+              if (selectedRef) {
+                  this.engine.selectedRefIndex = this.engine.referenceImages.indexOf(selectedRef);
+              } else {
+                  this.engine.selectedRefIndex = -1;
+              }
+
+              this.engine.refsDirty = true;
+              this.engine.refresh();
+              this._updateRefImageList();
+              this._triggerAutoSave();
+          });
 
           if (ref.extractedPalette) {
               const palPreview = document.createElement('div');
@@ -1510,7 +1597,7 @@ class App {
       btn.classList.remove('active-tool');
     });
 
-    const activeBtnId = `btn-${tool}`;
+    let activeBtnId = `btn-${tool}`;
     const btn = document.getElementById(activeBtnId);
     if (btn) {
       btn.classList.add('active-tool');
