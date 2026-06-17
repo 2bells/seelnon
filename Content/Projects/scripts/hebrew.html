@@ -4,13 +4,14 @@
         <input type="text" id="hebrewInput" placeholder="Paste Hebrew text here... (e.g., הטבע אוֹר)" oninput="processText()">
     </div>
     <div id="gematriaOutput" class="output-display"></div>
+    <div id="sentenceSummary" class="sentence-summary" style="display: none;"></div>
 </div>
 
 <style>
 /* Clean, low-contrast dark terminal styling */
 .gematria-container {
     background: #0d0d0d;
-    border: 1px solid #222;
+    border: 1px solid #1c1814;
     border-radius: 6px;
     padding: 16px;
     font-family: monospace;
@@ -18,18 +19,18 @@
     margin: 10px auto;
 }
 .gematria-header {
-    color: #555;
+    color: #55483b;
     font-size: 0.8rem;
     letter-spacing: 2px;
     margin-bottom: 12px;
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid #1c1814;
     padding-bottom: 4px;
 }
 .input-row input {
     width: 100%;
-    background: #151515;
-    border: 1px solid #333;
-    color: #e0e0e0;
+    background: #110f0d;
+    border: 1px solid #241f1a;
+    color: #d1c4b6;
     padding: 10px;
     font-size: 1.1rem;
     font-family: monospace;
@@ -50,22 +51,53 @@
     margin-bottom: 8px;
     border-radius: 0 4px 4px 0;
 }
+.word-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+.word-translation {
+    color: #8f7e6b;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+.word-text-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
 .word-title {
     font-size: 1.2rem;
     color: #e0e0e0;
-    margin-bottom: 4px;
     direction: rtl;
     text-align: right;
 }
+.word-phonetic {
+    font-size: 0.75rem;
+    color: #7a6a58;
+    margin-top: 1px;
+}
 .word-math {
-    color: #888;
+    color: #6e5e4f;
     font-size: 0.9rem;
 }
 .word-total {
-    color: #00aaff;
+    color: #a38665;
     font-weight: bold;
     font-size: 1.1rem;
     margin-top: 4px;
+}
+.sentence-summary {
+    margin-top: 16px;
+    padding: 12px;
+    background: #141210;
+    border: 1px dashed #3a3128;
+    border-radius: 4px;
+    color: #d1c4b6;
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: center;
 }
 </style>
 
@@ -83,7 +115,6 @@ const letterData = {
     'פ': { name: 'Pe', val: 80 },    'צ': { name: 'Tsadi', val: 90 }, 
     'ק': { name: 'Kof', val: 100 },  'ר': { name: 'Resh', val: 200 }, 
     'ש': { name: 'Shin', val: 300 }, 'ת': { name: 'Tav', val: 400 },
-    // Standard contextual replacements for final shapes (Sofiit)
     'ך': { name: 'Kaf (Final)', val: 20 }, 
     'ם': { name: 'Mem (Final)', val: 40 }, 
     'ן': { name: 'Nun (Final)', val: 50 }, 
@@ -91,24 +122,53 @@ const letterData = {
     'ץ': { name: 'Tsadi (Final)', val: 90 }
 };
 
+// Local lookup index holding both translation data and phonetics profiles
+const translationCache = {
+    'אלהים': { eng: 'God', phn: '’ĕ·lō·hîm' },
+    'ויאמר': { eng: 'And said', phn: 'way·yō·mer' },
+    'יהי': { eng: 'Let there be', phn: 'yə·hî' },
+    'רקיע': { eng: 'A firmament', phn: 'rā·qî··a‘' },
+    'ברקיע': { eng: 'In the firmament', phn: 'bi·rə·qî·a‘' },
+    'הרקיע': { eng: 'The firmament', phn: 'hā·rā·qî·a‘' },
+    'לרקיע': { eng: 'The firmament (to/for)', phn: 'lā·rā·qî·a‘' },
+    'בתוך': { eng: 'In the midst / between', phn: 'bə·ṯō·wḵ' },
+    'המים': { eng: 'The waters', phn: 'ham·mā·yim' },
+    'למים': { eng: '[and] waters / to the waters', phn: 'lā·mā·yim' },
+    'מים': { eng: 'Waters', phn: 'mā·yim' },
+    'ויהי': { eng: 'And let it be / and it was', phn: 'wî·hî' },
+    'מבדיil': { eng: 'Dividing / separating', phn: 'mab·dîl' }, // standard dynamic layout handling
+    'מבדיל': { eng: 'Dividing / separating', phn: 'mab·dîl' },
+    'ויבדל': { eng: 'And He divided', phn: 'way·yab·dêl' },
+    'בין': { eng: 'Between', phn: 'bên' },
+    'ובין': { eng: 'And between', phn: 'ū·ḇên' },
+    'ויעש': { eng: 'And made', phn: 'way·ya·‘aś' },
+    'אשר': { eng: 'That [were] / which', phn: '’ă·šer' },
+    'מתחת': { eng: 'Under / beneath', phn: 'mit·ta·ḥaṯ' },
+    'מעל': { eng: 'Above', phn: 'mê·‘al' },
+    'השמים': { eng: 'The heavens / sky', phn: 'haš·šā·ma·yim' }
+};
+
 function processText() {
     const input = document.getElementById('hebrewInput').value;
     const outputDiv = document.getElementById('gematriaOutput');
-    outputDiv.innerHTML = ''; // Clear previous frame
+    const summaryDiv = document.getElementById('sentenceSummary');
+    
+    outputDiv.innerHTML = ''; 
+    summaryDiv.innerHTML = '';
+    summaryDiv.style.display = 'none';
     
     if (!input.trim()) return;
 
-    // Split input string by spaces to handle individual nodes sequentially
     const words = input.trim().split(/\s+/);
+    let totalSentenceSum = 0;
+    let validWordCount = 0;
 
     words.forEach(rawWord => {
-        // Regex sweep to purge Hebrew diacritics/vowels (Nikud codes U+0591 to U+05C7)
         const cleanWord = rawWord.replace(/[\u0591-\u05C7]/g, "");
         
         let totalSum = 0;
         let equations = [];
 
-        // Loop from left to right through the array strings
         for (let char of cleanWord) {
             if (letterData[char]) {
                 const data = letterData[char];
@@ -118,16 +178,35 @@ function processText() {
         }
 
         if (totalSum > 0) {
+            totalSentenceSum += totalSum;
+            validWordCount++;
+            
+            // Check cache dictionary for complex data object
+            const cached = translationCache[cleanWord];
+            const translation = cached ? cached.eng : 'Unknown node';
+            const phonetics = cached ? cached.phn : '';
+
             const wordBlock = document.createElement('div');
             wordBlock.className = 'word-block';
             
             wordBlock.innerHTML = `
-                <div class="word-title">${rawWord}</div>
+                <div class="word-meta-row">
+                    <span class="word-translation">[ ${translation} ]</span>
+                    <div class="word-text-group">
+                        <span class="word-title">${rawWord}</span>
+                        ${phonetics ? `<span class="word-phonetic">${phonetics}</span>` : ''}
+                    </div>
+                </div>
                 <div class="word-math">${equations.join(' + ')}</div>
                 <div class="word-total">= ${totalSum}</div>
             `;
             outputDiv.appendChild(wordBlock);
         }
     });
+
+    if (validWordCount > 1) {
+        summaryDiv.style.display = 'block';
+        summaryDiv.innerHTML = `MATRIX OVERALL SUMM: ${totalSentenceSum}`;
+    }
 }
 </script>
