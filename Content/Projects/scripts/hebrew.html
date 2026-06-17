@@ -263,7 +263,6 @@ async function resolveDictionaryData(cleanWord) {
         return;
     }
 
-    // Ask for the full text page instead of just short intros to catch explicit header trees
     const url = `https://en.wiktionary.org/w/api.php?action=query&prop=extracts&titles=${encodeURIComponent(cleanWord)}&format=json&origin=*`;
 
     try {
@@ -278,37 +277,36 @@ async function resolveDictionaryData(cleanWord) {
             const tempDiv = document.createElement("div");
             tempDiv.innerHTML = pages[pageId].extract;
             
-            // Targeted Traversal Strategy: Find where the explicit "Hebrew" header begins
-            const headers = Array.from(tempDiv.querySelectorAll("h2, h3, h4"));
-            const hebrewHeader = headers.find(h => h.textContent.trim().toLowerCase() === 'hebrew');
-            
+            // Get all bullet points in the document
+            const allLis = Array.from(tempDiv.querySelectorAll("li"));
             let targetLi = null;
 
-            if (hebrewHeader) {
-                // Keep moving down the DOM elements looking for the first definition list item under Hebrew
-                let currentEl = hebrewHeader.nextElementSibling;
-                while (currentEl && !['H2', 'H3'].includes(currentEl.tagName)) {
-                    const liMatch = currentEl.querySelector("li");
-                    if (liMatch) {
-                        targetLi = liMatch;
-                        break;
-                    }
-                    if (currentEl.tagName === 'LI') {
-                        targetLi = currentEl;
-                        break;
-                    }
-                    currentEl = currentEl.nextElementSibling;
+            // Regex checking for Hebrew/Arabic characters or IPA bracket formats
+            const exclusionRegex = /[\u0590-\u05FF\u0600-\u06FF\/]/;
+
+            for (let li of allLis) {
+                let text = li.textContent.trim();
+                
+                // Skip lines that contain Hebrew letters/vowels or IPA slashes /.../
+                if (exclusionRegex.test(text)) continue;
+                
+                // Skip common structural Wiktionary noise lines
+                if (text.toLowerCase().includes("conjugation") || text.toLowerCase().includes("derived terms")) continue;
+                
+                // If it passes the filter and has decent length, we found our translation line!
+                if (text.length > 2) {
+                    targetLi = li;
+                    break;
                 }
             }
 
-            // Fallback: If no explicit language tree was matched, try finding *any* list item definition
-            if (!targetLi) {
-                targetLi = tempDiv.querySelector("li");
+            // Absolute baseline fallback if everything was filtered out
+            if (!targetLi && allLis.length > 0) {
+                targetLi = allLis.find(li => !li.textContent.includes("IPA"));
             }
             
             if (targetLi) {
                 let cleanDef = targetLi.textContent.replace(/\s*\([^)]*\)/g, "").trim();
-                // Truncate overly long definitions to keep our dark block interface tight
                 if (cleanDef.length > 60) cleanDef = cleanDef.substring(0, 57) + "...";
                 transEl.innerText = `[ ${cleanDef} ]`;
             } else {
