@@ -1,6 +1,12 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
 import { setDynamicHints } from './mascot.js';
 
+try {
+  marked.use({ breaks: true, gfm: true });
+} catch (e) {
+  console.warn("Failed to configure marked breaks globally:", e);
+}
+
 export async function preloadBlogPosts() {
   try {
     const isGitHubPages = window.location.hostname.endsWith('github.io');
@@ -217,7 +223,12 @@ export async function openBlogWindow(title, openWindowFn) {
     if (videoMatch) cleanText = cleanText.replace(/\[video: .*\]/g, '').trim();
     if (iconMatch) cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
 
-    let html = marked.parse(cleanText);
+    let html = '';
+    try {
+      html = marked.parse(cleanText, { breaks: true, gfm: true });
+    } catch (e) {
+      html = marked.parse(cleanText);
+    }
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     tempDiv.querySelectorAll('p').forEach(p => {
@@ -262,7 +273,9 @@ export async function openBlogWindow(title, openWindowFn) {
       if (!alt) return;
 
       const isVideo = alt.toLowerCase().startsWith('video');
-      const tokens = alt.split(/\s+/);
+      let tokens = alt.split(/\s+/);
+      if (isVideo) tokens.shift();
+      
       const alignMap = {
         r: 'right', right: 'right',
         c: 'center', center: 'center',
@@ -275,7 +288,7 @@ export async function openBlogWindow(title, openWindowFn) {
       let usedTokensCount = 0;
 
       // Extract params, skipping the 'video' tag/token for video
-      const startIndex = isVideo ? 1 : 0;
+      const startIndex = 0;
       
       const lastToken = tokens[tokens.length - 1];
       if (lastToken && alignMap[lastToken.toLowerCase()]) {
