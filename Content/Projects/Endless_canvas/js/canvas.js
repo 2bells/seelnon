@@ -244,6 +244,7 @@ export function init(canvasElement) {
     resizeCanvas();
     window.addEventListener('resize', () => {
         resizeCanvas();
+        state.needsRedraw = true;
     });
 
     window.addEventListener('requestSyncUI', () => {
@@ -253,6 +254,7 @@ export function init(canvasElement) {
         clearChunkCache();
         rebuildChunkMemberships();
         updateAnimatedStrokesList();
+        state.needsRedraw = true;
         
         if (loading) loading.classList.add('hidden');
     });
@@ -261,11 +263,13 @@ export function init(canvasElement) {
         clearChunkCache();
         rebuildChunkMemberships();
         updateAnimatedStrokesList();
+        state.needsRedraw = true;
     });
 
     // Initial build of chunks if strokes exist (e.g. from state loading)
     rebuildChunkMemberships();
     updateAnimatedStrokesList();
+    state.needsRedraw = true;
 
     window.addEventListener('rebuildChunksRequest', () => {
         const overlay = document.getElementById('loading-overlay');
@@ -274,9 +278,22 @@ export function init(canvasElement) {
         // Delay processing slightly to allow UI to render the loading state
         setTimeout(() => {
             rebuildChunkMemberships();
+            state.needsRedraw = true;
             if (overlay) overlay.classList.add('hidden');
         }, 100);
     });
+
+    const triggerRedraw = () => {
+        state.needsRedraw = true;
+    };
+
+    window.addEventListener('pointerdown', triggerRedraw, { capture: true, passive: true });
+    window.addEventListener('pointermove', triggerRedraw, { capture: true, passive: true });
+    window.addEventListener('pointerup', triggerRedraw, { capture: true, passive: true });
+    window.addEventListener('keydown', triggerRedraw, { capture: true, passive: true });
+    window.addEventListener('keyup', triggerRedraw, { capture: true, passive: true });
+    canvas.addEventListener('wheel', triggerRedraw, { capture: true, passive: true });
+    window.addEventListener('activeBrushChanged', triggerRedraw, { capture: true, passive: true });
 }
 
 // Function to rotate points around a pivot
@@ -832,9 +849,40 @@ function drawStroke(context, stroke, isPreview = false, targetScale = 1) {
     }
 }
 
+function shouldLoop() {
+    // Interacting/panning/zooming
+    if (state.isDrawing || state.isPanning || state.isZoomingWithMouse || state.isWheelZooming || 
+        state.isMovingSelection || state.isRotatingSelection || state.isScalingSelection || 
+        (state.lassoPoints && state.lassoPoints.length > 1)) {
+        return true;
+    }
+    // Animated strokes visible in the current viewport
+    if (state.animatedStrokes && state.animatedStrokes.size > 0) {
+        const viewport = getWorldViewport();
+        for (const stroke of state.animatedStrokes) {
+            if (!stroke.bounds) stroke.bounds = calculateStrokeBounds(stroke);
+            if (!(stroke.bounds.maxX < viewport.minX || 
+                  stroke.bounds.minX > viewport.maxX || 
+                  stroke.bounds.maxY < viewport.minY || 
+                  stroke.bounds.minY > viewport.maxY)) {
+                return true;
+            }
+        }
+    }
+    // Loading overlay visible
+    const loading = document.getElementById('loading-overlay');
+    if (loading && !loading.classList.contains('hidden')) {
+        return true;
+    }
+    return false;
+}
+
 export function startDrawingLoop() {
     function loop() {
-        draw();
+        if (shouldLoop() || state.needsRedraw) {
+            draw();
+            state.needsRedraw = false;
+        }
         requestAnimationFrame(loop);
     }
     loop();
