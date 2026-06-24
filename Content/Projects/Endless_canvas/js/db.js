@@ -10,6 +10,38 @@ const SECTORS_STORE = 'sectors'; // New: Storage for spatial chunks of data
 const PROJECTS_STORE = 'projects';
 const DB_VERSION = 4; // Bump version for sectors store
 
+// --- Web Worker Background Save Thread Setup ---
+let saveWorker = null;
+const pendingWorkerRequests = new Map();
+let requestIdCounter = 0;
+
+try {
+    saveWorker = new Worker('js/save-worker.js');
+    saveWorker.onmessage = (e) => {
+        const { id, success, error } = e.data;
+        const pending = pendingWorkerRequests.get(id);
+        if (pending) {
+            pendingWorkerRequests.delete(id);
+            if (success) {
+                pending.resolve();
+            } else {
+                pending.reject(new Error(error));
+            }
+        }
+    };
+} catch (e) {
+    console.warn("Failed to initialize background save-worker, falling back to main-thread DB writes:", e);
+}
+
+function callWorker(type, payload) {
+    if (!saveWorker) return null;
+    return new Promise((resolve, reject) => {
+        const id = requestIdCounter++;
+        pendingWorkerRequests.set(id, { resolve, reject });
+        saveWorker.postMessage({ id, type, payload });
+    });
+}
+
 function openDB() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -34,6 +66,9 @@ function openDB() {
 }
 
 export async function saveCanvasState(key, data) {
+    const workerPromise = callWorker('saveCanvasState', { key, data });
+    if (workerPromise) return workerPromise;
+
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STATE_STORE, 'readwrite');
@@ -45,8 +80,11 @@ export async function saveCanvasState(key, data) {
 }
 
 export async function saveSector(projectId, sx, sy, strokes) {
-    const db = await openDB();
     const key = `${projectId}:${sx}:${sy}`;
+    const workerPromise = callWorker('saveSector', { key, strokes });
+    if (workerPromise) return workerPromise;
+
+    const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(SECTORS_STORE, 'readwrite');
         const store = transaction.objectStore(SECTORS_STORE);
@@ -80,6 +118,9 @@ export async function getCanvasState(key) {
 }
 
 export async function saveImageAsset(id, dataUrl) {
+    const workerPromise = callWorker('saveImageAsset', { key: id, dataUrl });
+    if (workerPromise) return workerPromise;
+
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
@@ -115,6 +156,9 @@ export async function deleteImageAsset(id) {
 // --- PROJECT MANAGEMENT ---
 
 export async function saveProjectMeta(meta) {
+    const workerPromise = callWorker('saveProjectMeta', { meta });
+    if (workerPromise) return workerPromise;
+
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(PROJECTS_STORE, 'readwrite');
@@ -239,6 +283,9 @@ export async function getDBSize(projectId = null) {
 }
 
 export async function clearAllAssets() {
+    const workerPromise = callWorker('clearAll', {});
+    if (workerPromise) return workerPromise;
+
     const db = await openDB();
     const stores = [STORE_NAME, STATE_STORE, PROJECTS_STORE, SECTORS_STORE];
     
