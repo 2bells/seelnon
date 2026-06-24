@@ -419,4 +419,12 @@ It really reads like: ok... let's make a thing... that has ALL THE THINGS, but h
 
 ## Afterthought
 
-I mean it is just detailed 'Creation of Man' with Christ ad break in the middle... Maybe 'Distillation of Man' is a better way to describe it, because we go from the Source all the way to fingernails, while providing reasonings. High on supply, but not 'own supply'. Fits in a lot of traditions, doesn't do any rug pulls if we put 11-15 inside of its own category (It does have primordial stuff as well, but then is followed by Jesus embeddings [Not against the Lord, but it caught me by surprise]. Hard to say if Sophia also embedding or not).
+I mean it is just detailed 'Creation of Man' with Christ ad break in the middle... Maybe 'Distillation of Man' is a better way to describe it, because we go from the Source all the way to the fingernails, while providing reasonings. High on supply, but not 'own supply'. Fits in a lot of traditions, doesn't do any rug pulls if we put 11-15 inside of its own category (It does have primordial stuff as well, but then is followed by Jesus embeddings [Not against the Lord, but it caught me by surprise]. Hard to say if Sophia also embedding or not).
+
+```
+thought of a day
+
+was sleepy
+yet remained
+sleepless
+```
