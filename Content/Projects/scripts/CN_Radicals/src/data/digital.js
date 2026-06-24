@@ -293,26 +293,7 @@ export const digitalRadicals = [
       [[65, 25], [75, 35]]
     ]
   },
-  {
-    no: 515,
-    char: "体",
-    pinyin: "tǐ",
-    strokes: 7,
-    meaning: "body / entity",
-    category: "UI_CONTAINER",
-    etymology: "Combines 'person' with 'origin/root/book', denoting the complete physical body, system structure, or 3D volume.",
-    funFact: "Complete structural objects, 3D meshes, or main bodies.",
-    philosophy: "All styles dress the body. The markup document is a carcass of code, but the browser parses it into a living, interactive body.",
-    strokePaths: [
-      [[30, 15], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[45, 45], [85, 45]],
-      [[65, 20], [65, 80]],
-      [[65, 45], [45, 75]],
-      [[65, 45], [85, 75]],
-      [[52, 65], [78, 65]]
-    ]
-  },
+  // [515 was removed - duplicates Kangxi #515]
   {
     no: 516,
     char: "架",

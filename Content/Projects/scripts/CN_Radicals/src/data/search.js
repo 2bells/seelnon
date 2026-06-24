@@ -85,28 +85,7 @@ export const searchRadicals = [
       [[55, 20], [62, 30]]
     ]
   },
-  {
-    no: 545,
-    char: "点",
-    pinyin: "diǎn",
-    strokes: 9,
-    meaning: "dot / point",
-    category: "UI_INTERACTIVE",
-    etymology: "A single drop of ink or dot of fire, signifying precise zero-dimensional coordinates, pixels, or click centers.",
-    funFact: "Single precise coordinate nodes or radio click centers. Found in 'Click' (点击), 'Point/Pixel' (像素点).",
-    philosophy: "The point is the origin of geometry. Every complex web canvas, 3D model, and line segment is a sequential trail of points in space.",
-    strokePaths: [
-      [[50, 15], [50, 30]],
-      [[25, 42], [75, 42]],
-      [[35, 42], [35, 68]],
-      [[35, 42], [65, 42], [65, 68]],
-      [[35, 68], [65, 68]],
-      [[20, 85], [15, 95]],
-      [[40, 85], [45, 95]],
-      [[60, 85], [65, 95]],
-      [[80, 85], [88, 95]]
-    ]
-  },
+  // [545 was removed - duplicates Kangxi #545]
   {
     no: 546,
     char: "芯",

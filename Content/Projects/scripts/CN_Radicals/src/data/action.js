@@ -248,27 +248,7 @@ export const actionRadicals = [
       [[65, 30], [50, 85]]
     ]
   },
-  {
-    no: 574,
-    char: "偏",
-    pinyin: "piān",
-    strokes: 11,
-    meaning: "offset / bias",
-    category: "UI_POSITION",
-    etymology: "A person standing skewed or biased inside a sloping door frame, meaning positions offsets,Translations, or layout skewing.",
-    funFact: "Layout position translations or skew coordinate states (translate-x-2). Found in 'Offset' (偏移/偏置).",
-    philosophy: "An offset breaks rigid symmetry. A slight displacement creates natural, kinetic float effects, like subtle card drop-shadow offsets.",
-    strokePaths: [
-      [[30, 15], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[45, 25], [80, 25]],
-      [[45, 40], [45, 80]],
-      [[45, 40], [80, 40], [80, 80]],
-      [[45, 60], [80, 60]],
-      [[45, 80], [80, 80]],
-      [[62, 10], [62, 95]]
-    ]
-  },
+  // [574 was removed - duplicates Kangxi #574]
   {
     no: 575,
     char: "齐",
@@ -376,26 +356,7 @@ export const actionRadicals = [
       [[70, 75], [70, 95]]
     ]
   },
-  {
-    no: 580,
-    char: "正",
-    pinyin: "zhèng",
-    strokes: 5,
-    meaning: "center / align",
-    category: "UI_POSITION",
-    etymology: "A foot moving toward a fixed goal line without bending, meaning straight, correct, or center adjustments.",
-    funFact: "Perfectly square structural aspects or center adjustments. Found in 'Center/Correct' (正在/正中/修正).",
-    philosophy: "The baseline represents rectitude. Keeping coordinates aligned to perfect mathematical limits ensures layout consistency.",
-    strokePaths: [
-      [[15, 20], [85, 20]],
-      [[50, 20], [50, 50]],
-      [[30, 50], [70, 50]],
-      [[30, 50], [30, 85]],
-      [[10, 85], [90, 85]]
-    ]
-  },
-
-  // CATEGORY 5: TYPOGRAPHY, CANVAS MARKS & VISUAL INDICATORS
+// CATEGORY 5: TYPOGRAPHY, CANVAS MARKS & VISUAL INDICATORS
   {
     no: 581,
     char: "字",
