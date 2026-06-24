@@ -489,8 +489,23 @@ export function init(canvas) {
                 // Get high-frequency pointer data if available to avoid straight segments during lag
                 const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
                 
-                for (const event of events) {
+                for (let i = 0; i < events.length; i++) {
+                    const event = events[i];
                     let eventWorldPos = screenToWorld(event.clientX, event.clientY);
+                    
+                    // Filter out duplicate or extremely close points (less than 0.5 screen pixels) to solve Windows Ink/Pressure lag
+                    // But ALWAYS process the very last event in the batch to ensure perfect snapping to the pen tip!
+                    if (i < events.length - 1 && state.currentStroke && state.currentStroke.points.length > 0) {
+                        const lastPt = state.currentStroke.points[state.currentStroke.points.length - 1];
+                        const dx = eventWorldPos.x - lastPt.x;
+                        const dy = eventWorldPos.y - lastPt.y;
+                        const distSq = dx * dx + dy * dy;
+                        const minScreenDist = 0.5; // at least 0.5 screen pixels
+                        const minWorldDist = minScreenDist / state.zoom;
+                        if (distSq < minWorldDist * minWorldDist) {
+                            continue; // Skip this high-frequency intermediate event
+                        }
+                    }
                     
                     // NEW: Shift-snapping for straight lines
                     if (e.shiftKey && state.currentStroke && state.currentStroke.points.length > 0) {
@@ -509,10 +524,19 @@ export function init(canvas) {
                     let pressure = 1.0;
                     
                     if (state.brush.pressureSensitivity) {
+                        let rawPressure = 1.0;
                         if (event.pointerType === 'pen') {
-                            pressure = event.pressure;
+                            rawPressure = event.pressure;
                         } else if (event.pressure !== undefined && event.pressure !== 0 && event.pressure !== 0.5) {
-                            pressure = event.pressure;
+                            rawPressure = event.pressure;
+                        }
+                        
+                        // Apply smoothing to pressure to reduce micro-lag and stylus noise
+                        if (state.lastDrawPosition.pressure !== undefined) {
+                            const pressureSmoothFactor = 0.8; // Dampen fast spikes
+                            pressure = state.lastDrawPosition.pressure * pressureSmoothFactor + rawPressure * (1 - pressureSmoothFactor);
+                        } else {
+                            pressure = rawPressure;
                         }
                     }
 

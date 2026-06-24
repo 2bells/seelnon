@@ -24,6 +24,16 @@ import { drawSketchyStroke, drawAnimatedSketchyStroke } from './brush/sketchy.js
 let canvas;
 let ctx;
 
+// --- Seamless Background Cache Variables ---
+let backgroundCacheCanvas = null;
+let backgroundCacheCtx = null;
+let cachedPanOffset = { x: 0, y: 0 };
+let cachedZoom = 1;
+let cachedWidth = 0;
+let cachedHeight = 0;
+let cachedStrokesCount = 0;
+let backgroundCachePending = true;
+
 // --- Rendering Optimization: Chunk-Based Cache ---
 const CHUNK_SIZE = 1024; // In world units
 const chunkCache = new Map(); // key: "cx,cy" -> { canvas, ctx, needsUpdate, strokes: Set }
@@ -224,6 +234,70 @@ function renderChunk(chunk, targetScale) {
 
 // --- End Chunk Logic ---
 
+// --- Seamless Background Cache Renderer ---
+export function updateBackgroundCache() {
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return;
+
+    if (!backgroundCacheCanvas) {
+        backgroundCacheCanvas = document.createElement('canvas');
+    }
+    
+    // Ensure cache dimensions match actual canvas size
+    if (backgroundCacheCanvas.width !== canvas.width || backgroundCacheCanvas.height !== canvas.height) {
+        backgroundCacheCanvas.width = canvas.width;
+        backgroundCacheCanvas.height = canvas.height;
+    }
+    
+    backgroundCacheCtx = backgroundCacheCanvas.getContext('2d');
+    backgroundCacheCtx.clearRect(0, 0, backgroundCacheCanvas.width, backgroundCacheCanvas.height);
+    
+    // Save metadata
+    cachedPanOffset = { ...state.panOffset };
+    cachedZoom = state.zoom;
+    cachedWidth = canvas.width;
+    cachedHeight = canvas.height;
+    const strokesToCache = [...state.strokes];
+    cachedStrokesCount = strokesToCache.length;
+
+    backgroundCacheCtx.save();
+    backgroundCacheCtx.translate(state.panOffset.x, state.panOffset.y);
+    backgroundCacheCtx.scale(state.zoom, state.zoom);
+    
+    // Draw images
+    state.images.forEach(img => {
+        if (!img.visible) return;
+        
+        backgroundCacheCtx.save();
+        backgroundCacheCtx.translate(img.x, img.y);
+        backgroundCacheCtx.rotate(img.rotation || 0);
+        backgroundCacheCtx.scale(img.scaleX || 1, img.scaleY || 1);
+        backgroundCacheCtx.globalAlpha = img.opacity !== undefined ? img.opacity : 1;
+        
+        const imageEl = img.element || new Image();
+        if (imageEl.complete && imageEl.naturalWidth > 0 && img.width > 0 && img.height > 0) {
+            backgroundCacheCtx.drawImage(imageEl, -img.width / 2, -img.height / 2, img.width, img.height);
+        }
+        backgroundCacheCtx.restore();
+    });
+    
+    // Draw strokes up to cached count, skipping selected and animated strokes
+    strokesToCache.forEach(stroke => {
+        if (state.selectedStrokes.includes(stroke)) return;
+        if (state.animatedStrokes.has(stroke)) return; // Keep animated strokes dynamic
+        drawStroke(backgroundCacheCtx, stroke, false, state.zoom);
+    });
+    
+    backgroundCacheCtx.restore();
+    backgroundCachePending = false;
+}
+
+export function invalidateBackgroundCache(immediate = false) {
+    backgroundCachePending = true;
+    if (immediate) {
+        updateBackgroundCache();
+    }
+}
+
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -233,7 +307,10 @@ export function init(canvasElement) {
     canvas = canvasElement;
     ctx = canvas.getContext('2d');
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        backgroundCachePending = true;
+    });
 
     window.addEventListener('requestSyncUI', () => {
         const loading = document.getElementById('loading-overlay');
@@ -243,6 +320,9 @@ export function init(canvasElement) {
         rebuildChunkMemberships();
         updateAnimatedStrokesList();
         
+        backgroundCachePending = true;
+        updateBackgroundCache();
+        
         if (loading) loading.classList.add('hidden');
     });
 
@@ -250,11 +330,18 @@ export function init(canvasElement) {
         clearChunkCache();
         rebuildChunkMemberships();
         updateAnimatedStrokesList();
+        
+        backgroundCachePending = true;
+        updateBackgroundCache();
     });
 
     // Initial build of chunks if strokes exist (e.g. from state loading)
     rebuildChunkMemberships();
     updateAnimatedStrokesList();
+    
+    // Warm up the background cache on startup
+    backgroundCachePending = true;
+    updateBackgroundCache();
 
     window.addEventListener('rebuildChunksRequest', () => {
         const overlay = document.getElementById('loading-overlay');
@@ -263,9 +350,22 @@ export function init(canvasElement) {
         // Delay processing slightly to allow UI to render the loading state
         setTimeout(() => {
             rebuildChunkMemberships();
+            backgroundCachePending = true;
+            updateBackgroundCache();
             if (overlay) overlay.classList.add('hidden');
         }, 100);
     });
+
+    // Start background cache rendering loop at 1fps (every 1000ms)
+    setInterval(() => {
+        if (backgroundCachePending || (backgroundCacheCanvas && state.strokes.length !== cachedStrokesCount)) {
+            // Only update cache if we are not actively drawing, panning, or zooming to avoid tiny stutters
+            if (!state.isDrawing && !state.isPanning && !state.isZoomingWithMouse) {
+                updateBackgroundCache();
+                requestAnimationFrame(draw);
+            }
+        }
+    }, 1000);
 }
 
 // Function to rotate points around a pivot
@@ -517,7 +617,43 @@ export function draw() {
     ctx.fillStyle = state.canvasSettings.backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Save context state and apply transformations
+    const viewport = getWorldViewport();
+    // Draw canvas background patterns (dots, grid, lines)
+    drawBackgroundPattern(ctx, state.canvasSettings.backgroundType, state.canvasSettings.backgroundSpacing, 
+                          viewport.minX, viewport.minY, 
+                          viewport.maxX - viewport.minX, viewport.maxY - viewport.minY, state.zoom);
+
+    // Draw the Background Cache (seamless tile-free background image)
+    if (state.renderMode === 'bitmap') {
+        const needsUpdate = backgroundCachePending || 
+                            !backgroundCacheCanvas || 
+                            state.zoom !== cachedZoom || 
+                            state.panOffset.x !== cachedPanOffset.x || 
+                            state.panOffset.y !== cachedPanOffset.y || 
+                            state.strokes.length !== cachedStrokesCount;
+        
+        if (needsUpdate) {
+            // Update immediately if not actively panning/zooming/drawing, or if stroke count is low for smooth performance
+            if (!state.isPanning && !state.isZoomingWithMouse && !state.isDrawing) {
+                updateBackgroundCache();
+            } else if (state.strokes.length < 1500) {
+                updateBackgroundCache();
+            }
+        }
+
+        if (backgroundCacheCanvas && cachedZoom > 0) {
+            ctx.save();
+            ctx.translate(state.panOffset.x, state.panOffset.y);
+            const zoomRatio = state.zoom / cachedZoom;
+            ctx.scale(zoomRatio, zoomRatio);
+            ctx.translate(-cachedPanOffset.x, -cachedPanOffset.y);
+            
+            ctx.drawImage(backgroundCacheCanvas, 0, 0);
+            ctx.restore();
+        }
+    }
+
+    // Save context state and apply transformations for live elements
     ctx.save();
     
     // 1. Flip View if needed (visual only)
@@ -530,40 +666,94 @@ export function draw() {
     ctx.translate(state.panOffset.x, state.panOffset.y);
     ctx.scale(state.zoom, state.zoom);
 
-    // Draw canvas background patterns (dots, grid, lines)
-    const viewport = getWorldViewport();
-    drawBackgroundPattern(ctx, state.canvasSettings.backgroundType, state.canvasSettings.backgroundSpacing, 
-                          viewport.minX, viewport.minY, 
-                          viewport.maxX - viewport.minX, viewport.maxY - viewport.minY, state.zoom);
-    
     // 3. Draw Image Layers (Drawn after background but before strokes)
-    state.images.forEach(img => {
-        if (!img.visible) return;
-        
-        ctx.save();
-        
-        ctx.translate(img.x, img.y);
-        ctx.rotate(img.rotation || 0);
-        
-        // 3.1 Draw the Image actual (Transformed by Scale and Opacity)
-        ctx.save();
-        ctx.scale(img.scaleX || 1, img.scaleY || 1);
-        ctx.globalAlpha = img.opacity !== undefined ? img.opacity : 1;
-        
-        const imageEl = img.element || new Image();
-        if (!img.element) {
-            imageEl.src = img.url;
-            img.element = imageEl;
-            imageEl.onload = () => requestAnimationFrame(draw);
-        }
+    // ONLY draw images if we are NOT in bitmap mode (as they are baked in) OR if we have no background cache yet!
+    if (state.renderMode !== 'bitmap' || !backgroundCacheCanvas) {
+        state.images.forEach(img => {
+            if (!img.visible) return;
+            
+            ctx.save();
+            ctx.translate(img.x, img.y);
+            ctx.rotate(img.rotation || 0);
+            
+            // 3.1 Draw the Image actual (Transformed by Scale and Opacity)
+            ctx.save();
+            ctx.scale(img.scaleX || 1, img.scaleY || 1);
+            ctx.globalAlpha = img.opacity !== undefined ? img.opacity : 1;
+            
+            const imageEl = img.element || new Image();
+            if (!img.element) {
+                imageEl.src = img.url;
+                img.element = imageEl;
+                imageEl.onload = () => requestAnimationFrame(draw);
+            }
 
-        if (imageEl.complete && imageEl.naturalWidth > 0 && img.width > 0 && img.height > 0) {
-            ctx.drawImage(imageEl, -img.width / 2, -img.height / 2, img.width, img.height);
-        }
-        ctx.restore(); // Back to Pos+Rot only (Opacity & Scale restored)
-        
-        // 3.2 Draw selection highlight and handles (Drawn at full opacity and constant screen size)
-        if (state.selectedImageId === img.id) {
+            if (imageEl.complete && imageEl.naturalWidth > 0 && img.width > 0 && img.height > 0) {
+                ctx.drawImage(imageEl, -img.width / 2, -img.height / 2, img.width, img.height);
+            }
+            ctx.restore(); // Back to Pos+Rot only (Opacity & Scale restored)
+            
+            // 3.2 Draw selection highlight and handles (Drawn at full opacity and constant screen size)
+            if (state.selectedImageId === img.id) {
+                const sw = img.width * (img.scaleX || 1);
+                const sh = img.height * (img.scaleY || 1);
+
+                ctx.strokeStyle = '#007AFF';
+                ctx.lineWidth = 2 / state.zoom;
+                ctx.setLineDash([5 / state.zoom, 5 / state.zoom]);
+                ctx.strokeRect(-sw / 2, -sh / 2, sw, sh);
+                ctx.setLineDash([]);
+                
+                // Handles (Always 10px on screen)
+                const handleSize = 10 / state.zoom;
+                const hs = handleSize / 2;
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.strokeStyle = '#007AFF';
+                ctx.lineWidth = 1.5 / state.zoom;
+
+                // Corners
+                ctx.fillRect(-sw / 2 - hs, -sh / 2 - hs, handleSize, handleSize); // NW
+                ctx.strokeRect(-sw / 2 - hs, -sh / 2 - hs, handleSize, handleSize);
+                
+                ctx.fillRect(sw / 2 - hs, sh / 2 - hs, handleSize, handleSize); // SE
+                ctx.strokeRect(sw / 2 - hs, sh / 2 - hs, handleSize, handleSize);
+                
+                // Rotation handle (Top)
+                const rotY = -sh / 2 - 25 / state.zoom;
+                ctx.beginPath();
+                ctx.moveTo(0, -sh / 2);
+                ctx.lineTo(0, rotY);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(0, rotY, hs, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Opacity handle (Bottom)
+                const opacY = sh / 2 + 25 / state.zoom;
+                ctx.beginPath();
+                ctx.moveTo(0, sh / 2);
+                ctx.lineTo(0, opacY);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(0, opacY, hs, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+            ctx.restore();
+        });
+    } else {
+        // In bitmap mode with cache, we still need to draw the selection outlines/handles for the selected image
+        state.images.forEach(img => {
+            if (!img.visible || state.selectedImageId !== img.id) return;
+            
+            ctx.save();
+            ctx.translate(img.x, img.y);
+            ctx.rotate(img.rotation || 0);
+
             const sw = img.width * (img.scaleX || 1);
             const sh = img.height * (img.scaleY || 1);
 
@@ -611,10 +801,10 @@ export function draw() {
             ctx.arc(0, opacY, hs, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-        }
-        
-        ctx.restore();
-    });
+
+            ctx.restore();
+        });
+    }
 
     // Draw symmetry line if mirror mode is on
     if (state.mirrorMode) {
@@ -627,24 +817,6 @@ export function draw() {
     }
 
     if (state.renderMode === 'bitmap') {
-        // --- Draw Cached Chunks ---
-        const visibleChunks = getVisibleChunks(viewport);
-        visibleChunks.forEach(chunk => {
-            // If zoom changed significantly, or first load, invalidate
-            const currentResolution = Math.min(2.0, Math.max(0.5, state.zoom));
-            if (Math.abs(chunk.cachedResolution - currentResolution) > 0.4) {
-                chunk.needsUpdate = true;
-            }
-
-            if (chunk.needsUpdate) {
-                renderChunk(chunk, state.zoom);
-            }
-            
-            if (chunk.canvas && chunk.canvas.width > 0 && chunk.canvas.height > 0) {
-                ctx.drawImage(chunk.canvas, chunk.worldX, chunk.worldY, CHUNK_SIZE, CHUNK_SIZE);
-            }
-        });
-
         // --- Draw Animated Strokes (Live Overlay via cached Set) ---
         state.animatedStrokes.forEach(stroke => {
             if (!state.selectedStrokes.includes(stroke)) {
@@ -660,35 +832,36 @@ export function draw() {
                 drawStroke(ctx, stroke, false, state.zoom);
             }
         });
+
+        // --- Draw New Uncached Static Strokes ---
+        // Any static strokes that were added after the last cache was built (indices >= cachedStrokesCount)
+        const startIndex = backgroundCacheCanvas ? cachedStrokesCount : 0;
+        for (let i = startIndex; i < state.strokes.length; i++) {
+            const stroke = state.strokes[i];
+            if (state.selectedStrokes.includes(stroke)) continue;
+            if (state.animatedStrokes.has(stroke)) continue; // Already drawn above as animated
+
+            if (!stroke.bounds) stroke.bounds = calculateStrokeBounds(stroke);
+            if (stroke.bounds.maxX < viewport.minX || 
+                stroke.bounds.minX > viewport.maxX || 
+                stroke.bounds.maxY < viewport.minY || 
+                stroke.bounds.minY > viewport.maxY) {
+                continue;
+            }
+            drawStroke(ctx, stroke, false, state.zoom);
+        }
     } else {
-        // --- Draw Full Vector ---
+        // --- Draw Full Vector (all strokes as raw vectors) ---
         state.strokes.forEach(stroke => {
-            // Only draw non-selected strokes (selected are drawn later)
             if (state.selectedStrokes.includes(stroke)) return;
 
-            // Bounding box culling for vector mode
-            if (!stroke.bounds) {
-                const calculateStrokeBounds = (s) => {
-                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                    s.points.forEach(p => {
-                        minX = Math.min(minX, p.x);
-                        minY = Math.min(minY, p.y);
-                        maxX = Math.max(maxX, p.x);
-                        maxY = Math.max(maxY, p.y);
-                    });
-                    const padding = s.size || 5;
-                    return { minX: minX - padding, minY: minY - padding, maxX: maxX + padding, maxY: maxY + padding };
-                };
-                stroke.bounds = calculateStrokeBounds(stroke);
-            }
-
+            if (!stroke.bounds) stroke.bounds = calculateStrokeBounds(stroke);
             if (stroke.bounds.maxX < viewport.minX || 
                 stroke.bounds.minX > viewport.maxX || 
                 stroke.bounds.maxY < viewport.minY || 
                 stroke.bounds.minY > viewport.maxY) {
                 return;
             }
-
             drawStroke(ctx, stroke, false, state.zoom);
         });
     }
@@ -1082,6 +1255,7 @@ export async function endStroke() {
 
             // 7. Persist History
             saveHistory();
+            backgroundCachePending = true;
         }, 0);
     } else {
         // Just a click, clean up
@@ -1369,6 +1543,7 @@ export function saveHistory() {
     state.history.push([...state.strokes]);
     
     state.historyIndex++;
+    invalidateBackgroundCache(true);
     scheduleSave();
 }
 
@@ -1386,6 +1561,7 @@ export function undo() {
         rebuildChunkMemberships();
         updateAnimatedStrokesList();
     }
+    invalidateBackgroundCache(true);
     scheduleSave();
 }
 
@@ -1397,6 +1573,7 @@ export function redo() {
         rebuildChunkMemberships();
         updateAnimatedStrokesList();
     }
+    invalidateBackgroundCache(true);
     scheduleSave();
 }
 
@@ -1413,6 +1590,8 @@ export async function clearCanvas() {
     rebuildChunkMemberships();
     updateAnimatedStrokesList();
     
+    invalidateBackgroundCache(true);
+
     // Deep wipe IndexedDB
     await clearAllProjectData();
     
