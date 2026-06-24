@@ -1682,7 +1682,6 @@ export const filterRadicals = [
   {
     no: 680,
     char: "款",
-    pinyin: "款",
     pinyin: "kuǎn",
     strokes: 12,
     meaning: "model / style",

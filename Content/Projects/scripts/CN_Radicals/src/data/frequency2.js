@@ -1102,7 +1102,6 @@ export const frequencyRadicals2 = [
   {
     no: 1195,
     char: "校",
-    pinyin: "校",
     pinyin: "xiào",
     strokes: 10,
     meaning: "School campus",

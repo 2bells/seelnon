@@ -584,7 +584,7 @@ export const actionRadicals = [
   {
     no: 592,
     char: "暗",
-    pinyin: "暗",
+    pinyin: "àn",
     strokes: 13,
     meaning: "dark / dim",
     category: "UI_VISUAL",
