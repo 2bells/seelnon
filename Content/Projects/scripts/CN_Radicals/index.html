@@ -25,7 +25,7 @@
         <div class="stats-bar">
           <div class="stat-box">MASTERED: <span id="stat-mastered" style="color:var(--accent-green)">0</span></div>
           <div class="stat-box">LEARNING: <span id="stat-learning" style="color:var(--accent-amber)">0</span></div>
-          <div class="stat-box">UNLOCKED: <span id="stat-unlocked">0/214</span></div>
+          <div class="stat-box">UNLOCKED: <span id="stat-unlocked">-</span></div>
           <div class="stat-box">STREAK: <span id="stat-streak" style="color:var(--accent-red)">0 Days</span></div>
         </div>
       </header>
@@ -61,28 +61,27 @@
               <option value="SOCIETY">SOCIETY</option>
               <option value="BUILDINGS">BUILDINGS</option>
               <option value="MOVEMENT">MOVEMENT</option>
+              <option value="UI_CONTAINER">UI CONTAINERS (DIGITAL)</option>
+              <option value="UI_STRUCTURE">UI STRUCTURE (DIGITAL)</option>
+              <option value="UI_INTERACTIVE">UI INTERACTIVE (DIGITAL)</option>
+              <option value="UI_POSITION">UI POSITION (DIGITAL)</option>
+              <option value="UI_VISUAL">UI VISUAL (DIGITAL)</option>
+              <option value="PRONOUN_PEOPLE">PRONOUNS & PEOPLE</option>
+              <option value="PARTICLE_CONNECTOR">PARTICLES & CONNECTORS</option>
+              <option value="ACTION_VERB">ACTION VERBS</option>
+              <option value="SPACE_TIME">SPACE & TIME MODIFIERS</option>
+              <option value="QUANTITY_DESC">QUANTITIES & DESCRIPTIONS</option>
+              <option value="MENTAL_COMM">MENTAL PROCESSING & COMM</option>
+              <option value="DAILY_LIFE">DAILY LIFE & LOGISTICS</option>
+              <option value="WORK_PROJECT">WORK & PROJECTS</option>
+              <option value="FREQ_RELATION">FREQUENCY & SEQUENCES</option>
+              <option value="SOCIAL_LOC">SOCIAL & LOCATIONS</option>
+              <option value="SLANG_ALPHA">ALPHA & CRYPTO SLANG</option>
+              <option value="NETIZEN_BUZZ">NETIZEN BUZZWORDS</option>
+              <option value="ALPHA_ACRONYM">ALPHABETIC & ACRONYMS</option>
+              <option value="NUMERIC_CODE">NUMERIC CODES & PUNS</option>
             </select>
-            
-            <select id="filter-strokes" class="filter-select">
-              <option value="ALL">ALL STROKES</option>
-              <option value="1">1 STROKE</option>
-              <option value="2">2 STROKES</option>
-              <option value="3">3 STROKES</option>
-              <option value="4">4 STROKES</option>
-              <option value="5">5 STROKES</option>
-              <option value="6">6 STROKES</option>
-              <option value="7">7 STROKES</option>
-              <option value="8">8 STROKES</option>
-              <option value="9">9 STROKES</option>
-              <option value="10">10 STROKES</option>
-              <option value="11">11 STROKES</option>
-              <option value="12">12 STROKES</option>
-              <option value="13">13 STROKES</option>
-              <option value="14">14 STROKES</option>
-              <option value="15">15 STROKES</option>
-              <option value="16">16 STROKES</option>
-              <option value="17">17 STROKES</option>
-            </select>
+
           </div>
         </div>
         
@@ -90,7 +89,7 @@
         <div class="radical-grid-container">
           <div class="radical-grid-header">
             <span>INDEX LIST</span>
-            <span>214 KANGXI CHARS</span>
+            <span>KANGXI & DIGITAL CODES</span>
           </div>
           <div class="radical-grid" id="radical-grid">
             <!-- Dynamically populated -->
@@ -137,10 +136,7 @@
                   <td>KANGXI INDEX</td>
                   <td id="meta-no"># 1</td>
                 </tr>
-                <tr>
-                  <td>STROKE COUNT</td>
-                  <td id="meta-strokes">1</td>
-                </tr>
+
                 <tr>
                   <td>SEMANTIC GROUP</td>
                   <td><span id="meta-category" class="badge badge-abstract">ABSTRACT</span></td>

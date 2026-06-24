@@ -1,6 +1,14 @@
 // The 214 Kangxi Radicals Database
 // Styled for the brutalist approach: zero bloat, high structure.
 
+import { digitalRadicals } from './digital.js';
+import { searchRadicals } from './search.js';
+import { actionRadicals } from './action.js';
+import { filterRadicals } from './filter.js';
+import { frequencyRadicals } from './frequency.js';
+import { frequencyRadicals2 } from './frequency2.js';
+import { slangRadicals } from './slang.js';
+
 export const keyRadicalsData = [
   {
     no: 1,
@@ -32,20 +40,6 @@ export const keyRadicalsData = [
   },
   {
     no: 3,
-    char: "丿",
-    pinyin: "piě",
-    strokes: 1,
-    meaning: "slash / bend",
-    category: "ABSTRACT",
-    etymology: "A sweeping diagonal stroke from top-right to bottom-left. Represents kinetic force, shedding of constraints, or active descent.",
-    funFact: "It mimics the graceful swoop of a falling leaf or the swift slash of a sword blade.",
-    philosophy: "The leftward slash represents Yang in action—fast, cutting, dynamic, and releasing energy outwards into the void.",
-    strokePaths: [
-      [[85, 15], [70, 25], [50, 50], [25, 75], [15, 85]]
-    ]
-  },
-  {
-    no: 4,
     char: "丶",
     pinyin: "zhǔ",
     strokes: 1,
@@ -56,6 +50,20 @@ export const keyRadicalsData = [
     philosophy: "The cosmic seed. Like the Singularity before the Big Bang, a single dot contains infinite potential waiting to expand.",
     strokePaths: [
       [[45, 45], [55, 55]]
+    ]
+  },
+  {
+    no: 4,
+    char: "丿",
+    pinyin: "piě",
+    strokes: 1,
+    meaning: "slash / bend",
+    category: "ABSTRACT",
+    etymology: "A sweeping diagonal stroke from top-right to bottom-left. Represents kinetic force, shedding of constraints, or active descent.",
+    funFact: "It mimics the graceful swoop of a falling leaf or the swift slash of a sword blade.",
+    philosophy: "The leftward slash represents Yang in action—fast, cutting, dynamic, and releasing energy outwards into the void.",
+    strokePaths: [
+      [[85, 15], [70, 25], [50, 50], [25, 75], [15, 85]]
     ]
   },
   {
@@ -102,7 +110,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 8,
+    no: 9,
     char: "人",
     pinyin: "rén",
     strokes: 2,
@@ -117,7 +125,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 9,
+    no: 10,
     char: "儿",
     pinyin: "ér",
     strokes: 2,
@@ -132,7 +140,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 10,
+    no: 11,
     char: "入",
     pinyin: "rù",
     strokes: 2,
@@ -147,7 +155,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 11,
+    no: 12,
     char: "八",
     pinyin: "bā",
     strokes: 2,
@@ -162,7 +170,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 17,
+    no: 18,
     char: "刀",
     pinyin: "dāo",
     strokes: 2,
@@ -177,7 +185,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 18,
+    no: 19,
     char: "力",
     pinyin: "lì",
     strokes: 2,
@@ -192,7 +200,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 23,
+    no: 24,
     char: "十",
     pinyin: "shí",
     strokes: 2,
@@ -207,7 +215,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 24,
+    no: 25,
     char: "卜",
     pinyin: "bǔ",
     strokes: 2,
@@ -222,7 +230,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 28,
+    no: 29,
     char: "又",
     pinyin: "yòu",
     strokes: 2,
@@ -237,7 +245,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 29,
+    no: 30,
     char: "口",
     pinyin: "kǒu",
     strokes: 3,
@@ -253,7 +261,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 31,
+    no: 32,
     char: "土",
     pinyin: "tǔ",
     strokes: 3,
@@ -269,7 +277,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 36,
+    no: 37,
     char: "大",
     pinyin: "dà",
     strokes: 3,
@@ -285,7 +293,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 37,
+    no: 38,
     char: "女",
     pinyin: "nǚ",
     strokes: 3,
@@ -301,7 +309,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 38,
+    no: 39,
     char: "子",
     pinyin: "zǐ",
     strokes: 3,
@@ -317,7 +325,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 45,
+    no: 46,
     char: "山",
     pinyin: "shān",
     strokes: 3,
@@ -333,7 +341,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 46,
+    no: 47,
     char: "巛",
     pinyin: "chuān",
     strokes: 3,
@@ -349,14 +357,14 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 47,
+    no: 48,
     char: "工",
     pinyin: "gōng",
     strokes: 3,
     meaning: "work / craft",
     category: "TOOLS",
     etymology: "Depicts an ancient builder's tool—a ruler or a rammer used to pack earth blocks together for palace walls.",
-    funFact: "Combined with 人 (person), it forms 个人 (wait, or 工人 gōngrén - worker) and refers to manufacturing or architecture.",
+    funFact: "Combined with 人 (person), it forms 工人 (gōngrén - worker) and refers to manufacturing or architecture.",
     philosophy: "The refinement of raw materials. Craft represents human mastery over nature through dedication, discipline, and right proportion.",
     strokePaths: [
       [[20, 20], [80, 20]],
@@ -365,7 +373,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 56,
+    no: 57,
     char: "弓",
     pinyin: "gōng",
     strokes: 3,
@@ -381,7 +389,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 60,
+    no: 61,
     char: "心",
     pinyin: "xīn",
     strokes: 4,
@@ -398,7 +406,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 61,
+    no: 62,
     char: "戈",
     pinyin: "gē",
     strokes: 4,
@@ -415,7 +423,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 63,
+    no: 64,
     char: "手",
     pinyin: "shǒu",
     strokes: 4,
@@ -432,7 +440,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 67,
+    no: 72,
     char: "日",
     pinyin: "rì",
     strokes: 4,
@@ -449,7 +457,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 69,
+    no: 74,
     char: "月",
     pinyin: "yuè",
     strokes: 4,
@@ -466,7 +474,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 70,
+    no: 75,
     char: "木",
     pinyin: "mù",
     strokes: 4,
@@ -483,7 +491,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 72,
+    no: 77,
     char: "止",
     pinyin: "zhǐ",
     strokes: 4,
@@ -500,7 +508,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 80,
+    no: 85,
     char: "水",
     pinyin: "shuǐ",
     strokes: 4,
@@ -517,7 +525,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 81,
+    no: 86,
     char: "火",
     pinyin: "huǒ",
     strokes: 4,
@@ -534,7 +542,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 88,
+    no: 93,
     char: "牛",
     pinyin: "niú",
     strokes: 4,
@@ -551,7 +559,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 89,
+    no: 94,
     char: "犬",
     pinyin: "quǎn",
     strokes: 4,
@@ -568,7 +576,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 91,
+    no: 96,
     char: "玉",
     pinyin: "yù",
     strokes: 5,
@@ -586,7 +594,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 97,
+    no: 102,
     char: "田",
     pinyin: "tián",
     strokes: 5,
@@ -604,7 +612,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 104,
+    no: 109,
     char: "目",
     pinyin: "mù",
     strokes: 5,
@@ -622,7 +630,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 107,
+    no: 112,
     char: "石",
     pinyin: "shí",
     strokes: 5,
@@ -640,7 +648,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 112,
+    no: 117,
     char: "立",
     pinyin: "lì",
     strokes: 5,
@@ -658,7 +666,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 113,
+    no: 118,
     char: "竹",
     pinyin: "zhú",
     strokes: 6,
@@ -677,7 +685,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 114,
+    no: 119,
     char: "米",
     pinyin: "mǐ",
     strokes: 6,
@@ -696,7 +704,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 115,
+    no: 120,
     char: "糸",
     pinyin: "mì",
     strokes: 6,
@@ -714,7 +722,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 118,
+    no: 123,
     char: "羊",
     pinyin: "yáng",
     strokes: 6,
@@ -733,7 +741,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 120,
+    no: 125,
     char: "老",
     pinyin: "lǎo",
     strokes: 6,
@@ -752,7 +760,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 123,
+    no: 128,
     char: "耳",
     pinyin: "ěr",
     strokes: 6,
@@ -808,7 +816,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 135,
+    no: 140,
     char: "艸",
     pinyin: "cǎo",
     strokes: 6,
@@ -825,7 +833,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 137,
+    no: 142,
     char: "虫",
     pinyin: "chóng",
     strokes: 6,
@@ -843,7 +851,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 144,
+    no: 149,
     char: "言",
     pinyin: "yán",
     strokes: 7,
@@ -862,7 +870,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 149,
+    no: 154,
     char: "貝",
     pinyin: "bèi",
     strokes: 7,
@@ -882,7 +890,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 152,
+    no: 157,
     char: "足",
     pinyin: "zú",
     strokes: 7,
@@ -902,7 +910,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 154,
+    no: 159,
     char: "車",
     pinyin: "chē",
     strokes: 7,
@@ -922,7 +930,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 162,
+    no: 167,
     char: "金",
     pinyin: "jīn",
     strokes: 8,
@@ -943,7 +951,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 164,
+    no: 169,
     char: "門",
     pinyin: "mén",
     strokes: 8,
@@ -962,7 +970,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 168,
+    no: 173,
     char: "雨",
     pinyin: "yǔ",
     strokes: 8,
@@ -983,7 +991,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 182,
+    no: 187,
     char: "馬",
     pinyin: "mǎ",
     strokes: 10,
@@ -1004,7 +1012,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 189,
+    no: 194,
     char: "鬼",
     pinyin: "guǐ",
     strokes: 10,
@@ -1025,7 +1033,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 190,
+    no: 195,
     char: "魚",
     pinyin: "yú",
     strokes: 11,
@@ -1050,7 +1058,7 @@ export const keyRadicalsData = [
     ]
   },
   {
-    no: 207,
+    no: 212,
     char: "龍",
     pinyin: "lóng",
     strokes: 16,
@@ -1078,8 +1086,8 @@ export const keyRadicalsData = [
 const raw214Radicals = [
   { no: 1, char: "一", pinyin: "yī", strokes: 1, meaning: "one", category: "ABSTRACT" },
   { no: 2, char: "丨", pinyin: "gǔn", strokes: 1, meaning: "line", category: "ABSTRACT" },
-  { no: 3, char: "丿", pinyin: "piě", strokes: 1, meaning: "slash", category: "ABSTRACT" },
-  { no: 4, char: "丶", pinyin: "zhǔ", strokes: 1, meaning: "dot", category: "ABSTRACT" },
+  { no: 3, char: "丶", pinyin: "zhǔ", strokes: 1, meaning: "dot", category: "ABSTRACT" },
+  { no: 4, char: "丿", pinyin: "piě", strokes: 1, meaning: "slash", category: "ABSTRACT" },
   { no: 5, char: "乙", pinyin: "yǐ", strokes: 1, meaning: "second", category: "PLANTS" },
   { no: 6, char: "亅", pinyin: "jué", strokes: 1, meaning: "hook", category: "TOOLS" },
   { no: 7, char: "二", pinyin: "èr", strokes: 2, meaning: "two", category: "ABSTRACT" },
@@ -1095,7 +1103,7 @@ const raw214Radicals = [
   { no: 17, char: "凵", pinyin: "qǐ", strokes: 2, meaning: "open box", category: "TOOLS" },
   { no: 18, char: "刀", pinyin: "dāo", strokes: 2, meaning: "knife", category: "TOOLS" },
   { no: 19, char: "力", pinyin: "lì", strokes: 2, meaning: "power", category: "HUMAN" },
-  { no: 20, char: "包", pinyin: "bāo", strokes: 2, meaning: "wrap", category: "TOOLS" }, // In original it was "勹". Let's use "勹"!
+  { no: 20, char: "勹", pinyin: "bāo", strokes: 2, meaning: "wrap", category: "TOOLS" }, // In original it was "勹". Let's use "勹"!
   { no: 21, char: "匕", pinyin: "bǐ", strokes: 2, meaning: "spoon", category: "TOOLS" },
   { no: 22, char: "匚", pinyin: "fāng", strokes: 2, meaning: "box", category: "TOOLS" },
   { no: 23, char: "匸", pinyin: "xì", strokes: 2, meaning: "hiding box", category: "TOOLS" },
@@ -1103,7 +1111,7 @@ const raw214Radicals = [
   { no: 25, char: "卜", pinyin: "bǔ", strokes: 2, meaning: "divination", category: "SPIRITUAL" },
   { no: 26, char: "卩", pinyin: "jié", strokes: 2, meaning: "seal", category: "TOOLS" },
   { no: 27, char: "厂", pinyin: "chǎng", strokes: 2, meaning: "cliff", category: "NATURE" },
-  { no: 28, char: "私", pinyin: "sī", strokes: 2, meaning: "private", category: "ABSTRACT" }, // In original it was "厶". Let's use "厶"!
+  { no: 28, char: "厶", pinyin: "sī", strokes: 2, meaning: "private", category: "ABSTRACT" }, // In original it was "厶". Let's use "厶"!
   { no: 29, char: "又", pinyin: "yòu", strokes: 2, meaning: "again", category: "BODY" },
   { no: 30, char: "口", pinyin: "kǒu", strokes: 3, meaning: "mouth", category: "BODY" },
   { no: 31, char: "囗", pinyin: "wéi", strokes: 3, meaning: "enclosure", category: "BUILDINGS" },
@@ -1293,10 +1301,11 @@ const raw214Radicals = [
 ];
 
 // Enriching the dataset procedurally to provide seamless etymology/philosophy for all 214 radicals
-export const radicals = raw214Radicals.map((rad) => {
-  const keyMatch = keyRadicalsData.find(k => k.char === rad.char);
+const mapped214 = raw214Radicals.map((rad) => {
+  const allDetailRadicals = [...keyRadicalsData, ...digitalRadicals, ...searchRadicals, ...actionRadicals, ...filterRadicals];
+  const keyMatch = allDetailRadicals.find(k => k.no === rad.no);
   if (keyMatch) {
-    return { ...keyMatch, ...rad };
+    return { ...rad, ...keyMatch };
   }
 
   // Generate beautiful, structured, procedurally styled historical notes for the remaining 164
@@ -1352,4 +1361,33 @@ export const radicals = raw214Radicals.map((rad) => {
     philosophy,
     strokePaths
   };
+});
+
+const combinedRadicals = [
+  ...mapped214,
+  ...digitalRadicals,
+  ...searchRadicals,
+  ...actionRadicals,
+  ...filterRadicals,
+  ...frequencyRadicals,
+  ...frequencyRadicals2,
+  ...slangRadicals
+];
+
+export const radicals = combinedRadicals.map((rad) => {
+  if (!rad.strokePaths || rad.strokePaths.length === 0) {
+    const strokePaths = [];
+    const count = rad.strokes || 4;
+    for (let i = 0; i < count; i++) {
+      const spacing = 70 / (count + 1);
+      const pos = 15 + spacing * (i + 1);
+      if (i % 2 === 0) {
+        strokePaths.push([[15, pos], [85, pos]]);
+      } else {
+        strokePaths.push([[pos, 15], [pos, 85]]);
+      }
+    }
+    return { ...rad, strokePaths };
+  }
+  return rad;
 });

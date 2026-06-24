@@ -705,7 +705,7 @@ function renderRadicalGrid() {
   // Render counter update
   const countDisplay = document.getElementById('grid-results-count');
   if (countDisplay) {
-    countDisplay.innerText = `${filtered.length} / 214`;
+    countDisplay.innerText = `${filtered.length} / ${radicals.length}`;
   }
   
   filtered.forEach(rad => {
@@ -720,7 +720,6 @@ function renderRadicalGrid() {
       <span class="cell-no">${rad.no}</span>
       <span class="cell-char">${rad.char}</span>
       <span class="cell-desc">${rad.meaning}</span>
-      <span class="cell-strokes">${rad.strokes} ${rad.strokes === 1 ? 'Str' : 'Strs'}</span>
     `;
     
     cell.addEventListener('click', () => {
@@ -743,7 +742,8 @@ function renderRadicalDetail() {
   
   // Details table fields
   document.getElementById('meta-no').innerText = `# ${rad.no}`;
-  document.getElementById('meta-strokes').innerText = rad.strokes;
+  const metaStrokes = document.getElementById('meta-strokes');
+  if (metaStrokes) metaStrokes.innerText = rad.strokes;
   
   // Category Badge update
   const categoryBadge = document.getElementById('meta-category');
@@ -781,7 +781,7 @@ function renderStats() {
   
   document.getElementById('stat-mastered').innerText = masteredCount;
   document.getElementById('stat-learning').innerText = activeCount;
-  document.getElementById('stat-unlocked').innerText = `${learnedKeys.length}/214`;
+  document.getElementById('stat-unlocked').innerText = `${learnedKeys.length}/${radicals.length}`;
   document.getElementById('stat-streak').innerText = `${STATE.srs.streak} Days`;
 }
 

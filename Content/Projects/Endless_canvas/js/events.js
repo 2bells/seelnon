@@ -495,17 +495,35 @@ export function init(canvas) {
                     const event = events[i];
                     let eventWorldPos = screenToWorld(event.clientX, event.clientY);
                     
-                    // Filter out duplicate or extremely close points (less than 0.5 screen pixels) to solve Windows Ink/Pressure lag
-                    // But ALWAYS process the very last event in the batch to ensure perfect snapping to the pen tip!
-                    if (i < events.length - 1 && state.currentStroke && state.currentStroke.points.length > 0) {
+                    // Filter out duplicate or extremely close points to solve Windows Ink/Pressure lag
+                    if (state.currentStroke && state.currentStroke.points.length > 0) {
                         const lastPt = state.currentStroke.points[state.currentStroke.points.length - 1];
-                        const dx = eventWorldPos.x - lastPt.x;
-                        const dy = eventWorldPos.y - lastPt.y;
-                        const distSq = dx * dx + dy * dy;
-                        const minScreenDist = 0.5; // at least 0.5 screen pixels
-                        const minWorldDist = minScreenDist / state.zoom;
-                        if (distSq < minWorldDist * minWorldDist) {
-                            continue; // Skip this high-frequency intermediate event
+                        const dx = (eventWorldPos.x - lastPt.x) * state.zoom;
+                        const dy = (eventWorldPos.y - lastPt.y) * state.zoom;
+                        const dist = Math.hypot(dx, dy); // distance in screen pixels
+                        
+                        let rawPressure = 1.0;
+                        if (state.brush.pressureSensitivity) {
+                            if (event.pointerType === 'pen') {
+                                rawPressure = event.pressure;
+                            } else if (event.pressure !== undefined && event.pressure !== 0 && event.pressure !== 0.5) {
+                                rawPressure = event.pressure;
+                            }
+                        }
+                        
+                        const lastPressure = lastPt.pressure !== undefined ? lastPt.pressure : 1.0;
+                        const pressureDiff = Math.abs(rawPressure - lastPressure);
+                        
+                        const isIntermediate = i < events.length - 1;
+                        if (isIntermediate) {
+                            if (dist < 1.0) {
+                                continue; // Skip intermediate coalesced events that are too close
+                            }
+                        } else {
+                            // Last event of the batch
+                            if (dist < 1.0 && pressureDiff < 0.02) {
+                                continue; // Skip even the last event if it barely moved and pressure barely changed
+                            }
                         }
                     }
                     
@@ -539,7 +557,7 @@ export function init(canvas) {
                         }
                         
                         if (state.lastStylusPressure !== undefined) {
-                            const pressureSmoothFactor = 0.8; // Dampen fast spikes
+                            const pressureSmoothFactor = 0.3; // Increased responsiveness (changed from 0.8 to 0.3)
                             state.lastStylusPressure = state.lastStylusPressure * pressureSmoothFactor + rawPressure * (1 - pressureSmoothFactor);
                         } else {
                             state.lastStylusPressure = rawPressure;
@@ -577,7 +595,7 @@ export function init(canvas) {
                             
                             // Smooth speed pressure to prevent jitter
                             if (state.lastSpeedPressure !== undefined) {
-                                const smoothFactor = event.pointerType === 'mouse' ? 0.5 : 0.7;
+                                const smoothFactor = event.pointerType === 'mouse' ? 0.3 : 0.4; // Responsive speed smoothing
                                 state.lastSpeedPressure = state.lastSpeedPressure * smoothFactor + speedPressure * (1 - smoothFactor);
                             } else {
                                 state.lastSpeedPressure = speedPressure;
