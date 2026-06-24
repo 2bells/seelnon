@@ -268,6 +268,8 @@ export function init(canvas) {
             if (state.activeTool === 'brush') {
                 state.isDrawing = true;
                 const now = performance.now();
+                state.lastStylusPressure = undefined;
+                state.lastSpeedPressure = undefined;
                 startStroke(worldPos.x, worldPos.y, currentPointerPos.pressure);
                 state.lastDrawPosition = { ...worldPos, timestamp: now };
             } else if (state.activeTool === 'selection') {
@@ -521,8 +523,9 @@ export function init(canvas) {
                     }
 
                     const eventTimestamp = event.timeStamp || performance.now();
-                    let pressure = 1.0;
                     
+                    // 1. Calculate Stylus Pressure (if pressure sensitivity is enabled)
+                    let stylusPressure = 1.0;
                     if (state.brush.pressureSensitivity) {
                         let rawPressure = 1.0;
                         if (event.pointerType === 'pen') {
@@ -531,17 +534,26 @@ export function init(canvas) {
                             rawPressure = event.pressure;
                         }
                         
-                        // Apply smoothing to pressure to reduce micro-lag and stylus noise
-                        if (state.lastDrawPosition.pressure !== undefined) {
-                            const pressureSmoothFactor = 0.8; // Dampen fast spikes
-                            pressure = state.lastDrawPosition.pressure * pressureSmoothFactor + rawPressure * (1 - pressureSmoothFactor);
-                        } else {
-                            pressure = rawPressure;
+                        if (state.lastStylusPressure === undefined && state.lastDrawPosition.pressure !== undefined) {
+                            state.lastStylusPressure = state.lastDrawPosition.pressure;
                         }
+                        
+                        if (state.lastStylusPressure !== undefined) {
+                            const pressureSmoothFactor = 0.8; // Dampen fast spikes
+                            state.lastStylusPressure = state.lastStylusPressure * pressureSmoothFactor + rawPressure * (1 - pressureSmoothFactor);
+                        } else {
+                            state.lastStylusPressure = rawPressure;
+                        }
+                        
+                        const factor = state.brush.pressureFactor !== undefined ? state.brush.pressureFactor : 1.0;
+                        stylusPressure = 1.0 - (1.0 - state.lastStylusPressure) * factor;
+                    } else {
+                        state.lastStylusPressure = undefined;
                     }
 
-                    // Speed sensitivity logic
-                    if (state.brush.speedSensitivity && pressure === 1.0) {
+                    // 2. Calculate Speed Pressure (if speed sensitivity is enabled)
+                    let speedPressure = 1.0;
+                    if (state.brush.speedSensitivity) {
                         const timeDelta = eventTimestamp - state.lastDrawPosition.timestamp;
                         if (timeDelta > 2) { // Lower threshold for high-frequency events
                             const distance = Math.hypot(eventWorldPos.x - state.lastDrawPosition.x, eventWorldPos.y - state.lastDrawPosition.y);
@@ -552,21 +564,34 @@ export function init(canvas) {
                                 speed *= 2;
                             }
 
-                            const maxSpeed = state.brush.speedSensitivityFactor;
+                            // Reversed speed sensitivity: max speed is lower (higher effect) when factor is high.
+                            // Factor goes from 0.5 to 10.0. 
+                            // So maxSpeed is calculated as: 10.5 - factor
+                            // E.g., slider = 10.0 (high) -> maxSpeed = 0.5 (even low speed triggers thinning)
+                            // E.g., slider = 0.5 (low) -> maxSpeed = 10.0 (requires high speed to trigger thinning)
+                            const factor = state.brush.speedSensitivityFactor !== undefined ? state.brush.speedSensitivityFactor : 8.5;
+                            const maxSpeed = 10.5 - factor;
                             const minPressure = 0.1;
                             const calculatedPressure = 1 - (speed / maxSpeed);
-                            pressure = Math.max(minPressure, Math.min(1, calculatedPressure));
+                            speedPressure = Math.max(minPressure, Math.min(1, calculatedPressure));
                             
-                            // Smooth pressure changes to prevent jitter - faster reaction for mouse (0.5/0.5)
-                            if (state.lastDrawPosition.pressure !== undefined) {
+                            // Smooth speed pressure to prevent jitter
+                            if (state.lastSpeedPressure !== undefined) {
                                 const smoothFactor = event.pointerType === 'mouse' ? 0.5 : 0.7;
-                                pressure = state.lastDrawPosition.pressure * smoothFactor + pressure * (1 - smoothFactor);
-                            }
+                                state.lastSpeedPressure = state.lastSpeedPressure * smoothFactor + speedPressure * (1 - smoothFactor);
+                            } else {
+                                state.lastSpeedPressure = speedPressure;
+                             }
                         } else {
-                            // Maintain previous pressure if time delta is too small to calculate speed reliably
-                            pressure = state.lastDrawPosition.pressure || 1.0;
+                            state.lastSpeedPressure = state.lastSpeedPressure !== undefined ? state.lastSpeedPressure : 1.0;
                         }
+                        speedPressure = state.lastSpeedPressure;
+                    } else {
+                        state.lastSpeedPressure = undefined;
                     }
+
+                    // 3. Combine both pressures
+                    const pressure = stylusPressure * speedPressure;
 
                     addPointToStroke(eventWorldPos.x, eventWorldPos.y, pressure);
                     state.lastDrawPosition = { ...eventWorldPos, timestamp: eventTimestamp, pressure };

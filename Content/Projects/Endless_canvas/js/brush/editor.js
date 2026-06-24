@@ -62,6 +62,14 @@ function createBrushEditor() {
                 <label for="pressureSensitivityToggle">Enable Pressure Sensitivity</label>
             </div>
             
+            <div class="brush-setting" id="pressure-strength-setting">
+                <div class="label-group">
+                    <label for="pressureFactor">Pressure Strength</label>
+                    <span id="pressureFactorValue">100%</span>
+                </div>
+                <input type="range" id="pressureFactor" min="0" max="1" value="1" step="0.01">
+            </div>
+            
             <div class="brush-toggle">
                 <input type="checkbox" id="speedSensitivityToggle">
                 <label for="speedSensitivityToggle">Enable Speed Sensitivity</label>
@@ -302,6 +310,9 @@ export function init() {
     const brushOpacity = editor.querySelector('#brushOpacity');
     const brushOpacityValue = editor.querySelector('#brushOpacityValue');
     const pressureSensitivityToggle = editor.querySelector('#pressureSensitivityToggle');
+    const pressureFactorSetting = editor.querySelector('#pressure-strength-setting');
+    const pressureFactor = editor.querySelector('#pressureFactor');
+    const pressureFactorValue = editor.querySelector('#pressureFactorValue');
     const speedSensitivityToggle = editor.querySelector('#speedSensitivityToggle');
     const speedSensitivityFactor = editor.querySelector('#speedSensitivityFactor');
     const speedSensitivityFactorValue = editor.querySelector('#speedSensitivityFactorValue');
@@ -402,6 +413,7 @@ export function init() {
     // Function to update visibility of brush-specific settings
     function updateBrushSpecificSettingsVisibility() {
         // Reset all specific settings to hidden first
+        pressureFactorSetting.classList.add('hidden-setting');
         pixelSizeSetting.classList.add('hidden-setting');
         smoothingFactorSetting.classList.add('hidden-setting'); // Always hidden unless smoothing is enabled
         wireframeMeshOpacitySetting.classList.add('hidden-setting');
@@ -422,6 +434,11 @@ export function init() {
         // Show smoothing settings if enabled
         if (state.brush.enableSmoothing) {
             smoothingFactorSetting.classList.remove('hidden-setting');
+        }
+
+        // Show pressure factor if pressure sensitivity is enabled
+        if (state.brush.pressureSensitivity) {
+            pressureFactorSetting.classList.remove('hidden-setting');
         }
 
         // Show brush type specific settings
@@ -561,11 +578,15 @@ export function init() {
         brushOpacity.value = state.brush.opacity;
         brushOpacityValue.textContent = state.brush.opacity.toFixed(2);
         pressureSensitivityToggle.checked = state.brush.pressureSensitivity;
+        const currentPressureFactor = state.brush.pressureFactor !== undefined ? state.brush.pressureFactor : 1.0;
+        pressureFactor.value = currentPressureFactor;
+        pressureFactorValue.textContent = `${Math.round(currentPressureFactor * 100)}%`;
         speedSensitivityToggle.checked = state.brush.speedSensitivity;
         speedSensitivityFactor.value = state.brush.speedSensitivityFactor;
         speedSensitivityFactorValue.textContent = state.brush.speedSensitivityFactor.toFixed(1);
-        minSizeFactor.value = state.brush.minSizeFactor;
-        minSizeFactorValue.textContent = `${Math.round(state.brush.minSizeFactor * 100)}%`;
+        const sizeJitterValue = 1.0 - state.brush.minSizeFactor;
+        minSizeFactor.value = sizeJitterValue;
+        minSizeFactorValue.textContent = `${Math.round(sizeJitterValue * 100)}%`;
         brushTipShape.value = state.brush.tipShape;
         nonCompoundingOpacityToggle.checked = state.brush.nonCompoundingOpacity;
         pixelSize.value = state.brush.pixelSize;
@@ -658,14 +679,22 @@ export function init() {
     });
 
     minSizeFactor.addEventListener('input', (e) => {
-        const newFactor = parseFloat(e.target.value);
-        state.brush.minSizeFactor = newFactor;
-        minSizeFactorValue.textContent = `${Math.round(newFactor * 100)}%`;
+        const sliderValue = parseFloat(e.target.value);
+        state.brush.minSizeFactor = 1.0 - sliderValue;
+        minSizeFactorValue.textContent = `${Math.round(sliderValue * 100)}%`;
+        syncWorkInProgress();
+    });
+
+    pressureFactor.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        state.brush.pressureFactor = value;
+        pressureFactorValue.textContent = `${Math.round(value * 100)}%`;
         syncWorkInProgress();
     });
 
     pressureSensitivityToggle.addEventListener('change', (e) => {
         state.brush.pressureSensitivity = e.target.checked;
+        updateBrushSpecificSettingsVisibility();
         syncWorkInProgress();
     });
 

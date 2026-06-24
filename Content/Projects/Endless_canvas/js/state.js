@@ -5,7 +5,8 @@ const baseBrushProperties = {
     opacity: 1,
     pressureSensitivity: false,
     speedSensitivity: true,
-    speedSensitivityFactor: 2.0,
+    speedSensitivityFactor: 8.5,
+    pressureFactor: 1.0, // Control how much pressure sensitivity affects the input (0.0 to 1.0)
     minSizeFactor: 0.2, // Min size as a percentage of main size for dynamics
     tipShape: 'round', // 'round' or 'square'
     nonCompoundingOpacity: false, // if true, attempts to prevent opacity compounding within a stroke
@@ -103,7 +104,7 @@ export const state = {
             pressureSensitivity: true,
             speedSensitivity: true,
             minSizeFactor: 0.2,
-            speedSensitivityFactor: 2.0,
+            speedSensitivityFactor: 8.5,
             pixelSize: 10,
             enableSmoothing: false,
             smoothingFactor: 0.005,
