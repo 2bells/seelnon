@@ -36,6 +36,7 @@ export const state = {
     isDrawing: false,
     isPanning: false,
     isZoomingWithMouse: false,
+    isWheelZooming: false,
     isSelecting: false, // For selection tool
     selectionMode: 'rectangle', // 'rectangle' or 'lasso'
     lassoPoints: [], // Points for the lasso tool

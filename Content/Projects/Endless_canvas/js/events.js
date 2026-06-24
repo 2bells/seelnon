@@ -396,6 +396,7 @@ export function init(canvas) {
         }
 
         if (state.activePointers.size === 2) {
+            state.isPanning = true; // Prevent chunk rendering updates during pinch gestures
             const pinch = getPinchData(state.activePointers);
             
             // Track movement for gesture detection (taps vs pinch)
@@ -1159,8 +1160,17 @@ export function init(canvas) {
     });
 
     // Zooming with mouse wheel
+    let wheelZoomTimeout = null;
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
+        
+        state.isWheelZooming = true;
+        if (wheelZoomTimeout) clearTimeout(wheelZoomTimeout);
+        wheelZoomTimeout = setTimeout(() => {
+            state.isWheelZooming = false;
+            wheelZoomTimeout = null;
+        }, 200); // 200ms of no wheel activity means wheel zoom has stopped
+
         const zoomAmount = 0.1;
         const zoomDirection = e.deltaY < 0 ? 1 : -1;
         const newZoom = Math.max(0.25, state.zoom + zoomDirection * zoomAmount * state.zoom * 0.5); // Changed: Min zoom 25%

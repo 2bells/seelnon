@@ -199,7 +199,9 @@ function renderChunk(chunk, targetScale) {
     const pSize = Math.ceil(CHUNK_SIZE * resolution);
 
     if (!chunk.canvas || chunk.canvas.width !== pSize || chunk.canvas.height !== pSize) {
-        chunk.canvas = new OffscreenCanvas(pSize, pSize);
+        chunk.canvas = document.createElement('canvas');
+        chunk.canvas.width = pSize;
+        chunk.canvas.height = pSize;
         chunk.ctx = chunk.canvas.getContext('2d', { alpha: true });
     }
 
@@ -353,7 +355,9 @@ export function scaleStrokes(strokes, scaleX, scaleY, pivot) {
 }
 
 // --- Background Pattern Optimization: Pattern Caching ---
-const patternCanvas = new OffscreenCanvas(1, 1);
+const patternCanvas = document.createElement('canvas');
+patternCanvas.width = 1;
+patternCanvas.height = 1;
 const patternCtx = patternCanvas.getContext('2d');
 let cachedPattern = null;
 let lastPatternKey = '';
@@ -489,7 +493,9 @@ export async function renderStrokeToBitmap(stroke) {
         return null; // Invalid dimensions, cannot create bitmap
     }
 
-    const offscreenCanvas = new OffscreenCanvas(pixelWidth, pixelHeight);
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = pixelWidth;
+    offscreenCanvas.height = pixelHeight;
     const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 
     const finalResX = pixelWidth / worldWidth;
@@ -546,19 +552,20 @@ export function draw() {
     ctx.scale(state.zoom, state.zoom);
 
     // Draw Chunk-based background cache (seamless sectors)
-    if (state.renderMode === 'bitmap') {
+    const useVectorForZoom = state.zoom > 2.5;
+    if (state.renderMode === 'bitmap' && !useVectorForZoom) {
         const visibleChunks = getVisibleChunks(viewport);
         visibleChunks.forEach(chunk => {
             // Only update/render if not actively panning/zooming, or if the chunk canvas doesn't exist yet
             const needsRender = !chunk.canvas || 
-                                (chunk.needsUpdate && !state.isPanning && !state.isZoomingWithMouse);
+                                (chunk.needsUpdate && !state.isPanning && !state.isZoomingWithMouse && !state.isWheelZooming);
             
             // Significant resolution mismatch check when stationary to keep things crisp
             const targetRes = Math.min(2.0, Math.max(0.5, state.zoom));
             const currentRes = chunk.cachedResolution || 0;
             const resMismatch = Math.abs(currentRes - targetRes) > 0.15;
             
-            const shouldUpdateRes = resMismatch && !state.isPanning && !state.isZoomingWithMouse && !state.isDrawing;
+            const shouldUpdateRes = resMismatch && !state.isPanning && !state.isZoomingWithMouse && !state.isWheelZooming && !state.isDrawing;
             
             if (needsRender || shouldUpdateRes) {
                 renderChunk(chunk, state.zoom);
@@ -664,7 +671,7 @@ export function draw() {
         ctx.stroke();
     }
 
-    if (state.renderMode === 'bitmap') {
+    if (state.renderMode === 'bitmap' && !useVectorForZoom) {
         // --- Draw Animated Strokes (Live Overlay via cached Set) ---
         state.animatedStrokes.forEach(stroke => {
             if (!state.selectedStrokes.includes(stroke)) {
