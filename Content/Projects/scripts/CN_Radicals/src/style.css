@@ -1,0 +1,1039 @@
+/* Bento Grid Calligraphy Theme: Refined 214 Chinese Radicals Study & Calligraphy Sage */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Noto+Serif+SC:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg-primary: #0F0F0F;       /* Deep minimalist background */
+  --bg-card: #1A1A1A;          /* Charcoal bento container background */
+  --bg-card-alt: #222222;      /* Lighter secondary backing */
+  --text-main: #E0E0E0;        /* Soft ivory text */
+  --text-muted: #888888;       /* Sophisticated gray */
+  --text-light: #F5F5DC;       /* Antique Ivory */
+  --border-color: #333333;     /* Thin bento borders */
+  
+  /* Imperial Accents */
+  --accent-amber: #D4AF37;     /* Imperial Gold */
+  --accent-amber-glow: rgba(212, 175, 55, 0.15);
+  --accent-red: #ff4d4d;
+  --accent-green: #2ec4b6;
+  --accent-blue: #0077b6;
+  
+  /* Bento Curved Geometries */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 8px;
+  
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: 'Noto Serif SC', 'Playfair Display', serif;
+  
+  --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Base Reset & Core styling */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 32px 24px;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbars to match Bento theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-amber);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  color: var(--text-light);
+  letter-spacing: -0.5px;
+}
+
+/* App Header */
+.app-header {
+  grid-column: 1 / -1; /* Spans full width of the bento grid */
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.app-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-title-group h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-title-group h1::before {
+  content: "源";
+  background: var(--accent-amber);
+  color: #0F0F0F;
+  width: 34px;
+  height: 34px;
+  font-size: 1.25rem;
+  font-weight: 900;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-title-group p {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-amber);
+  letter-spacing: 2px;
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+
+/* Header WebGPU Status Indicator */
+.webgpu-indicator {
+  display: flex;
+  align-items: center;
+}
+
+.webgpu-status {
+  padding: 6px 12px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.5px;
+}
+
+.status-active {
+  background-color: rgba(46, 196, 182, 0.1);
+  color: var(--accent-green);
+  border-color: rgba(46, 196, 182, 0.3);
+}
+
+.status-inactive {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+}
+
+/* Stats Ribbon */
+.stats-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.stat-box span {
+  color: var(--text-light);
+  font-weight: 800;
+}
+
+/* Grid Layout structure */
+.app-container {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1100px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sidebar styling */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Tabs */
+.tab-group {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  gap: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: calc(var(--radius-md) - 4px);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: var(--transition-smooth);
+}
+
+.tab-btn:hover {
+  color: var(--text-light);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  background: var(--accent-amber);
+  color: #0F0F0F;
+}
+
+/* Grid controls (Search/Filter bento card) */
+.control-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.control-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.control-title span#grid-results-count {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--bg-card-alt);
+  color: var(--accent-amber);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card-alt);
+  color: var(--text-light);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+.search-input:focus {
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.1);
+}
+
+.filter-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 12px 32px 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-alt) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgb(212,175,55)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") no-repeat right 12px center;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.filter-select:hover {
+  border-color: var(--text-muted);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.filter-select:focus {
+  border-color: var(--accent-amber);
+}
+
+.filter-select option {
+  background: #1e1e1e;
+  color: #ffffff;
+}
+
+/* Radical grid index bento card */
+.radical-grid-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  max-height: 640px;
+}
+
+.radical-grid-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.radical-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Radical cells styling */
+.radical-cell {
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 8px;
+  position: relative;
+  transition: var(--transition-smooth);
+  user-select: none;
+}
+
+.radical-cell:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-amber);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.radical-cell.active {
+  background: var(--accent-amber);
+  border-color: var(--accent-amber);
+}
+
+.radical-cell.active * {
+  color: #0F0F0F !important;
+}
+
+.radical-cell .cell-no {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.radical-cell .cell-char {
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 6px;
+  color: var(--text-light);
+}
+
+.radical-cell .cell-desc {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-top: 2px;
+}
+
+.radical-cell .cell-strokes {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+/* Semantic badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-abstract { background: rgba(0, 119, 182, 0.15); color: #4ea8de; border-color: rgba(0, 119, 182, 0.3); }
+.badge-plants { background: rgba(46, 196, 182, 0.15); color: #2ec4b6; border-color: rgba(46, 196, 182, 0.3); }
+.badge-human { background: rgba(212, 175, 55, 0.15); color: #D4AF37; border-color: rgba(212, 175, 55, 0.3); }
+.badge-movement { background: rgba(214, 51, 132, 0.15); color: #f15bb5; border-color: rgba(214, 51, 132, 0.3); }
+.badge-tools { background: rgba(108, 117, 125, 0.15); color: #a2aab0; border-color: rgba(108, 117, 125, 0.3); }
+.badge-nature { background: rgba(168, 218, 220, 0.15); color: #a8dadc; border-color: rgba(168, 218, 220, 0.3); }
+.badge-spiritual { background: rgba(155, 93, 229, 0.15); color: #b5179e; border-color: rgba(155, 93, 229, 0.3); }
+.badge-society { background: rgba(241, 91, 181, 0.15); color: #f15bb5; border-color: rgba(241, 91, 181, 0.3); }
+.badge-body { background: rgba(243, 198, 143, 0.15); color: #f3c68f; border-color: rgba(243, 198, 143, 0.3); }
+.badge-buildings { background: rgba(174, 32, 18, 0.15); color: #e63946; border-color: rgba(174, 32, 18, 0.3); }
+
+/* Main workspace */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.workspace-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  position: relative;
+}
+
+/* Canvas Tracing Bento grid section */
+.canvas-wrapper {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.canvas-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Calligraphy container box mimicking fine silk/paper block */
+.brush-canvas-box {
+  width: 320px;
+  height: 320px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: #faf9f6; /* Rice paper aesthetic stays bright for calligraphy contrast */
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.06);
+  cursor: crosshair;
+  transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes border-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.brush-canvas-box.error-state {
+  border-color: var(--accent-red) !important;
+  box-shadow: 0 0 15px rgba(255, 77, 77, 0.3), inset 0 0 20px rgba(0,0,0,0.06) !important;
+  animation: border-shake 0.4s ease-in-out;
+}
+
+.brush-canvas-box.success-state {
+  border-color: var(--accent-green) !important;
+  box-shadow: 0 0 15px rgba(46, 196, 182, 0.3), inset 0 0 20px rgba(0,0,0,0.06) !important;
+}
+
+.brush-canvas-box.mastered-state {
+  border-color: var(--accent-amber) !important;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), inset 0 0 20px rgba(0,0,0,0.06) !important;
+}
+
+.brush-canvas-box canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-controls {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+}
+
+/* Bento buttons */
+.btn-raw {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--bg-card-alt);
+  color: var(--text-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition-smooth);
+}
+
+.btn-raw:hover {
+  background: #2D2D2D;
+  border-color: var(--accent-amber);
+}
+
+.btn-accent {
+  background-color: var(--accent-amber);
+  color: #0F0F0F;
+  border-color: var(--accent-amber);
+}
+
+.btn-accent:hover {
+  background-color: #e5be49;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25);
+}
+
+.btn-green {
+  background-color: rgba(46, 196, 182, 0.1);
+  color: var(--accent-green);
+  border-color: rgba(46, 196, 182, 0.3);
+}
+
+.btn-green:hover {
+  background-color: var(--accent-green);
+  color: #0F0F0F;
+}
+
+.btn-red {
+  background-color: rgba(255, 77, 77, 0.1);
+  color: var(--accent-red);
+  border-color: rgba(255, 77, 77, 0.3);
+}
+
+.btn-red:hover {
+  background-color: var(--accent-red);
+  color: #fff;
+}
+
+
+
+/* Detail info cards (Bento panels) */
+.radical-details-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 250px;
+}
+
+.character-giant-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--bg-card-alt);
+  padding: 16px 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.char-huge {
+  font-family: var(--font-serif);
+  font-size: 5rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--text-light);
+  text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.char-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.char-title-group h2 {
+  font-size: 1.6rem;
+  font-family: var(--font-serif);
+  color: var(--text-light);
+  line-height: 1.2;
+}
+
+.char-pinyin {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-amber);
+}
+
+/* Meta info table */
+.meta-stats-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.meta-stats-table td {
+  border-bottom: 1px solid var(--border-color);
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.meta-stats-table tr:last-child td {
+  border-bottom: none;
+}
+
+.meta-stats-table td:first-child {
+  background: var(--bg-card-alt);
+  width: 45%;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* History Bento grid cells */
+.historical-facts {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .historical-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fact-box {
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  padding-top: 32px;
+  position: relative;
+  transition: var(--transition-smooth);
+}
+
+.fact-box:hover {
+  border-color: var(--accent-amber);
+}
+
+.fact-box-title {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  background: var(--bg-primary);
+  color: var(--accent-amber);
+  padding: 4px 10px;
+  position: absolute;
+  top: -12px;
+  left: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  letter-spacing: 1px;
+}
+
+.fact-box p {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+/* Scroll of wisdom (Philosophy Bento Block) */
+.philosophy-panel {
+  background: linear-gradient(135deg, #161616 0%, #1c1c1c 100%);
+  border-left: 4px solid var(--accent-amber);
+  border-top: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-top: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.philosophy-panel::after {
+  content: "“";
+  position: absolute;
+  top: -10px;
+  right: 20px;
+  font-size: 6rem;
+  font-family: var(--font-serif);
+  color: var(--accent-amber);
+  opacity: 0.08;
+}
+
+.philosophy-title {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--accent-amber);
+  letter-spacing: 1.5px;
+}
+
+.philosophy-quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.1rem;
+  margin-top: 10px;
+  line-height: 1.6;
+  color: var(--text-light);
+}
+
+/* Spaced Repetition (SRS) Dashboard - Pure Bento Grid Elements */
+.srs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.srs-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .srs-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.srs-stat-card {
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  text-align: center;
+  transition: var(--transition-smooth);
+}
+
+.srs-stat-card:hover {
+  border-color: var(--accent-amber);
+}
+
+.srs-stat-card span {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.srs-stat-val {
+  font-size: 2rem;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: var(--text-light);
+  margin-top: 6px;
+}
+
+.srs-stat-val.active-amber { color: var(--accent-amber); }
+.srs-stat-val.active-green { color: var(--accent-green); }
+.srs-stat-val.active-red { color: var(--accent-red); }
+
+/* SRS Quiz Box - Stunning Gold Backdrop focal point */
+.srs-quiz-box {
+  background: var(--accent-amber);
+  color: #0F0F0F;
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 420px;
+  position: relative;
+  transition: var(--transition-smooth);
+}
+
+.srs-quiz-box * {
+  color: #0F0F0F;
+}
+
+.quiz-progress {
+  align-self: stretch;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.75rem;
+  border-bottom: 1px solid rgba(15, 15, 15, 0.15);
+  padding-bottom: 10px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+}
+
+/* Flashcard container */
+.flashcard-container {
+  perspective: 1000px;
+  width: 100%;
+  max-width: 440px;
+  height: 240px;
+  margin: 10px 0 24px 0;
+  cursor: pointer;
+}
+
+.flashcard {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flashcard.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(15, 15, 15, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.card-front {
+  background-color: #0F0F0F;
+}
+
+.card-front * {
+  color: var(--accent-amber);
+}
+
+.card-back {
+  background-color: #1A1A1A;
+  transform: rotateY(180deg);
+}
+
+.card-back * {
+  color: var(--text-light);
+}
+
+.card-front .char-display {
+  font-family: var(--font-serif);
+  font-size: 6rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.card-back .char-meaning {
+  font-family: var(--font-serif);
+  font-size: 2.2rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.card-back .char-pinyin-display {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-amber);
+  margin-top: 4px;
+}
+
+.hint-text {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-top: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+
+/* SRS Answers buttons inside gold box */
+.quiz-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 480px;
+  flex-wrap: wrap;
+}
+
+.quiz-btn {
+  flex: 1;
+  min-width: 110px;
+  padding: 12px;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 15, 15, 0.2);
+  background: #0F0F0F;
+  color: var(--accent-amber);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.quiz-btn:hover {
+  background: #222222;
+  transform: translateY(-1px);
+}
+
+/* Trouble segment bento cards */
+.trouble-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.trouble-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.trouble-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 77, 77, 0.05);
+  transition: var(--transition-smooth);
+  cursor: pointer;
+}
+
+.trouble-card:hover {
+  background: rgba(255, 77, 77, 0.1);
+  border-color: var(--accent-red);
+}
+
+.trouble-char {
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--text-light);
+}
+
+.trouble-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.trouble-meaning {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.trouble-score {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--accent-red);
+  margin-top: 2px;
+}
+
+/* Custom fade animations */
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

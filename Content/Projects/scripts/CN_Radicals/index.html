@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kangxi 214: Chinese Radicals Study & Calligraphy Sage</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    
+    <div class="app-container">
+      
+      <!-- 1. BRUTALIST HEADER -->
+      <header class="app-header">
+        <div class="app-title-group">
+          <h1>康熙 214 : RADICAL SAGE</h1>
+          <p>BRUTALIST CALLIGRAPHY STUDY & SPACED REPETITION ENGINE</p>
+        </div>
+        
+        <!-- WebGPU / Fallback state indicator -->
+        <div class="webgpu-indicator">
+          <span id="webgpu-badge" class="webgpu-status status-inactive">✍️ WEBGPU LOADING...</span>
+        </div>
+        
+        <div class="stats-bar">
+          <div class="stat-box">MASTERED: <span id="stat-mastered" style="color:var(--accent-green)">0</span></div>
+          <div class="stat-box">LEARNING: <span id="stat-learning" style="color:var(--accent-amber)">0</span></div>
+          <div class="stat-box">UNLOCKED: <span id="stat-unlocked">0/214</span></div>
+          <div class="stat-box">STREAK: <span id="stat-streak" style="color:var(--accent-red)">0 Days</span></div>
+        </div>
+      </header>
+      
+      <!-- 2. SIDEBAR (LEFT COLUMN) -->
+      <aside class="sidebar">
+        
+        <!-- View Navigation tabs -->
+        <div class="tab-group">
+          <button class="tab-btn active" id="tab-dictionary" onclick="switchTab('dictionary')">📖 DICTIONARY</button>
+          <button class="tab-btn" id="tab-srs" onclick="switchTab('srs')">🏮 SRS REVIEW</button>
+        </div>
+        
+        <!-- Search and Filters card -->
+        <div class="control-card">
+          <div class="control-title">
+            <span>GRID CONTROLS</span>
+            <span id="grid-results-count" style="font-weight:800; font-size:0.8rem; background:#000; color:#fff; padding:2px 6px;">214 / 214</span>
+          </div>
+          
+          <input type="text" id="search-input" class="search-input" placeholder="Type character, pinyin, or meaning..." />
+          
+          <div class="filter-grid">
+            <select id="filter-category" class="filter-select">
+              <option value="ALL">ALL CATEGORIES</option>
+              <option value="ABSTRACT">ABSTRACT</option>
+              <option value="NATURE">NATURE</option>
+              <option value="ANIMALS">ANIMALS</option>
+              <option value="HUMAN">HUMAN</option>
+              <option value="BODY">BODY / ANATOMY</option>
+              <option value="TOOLS">TOOLS</option>
+              <option value="PLANTS">PLANTS</option>
+              <option value="SOCIETY">SOCIETY</option>
+              <option value="BUILDINGS">BUILDINGS</option>
+              <option value="MOVEMENT">MOVEMENT</option>
+            </select>
+            
+            <select id="filter-strokes" class="filter-select">
+              <option value="ALL">ALL STROKES</option>
+              <option value="1">1 STROKE</option>
+              <option value="2">2 STROKES</option>
+              <option value="3">3 STROKES</option>
+              <option value="4">4 STROKES</option>
+              <option value="5">5 STROKES</option>
+              <option value="6">6 STROKES</option>
+              <option value="7">7 STROKES</option>
+              <option value="8">8 STROKES</option>
+              <option value="9">9 STROKES</option>
+              <option value="10">10 STROKES</option>
+              <option value="11">11 STROKES</option>
+              <option value="12">12 STROKES</option>
+              <option value="13">13 STROKES</option>
+              <option value="14">14 STROKES</option>
+              <option value="15">15 STROKES</option>
+              <option value="16">16 STROKES</option>
+              <option value="17">17 STROKES</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- The Main 214 Radical grid list -->
+        <div class="radical-grid-container">
+          <div class="radical-grid-header">
+            <span>INDEX LIST</span>
+            <span>214 KANGXI CHARS</span>
+          </div>
+          <div class="radical-grid" id="radical-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        
+      </aside>
+      
+      <!-- 3. WORKSPACE (RIGHT COLUMN) -->
+      <main class="workspace">
+        
+        <!-- VIEW A: DICTIONARY RADICAL DETAIL VIEW -->
+        <div id="view-dictionary" class="workspace-panel">
+          
+          <div class="canvas-wrapper">
+            
+            <!-- Tracing Canvas with standard Mizige coordinates guidelines -->
+            <div class="canvas-container">
+              <div class="brush-canvas-box" id="practice-canvas-box">
+                <!-- Underlapping WebGPU canvas for particles stream -->
+                <canvas id="webgpu-canvas" style="z-index: 1; pointer-events: none;"></canvas>
+                <!-- Standard high contrast 2D canvas for ink lines -->
+                <canvas id="practice-canvas" style="z-index: 2; background: transparent;"></canvas>
+              </div>
+              
+              <div class="canvas-controls">
+                <button class="btn-raw" id="clear-btn">🔄 CLEAR WRITING</button>
+                <button class="btn-raw btn-accent" id="play-btn">▶️ ANIMATE STROKES</button>
+              </div>
+            </div>
+            
+            <!-- Metadata table and quick details -->
+            <div class="radical-details-info">
+              <div class="character-giant-row">
+                <span class="char-huge" id="detail-char-huge">一</span>
+                <div class="char-title-group">
+                  <span class="char-pinyin" id="detail-char-pinyin">[ YĪ ]</span>
+                  <h2 id="detail-char-title">一 - ONE</h2>
+                </div>
+              </div>
+              
+              <table class="meta-stats-table">
+                <tr>
+                  <td>KANGXI INDEX</td>
+                  <td id="meta-no"># 1</td>
+                </tr>
+                <tr>
+                  <td>STROKE COUNT</td>
+                  <td id="meta-strokes">1</td>
+                </tr>
+                <tr>
+                  <td>SEMANTIC GROUP</td>
+                  <td><span id="meta-category" class="badge badge-abstract">ABSTRACT</span></td>
+                </tr>
+              </table>
+            </div>
+            
+          </div>
+          
+          <!-- Historical Etymology & Fun Facts Bento -->
+          <div class="historical-facts">
+            <div class="fact-box">
+              <span class="fact-box-title">📜 HISTORICAL ETYMOLOGY</span>
+              <p id="etymology-text">Loading deep etymology...</p>
+            </div>
+            <div class="fact-box">
+              <span class="fact-box-title">💡 CHARACTER TRIVIA</span>
+              <p id="funfact-text">Loading character fun facts...</p>
+            </div>
+          </div>
+          
+          <!-- Scroll of Eastern Philosophy -->
+          <div class="philosophy-panel">
+            <div class="philosophy-title">🌀 EASTERN PHILOSOPHICAL REMARK</div>
+            <p class="philosophy-quote" id="philosophy-quote">"Loading deep wisdom..."</p>
+          </div>
+          
+        </div>
+        
+        <!-- VIEW B: SPACED REPETITION (SRS) LEARNING VIEW -->
+        <div id="view-srs" class="workspace-panel srs-panel" style="display: none;">
+          
+          <!-- SRS statistics header -->
+          <div class="srs-stats-row">
+            <div class="srs-stat-card">
+              <span>MASTERED</span>
+              <div class="srs-stat-val active-green" id="srs-mastered-val">0</div>
+            </div>
+            <div class="srs-stat-card">
+              <span>LEARNING</span>
+              <div class="srs-stat-val active-amber" id="srs-learning-val">0</div>
+            </div>
+            <div class="srs-stat-card">
+              <span>DUE REVIEWS</span>
+              <div class="srs-stat-val active-red" id="srs-pending-val">0</div>
+            </div>
+            <div class="srs-stat-card">
+              <span>STREAK</span>
+              <div class="srs-stat-val" id="srs-streak-val">0 Days</div>
+            </div>
+          </div>
+          
+          <!-- The Study/Review Container -->
+          <div class="srs-quiz-box" id="srs-quiz-box">
+            <!-- Populated via javascript -->
+          </div>
+          
+          <!-- Trouble Radicals Segment -->
+          <div class="trouble-section">
+            <h3 style="font-size:1rem; border-bottom: 3px solid var(--border-color); padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+              <span>⚠️ TROUBLESOME RADICALS (EASILY FORGOTTEN)</span>
+              <span style="font-size:0.75rem; background:var(--accent-red); color:white; padding:2px 6px;">ACTION REQUIRED</span>
+            </h3>
+            <div class="trouble-grid" id="trouble-grid">
+              <!-- Trouble radical cards -->
+            </div>
+          </div>
+          
+        </div>
+        
+      </main>
+      
+    </div>
+    
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
