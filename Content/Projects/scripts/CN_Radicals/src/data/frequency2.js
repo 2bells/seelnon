@@ -128,7 +128,7 @@ export const frequencyRadicals2 = [
     strokes: 15,
     meaning: "Anxiety / Ponder",
     category: "MENTAL_COMM",
-    etymology: "Combines 'tiger' (虍) representing danger with 'think' (思/思), depicting thinking cautiously about potential challenges ahead.",
+    etymology: "Combines 'tiger' (虍) representing danger with 'heart' (心), depicting cautious pondering.",
     funFact: "The second half of '考虑' (consider). Indicates deliberate consideration or deep background processing.",
     philosophy: "Anxiety arises from grasping at future timelines. Pondering with wisdom transforms worry into constructive alignment."
   },
@@ -871,7 +871,7 @@ export const frequencyRadicals2 = [
     strokes: 8,
     meaning: "Real / Solid",
     category: "FREQ_RELATION",
-    etymology: "Shows shell-money or treasures (贝) inside a secure house (宀), representing substance, reality, and solid truth.",
+    etymology: "Represents substance and reality. In simplified form, combines 'roof' (宀) with 'head' (头), indicating the solid reality within.",
     funFact: "Honest reality ('其实' = actually, '实在' = genuinely). Crucial for checking real values and verifying data types.",
     philosophy: "Substance lies within. A solid interior ('实') stands unperturbed by the storm of passing visual trends on the screen."
   },
