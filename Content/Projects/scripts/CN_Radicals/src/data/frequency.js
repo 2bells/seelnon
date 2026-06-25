@@ -18,7 +18,7 @@ export const frequencyRadicals = [
     strokes: 7,
     meaning: "You",
     category: "PRONOUN_PEOPLE",
-    etymology: "Combines 'person' (人) with 'numeral/balance' indicating another individual standing opposite to oneself.",
+    etymology: "Combines 'person' (亻) with '尔' (you/so) to indicate second person.",
     funFact: "Standard singular second-person pronoun. Represents the active recipient or target peer in any direct data transmission.",
     philosophy: "Without 'You', there is no 'I'. The presence of the other allows the reflection and realization of the self."
   },
@@ -73,7 +73,7 @@ export const frequencyRadicals = [
     strokes: 7,
     meaning: "This",
     category: "PRONOUN_PEOPLE",
-    etymology: "Combines the 'movement' radical (辶) with 'speech/origin' (这), pointing to a close or immediate destination.",
+    etymology: "Combines the 'movement' radical (辶) with '文' (writing/culture) — or simply 辶 + 文.",
     funFact: "Proximity pointer (right here, this active element). References local scope variables (e.g., 'this' keyword in JS).",
     philosophy: "Presence is the only reality. 'This' anchors us firmly in the immediate here-and-now, the raw locus of direct experience."
   },
@@ -539,7 +539,7 @@ export const frequencyRadicals = [
     strokes: 5,
     meaning: "To write",
     category: "ACTION_VERB",
-    etymology: "Combines 'roof/shelter' (宀) with 'bird' or 'structure' representing placing items in order, later restricted to text strokes.",
+    etymology: "Combines 'cover' (冖) with 'give/with' (与), representing arranging or placing items in order.",
     funFact: "Active file updates, data input, or rendering calligraphy lines on a WebGPU canvas.",
     philosophy: "Writing is crystallizing the ephemeral. Each brush stroke gives a temporary physical shape to formless mind-currents."
   },
@@ -882,7 +882,7 @@ export const frequencyRadicals = [
     strokes: 7,
     meaning: "Enter / In",
     category: "SPACE_TIME",
-    etymology: "Combines the 'movement' radical (辶) with 'bird' (隹), representing stepping forward with high velocity.",
+    etymology: "Combines the 'movement' radical (辶) with 'well' (井), representing stepping forward.",
     funFact: "Data inputs, importing modules, or entering nested sub-views within the study grid.",
     philosophy: "Progress is steady forward movement. Every small step inward brings us closer to the target."
   },
