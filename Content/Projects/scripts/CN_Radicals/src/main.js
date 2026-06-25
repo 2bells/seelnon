@@ -34,6 +34,8 @@ const STATE = {
   practiceStrokeIndex: 0, // which stroke is the user practicing
   practiceSuccessCount: 0,
   isPracticing: false,
+  multiCharSequence: [], // characters in a multi-character word
+  multiCharIndex: 0, // current character index being practiced
   
   // Particle Systems
   particles2D: [],
@@ -479,9 +481,33 @@ function initHanziWriter(char) {
   
   // Always draw our traditional Mizige grid backdrop first
   drawCalligraphyGrid();
+
+  // Handle multi-character sequence routing
+  let targetChar = char;
+  const indicator = document.getElementById('sequence-indicator');
+  
+  if (char && char.length > 1) {
+    const sequenceStr = STATE.multiCharSequence.join('');
+    if (sequenceStr !== char) {
+      STATE.multiCharSequence = char.split('');
+      STATE.multiCharIndex = 0;
+    }
+    targetChar = STATE.multiCharSequence[STATE.multiCharIndex];
+    
+    if (indicator) {
+      indicator.style.display = 'block';
+      indicator.innerText = `${STATE.multiCharIndex + 1} / ${STATE.multiCharSequence.length} [ ${targetChar} ]`;
+    }
+  } else {
+    STATE.multiCharSequence = [];
+    STATE.multiCharIndex = 0;
+    if (indicator) {
+      indicator.style.display = 'none';
+    }
+  }
   
   if (typeof HanziWriter !== 'undefined') {
-    STATE.hanziWriter = HanziWriter.create('hanzi-writer-container', char, {
+    STATE.hanziWriter = HanziWriter.create('hanzi-writer-container', targetChar, {
       width: 320,
       height: 320,
       padding: 30,
@@ -535,6 +561,16 @@ function startHanziQuiz() {
         canvasBox.classList.add('mastered-state');
       }
       triggerMasteryCelebration();
+      
+      // If we are in a multi-character sequence and have characters remaining, advance to the next
+      if (STATE.multiCharSequence.length > 1 && STATE.multiCharIndex < STATE.multiCharSequence.length - 1) {
+        STATE.multiCharIndex++;
+        setTimeout(() => {
+          initHanziWriter(STATE.multiCharSequence.join(''));
+        }, 1200);
+        return;
+      }
+      
       markRadicalPracticed(STATE.selectedRadicalNo);
       clearDrawingCanvas(); // Clear speed-sensitive canvas on completion
     }
@@ -668,6 +704,10 @@ function selectRadical(no) {
   // Highlight new cell
   const newActive = document.getElementById(`cell-${no}`);
   if (newActive) newActive.classList.add('active');
+  
+  // Reset multi-character sequence on selection of a different item
+  STATE.multiCharSequence = [];
+  STATE.multiCharIndex = 0;
   
   renderRadicalDetail();
 }
