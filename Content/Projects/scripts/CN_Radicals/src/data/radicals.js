@@ -8,6 +8,7 @@ import { filterRadicals } from './filter.js';
 import { frequencyRadicals } from './frequency.js';
 import { frequencyRadicals2 } from './frequency2.js';
 import { slangRadicals } from './slang.js';
+import { ancientRadicals } from './ancient.js';
 
 export const keyRadicalsData = [
   {
@@ -1114,7 +1115,8 @@ const combinedRadicals = [
   ...filterRadicals,
   ...frequencyRadicals,
   ...frequencyRadicals2,
-  ...slangRadicals
+  ...slangRadicals,
+  ...ancientRadicals
 ];
 
 export const radicals = combinedRadicals;
