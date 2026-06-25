@@ -48,7 +48,7 @@ In my experience I had 14.. and that could be referencing 14 Manu as well? The a
 
 > This is the Father, the second demiurge. Through the breath of his mouth, the forethought inspired those without existence. They came into being through the will of this one, because it is he who commands the All, so that it comes into existence.
 
-Demiurge used as a 'creator' of sorts, rather than Yaldabaoth. From position of Hindu it will be Brahma (Physical Universe) but Brahma is more or less container type and 'appears' as form for the Universe to give 'workers'/'architects' a place to start making stuff, thus Manu or Elohim. In my experience that's when you go, grab some stuff of primordial concepts (previous 14 things) and go to town. But creation asks for polarity already, so while grabbing material you also need 'negative' of that as well. And there is not much conscious activity even happening, it just 'happens' from pure intent. But again, it is reporting from the PoV of a human.
+Demiurge used as a 'creator' of sorts, rather than Yaldabaoth. From position of Hindu it will be Brahma (Physical Universe) but Brahma is more or less container type and 'appears' as form for the Universe to give 'workers'/'architects' a place to start making stuff, thus Manu or Elohim. In my experience that's when you go, grab some stuff of primordial concepts (previous 14 things) and go to town. But creation asks for polarity already, so while grabbing material you also need 'negative' of that as well. And there is not much conscious activity even happening, it just 'happens' from pure intent. But again, it is reporting from the PoV of a human. [correction: you don't grab 'negatives', they happen later by itself. When I say 'creation asks' it's more like 'notifies': "hey... about that". And it is closer to an idea of using an 'Aeon' as material. It is like you grab Understanding, Wisdom, Bliss, Knowledge, Curiosity - you make a universe out of it and it also creates negatives later, so Selfishness (Close mindness), Arrogance, Mystery, Ignorance, Indifference. Overall creation is 'restrictions' placed on the 'Universal Mind'/Brahman, rahter then 'making stuff up', but because it is 'A Mind' the concepts are psychological in nature.]
 
 > He created the holy Pleroma in this way: four gates with four monads within it, one monad to each gate and six helpers (parastatai) to each gate.
 
@@ -197,7 +197,7 @@ Once again explaining the 'universal game'.
 
 > it is written: "They all became one in the one and only One '." [...] This became law in Aphredonia, and mighty.
 
-This one is confusing tbh. Unity understood in separation (?) so bringing 'self' together into unity becomes 'One'. Saying: ok we are getting split to start the game, end game is going back into One. And confusing to me, because it has the 'end goal' (?)... or I'm actually missing something here.
+This one is confusing tbh. Unity understood in separation (?) so bringing 'self' together into unity becomes 'One'. Saying: ok we are getting split to start the game, end game is going back into One. And confusing to me, because it has the 'end goal' (?)... or I'm actually missing something here. [Me from the future: I think it is just Christ specific. Next chapters made me spiral into confusion for a bit.]
 
 ## 12.
 
@@ -265,7 +265,7 @@ But let's be honest we are thrown into mid game out of nowhere. It could be just
 
 Hi, trice great. Casual Hermes Trismegistus name drop... the question mark is in text btw. Yes I'm also confused, because we are still talking about aeon of 'Father' that has blessings and aeon 'Mother' archetype ready to bring forth the physical instance, but we already had Solomon, Adam and now Hermes. While dropping angels / archangels and ministers from the back pocket.
 
-It has a heavy feel of author being: ok cool stuff, I see my fractals, but now... I see the image of Christ, so... lemmi drop some names and ground things, so my people now that 'we are on the same team'. (but with name drops and a little bit more grounded work there should be much more material on those chapters, especially if those meant to be 'for my people'. And those name drops could be the reason why text still exists.)
+It has a heavy feel of author being: ok cool stuff, I see my fractals, but now... I see the image of Christ, so... lemmi drop some names and ground things, so my people know that 'we are on the same team'. (but with name drops and a little bit more grounded work there should be much more material on those chapters, especially if those meant to be 'for my people'. And those name drops could be the reason why text still exists.)
 
 ## 15.
 
@@ -315,7 +315,7 @@ The man of clay is here. Welcome back, Adam.
 
 > He made it into two parts and two lands. And he set boundaries to each land. And he told them that they were from one father and one mother.
 
-We making heavens, hells, Midgards. So lands of light / darkness so universal game has a place to be properly played.
+We making heavens, hells, Midgards. So lands of light / darkness so universal game has a place to be properly played. [correction: progression system]
 
 > And he set boundaries between them, and veils between them, so that they should not see one another. And he placed watchers upon their veils.
 
@@ -343,11 +343,11 @@ Imagine you just a fae doing your business in your fairy realm, then 'BAM!' ever
 
 > And he heard them, he sent powers of discernment which know the ordinance of the hidden aeons.
 
-Ok we kind of in Genesis 1 territory. But now it is request from different type of beings that has to request material and specify their project / creation. That kind of the whole Tower of Babel being a very sophisticated construction that had to be a prayer / request first. So it was not fully within the rules of the 'creation', so 'fuck your tower' moment. Humanity got sanctioned frame 1... sad...
+Ok we kind of in Genesis 1 territory [Meaning 'Sub creators'/Archons creating with similar 'ask/recieve' sctructure, not Genesis 1 scale. That was ch.4-7]. But now it is request from different type of beings that has to request material and specify their project / creation. That kind of the whole Tower of Babel being a very sophisticated construction that had to be a prayer / request first. So it was not fully within the rules of the 'creation', so 'fuck your tower' moment. Humanity got sanctioned frame 1... sad...
 
 > And he created the land of air ', the dwelling-place of those that come forth, that they should remain upon it until the establishment of those below them.
 
-This might be me missing something or air means something else. Because we had elements a bit before and the original 'Man' as well.
+This might be me missing something or air means something else. Because we had elements a bit before and the original 'Man' as well. [Asgard vibes tho]
 
 > Next (is) the true dwelling-place. Within this the place of repentance. Within this the antitypes of erodes
 
