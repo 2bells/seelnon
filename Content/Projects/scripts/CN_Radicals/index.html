@@ -5,28 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kangxi 214: Chinese Radicals Study & Calligraphy Sage</title>
     <link rel="stylesheet" href="./src/style.css" />
+    <script src="./src/hanzi-writer.min.js"></script>
   </head>
   <body>
     
     <div class="app-container">
       
-      <!-- 1. BRUTALIST HEADER -->
+      <!-- 1.  BRUTALIST HEADER -->
       <header class="app-header">
         <div class="app-title-group">
           <h1>康熙 214 : RADICAL SAGE</h1>
-          <p>BRUTALIST CALLIGRAPHY STUDY & SPACED REPETITION ENGINE</p>
-        </div>
-        
-        <!-- WebGPU / Fallback state indicator -->
-        <div class="webgpu-indicator">
-          <span id="webgpu-badge" class="webgpu-status status-inactive">✍️ WEBGPU LOADING...</span>
-        </div>
-        
-        <div class="stats-bar">
-          <div class="stat-box">MASTERED: <span id="stat-mastered" style="color:var(--accent-green)">0</span></div>
-          <div class="stat-box">LEARNING: <span id="stat-learning" style="color:var(--accent-amber)">0</span></div>
-          <div class="stat-box">UNLOCKED: <span id="stat-unlocked">-</span></div>
-          <div class="stat-box">STREAK: <span id="stat-streak" style="color:var(--accent-red)">0 Days</span></div>
         </div>
       </header>
       
@@ -111,8 +99,12 @@
               <div class="brush-canvas-box" id="practice-canvas-box">
                 <!-- Underlapping WebGPU canvas for particles stream -->
                 <canvas id="webgpu-canvas" style="z-index: 1; pointer-events: none;"></canvas>
+                <!-- Separate sharp background grid for Mizige lines -->
+                <canvas id="grid-canvas" style="z-index: 1.1; background: transparent; pointer-events: none;"></canvas>
                 <!-- Standard high contrast 2D canvas for ink lines -->
-                <canvas id="practice-canvas" style="z-index: 2; background: transparent;"></canvas>
+                <canvas id="practice-canvas" style="z-index: 2; background: transparent; pointer-events: none;"></canvas>
+                <!-- Hanzi Writer interactive layer -->
+                <div id="hanzi-writer-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3;"></div>
               </div>
               
               <div class="canvas-controls">
@@ -126,7 +118,10 @@
               <div class="character-giant-row">
                 <span class="char-huge" id="detail-char-huge">一</span>
                 <div class="char-title-group">
-                  <span class="char-pinyin" id="detail-char-pinyin">[ YĪ ]</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="char-pinyin" id="detail-char-pinyin">[ YĪ ]</span>
+                    <button id="speak-btn" class="speak-btn" title="Listen Pronunciation">🔊 LISTEN</button>
+                  </div>
                   <h2 id="detail-char-title">一 - ONE</h2>
                 </div>
               </div>
@@ -134,7 +129,15 @@
               <table class="meta-stats-table">
                 <tr>
                   <td>KANGXI INDEX</td>
-                  <td id="meta-no"># 1</td>
+                  <td style="display: flex; justify-content: space-between; align-items: center;">
+                    <span id="meta-no"># 1</span>
+                    <a id="meta-more-link" class="meta-more-btn" href="#" target="_blank">MORE ↗</a>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>STROKE COUNT</td>
+                  <td id="meta-strokes">1</td>
                 </tr>
 
                 <tr>
@@ -212,5 +215,34 @@
     </div>
     
     <script type="module" src="./src/main.js"></script>
+
+    <!-- SVG Filter for Calligraphy Ink Bleed Effect -->
+    <svg style="position: absolute; width: 0; height: 0; pointer-events: none;" width="0" height="0">
+      <defs>
+        <filter id="ink-bleed" x="-10%" y="-10%" width="120%" height="120%">
+          <!-- Fine fractal noise to distort stroke edges organically -->
+          <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" result="noise" />
+          
+          <!-- Displace the stroke vector based on noise to make it look rough/hand-painted -->
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+          
+          <!-- Soften the edges to simulate liquid ink bleeding slightly into paper fiber -->
+          <feGaussianBlur in="displaced" stdDeviation="0.6" result="blur" />
+          
+          <!-- Enhance contrast of the bleed to keep it compact and not too blurry -->
+          <feColorMatrix type="matrix" values="
+            1 0 0 0 0
+            0 1 0 0 0
+            0 0 1 0 0
+            0 0 0 1.8 -0.3" in="blur" result="ink-edge" />
+          
+          <!-- Blend the core ink (displaced) and the bleed (ink-edge) -->
+          <feMerge>
+            <feMergeNode in="ink-edge" />
+            <feMergeNode in="displaced" />
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
   </body>
 </html>

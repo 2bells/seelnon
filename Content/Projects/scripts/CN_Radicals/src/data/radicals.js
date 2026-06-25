@@ -20,10 +20,7 @@ export const keyRadicalsData = [
     etymology: "A single horizontal brush stroke. In ancient Chinese thought, it represents the primordial origin, the Great Oneness (Taiyi) from which the universe emerged.",
     funFact: "It is the simplest Chinese character, yet it carries the deepest metaphysical weight as the boundary between nothingness and existence.",
     philosophy: "The Tao begot One. One begot Two. Two begot Three. Three begot all things. (Lao Tzu, Tao Te Ching). It represents pure, unmanifested unity.",
-    strokePaths: [
-      [[15, 50], [85, 50]]
-    ]
-  },
+    },
   {
     no: 2,
     char: "丨",
@@ -34,10 +31,7 @@ export const keyRadicalsData = [
     etymology: "A vertical line representing the connection between Heaven and Earth, high and low, or an active channel of communication.",
     funFact: "In calligraphy, this stroke requires absolute steadiness; any wobble betrays an ungrounded mind.",
     philosophy: "Representing uprightness, rectitude, and the vertical axis mundi. It is the spine of Chinese script, the bridge between material and spiritual realms.",
-    strokePaths: [
-      [[50, 15], [50, 85]]
-    ]
-  },
+    },
   {
     no: 3,
     char: "丶",
@@ -48,10 +42,7 @@ export const keyRadicalsData = [
     etymology: "A tiny drop or point of ink. Historically depicted as a small flame, an ember, or a mark of focus indicating a specific spot.",
     funFact: "In early scriptures, it was used to mark a paragraph end, or to denote the host/leader of an assembly.",
     philosophy: "The cosmic seed. Like the Singularity before the Big Bang, a single dot contains infinite potential waiting to expand.",
-    strokePaths: [
-      [[45, 45], [55, 55]]
-    ]
-  },
+    },
   {
     no: 4,
     char: "丿",
@@ -62,10 +53,7 @@ export const keyRadicalsData = [
     etymology: "A sweeping diagonal stroke from top-right to bottom-left. Represents kinetic force, shedding of constraints, or active descent.",
     funFact: "It mimics the graceful swoop of a falling leaf or the swift slash of a sword blade.",
     philosophy: "The leftward slash represents Yang in action—fast, cutting, dynamic, and releasing energy outwards into the void.",
-    strokePaths: [
-      [[85, 15], [70, 25], [50, 50], [25, 75], [15, 85]]
-    ]
-  },
+    },
   {
     no: 5,
     char: "乙",
@@ -76,10 +64,7 @@ export const keyRadicalsData = [
     etymology: "A winding, hook-tipped line depicting a young plant struggling to sprout through the hard crust of early spring soil.",
     funFact: "It is the second of the Ten Heavenly Stems, associated with the element of Wood and the direction of East.",
     philosophy: "Represents flexible resilience. True growth is never a straight line; it bends around obstacles and conquers through patience.",
-    strokePaths: [
-      [[25, 30], [75, 30], [35, 70], [75, 70], [75, 60]]
-    ]
-  },
+    },
   {
     no: 6,
     char: "亅",
@@ -90,10 +75,7 @@ export const keyRadicalsData = [
     etymology: "A vertical line with a sharp left-pointing hook at the bottom. Originates from drawings of fishing hooks or barbs.",
     funFact: "This is one of the hardest brush strokes to master because it requires a sudden flick of the wrist called 'rebending'.",
     philosophy: "The hook represents containment and retrieval. It is the ability to grasp onto what is valuable and pull it back to center.",
-    strokePaths: [
-      [[50, 15], [50, 85], [35, 70]]
-    ]
-  },
+    },
   {
     no: 7,
     char: "二",
@@ -104,11 +86,18 @@ export const keyRadicalsData = [
     etymology: "Two parallel horizontal lines. In ancient thought, the top line represents Heaven, and the bottom line represents Earth.",
     funFact: "It represents Yin—the feminine, receptive, and passive principle that balances the masculine, active Yang.",
     philosophy: "The split of unity. From the One comes duality: hot and cold, light and dark, male and female. Duality is the canvas of experience.",
-    strokePaths: [
-      [[20, 35], [80, 35]],
-      [[10, 65], [90, 65]]
-    ]
-  },
+    },
+  {
+    no: 8,
+    char: "亠",
+    pinyin: "tóu",
+    strokes: 2,
+    meaning: "lid",
+    category: "ABSTRACT",
+    etymology: "Depicts an ancient top-cover, lid, or canopy representing protection or the uppermost layer of a structure.",
+    funFact: "Always appears at the top of characters, acting as a roof-like lid over other components.",
+    philosophy: "The cosmic lid. It defines the upper boundary, shielding and separating the sacred inner space from outer elements.",
+    },
   {
     no: 9,
     char: "人",
@@ -119,11 +108,7 @@ export const keyRadicalsData = [
     etymology: "A profile of a standing person with legs apart, leaning slightly forward, indicating action, labor, and humility.",
     funFact: "It is the most common radical in Chinese, forming the backbone of thousands of characters relating to human activities.",
     philosophy: "A human is defined by their relationships. The two strokes lean on each other: 'No man is an island'—humanity stands together.",
-    strokePaths: [
-      [[50, 15], [20, 85]],
-      [[40, 45], [80, 85]]
-    ]
-  },
+    },
   {
     no: 10,
     char: "儿",
@@ -134,11 +119,7 @@ export const keyRadicalsData = [
     etymology: "Derived from a depiction of an infant with a soft skull and legs, or a person with emphasized legs representing movement.",
     funFact: "In modern Mandarin, it is widely used as a suffix ('er') that gives words a warm, colloquial, or diminutive feel.",
     philosophy: "The child represents beginning, pure potential, and the continuous cycle of generations that ensures eternal life.",
-    strokePaths: [
-      [[35, 20], [35, 65], [20, 85]],
-      [[65, 20], [65, 75], [85, 75], [85, 60]]
-    ]
-  },
+    },
   {
     no: 11,
     char: "入",
@@ -149,11 +130,7 @@ export const keyRadicalsData = [
     etymology: "Depicts an arrowhead or sharp tip penetrating a surface, or two lines crossing as someone steps inside a doorway.",
     funFact: "It looks very similar to 人 (person) and 八 (eight), which is a common trap for beginner calligraphers.",
     philosophy: "Entering is an act of intention. To cross a threshold is to leave one state behind and accept the terms of the next.",
-    strokePaths: [
-      [[45, 15], [15, 85]],
-      [[35, 30], [85, 85]]
-    ]
-  },
+    },
   {
     no: 12,
     char: "八",
@@ -164,11 +141,62 @@ export const keyRadicalsData = [
     etymology: "Two curved lines facing away from each other, representing a physical object being split or divided into parts.",
     funFact: "In Chinese culture, eight is the luckiest number because 'bā' sounds like 'fā' (to prosper or make wealth).",
     philosophy: "Division leads to multiplicity. It is also the number of the I Ching Trigrams (Bagua), representing the fundamental aspects of reality.",
-    strokePaths: [
-      [[40, 25], [15, 75]],
-      [[60, 25], [85, 75]]
-    ]
-  },
+    },
+  {
+    no: 13,
+    char: "冂",
+    pinyin: "jiōng",
+    strokes: 2,
+    meaning: "down box",
+    category: "TOOLS",
+    etymology: "A simple open-bottom box representing borders, wild country, or deep waste fields away from town.",
+    funFact: "Often wraps around other characters to designate an enclosed perimeter or a territorial domain.",
+    philosophy: "An open border. It provides space on the sides and top, but remains open at the base for constant grounding and flow.",
+    },
+  {
+    no: 14,
+    char: "冖",
+    pinyin: "mì",
+    strokes: 2,
+    meaning: "cover",
+    category: "BUILDINGS",
+    etymology: "An ancient cloth canopy or cover placed over an object to hide, protect, or envelop it entirely.",
+    funFact: "Unlike the roof radical, it lacks a chimney dot, denoting a simpler fabric drape or a flat cover.",
+    philosophy: "The veil. Wrapping elements in mystery, it reminds us that some truths are protected under a soft, silent shroud.",
+    },
+  {
+    no: 15,
+    char: "冫",
+    pinyin: "bīng",
+    strokes: 2,
+    meaning: "ice",
+    category: "NATURE",
+    etymology: "Two cold condensation droplets. A simplified representation of ice crystals or frozen water droplets.",
+    funFact: "Always situated on the left side of characters, indicating freezing, chilliness, or condensation.",
+    philosophy: "Stillness and solidification. Ice represents water that has lost its flow to the cold, turning flexible energy into rigid structure.",
+    },
+  {
+    no: 16,
+    char: "几",
+    pinyin: "jǐ",
+    strokes: 2,
+    meaning: "table",
+    category: "TOOLS",
+    etymology: "A low wooden table or stool used in ancient households to rest books, arms, or small items.",
+    funFact: "It evolved into a very common phonetic and semantic element in characters relating to furniture and platforms.",
+    philosophy: "The platform. A humble, sturdy supporter of daily tasks, teaching us the dignity of serving as a steady foundation.",
+    },
+  {
+    no: 17,
+    char: "凵",
+    pinyin: "qǐ",
+    strokes: 2,
+    meaning: "open box",
+    category: "TOOLS",
+    etymology: "An open-topped container or pit dug into the ground to receive or catch falling rain, grain, or wild game.",
+    funFact: "Also called the 'receptacle' radical, it often wraps other elements from the bottom.",
+    philosophy: "The cup. To receive the bounty of Heaven, one must remain open, empty, and hollowed out.",
+    },
   {
     no: 18,
     char: "刀",
@@ -179,11 +207,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of an ancient bronze knife, showcasing the curved cutting edge, the blunt back, and the handle.",
     funFact: "When appearing on the right side of a character, it transforms into the vertical double-stroke '刂'.",
     philosophy: "The blade is an instrument of discrimination. It cuts away the superfluous to reveal the core, separating truth from falsehood.",
-    strokePaths: [
-      [[25, 25], [75, 25], [75, 80], [60, 65]],
-      [[45, 25], [25, 80]]
-    ]
-  },
+    },
   {
     no: 19,
     char: "力",
@@ -194,11 +218,51 @@ export const keyRadicalsData = [
     etymology: "Depicts an ancient wooden plow pushing through earth, or a tensed arm muscle executing strenuous physical labor.",
     funFact: "Combined with 田 (field), it forms 男 (man) — the one who applies physical strength in the field.",
     philosophy: "True power is not coercive; it is the capacity for creative labor and the stamina to endure difficult seasons.",
-    strokePaths: [
-      [[25, 35], [75, 35], [75, 80], [60, 65]],
-      [[50, 15], [25, 85]]
-    ]
-  },
+    },
+  {
+    no: 20,
+    char: "勹",
+    pinyin: "bāo",
+    strokes: 2,
+    meaning: "wrap",
+    category: "TOOLS",
+    etymology: "A curved arm or fabric wrapping around an object, representing bundling, containment, or protective wrapping.",
+    funFact: "It forms the semantic frame of characters dealing with parcels, wrapping, surrounding, and pregnancy.",
+    philosophy: "Enclosure. Protection is necessary for incubation, but one must eventually break the wrap to step into the light.",
+    },
+  {
+    no: 21,
+    char: "匕",
+    pinyin: "bǐ",
+    strokes: 2,
+    meaning: "spoon",
+    category: "TOOLS",
+    etymology: "An ancient serving spoon or a ladle. Also depicts a human sitting or kneeling in a reverent posture.",
+    funFact: "In calligraphy, it looks very similar to 七 (seven), but has a completely different stroke order and curves.",
+    philosophy: "The spoon feeds and nourishes, reminding us of the basic daily cycle of nourishment and physical survival.",
+    },
+  {
+    no: 22,
+    char: "匚",
+    pinyin: "fāng",
+    strokes: 2,
+    meaning: "box",
+    category: "TOOLS",
+    etymology: "An open-sided wooden chest or container used to keep dry grains, tools, or precious ritual artifacts safely.",
+    funFact: "Known as the 'side box' radical, it always encloses characters from the left, top, and bottom.",
+    philosophy: "Safe-keeping. It protects on three sides, providing a secure shelter while leaving one side open to interact with the world.",
+    },
+  {
+    no: 23,
+    char: "匸",
+    pinyin: "xì",
+    strokes: 2,
+    meaning: "hiding box",
+    category: "TOOLS",
+    etymology: "A closed container or cabinet designed with a latch to conceal, hide, or protect its contents from view.",
+    funFact: "Very similar to 匚, but traditionally had a tiny overhang at the top-left to designate concealment.",
+    philosophy: "The secret. Not all things must be seen. The hidden box holds the unspoken, sacred potential of the universe.",
+    },
   {
     no: 24,
     char: "十",
@@ -209,11 +273,7 @@ export const keyRadicalsData = [
     etymology: "A horizontal line (East-West) crossed by a vertical line (North-South). It represents the completion of all directions.",
     funFact: "In many ancient cultures, 10 is the base of counting due to our ten fingers; in China, it represents ultimate perfection.",
     philosophy: "The crossroads of space and time. It is the intersection where the material horizontal meets the spiritual vertical.",
-    strokePaths: [
-      [[15, 50], [85, 50]],
-      [[50, 15], [50, 85]]
-    ]
-  },
+    },
   {
     no: 25,
     char: "卜",
@@ -224,11 +284,40 @@ export const keyRadicalsData = [
     etymology: "Depicts the cracks that formed on heated oracle bones or turtle shells during ancient royal divination rituals.",
     funFact: "The pronunciation 'bǔ' is an onomatopoeia mimicking the sound of bone cracking under heat: 'pop!'",
     philosophy: "Seeking alignment with the cosmos. Divination was not about fortune-telling, but finding one's harmonious position in the Dao.",
-    strokePaths: [
-      [[50, 15], [50, 85]],
-      [[50, 45], [80, 45]]
-    ]
-  },
+    },
+  {
+    no: 26,
+    char: "卩",
+    pinyin: "jié",
+    strokes: 2,
+    meaning: "seal",
+    category: "TOOLS",
+    etymology: "A kneeling person, depicting an ancient split jade token or tally used by rulers as a sign of authority and trust.",
+    funFact: "When appearing in compound characters, it often acts on the right side and resembles an upright tag.",
+    philosophy: "Credential and alignment. The seal represents our innate trust and compliance with the natural laws of the Dao.",
+    },
+  {
+    no: 27,
+    char: "厂",
+    pinyin: "chǎng",
+    strokes: 2,
+    meaning: "cliff",
+    category: "NATURE",
+    etymology: "A steep, overhanging mountain cliff or rock shelter where ancient humans sought refuge from storms.",
+    funFact: "In modern simplified Chinese, it is also used as a shorthand for 'factory' (工厂), representing a large workspace.",
+    philosophy: "Refuge under the rock. The cliff stands firm against wind and rain, providing shelter to those who rest beneath its shadow.",
+    },
+  {
+    no: 28,
+    char: "厶",
+    pinyin: "sī",
+    strokes: 2,
+    meaning: "private",
+    category: "ABSTRACT",
+    etymology: "An abstract drawing of an enclosed space or cocoon representing self-containment, privacy, or individual concerns.",
+    funFact: "Evolved into the character for 'private' or 'selfish' (私), representing things kept to oneself.",
+    philosophy: "The inner garden. Privacy allows the quiet development of the self away from public distraction and social noise.",
+    },
   {
     no: 29,
     char: "又",
@@ -239,11 +328,7 @@ export const keyRadicalsData = [
     etymology: "A simplified drawing of a right hand with three extended fingers. Used to represent action, grasping, and repetition.",
     funFact: "Because the hand is used repeatedly to perform tasks, the character evolved to mean 'again' or 'furthermore'.",
     philosophy: "Consistency is key. What we do 'again and again' defines our character and shapes our destiny. Mastery is repetitive action.",
-    strokePaths: [
-      [[20, 30], [80, 30], [30, 85]],
-      [[35, 45], [80, 85]]
-    ]
-  },
+    },
   {
     no: 30,
     char: "口",
@@ -254,12 +339,7 @@ export const keyRadicalsData = [
     etymology: "An open, square mouth, representing speech, eating, respiration, and a general gateway or aperture.",
     funFact: "It is one of the top five most productive radicals, appearing in thousands of characters associated with tasting, shouting, and eating.",
     philosophy: "The mouth is the gatekeeper of the soul. What enters can nourish or poison; what exits can heal or destroy. Speak with intent.",
-    strokePaths: [
-      [[25, 20], [25, 80]],
-      [[25, 20], [75, 20], [75, 80]],
-      [[25, 80], [75, 80]]
-    ]
-  },
+    },
   {
     no: 32,
     char: "土",
@@ -270,12 +350,7 @@ export const keyRadicalsData = [
     etymology: "Depicts a mound of soil resting on a flat piece of ground, or a clay altar representing local earth gods.",
     funFact: "In the Five Elements theory, Earth occupies the center, balancing Water, Fire, Wood, and Metal.",
     philosophy: "The silent mother. Earth receives all waste and transforms it into fresh blossom. It is the foundation of ultimate patience.",
-    strokePaths: [
-      [[25, 45], [75, 45]],
-      [[50, 15], [50, 80]],
-      [[15, 80], [85, 80]]
-    ]
-  },
+    },
   {
     no: 37,
     char: "大",
@@ -286,12 +361,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of a front-facing human standing tall with arms wide open, expressing vast scale, magnitude, or grandeur.",
     funFact: "Adding a dot at the bottom of 大 forms 太 (tài - too/extreme), representing something expanding beyond even 'big'.",
     philosophy: "True greatness is modeled after the human who realizes their cosmic scale. 'Man conforms to Earth, Earth to Heaven, Heaven to Dao.'",
-    strokePaths: [
-      [[15, 35], [85, 35]],
-      [[50, 15], [20, 85]],
-      [[45, 45], [80, 85]]
-    ]
-  },
+    },
   {
     no: 38,
     char: "女",
@@ -302,12 +372,7 @@ export const keyRadicalsData = [
     etymology: "A depiction of a kneeling person with hands crossed in front, representing modesty, patience, and traditional domestic roles.",
     funFact: "Combined with 子 (child), it forms 好 (hǎo - good/harmonious), depicting the core familial bond.",
     philosophy: "Represents Yin—receptivity, internal strength, nourishment, and the dark water-like wisdom that quietens all storms.",
-    strokePaths: [
-      [[50, 15], [25, 65], [75, 65]],
-      [[25, 35], [75, 85]],
-      [[15, 50], [85, 50]]
-    ]
-  },
+    },
   {
     no: 39,
     char: "子",
@@ -318,12 +383,7 @@ export const keyRadicalsData = [
     etymology: "An infant with a large head, flailing arms, and legs wrapped in a swaddling blanket.",
     funFact: "In ancient China, 'Zǐ' was an honorary title of ultimate respect for great philosophers, like Kong Fuzi (Confucius) or Laozi.",
     philosophy: "The child-mind is the ideal state in Taoism—free of rigid conditioning, fully curious, flexible, and filled with vital life energy.",
-    strokePaths: [
-      [[25, 25], [75, 25], [35, 55]],
-      [[35, 55], [35, 75], [55, 75], [55, 60]],
-      [[15, 45], [85, 45]]
-    ]
-  },
+    },
   {
     no: 46,
     char: "山",
@@ -334,12 +394,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of three peaks rising sharply side-by-side, symbolizing heights, immovability, and natural majesty.",
     funFact: "Mountains are considered sacred in China, housing hermit sages and acting as pillars keeping Heaven separate from Earth.",
     philosophy: "Stillness. The mountain does not seek attention, yet it stands high above all. It teaches us the power of absolute presence.",
-    strokePaths: [
-      [[50, 15], [50, 80]],
-      [[20, 35], [20, 80], [80, 80]],
-      [[80, 35], [80, 80]]
-    ]
-  },
+    },
   {
     no: 47,
     char: "巛",
@@ -350,12 +405,7 @@ export const keyRadicalsData = [
     etymology: "Three parallel vertical lines representing flowing water, rapids, or winding river channels cutting through cliffs.",
     funFact: "In modern characters, it is usually simplified to 川, which looks like three clean streams.",
     philosophy: "Flow. 'Nothing in the world is as soft and yielding as water, yet for dissolving the hard and inflexible, nothing can surpass it.'",
-    strokePaths: [
-      [[25, 20], [25, 80]],
-      [[50, 15], [50, 85]],
-      [[75, 20], [75, 80]]
-    ]
-  },
+    },
   {
     no: 48,
     char: "工",
@@ -366,12 +416,7 @@ export const keyRadicalsData = [
     etymology: "Depicts an ancient builder's tool—a ruler or a rammer used to pack earth blocks together for palace walls.",
     funFact: "Combined with 人 (person), it forms 工人 (gōngrén - worker) and refers to manufacturing or architecture.",
     philosophy: "The refinement of raw materials. Craft represents human mastery over nature through dedication, discipline, and right proportion.",
-    strokePaths: [
-      [[20, 20], [80, 20]],
-      [[50, 20], [50, 80]],
-      [[10, 80], [90, 80]]
-    ]
-  },
+    },
   {
     no: 57,
     char: "弓",
@@ -382,12 +427,7 @@ export const keyRadicalsData = [
     etymology: "A realistic drawing of a composite wooden reflex bow, showing its double curve and the tension points of the string.",
     funFact: "Archery was one of the Six Noble Arts (Liuyi) that a true ancient Chinese scholar was required to master.",
     philosophy: "Tension and release. To launch an arrow forward, one must pull back with equal force. Wisdom is knowing when to bend.",
-    strokePaths: [
-      [[25, 25], [75, 25], [45, 45]],
-      [[45, 45], [70, 45], [70, 75]],
-      [[70, 75], [25, 75], [35, 60]]
-    ]
-  },
+    },
   {
     no: 61,
     char: "心",
@@ -398,13 +438,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of a physical human heart, showing its chambers, valves, and surrounding vessels.",
     funFact: "In traditional Chinese medicine, the heart is the 'emperor' of all organs, housing 'Shen'—the spirit and intellect.",
     philosophy: "The Heart-Mind (Xin). Western culture separates heart (emotion) and mind (intellect). Chinese combines them: wisdom is heartfelt thought.",
-    strokePaths: [
-      [[30, 45], [20, 55]],
-      [[40, 25], [50, 75], [85, 75], [85, 55]],
-      [[50, 45], [55, 35]],
-      [[75, 40], [80, 30]]
-    ]
-  },
+    },
   {
     no: 62,
     char: "戈",
@@ -415,13 +449,7 @@ export const keyRadicalsData = [
     etymology: "A dagger-axe mounted horizontally on a long wooden pole, used to yank horse riders from their chariots.",
     funFact: "Combined with 止 (stop), it forms 武 (wǔ - military/martial). True martial virtue is 'stopping the spear'—preventing violence.",
     philosophy: "Protection and boundaries. The spear reminds us that peace requires vigilance, and a clear boundary prevents conflict.",
-    strokePaths: [
-      [[15, 35], [75, 35]],
-      [[35, 15], [70, 85], [80, 75]],
-      [[35, 50], [15, 75]],
-      [[70, 20], [80, 10]]
-    ]
-  },
+    },
   {
     no: 64,
     char: "手",
@@ -432,13 +460,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of an open hand showing a central palm line and five spreading fingers.",
     funFact: "When compressed on the left of another character, it transforms into the highly dynamic three-stroke radical '扌'.",
     philosophy: "The hand is the executor of thought. Through our hands, the formless concepts of the mind take physical shape in the world.",
-    strokePaths: [
-      [[75, 15], [25, 25]],
-      [[20, 45], [80, 45]],
-      [[15, 65], [85, 65]],
-      [[50, 25], [50, 85], [35, 75]]
-    ]
-  },
+    },
   {
     no: 72,
     char: "日",
@@ -449,13 +471,7 @@ export const keyRadicalsData = [
     etymology: "A circle with a central dot representing the sun. The dot was later squared off into a horizontal line during clerical simplification.",
     funFact: "The central dot represents a sunspot or the three-legged sun crow (Sanzuwu) of Chinese mythology.",
     philosophy: "Yang in its purest form. Light, heat, activity, and the continuous rising that dispels all shadows. It is the solar principle of clarity.",
-    strokePaths: [
-      [[25, 20], [25, 80]],
-      [[25, 20], [75, 20], [75, 80]],
-      [[25, 50], [75, 50]],
-      [[25, 80], [75, 80]]
-    ]
-  },
+    },
   {
     no: 74,
     char: "月",
@@ -466,13 +482,7 @@ export const keyRadicalsData = [
     etymology: "A crescent moon containing two horizontal lines representing clouds or the shadows on its cratered surface.",
     funFact: "This radical also represents 肉 (ròu - flesh) in many characters because their clerical scripts merged over the centuries.",
     philosophy: "Yin in its beauty. The moon is a reminder of impermanence: waxing, waning, disappearing, and returning. Darkness holds its own wisdom.",
-    strokePaths: [
-      [[30, 20], [30, 85]],
-      [[30, 20], [70, 20], [70, 85]],
-      [[30, 42], [70, 42]],
-      [[30, 64], [70, 64]]
-    ]
-  },
+    },
   {
     no: 75,
     char: "木",
@@ -483,13 +493,7 @@ export const keyRadicalsData = [
     etymology: "Depicts a tree with its canopy at the top, trunk in the middle, and roots spreading deep into the soil at the bottom.",
     funFact: "Two 木 make 林 (lín - forest). Three 木 make 森 (sēn - deep dense jungle). Simple visual arithmetic!",
     philosophy: "Organic growth. Wood represents spring, flexibility, the rising of sap, and the ability to branch out while staying rooted.",
-    strokePaths: [
-      [[15, 35], [85, 35]],
-      [[50, 15], [50, 80]],
-      [[50, 35], [20, 75]],
-      [[50, 35], [80, 75]]
-    ]
-  },
+    },
   {
     no: 77,
     char: "止",
@@ -500,13 +504,7 @@ export const keyRadicalsData = [
     etymology: "Depicts a footprint with toes pointing forward, indicating taking a stand, halting at a boundary, or stepping.",
     funFact: "In ancient times, this meant 'to walk to a place and stay there', which is why it evolved into 'stop'.",
     philosophy: "Knowing when to stop prevents exhaustion. One who knows when they have enough will never be disgraced.",
-    strokePaths: [
-      [[50, 20], [50, 80]],
-      [[20, 40], [20, 60], [50, 60]],
-      [[80, 20], [80, 80]],
-      [[20, 80], [80, 80]]
-    ]
-  },
+    },
   {
     no: 85,
     char: "水",
@@ -517,13 +515,7 @@ export const keyRadicalsData = [
     etymology: "Depicts a central rushing stream flanked by four splashes or ripples on either side.",
     funFact: "When compressed on the left of characters, it turns into '氵', widely known as the 'three drops of water' radical.",
     philosophy: "Yielding strength. Water is the ultimate Taoist teacher: it seeks the lowest places, benefits all things without competing, and wears away stone.",
-    strokePaths: [
-      [[50, 15], [50, 80], [35, 65]],
-      [[25, 35], [10, 50]],
-      [[75, 20], [50, 45]],
-      [[55, 45], [85, 80]]
-    ]
-  },
+    },
   {
     no: 86,
     char: "火",
@@ -534,13 +526,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of central rising flames accompanied by two embers popping or sparking outwards on the sides.",
     funFact: "When placed at the bottom of a character, it can turn into four horizontal dots '灬', representing boiling heat.",
     philosophy: "Transformation and illumination. Fire consumes raw wood and produces light. It is active, passionate, and must be bounded to avoid destruction.",
-    strokePaths: [
-      [[25, 45], [15, 60]],
-      [[75, 45], [85, 60]],
-      [[50, 20], [40, 80]],
-      [[40, 45], [80, 80]]
-    ]
-  },
+    },
   {
     no: 93,
     char: "牛",
@@ -551,13 +537,7 @@ export const keyRadicalsData = [
     etymology: "A head-on view of an ox, highlighting its long horns, ears, and snout.",
     funFact: "The ox represents hard labor, loyalty, and agriculture. The philosopher Laozi rode an ox into the west when leaving China.",
     philosophy: "Patience and service. The ox is the quiet powerhouse of civilization, pulling plows through heavy mud without complaint.",
-    strokePaths: [
-      [[20, 25], [35, 15]],
-      [[15, 45], [85, 45]],
-      [[10, 70], [90, 70]],
-      [[50, 20], [50, 85]]
-    ]
-  },
+    },
   {
     no: 94,
     char: "犬",
@@ -568,13 +548,7 @@ export const keyRadicalsData = [
     etymology: "A profile view of a standing dog with an emphasized alert tail, pointy ears, and a watchful eye (dot).",
     funFact: "On the left side of characters, it becomes '犭', which is used for almost all wild beasts, predators, and mammals.",
     philosophy: "Loyalty and protection. The dog guards the home and represents the boundary between domestic safety and wild nature.",
-    strokePaths: [
-      [[15, 25], [75, 25]],
-      [[45, 15], [20, 85]],
-      [[40, 45], [80, 85]],
-      [[70, 15], [78, 25]]
-    ]
-  },
+    },
   {
     no: 96,
     char: "玉",
@@ -585,14 +559,7 @@ export const keyRadicalsData = [
     etymology: "Three horizontal pieces of jade strung together on a vertical cord, with an added dot representing a small fragment or sparkle.",
     funFact: "In Chinese, jade is more precious than gold. It is associated with purity, immortality, and the five virtues of Confucius.",
     philosophy: "Refinement. 'Gold has a value, but jade is priceless.' Like jade, a human mind must be polished and carved through study to be complete.",
-    strokePaths: [
-      [[20, 25], [80, 25]],
-      [[25, 52], [75, 52]],
-      [[50, 25], [50, 80]],
-      [[15, 80], [85, 80]],
-      [[70, 68], [75, 75]]
-    ]
-  },
+    },
   {
     no: 102,
     char: "田",
@@ -603,14 +570,7 @@ export const keyRadicalsData = [
     etymology: "A grid showing a cultivated agricultural plot divided by irrigation canals or borders.",
     funFact: "Combined with 力 (strength), it forms 男 (man) — the tiler of the field.",
     philosophy: "The field is the subconscious. Whatever seeds we plant in the soil of our minds, nurtured by attention, will eventually grow and harvest.",
-    strokePaths: [
-      [[20, 20], [20, 80]],
-      [[20, 20], [80, 20], [80, 80]],
-      [[20, 50], [80, 50]],
-      [[50, 20], [50, 80]],
-      [[20, 80], [80, 80]]
-    ]
-  },
+    },
   {
     no: 109,
     char: "目",
@@ -621,14 +581,7 @@ export const keyRadicalsData = [
     etymology: "A horizontal drawing of an eye with pupil and white, later rotated ninety degrees to fit vertical scroll writing.",
     funFact: "It forms the root of characters like 看 (to look) and 睡 (to sleep).",
     philosophy: "Perception. The eye is the window through which we witness the wonders of creation, yet inner vision (insight) is what guides us.",
-    strokePaths: [
-      [[25, 15], [25, 85]],
-      [[25, 15], [75, 15], [75, 85]],
-      [[25, 38], [75, 38]],
-      [[25, 62], [75, 62]],
-      [[25, 85], [75, 85]]
-    ]
-  },
+    },
   {
     no: 112,
     char: "石",
@@ -639,14 +592,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of a boulder falling from a cliff (厂) onto the valley or land below (口 representing the rock's solid body).",
     funFact: "Stones are used to build bridges, structures, and represent resilience and longevity in traditional paintings.",
     philosophy: "Density and stillness. While water represents the yielding and dynamic, stone is the unyielding anchor. We need both to balance.",
-    strokePaths: [
-      [[15, 25], [75, 25]],
-      [[40, 25], [20, 60]],
-      [[35, 60], [35, 85]],
-      [[35, 60], [75, 60], [75, 85]],
-      [[35, 85], [75, 85]]
-    ]
-  },
+    },
   {
     no: 117,
     char: "立",
@@ -657,14 +603,7 @@ export const keyRadicalsData = [
     etymology: "A person standing firmly with both feet planted on the horizon line, displaying dignity, independence, and presence.",
     funFact: "It forms the basis of characters like 章 (chapter/rule) and 童 (child standing/pupil).",
     philosophy: "Establishing oneself in the world. To stand is to claim your space, assume responsibility, and align yourself with the sky.",
-    strokePaths: [
-      [[50, 15], [50, 28]],
-      [[25, 35], [75, 35]],
-      [[35, 45], [25, 65]],
-      [[65, 45], [75, 65]],
-      [[15, 80], [85, 80]]
-    ]
-  },
+    },
   {
     no: 118,
     char: "竹",
@@ -675,15 +614,7 @@ export const keyRadicalsData = [
     etymology: "Two drooping stalks of bamboo with pointing leaves. Simulates the elegant joints and leaves of bamboo trees.",
     funFact: "Bamboo is the gentleman of plants. It bends in the fierce winter gales but never breaks, hollow inside yet structurally supreme.",
     philosophy: "Emptiness and flexibility. The bamboo is hollow, which represents a mind empty of prejudice, making it the perfect vessel for wisdom.",
-    strokePaths: [
-      [[35, 20], [20, 35]],
-      [[20, 45], [45, 45]],
-      [[35, 45], [35, 85]],
-      [[70, 20], [55, 35]],
-      [[55, 45], [80, 45]],
-      [[70, 45], [70, 85], [85, 75]]
-    ]
-  },
+    },
   {
     no: 119,
     char: "米",
@@ -694,15 +625,7 @@ export const keyRadicalsData = [
     etymology: "A central stalk of grain crossed by a horizontal line, with individual grains of rice radiating outward as four separate dots.",
     funFact: "In Chinese, 'mǐ' represents basic sustenance, and forms the root of characters associated with energy and food.",
     philosophy: "Nourishment from the small. A mountain of rice is eaten one grain at a time. Do not despise the tiny daily efforts; they feed the soul.",
-    strokePaths: [
-      [[25, 30], [35, 40]],
-      [[75, 30], [65, 40]],
-      [[15, 50], [85, 50]],
-      [[50, 15], [50, 85]],
-      [[50, 50], [20, 80]],
-      [[50, 50], [80, 80]]
-    ]
-  },
+    },
   {
     no: 120,
     char: "糸",
@@ -713,14 +636,7 @@ export const keyRadicalsData = [
     etymology: "A skein of silk thread twisted together, showing the looped fibers at the top and the loose strands at the bottom.",
     funFact: "Silk was China's most guarded secret, creating the trade route 'Silk Road' that connected eastern and western worlds.",
     philosophy: "Interconnectedness. We are all individual threads woven together in the grand, colorful tapestry of cosmic existence.",
-    strokePaths: [
-      [[50, 15], [35, 30], [55, 45], [30, 60]],
-      [[30, 60], [70, 60]],
-      [[50, 55], [50, 80]],
-      [[35, 70], [20, 85]],
-      [[65, 70], [80, 85]]
-    ]
-  },
+    },
   {
     no: 123,
     char: "羊",
@@ -731,15 +647,7 @@ export const keyRadicalsData = [
     etymology: "An elegant depiction of a sheep's head showing its downward-curved horns, ears, and snout.",
     funFact: "Because sheep are gentle and nutritious, the character forms the root of 美 (měi - beautiful) and 义 (yì - justice/righteousness).",
     philosophy: "Peace, benevolence, and sacrifice. The sheep represents innocence and social harmony, yielding itself to support others.",
-    strokePaths: [
-      [[30, 15], [20, 30]],
-      [[70, 15], [80, 30]],
-      [[15, 38], [85, 38]],
-      [[25, 55], [75, 55]],
-      [[50, 38], [50, 85]],
-      [[10, 80], [90, 80]]
-    ]
-  },
+    },
   {
     no: 125,
     char: "老",
@@ -750,15 +658,7 @@ export const keyRadicalsData = [
     etymology: "A depiction of a person with long hair leaning heavily on a walking cane, indicating advanced age and earned wisdom.",
     funFact: "Combined with 子 (child), it forms 孝 (xiào - filial piety), depicting the child supporting the elder.",
     philosophy: "The cycle of time. Age brings not just frailty, but perspective. 'To know others is wisdom; to know oneself is enlightenment.'",
-    strokePaths: [
-      [[15, 30], [75, 30]],
-      [[50, 10], [50, 45]],
-      [[10, 45], [90, 45]],
-      [[80, 15], [25, 85]],
-      [[35, 55], [55, 55], [55, 80]],
-      [[55, 80], [40, 75]]
-    ]
-  },
+    },
   {
     no: 128,
     char: "耳",
@@ -769,15 +669,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of a human ear, outlining the auricle, canal, and lobe.",
     funFact: "In Chinese physiognomy, large earlobes are a sign of immense wealth, long life, and spiritual wisdom.",
     philosophy: "Deep listening. True wisdom is not speaking, but listening. 'The Master speaks little, but hears the subtle hum of the Tao.'",
-    strokePaths: [
-      [[15, 20], [85, 20]],
-      [[35, 20], [35, 85]],
-      [[65, 20], [65, 85]],
-      [[35, 42], [65, 42]],
-      [[35, 64], [65, 64]],
-      [[10, 85], [90, 85]]
-    ]
-  },
+    },
   {
     no: 130,
     char: "肉",
@@ -788,14 +680,7 @@ export const keyRadicalsData = [
     etymology: "A slice of meat cut from an animal carcass, showing the rib borders and muscle fibers.",
     funFact: "In standard Chinese characters, this radical is written exactly like 月 (moon) when placed on the left side of words.",
     philosophy: "The vessel. While spirit is formless and eternal, flesh is the precious, mortal vessel that allows us to experience the material world.",
-    strokePaths: [
-      [[25, 20], [25, 85]],
-      [[25, 20], [75, 20], [75, 85]],
-      [[40, 35], [50, 45]],
-      [[40, 60], [50, 70]],
-      [[25, 85], [75, 85]]
-    ]
-  },
+    },
   {
     no: 132,
     char: "舟",
@@ -806,15 +691,7 @@ export const keyRadicalsData = [
     etymology: "A simple wooden canoe seen from above, showing its bow, stern, internal rib supports, and a steering oar.",
     funFact: "China was a pioneer in naval technology, utilizing bulkheads and compasses to launch massive exploration fleets.",
     philosophy: "The empty boat. 'If a man crosses a river in a boat, and an empty boat collides with him, even a hot-tempered man will not get angry.'",
-    strokePaths: [
-      [[35, 15], [30, 85]],
-      [[35, 15], [65, 25], [60, 85]],
-      [[30, 40], [62, 40]],
-      [[45, 25], [45, 65]],
-      [[45, 50], [55, 58]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 140,
     char: "艸",
@@ -825,13 +702,7 @@ export const keyRadicalsData = [
     etymology: "Two separate sprouts of grass shooting up from the earth. Simplified in modern script to the three-stroke top radical '艹'.",
     funFact: "It forms the head of characters like 茶 (tea), 药 (medicine), and 花 (flower).",
     philosophy: "Regeneration. Even when trampled, burnt, or buried under winter snow, grass returns immediately with the first warm rain of spring.",
-    strokePaths: [
-      [[30, 25], [30, 55]],
-      [[20, 40], [45, 40]],
-      [[70, 25], [70, 55]],
-      [[55, 40], [80, 40]]
-    ]
-  },
+    },
   {
     no: 142,
     char: "虫",
@@ -842,14 +713,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of a venomous pit viper or cobra with a raised hood and coiled tail, later applied to all insects and reptiles.",
     funFact: "In ancient China, tigers were called 'the king of striped insects' (bānlánchóng) because 'chóng' meant any creeping beast.",
     philosophy: "Metamorphosis. The creeping worm becomes the winged butterfly. Never mock the humble beginning; transformation is natural law.",
-    strokePaths: [
-      [[25, 30], [25, 60]],
-      [[25, 30], [75, 30], [75, 60]],
-      [[25, 60], [75, 60]],
-      [[50, 15], [50, 85]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 149,
     char: "言",
@@ -860,15 +724,7 @@ export const keyRadicalsData = [
     etymology: "A tongue protruding from a mouth (口), with four horizontal soundwaves radiating upward, indicating vocalization and words.",
     funFact: "When placed on the left side of characters, it simplifies to the elegant double-stroke '讠'.",
     philosophy: "Integrity in speech. A single word can spark a war or forge peace. To speak is to project your internal vibration into reality.",
-    strokePaths: [
-      [[25, 20], [75, 20]],
-      [[35, 35], [65, 35]],
-      [[35, 50], [65, 50]],
-      [[25, 65], [75, 65], [75, 85]],
-      [[25, 65], [25, 85]],
-      [[25, 85], [75, 85]]
-    ]
-  },
+    },
   {
     no: 154,
     char: "貝",
@@ -879,16 +735,7 @@ export const keyRadicalsData = [
     etymology: "A glossy, durable cowry shell seen from the opening side. Cowry shells were used as the earliest currency in China.",
     funFact: "It forms the core of almost all Chinese characters associated with trade, purchase, luxury, poverty, and value.",
     philosophy: "Value is subjective. A simple seashell found on a beach becomes gold when an entire society agrees on its sacred value.",
-    strokePaths: [
-      [[25, 15], [25, 75]],
-      [[25, 15], [75, 15], [75, 75]],
-      [[25, 38], [75, 38]],
-      [[25, 58], [75, 58]],
-      [[25, 75], [75, 75]],
-      [[35, 80], [15, 95]],
-      [[65, 80], [85, 95]]
-    ]
-  },
+    },
   {
     no: 157,
     char: "足",
@@ -899,16 +746,7 @@ export const keyRadicalsData = [
     etymology: "A knee joint (口) connected to a shin bone and foot (止) stepping forward on the ground.",
     funFact: "In Chinese, the same word 'zú' means both 'foot' and 'sufficient' (enough/satisfied)—the foot completes our contact with earth.",
     philosophy: "Satiety. 'He who knows that enough is enough will always have enough.' The foot walks, but only when it knows when to stand is it sufficient.",
-    strokePaths: [
-      [[35, 15], [35, 45]],
-      [[35, 15], [65, 15], [65, 45]],
-      [[35, 45], [65, 45]],
-      [[50, 45], [50, 75]],
-      [[20, 75], [80, 75]],
-      [[20, 75], [15, 88]],
-      [[65, 75], [85, 88]]
-    ]
-  },
+    },
   {
     no: 159,
     char: "車",
@@ -919,16 +757,7 @@ export const keyRadicalsData = [
     etymology: "A birds-eye view of an ancient imperial battle chariot, showing the cabin, the heavy axle, and the two spoke-wheels.",
     funFact: "In Chinese Chess (Xiangqi), this character is the Rook (Ju), the strongest attacker that sweeps lines on the battlefield.",
     philosophy: "Movement and mechanics. The chariot harnesses rotation (the wheel) to conquer linear distance, representing technological progress.",
-    strokePaths: [
-      [[25, 25], [75, 25]],
-      [[25, 25], [25, 55]],
-      [[25, 55], [75, 55]],
-      [[75, 25], [75, 55]],
-      [[15, 40], [85, 40]],
-      [[20, 70], [80, 70]],
-      [[50, 10], [50, 85]]
-    ]
-  },
+    },
   {
     no: 167,
     char: "金",
@@ -939,17 +768,7 @@ export const keyRadicalsData = [
     etymology: "A clay mold used to smelt bronze/gold, showing the melting chamber, a central spine, and two drops of hot liquid metal.",
     funFact: "In modern Chinese, it refers to money or gold, and is the root of characters like 银 (silver) and 铁 (iron).",
     philosophy: "Durability. Metal represents autumn, contraction, strength, and structural order. It is the refined essence of deep earth.",
-    strokePaths: [
-      [[50, 15], [15, 45]],
-      [[50, 15], [85, 45]],
-      [[30, 38], [70, 38]],
-      [[20, 58], [80, 58]],
-      [[50, 38], [50, 78]],
-      [[35, 68], [25, 75]],
-      [[65, 68], [75, 75]],
-      [[10, 80], [90, 80]]
-    ]
-  },
+    },
   {
     no: 169,
     char: "門",
@@ -960,15 +779,7 @@ export const keyRadicalsData = [
     etymology: "A double-winged swinging wooden gate with heavy posts on either side, representing entrances, portals, and divisions.",
     funFact: "Simplified in modern China to '门', which retains the raw outline of the doorframe.",
     philosophy: "The gate is a threshold. To stand at the gate is to be between worlds. Crossing is a transformation; returning is a memory.",
-    strokePaths: [
-      [[25, 15], [25, 85]],
-      [[25, 15], [45, 15], [45, 45]],
-      [[25, 30], [45, 30]],
-      [[55, 15], [75, 15], [75, 85]],
-      [[55, 30], [75, 30]],
-      [[55, 45], [75, 45]]
-    ]
-  },
+    },
   {
     no: 173,
     char: "雨",
@@ -979,17 +790,7 @@ export const keyRadicalsData = [
     etymology: "Clouds cover the sky (the top box frame) and let fall four separate droplets of nourishing rain.",
     funFact: "It sits at the top of characters associated with weather phenomena, like 雪 (snow), 雷 (thunder), and 雾 (fog).",
     philosophy: "Universal blessing. 'The rain falls on the just and the unjust alike.' It represents the unbiased, generous overflow of Heaven.",
-    strokePaths: [
-      [[15, 20], [85, 20]],
-      [[50, 20], [50, 80]],
-      [[15, 35], [15, 65], [85, 65]],
-      [[85, 35], [85, 65]],
-      [[30, 42], [35, 48]],
-      [[30, 54], [35, 60]],
-      [[65, 42], [70, 48]],
-      [[65, 54], [70, 60]]
-    ]
-  },
+    },
   {
     no: 187,
     char: "馬",
@@ -1000,17 +801,7 @@ export const keyRadicalsData = [
     etymology: "A side-view drawing of a galloping horse, highlighting its flowing mane, four hooves (dots), and long tail.",
     funFact: "Simplified in mainland China to '马', converting the running hooves into a single horizontal stroke.",
     philosophy: "Speed, spirit, and untamed energy. The horse represents our mental thoughts—hard to rein in, but capable of crossing vast distances when disciplined.",
-    strokePaths: [
-      [[20, 15], [25, 40]],
-      [[25, 15], [75, 15], [75, 40], [25, 40]],
-      [[20, 52], [80, 52]],
-      [[20, 52], [20, 75], [85, 75], [85, 60]],
-      [[30, 85], [35, 95]],
-      [[45, 85], [50, 95]],
-      [[60, 85], [65, 95]],
-      [[75, 85], [80, 95]]
-    ]
-  },
+    },
   {
     no: 194,
     char: "鬼",
@@ -1021,17 +812,7 @@ export const keyRadicalsData = [
     etymology: "A person with a massive, grotesque skull representing a mask or spirit, with a curving tail showing its formless floating nature.",
     funFact: "It forms the core of words associated with fear, trickery, spirits, and the underworld.",
     philosophy: "The shadow. The 'ghost' is what we repress—our unacknowledged fears, historical traumas, and invisible habits that haunt our present.",
-    strokePaths: [
-      [[30, 20], [70, 20]],
-      [[30, 20], [30, 45]],
-      [[30, 45], [70, 45]],
-      [[70, 20], [70, 45]],
-      [[50, 45], [50, 80], [35, 70]],
-      [[35, 55], [15, 80]],
-      [[65, 55], [85, 80], [80, 70]],
-      [[75, 30], [85, 20]]
-    ]
-  },
+    },
   {
     no: 195,
     char: "魚",
@@ -1042,21 +823,7 @@ export const keyRadicalsData = [
     etymology: "A vertical depiction of a fish, showing its scale-covered body (田), fins, tail (four dots), and head at the top.",
     funFact: "During Chinese New Year, fish is eaten because 'yú' sounds like 'surplus' (yú), wishing abundance in the coming year.",
     philosophy: "Abundance and freedom. The fish swims in the ocean of life without resisting, moving effortlessly by aligning with the currents.",
-    strokePaths: [
-      [[50, 10], [25, 30]],
-      [[50, 10], [75, 30]],
-      [[25, 30], [75, 30]],
-      [[20, 45], [20, 70]],
-      [[20, 45], [80, 45], [80, 70]],
-      [[20, 58], [80, 58]],
-      [[20, 70], [80, 70]],
-      [[50, 30], [50, 70]],
-      [[30, 80], [20, 90]],
-      [[42, 80], [35, 90]],
-      [[58, 80], [65, 90]],
-      [[70, 80], [80, 90]]
-    ]
-  },
+    },
   {
     no: 212,
     char: "龍",
@@ -1067,19 +834,7 @@ export const keyRadicalsData = [
     etymology: "A drawing of a twisting serpentine dragon, showcasing its horns, fangs, scales, and sweeping dynamic tail.",
     funFact: "The Chinese dragon is a benevolent master of water, rain, clouds, and is the ultimate symbol of imperial majesty.",
     philosophy: "The unmanifested force. The dragon dwells in the deep abyss or flies in the high clouds. It represents the supreme, unpredictable Tao.",
-    strokePaths: [
-      [[20, 15], [50, 15]],
-      [[35, 15], [35, 45]],
-      [[20, 30], [50, 30]],
-      [[20, 45], [50, 45]],
-      [[15, 60], [15, 85]],
-      [[15, 60], [55, 60], [55, 85]],
-      [[15, 72], [55, 72]],
-      [[15, 85], [55, 85]],
-      [[65, 15], [85, 15]],
-      [[65, 15], [65, 85], [80, 85], [80, 65]]
-    ]
-  }
+    }
 ];
 
 // Flat lists of ALL 214 radicals with standard metadata
@@ -1300,6 +1055,7 @@ const raw214Radicals = [
   { no: 214, char: "龠", pinyin: "yuè", strokes: 17, meaning: "flute", category: "TOOLS" }
 ];
 
+
 // Enriching the dataset procedurally to provide seamless etymology/philosophy for all 214 radicals
 const mapped214 = raw214Radicals.map((rad) => {
   const allDetailRadicals = [...keyRadicalsData, ...digitalRadicals, ...searchRadicals, ...actionRadicals, ...filterRadicals];
@@ -1341,25 +1097,12 @@ const mapped214 = raw214Radicals.map((rad) => {
   }
 
   // Draw procedural basic stroke coordinates based on visual outline fallback
-  // Generates 1 to 4 horizontal/vertical strokes based on stroke count
-  const strokePaths = [];
-  const count = rad.strokes;
-  for (let i = 0; i < count; i++) {
-    const spacing = 70 / (count + 1);
-    const pos = 15 + spacing * (i + 1);
-    if (i % 2 === 0) {
-      strokePaths.push([[15, pos], [85, pos]]);
-    } else {
-      strokePaths.push([[pos, 15], [pos, 85]]);
-    }
-  }
-
+  
   return {
     ...rad,
     etymology,
     funFact,
-    philosophy,
-    strokePaths
+    philosophy
   };
 });
 
@@ -1374,20 +1117,4 @@ const combinedRadicals = [
   ...slangRadicals
 ];
 
-export const radicals = combinedRadicals.map((rad) => {
-  if (!rad.strokePaths || rad.strokePaths.length === 0) {
-    const strokePaths = [];
-    const count = rad.strokes || 4;
-    for (let i = 0; i < count; i++) {
-      const spacing = 70 / (count + 1);
-      const pos = 15 + spacing * (i + 1);
-      if (i % 2 === 0) {
-        strokePaths.push([[15, pos], [85, pos]]);
-      } else {
-        strokePaths.push([[pos, 15], [pos, 85]]);
-      }
-    }
-    return { ...rad, strokePaths };
-  }
-  return rad;
-});
+export const radicals = combinedRadicals;

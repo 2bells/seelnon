@@ -10,18 +10,7 @@ export const filterRadicals = [
     etymology: "Depicts a wooden structure (木) with a horizontal line across it, representing scanning, checking, or examining a tree orchard.",
     funFact: "The primary text search query or lookup operation. Found in 'Search Engine' (搜索引擎) and 'Check / Investigate' (检查).",
     philosophy: "To search is to look deep within. The first step of wisdom is scanning the noise to find the fundamental signal.",
-    strokePaths: [
-      [[15, 25], [85, 25]],
-      [[50, 15], [50, 45]],
-      [[20, 45], [80, 45]],
-      [[50, 25], [20, 75]],
-      [[50, 25], [80, 75]],
-      [[25, 58], [45, 58]],
-      [[25, 58], [25, 85]],
-      [[25, 85], [45, 85]],
-      [[55, 75], [75, 85]]
-    ]
-  },
+    },
   {
     no: 602,
     char: "选",
@@ -32,18 +21,7 @@ export const filterRadicals = [
     etymology: "Combines the movement/walking radical (辶) with 'first', representing picking the best or first option along a path.",
     funFact: "Multi-select checkboxes, radio selectors, and custom item dropdown lists. Found in 'Option' (选项) and 'Select' (选择).",
     philosophy: "Choosing one path means letting go of a thousand others. Every selection defines the system's focus.",
-    strokePaths: [
-      [[45, 15], [75, 25]],
-      [[65, 10], [55, 35]],
-      [[15, 40], [85, 40]],
-      [[30, 40], [30, 75]],
-      [[30, 75], [50, 75]],
-      [[30, 55], [50, 55]],
-      [[60, 55], [80, 55]],
-      [[60, 55], [60, 85]],
-      [[15, 85], [40, 85], [85, 90]]
-    ]
-  },
+    },
   {
     no: 603,
     char: "滤",
@@ -54,21 +32,7 @@ export const filterRadicals = [
     etymology: "Combines the water radical (氵) with 'concern/think' (虑), showing water being carefully purified or strained.",
     funFact: "Active filter rules that exclude items failing specific criteria. Found in 'Filter' (过滤) and 'Sieve' (滤除).",
     philosophy: "Purity is achieved by letting the secondary elements wash away, leaving only the primary essence.",
-    strokePaths: [
-      [[15, 20], [20, 25]],
-      [[10, 45], [15, 50]],
-      [[10, 80], [25, 70]],
-      [[40, 25], [70, 25]],
-      [[55, 15], [55, 40]],
-      [[35, 50], [75, 50]],
-      [[55, 40], [55, 80]],
-      [[35, 70], [75, 70]],
-      [[45, 85], [35, 95]],
-      [[55, 85], [45, 95]],
-      [[65, 85], [55, 95]],
-      [[75, 85], [65, 95]]
-    ]
-  },
+    },
   {
     no: 604,
     char: "筛",
@@ -79,21 +43,7 @@ export const filterRadicals = [
     etymology: "Combines bamboo (竹) with 'teacher/specialist' (师), depicting a physical bamboo sifting mesh.",
     funFact: "Coarse-grained filtering or dropping major data blocks (e.g. dropping 90% of data). Found in 'Screening' (筛选).",
     philosophy: "The sieve retains the coarse truths while letting the fine, transient dust pass through.",
-    strokePaths: [
-      [[35, 15], [20, 30]],
-      [[20, 40], [45, 40]],
-      [[35, 40], [35, 70]],
-      [[70, 15], [55, 30]],
-      [[55, 40], [80, 40]],
-      [[70, 40], [70, 70]],
-      [[25, 50], [80, 50]],
-      [[25, 50], [25, 85]],
-      [[25, 50], [80, 50], [80, 85]],
-      [[25, 85], [80, 85]],
-      [[40, 50], [40, 85]],
-      [[65, 50], [65, 85]]
-    ]
-  },
+    },
   {
     no: 605,
     char: "找",
@@ -104,16 +54,7 @@ export const filterRadicals = [
     etymology: "Combines the hand radical (扌) with a spear (戈), describing a hand actively searching or seeking an implement.",
     funFact: "Exact matching routines or direct target item retrieval strings. Found in 'Find' (寻找).",
     philosophy: "Seeking is an active posture. The seeker changes their internal coordinates to match what they search for.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 25], [80, 25]],
-      [[55, 25], [55, 65]],
-      [[55, 65], [80, 65]],
-      [[80, 25], [80, 65]]
-    ]
-  },
+    },
   {
     no: 606,
     char: "索",
@@ -124,19 +65,7 @@ export const filterRadicals = [
     etymology: "Depicts hands twisting fibers into a thick rope, representing tracing threads or indexing links.",
     funFact: "Index searches, text parsing, or full-text index keys. Found in 'Search' (搜索) and 'Index / Clue' (线索).",
     philosophy: "Like tracing a rope back to its spindle, an index binds complex networks back to a single root.",
-    strokePaths: [
-      [[50, 15], [25, 35]],
-      [[25, 35], [75, 35]],
-      [[50, 35], [35, 55]],
-      [[35, 55], [65, 55]],
-      [[50, 55], [50, 80]],
-      [[25, 80], [75, 80]],
-      [[20, 85], [30, 75]],
-      [[50, 85], [40, 75]],
-      [[60, 85], [70, 75]],
-      [[80, 85], [90, 75]]
-    ]
-  },
+    },
   {
     no: 607,
     char: "抠",
@@ -147,16 +76,7 @@ export const filterRadicals = [
     etymology: "Combines hand (扌) and region (区), depicting digging out or isolating a specific piece from a region.",
     funFact: "Fine-grained isolation of nested properties or specific JSON keys. Found in '抠图' (matting/isolating image layers).",
     philosophy: "Isolating a detail requires absolute focus. Separating an item from its surrounding canvas reveals its pure geometry.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85], [85, 85]]
-    ]
-  },
+    },
   {
     no: 608,
     char: "提",
@@ -167,21 +87,7 @@ export const filterRadicals = [
     etymology: "Combines hand (扌) with 'correct/right' (是), depicting lifting or pulling out a specific element.",
     funFact: "Extracting specific keys or properties from a database payload. Found in 'Extract' (提取).",
     philosophy: "Lifting an element up from the depths makes it active. Fetching brings potential into reality.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]],
-      [[55, 85], [85, 85]],
-      [[30, 55], [55, 55]],
-      [[30, 55], [30, 85]],
-      [[30, 85], [55, 85]],
-      [[40, 70], [65, 80]]
-    ]
-  },
+    },
   {
     no: 609,
     char: "取",
@@ -192,17 +98,7 @@ export const filterRadicals = [
     etymology: "Depicts a hand (又) holding an ear (耳), representing taking or retrieving. Originally meant capturing game or news.",
     funFact: "Fetching data sets based on current active query states. Found in 'Get' (获取) and 'Take / Retrieve' (取得).",
     philosophy: "Retrieving is the harvest. We obtain what our queries have earned through clear parameters.",
-    strokePaths: [
-      [[25, 20], [85, 20]],
-      [[45, 20], [45, 85]],
-      [[35, 45], [65, 45]],
-      [[25, 60], [55, 60]],
-      [[25, 60], [25, 85]],
-      [[25, 85], [55, 85]],
-      [[65, 40], [80, 80]],
-      [[70, 45], [90, 75]]
-    ]
-  },
+    },
   {
     no: 610,
     char: "求",
@@ -213,16 +109,7 @@ export const filterRadicals = [
     etymology: "Originally a pictogram of a fur coat, borrowed for the abstract concept of seeking, requesting, or demanding.",
     funFact: "The actual network request or database query string. Found in 'Request' (请求) and 'Query' (求索).",
     philosophy: "A request is an empty cup held out to the network. The response fills the shape of the query.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45]],
-      [[50, 35], [20, 75]],
-      [[50, 35], [80, 75]],
-      [[55, 55], [55, 85]],
-      [[55, 55], [35, 85]],
-      [[55, 55], [75, 85]]
-    ]
-  },
+    },
   {
     no: 611,
     char: "定",
@@ -233,17 +120,7 @@ export const filterRadicals = [
     etymology: "Combines house (宀) with feet/upright (疋), representing stabilizing, anchoring, or fixing in place.",
     funFact: "Strict matching, locking a filter anchor, or hard-pinning items. Found in 'Anchor / Definition' (定位 / 定义).",
     philosophy: "In a shifting sea of records, anchoring a point of reference gives context to the surrounding flow.",
-    strokePaths: [
-      [[25, 15], [75, 15]],
-      [[35, 15], [35, 35]],
-      [[65, 15], [65, 35]],
-      [[25, 35], [75, 35]],
-      [[50, 45], [20, 70]],
-      [[20, 70], [80, 70]],
-      [[50, 45], [80, 70]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 612,
     char: "准",
@@ -254,19 +131,7 @@ export const filterRadicals = [
     etymology: "Originally represented a water level tool with birds, indicating flatness, accuracy, and standardization.",
     funFact: "High-precision matches (exact string matching, zero-tolerance checks). Found in 'Accurate' (准确) and 'Standard' (标准).",
     philosophy: "Precision is the elimination of margin. High-precision filters align perfectly with the target.",
-    strokePaths: [
-      [[20, 25], [45, 25]],
-      [[20, 25], [20, 65]],
-      [[20, 65], [45, 65]],
-      [[20, 45], [45, 45]],
-      [[55, 20], [85, 20]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]],
-      [[55, 85], [85, 85]],
-      [[70, 65], [70, 85]]
-    ]
-  },
+    },
   {
     no: 613,
     char: "捞",
@@ -277,19 +142,7 @@ export const filterRadicals = [
     etymology: "Combines hand (扌) with 'toil/labor' (劳), meaning to drag or fish out of deep water.",
     funFact: "Deep fallback query routines pulling from cold storage or index DB. Found in 'Dredge / Fish up' (打捞).",
     philosophy: "Dredging retrieves that which was forgotten. It is the recovery of cold memory into warm execution.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 20], [85, 20]],
-      [[70, 15], [70, 40]],
-      [[55, 50], [85, 50]],
-      [[55, 50], [55, 80]],
-      [[55, 80], [85, 80]],
-      [[70, 65], [70, 85]],
-      [[65, 40], [65, 85]]
-    ]
-  },
+    },
   {
     no: 614,
     char: "检",
@@ -300,20 +153,7 @@ export const filterRadicals = [
     etymology: "Combines wood (木) with a gathering (佥), representing checking off items on a wooden tally board.",
     funFact: "Regular expression scanning or parsing string validations. Found in 'Inspect' (检验) and 'Retrieve' (检索).",
     philosophy: "Checking is the guardian of state. It tests each packet to ensure order is preserved.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[5, 35], [35, 35]],
-      [[20, 35], [8, 55]],
-      [[20, 35], [32, 55]],
-      [[50, 25], [85, 25]],
-      [[65, 15], [65, 40]],
-      [[50, 50], [85, 50]],
-      [[50, 50], [50, 80]],
-      [[50, 80], [85, 80]],
-      [[65, 60], [65, 85]],
-      [[75, 60], [75, 85]]
-    ]
-  },
+    },
   {
     no: 615,
     char: "剔",
@@ -324,19 +164,7 @@ export const filterRadicals = [
     etymology: "Combines bone-peeling with knife (刂), representing scraping away unwanted parts or stripping bone.",
     funFact: "Hard exclusion filters or explicitly hidden item IDs. Found in 'Weed out / Eliminate' (剔除).",
     philosophy: "Sculpting is the removal of the excess. We reveal the true query by removing the noise.",
-    strokePaths: [
-      [[30, 15], [30, 45]],
-      [[30, 15], [70, 15], [70, 45]],
-      [[30, 30], [70, 30]],
-      [[50, 15], [50, 45]],
-      [[30, 45], [70, 45]],
-      [[50, 50], [25, 75]],
-      [[50, 50], [75, 75]],
-      [[25, 85], [40, 80]],
-      [[60, 80], [75, 85]],
-      [[80, 20], [90, 30]]
-    ]
-  },
+    },
   {
     no: 616,
     char: "拔",
@@ -347,17 +175,7 @@ export const filterRadicals = [
     etymology: "Combines hand (扌) with a friend (友) or specialized puller, indicating pulling up roots or elevating.",
     funFact: "Isomorphic extraction of high-priority database rows. Found in 'Select / Elevate' (选拔) and 'Extract' (拔得).",
     philosophy: "Lifting an element above its peers breaks symmetry, establishing a hierarchy of attention.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 25], [80, 25]],
-      [[55, 25], [55, 55]],
-      [[55, 55], [80, 55]],
-      [[80, 25], [80, 55]],
-      [[50, 65], [75, 85]]
-    ]
-  },
+    },
   {
     no: 617,
     char: "辨",
@@ -368,25 +186,7 @@ export const filterRadicals = [
     etymology: "Two criminals or arguments standing next to a knife (刂), meaning to divide, differentiate, or resolve a dispute.",
     funFact: "Conditional pattern matching or fuzzy sorting mechanics. Found in 'Differentiate' (辨别) and 'Analyze' (辨析).",
     philosophy: "Wisdom lies in seeing differences in the similar, and similarities in the different.",
-    strokePaths: [
-      [[25, 15], [25, 45]],
-      [[25, 15], [55, 15], [55, 45]],
-      [[25, 30], [55, 30]],
-      [[40, 15], [40, 45]],
-      [[25, 45], [55, 45]],
-      [[65, 15], [65, 45]],
-      [[65, 15], [95, 15], [95, 45]],
-      [[65, 30], [95, 30]],
-      [[80, 15], [80, 45]],
-      [[65, 45], [95, 45]],
-      [[45, 55], [25, 80]],
-      [[45, 55], [65, 80]],
-      [[75, 55], [55, 80]],
-      [[75, 55], [95, 80]],
-      [[25, 85], [40, 80]],
-      [[55, 80], [70, 85]]
-    ]
-  },
+    },
   {
     no: 618,
     char: "盯",
@@ -397,16 +197,7 @@ export const filterRadicals = [
     etymology: "Combines eye (目) with a nail (丁), describing locking one's gaze directly onto a single spot.",
     funFact: "Real-time, live-updating search filter streams or active event observers. Found in 'Stare / Monitor' (盯防 / 盯盯).",
     philosophy: "Constant observation transforms variables into streams. The observer and the observed merge in real-time.",
-    strokePaths: [
-      [[25, 15], [25, 85]],
-      [[25, 15], [75, 15], [75, 85]],
-      [[25, 38], [75, 38]],
-      [[25, 62], [75, 62]],
-      [[25, 85], [75, 85]],
-      [[50, 50], [80, 50]],
-      [[65, 50], [65, 85]]
-    ]
-  },
+    },
   {
     no: 619,
     char: "捉",
@@ -417,19 +208,7 @@ export const filterRadicals = [
     etymology: "Combines hand (扌) with foot (足), representing running down and catching an object with hands.",
     funFact: "Capturing exceptions, edge-cases, or tracking narrow ranges. Found in 'Catch / Capture' (捕捉).",
     philosophy: "The exception must be bound. Capturing anomalous states keeps the system stable.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]],
-      [[55, 85], [85, 85]],
-      [[35, 60], [55, 60]],
-      [[35, 60], [35, 85]]
-    ]
-  },
+    },
   {
     no: 620,
     char: "点",
@@ -440,18 +219,7 @@ export const filterRadicals = [
     etymology: "Combines black/fire (灬) with fortune (占), describing a tiny point, droplet, or spark.",
     funFact: "Individual ID targeting (primary key query) or tap click events. Found in 'Click' (点击) and 'Query point' (点查).",
     philosophy: "A single coordinate contains no space, yet it is the origin of all paths. A dot is a potential universe.",
-    strokePaths: [
-      [[50, 15], [50, 30]],
-      [[25, 42], [75, 42]],
-      [[35, 42], [35, 68]],
-      [[35, 42], [65, 42], [65, 68]],
-      [[35, 68], [65, 68]],
-      [[20, 85], [15, 95]],
-      [[40, 85], [45, 95]],
-      [[60, 85], [65, 95]],
-      [[80, 85], [88, 95]]
-    ]
-  },
+    },
 
   // CATEGORY 2: Sort Parameters, Ordering & Rank Vectors (UI_POSITION)
   {
@@ -464,20 +232,7 @@ export const filterRadicals = [
     etymology: "Combines hand (扌) with non/opposing (非), representing alignment of objects side-by-side.",
     funFact: "The main sort engine toggles (ascending / descending keys). Found in 'Sorting' (排序) and 'Arrangement' (排列).",
     philosophy: "Order is the layout of relation. Sorting places elements in sequence to reveal trends.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 20], [85, 20]],
-      [[55, 20], [55, 45]],
-      [[55, 45], [85, 45]],
-      [[55, 45], [55, 65]],
-      [[55, 65], [85, 65]],
-      [[55, 65], [55, 85]],
-      [[55, 85], [85, 85]],
-      [[35, 40], [55, 40]]
-    ]
-  },
+    },
   {
     no: 622,
     char: "序",
@@ -488,16 +243,7 @@ export const filterRadicals = [
     etymology: "Combines building/wide (广) with thread-spinning, representing organizational chambers or orderly lineage.",
     funFact: "Array sequence indices or sorting rank weights. Found in 'Sequence / Order' (秩序 / 顺序).",
     philosophy: "Without order, data is a heap. Sequence guides the eye along a predictable path.",
-    strokePaths: [
-      [[25, 20], [85, 20]],
-      [[45, 20], [25, 55]],
-      [[25, 55], [65, 55]],
-      [[45, 35], [45, 75]],
-      [[45, 75], [70, 75]],
-      [[25, 80], [70, 80]],
-      [[55, 80], [85, 85]]
-    ]
-  },
+    },
   {
     no: 623,
     char: "倒",
@@ -508,19 +254,7 @@ export const filterRadicals = [
     etymology: "Combines person (亻) with 'arrive/reach' (到), meaning to turn upside down or reverse direction.",
     funFact: "Inverting the sort order (e.g. newest first, reverse alphabetical). Found in '倒序' (reverse order).",
     philosophy: "To look at things in reverse is to find the beginning in the end. Inversion is a powerful lens.",
-    strokePaths: [
-      [[30, 20], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[50, 25], [85, 25]],
-      [[65, 15], [65, 45]],
-      [[50, 55], [85, 55]],
-      [[50, 55], [50, 85]],
-      [[50, 85], [85, 85]],
-      [[35, 70], [50, 70]],
-      [[35, 70], [35, 85]],
-      [[35, 85], [50, 85]]
-    ]
-  },
+    },
   {
     no: 624,
     char: "顺",
@@ -531,18 +265,7 @@ export const filterRadicals = [
     etymology: "Combines river (川) with page/head (页), describing flowing smoothly along with the current.",
     funFact: "Natural chronological sort or default alphanumeric ordering. Found in 'Smooth / In-order' (顺序 / 顺畅).",
     philosophy: "Flowing with the stream requires minimal energy. Let the data sort along its natural axis.",
-    strokePaths: [
-      [[20, 25], [35, 25]],
-      [[28, 25], [28, 55]],
-      [[20, 40], [35, 40]],
-      [[50, 20], [85, 20]],
-      [[65, 20], [65, 50]],
-      [[50, 50], [80, 50], [80, 80]],
-      [[55, 65], [75, 65]],
-      [[40, 55], [25, 80]],
-      [[60, 80], [80, 85]]
-    ]
-  },
+    },
   {
     no: 625,
     char: "升",
@@ -553,13 +276,7 @@ export const filterRadicals = [
     etymology: "A pictogram of a ladle or scoop lifting upwards, later representing rising up or climbing.",
     funFact: "Ascending sort vectors (A to Z, 0 to 9). Found in 'Ascending order' (升序) and 'Elevate' (升级).",
     philosophy: "Ascension builds from the foundation. The lowest numbers form the base of the mountain.",
-    strokePaths: [
-      [[30, 25], [70, 25]],
-      [[50, 15], [50, 85]],
-      [[20, 50], [60, 50]],
-      [[15, 75], [85, 75]]
-    ]
-  },
+    },
   {
     no: 626,
     char: "降",
@@ -570,17 +287,7 @@ export const filterRadicals = [
     etymology: "Combines mound/cliff (阝) with feet walking downward (夅), representing descending a hill.",
     funFact: "Descending sort vectors (Z to A, 9 to 0). Found in 'Descending order' (降序) and 'Reduce' (降低).",
     philosophy: "Descending order starts with the peak. We begin at the maximum value and step toward the floor.",
-    strokePaths: [
-      [[20, 25], [20, 55]],
-      [[20, 25], [35, 25], [35, 55]],
-      [[20, 55], [35, 55]],
-      [[50, 20], [85, 20]],
-      [[65, 15], [65, 55]],
-      [[50, 55], [85, 55]],
-      [[50, 65], [80, 85]],
-      [[50, 65], [65, 85]]
-    ]
-  },
+    },
   {
     no: 627,
     char: "重",
@@ -591,18 +298,7 @@ export const filterRadicals = [
     etymology: "Depicts a person standing on the earth with a heavy bundle, representing heavy weight or layers.",
     funFact: "Relevance scoring algorithms or popularity match weights. Found in 'Weight' (权重) and 'Important' (重要).",
     philosophy: "Not all inputs are equal. By weighting the core nodes, we anchor the structure.",
-    strokePaths: [
-      [[50, 10], [50, 20]],
-      [[20, 25], [80, 25]],
-      [[35, 38], [65, 38]],
-      [[35, 38], [35, 52], [65, 52]],
-      [[35, 52], [65, 52]],
-      [[20, 65], [80, 65]],
-      [[35, 75], [35, 85]],
-      [[35, 75], [65, 75], [65, 85]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 628,
     char: "热",
@@ -613,19 +309,7 @@ export const filterRadicals = [
     etymology: "Combines plants/earth with fire (灬), representing high heat, energy, or burning focus.",
     funFact: "Sorting by engagement volume or click velocity. Found in 'Hot topic' (热门) and 'Heatmap' (热力图).",
     philosophy: "Heat represents current kinetic activity. The hottest nodes are where the stream gathers.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45], [65, 40]],
-      [[35, 55], [65, 55]],
-      [[45, 45], [45, 65]],
-      [[30, 65], [20, 80]],
-      [[20, 80], [50, 90], [80, 85], [85, 65]],
-      [[48, 65], [52, 75]],
-      [[80, 65], [85, 75]],
-      [[40, 85], [35, 95]],
-      [[60, 85], [65, 95]]
-    ]
-  },
+    },
   {
     no: 629,
     char: "新",
@@ -636,22 +320,7 @@ export const filterRadicals = [
     etymology: "Combines wood with an axe (斤), representing cutting fresh timber from the forest.",
     funFact: "Timestamp sorting matching the newest entries first. Found in 'New' (新品 / 更新).",
     philosophy: "The new is fresh juice. It sits at the absolute head of the timestamp timeline.",
-    strokePaths: [
-      [[25, 20], [75, 20]],
-      [[50, 15], [50, 40]],
-      [[20, 42], [80, 42]],
-      [[35, 55], [65, 55]],
-      [[45, 42], [45, 75]],
-      [[45, 55], [25, 85]],
-      [[65, 55], [85, 85]],
-      [[30, 30], [30, 55]],
-      [[70, 30], [70, 55]],
-      [[40, 80], [55, 75]],
-      [[55, 75], [70, 80]],
-      [[50, 80], [50, 90]],
-      [[55, 85], [65, 90]]
-    ]
-  },
+    },
   {
     no: 630,
     char: "旧",
@@ -662,14 +331,7 @@ export const filterRadicals = [
     etymology: "Combines sun (日) with a vertical line (丨), representing the long passage of time, or past days.",
     funFact: "Timestamp sorting matching the oldest/legacy entries. Found in 'Old' (旧版 / 陈旧).",
     philosophy: "The old is the root. Finding the earliest records traces the lineage of state.",
-    strokePaths: [
-      [[25, 20], [25, 80]],
-      [[25, 20], [75, 20], [75, 80]],
-      [[25, 50], [75, 50]],
-      [[25, 80], [75, 80]],
-      [[60, 20], [60, 80]]
-    ]
-  },
+    },
   {
     no: 631,
     char: "等",
@@ -680,21 +342,7 @@ export const filterRadicals = [
     etymology: "Combines bamboo (竹) with temple/standard (寺), referring to bamboo tallies sorted by equal rank.",
     funFact: "Tiered sorting arrays, grade rankings, or equality groups. Found in 'Equality' (平等) and 'Grade' (等级).",
     philosophy: "Grouping items into tiers organizes potential chaos into a ladder of progression.",
-    strokePaths: [
-      [[35, 15], [20, 30]],
-      [[20, 40], [45, 40]],
-      [[35, 40], [35, 70]],
-      [[70, 15], [55, 30]],
-      [[55, 40], [80, 40]],
-      [[70, 40], [70, 70]],
-      [[30, 55], [75, 55]],
-      [[30, 55], [30, 85]],
-      [[30, 85], [75, 85]],
-      [[50, 55], [50, 85]],
-      [[40, 70], [65, 70]],
-      [[20, 90], [80, 90]]
-    ]
-  },
+    },
   {
     no: 632,
     char: "级",
@@ -705,15 +353,7 @@ export const filterRadicals = [
     etymology: "Combines silk (纟) with 'reach/take' (及), representing threads sorted by sequential levels of quality.",
     funFact: "Hierarchical depth sorting, nested categories, or access levels. Found in 'Level' (级别 / 阶级).",
     philosophy: "Structure climbs by steps. Each level represents a different horizon of state visibility.",
-    strokePaths: [
-      [[25, 20], [15, 40]],
-      [[15, 40], [30, 40], [20, 65]],
-      [[20, 65], [30, 75]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55], [85, 80], [75, 75]]
-    ]
-  },
+    },
   {
     no: 633,
     char: "先",
@@ -724,15 +364,7 @@ export const filterRadicals = [
     etymology: "Combines a foot walking over a person, representing marching ahead of others to lead.",
     funFact: "Pushing pinned or sponsored content to index 0. Found in 'First' (优先) and 'Predecessor' (祖先).",
     philosophy: "The leader enters the channel first, setting the pace for the trailing items.",
-    strokePaths: [
-      [[30, 15], [40, 35]],
-      [[70, 15], [60, 35]],
-      [[15, 35], [85, 35]],
-      [[35, 45], [65, 45]],
-      [[50, 35], [50, 85]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 634,
     char: "后",
@@ -743,15 +375,7 @@ export const filterRadicals = [
     etymology: "Originally represented a sovereign or ruler issuing commands from the chambers, later used for behind or behind-time.",
     funFact: "Pushing unindexed, null, or fallback values to the end of the array. Found in 'Last' (最后) and 'Behind' (落后).",
     philosophy: "Being last is not failure; it is the ultimate support of the queue. The last wraps up the array.",
-    strokePaths: [
-      [[55, 15], [25, 35]],
-      [[25, 35], [80, 35]],
-      [[30, 35], [30, 85]],
-      [[40, 52], [40, 82]],
-      [[40, 52], [75, 52], [75, 82]],
-      [[40, 82], [75, 82]]
-    ]
-  },
+    },
   {
     no: 635,
     char: "度",
@@ -762,18 +386,7 @@ export const filterRadicals = [
     etymology: "Combines building (广) with hand (又), representing stretching one's hand to measure lengths.",
     funFact: "Sort parameters based on sizing, dimensions, resolution, or intensity. Found in 'Dimension' (维度 / 刻度).",
     philosophy: "Measurement is the translation of form into quantity. We sort by checking the relative span.",
-    strokePaths: [
-      [[50, 10], [50, 20]],
-      [[25, 25], [75, 25]],
-      [[30, 25], [30, 85]],
-      [[45, 40], [70, 40]],
-      [[58, 30], [58, 65]],
-      [[40, 58], [75, 58]],
-      [[40, 58], [30, 85]],
-      [[55, 68], [80, 85]],
-      [[55, 58], [55, 85]]
-    ]
-  },
+    },
   {
     no: 636,
     char: "频",
@@ -784,22 +397,7 @@ export const filterRadicals = [
     etymology: "Combines 'walking/stepping' with 'head/page' (页), describing stepping repeatedly or frequent nodding.",
     funFact: "Sorting based on execution frequency, logs, or update counts. Found in 'Frequency' (频率) and 'Frequent' (频繁).",
     philosophy: "Rhythm is the pulse of state. High frequency indicates dense activity, while low indicates stillness.",
-    strokePaths: [
-      [[30, 15], [30, 45]],
-      [[30, 15], [70, 15], [70, 45]],
-      [[30, 30], [70, 30]],
-      [[30, 45], [70, 45]],
-      [[15, 60], [45, 60]],
-      [[15, 60], [15, 85]],
-      [[15, 85], [45, 85]],
-      [[55, 50], [85, 50]],
-      [[70, 50], [70, 80]],
-      [[55, 80], [80, 80], [80, 85]],
-      [[60, 65], [75, 65]],
-      [[40, 70], [55, 75]],
-      [[65, 55], [65, 75]]
-    ]
-  },
+    },
   {
     no: 637,
     char: "评",
@@ -810,16 +408,7 @@ export const filterRadicals = [
     etymology: "Combines speech (讠) with flat/even (平), representing balancing opinions to render a fair judgment.",
     funFact: "Sorting by user review ratings or average scores. Found in 'Comment' (评论) and 'Evaluate' (评价).",
     philosophy: "A review is the echo of human experience. Sorting by rating maps user satisfaction.",
-    strokePaths: [
-      [[20, 25], [45, 25]],
-      [[20, 25], [20, 65]],
-      [[20, 65], [45, 65]],
-      [[20, 45], [45, 45]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 55]],
-      [[55, 55], [85, 55]]
-    ]
-  },
+    },
   {
     no: 638,
     char: "量",
@@ -830,21 +419,7 @@ export const filterRadicals = [
     etymology: "Combines 'sun' with 'earth/fields', representing measuring land area, solar shadow lengths, or capacity.",
     funFact: "Sorting by numerical counts, byte sizes, or index lengths. Found in 'Volume' (数量 / 容量).",
     philosophy: "Quantity tells us how much matter occupies the grid. It is the raw mass of data.",
-    strokePaths: [
-      [[30, 15], [70, 15]],
-      [[50, 10], [50, 25]],
-      [[25, 30], [75, 30]],
-      [[40, 30], [40, 50]],
-      [[40, 30], [60, 30], [60, 50]],
-      [[40, 50], [60, 50]],
-      [[50, 30], [50, 50]],
-      [[30, 60], [70, 60]],
-      [[40, 60], [40, 80]],
-      [[40, 60], [60, 60], [60, 80]],
-      [[40, 80], [60, 80]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 639,
     char: "价",
@@ -855,15 +430,7 @@ export const filterRadicals = [
     etymology: "Combines person (亻) with shell/money (介), indicating exchange value set by humans.",
     funFact: "Sorting by resource consumption or prices. Found in 'Price' (价格) and 'Value' (价值).",
     philosophy: "Value reflects the cost of exchange. It is the energetic metric required to load an item.",
-    strokePaths: [
-      [[30, 20], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[55, 25], [85, 25]],
-      [[55, 25], [55, 55]],
-      [[55, 55], [85, 55]],
-      [[45, 50], [75, 80]]
-    ]
-  },
+    },
   {
     no: 640,
     char: "距",
@@ -874,17 +441,7 @@ export const filterRadicals = [
     etymology: "Combines foot (⻊) with carpenter's square (巨), representing measuring steps or spatial strides.",
     funFact: "Spatial proximity sorting (geographic location or vector math distance). Found in 'Distance' (距离).",
     philosophy: "Distance is the gap between coordinates. Sorting by proximity brings the nearest nodes closer.",
-    strokePaths: [
-      [[20, 20], [45, 20]],
-      [[30, 20], [30, 45]],
-      [[20, 45], [45, 45]],
-      [[20, 45], [20, 65]],
-      [[20, 65], [45, 55]],
-      [[55, 30], [85, 30]],
-      [[70, 30], [70, 85]],
-      [[50, 85], [90, 85]]
-    ]
-  },
+    },
 
   // CATEGORY 3: Logical Operators, Conditional Matches & State Rules (UI_STRUCTURE)
   {
@@ -897,12 +454,7 @@ export const filterRadicals = [
     etymology: "A simplified form depicting hands giving/holding an object together, representing joint possession.",
     funFact: "Intersection logic (both conditions must be true: conditionA && conditionB). Found in 'And' (与).",
     philosophy: "Union of limits. Two parameters must meet, making the target space narrower but deeper.",
-    strokePaths: [
-      [[25, 30], [85, 30]],
-      [[35, 30], [15, 80]],
-      [[55, 30], [85, 80]]
-    ]
-  },
+    },
   {
     no: 642,
     char: "或",
@@ -913,17 +465,7 @@ export const filterRadicals = [
     etymology: "A weapon guarding a city wall, indicating boundaries where options, branches, or alternatives exist.",
     funFact: "Union logic (either condition is true: conditionA || conditionB). Found in 'Or' (或者).",
     philosophy: "Expansion of pathways. Either gate allows passage, widening the field of results.",
-    strokePaths: [
-      [[30, 20], [80, 20]],
-      [[55, 15], [55, 45]],
-      [[30, 45], [80, 45]],
-      [[30, 45], [30, 75]],
-      [[30, 75], [80, 75]],
-      [[50, 75], [50, 95]],
-      [[70, 75], [70, 95]],
-      [[85, 25], [95, 35]]
-    ]
-  },
+    },
   {
     no: 643,
     char: "非",
@@ -934,17 +476,7 @@ export const filterRadicals = [
     etymology: "An ancient drawing of two opposing wings pointing away from each other, representing opposition or rejection.",
     funFact: "Exclusion logic (item must not match this criteria: !condition). Found in 'Non- / False' (非 / 非常).",
     philosophy: "Defining by what is not. Rejection shapes identity more sharply than acceptance.",
-    strokePaths: [
-      [[30, 15], [30, 55]],
-      [[30, 55], [30, 85]],
-      [[15, 35], [45, 35]],
-      [[15, 65], [45, 65]],
-      [[70, 15], [70, 55]],
-      [[70, 55], [70, 85]],
-      [[55, 35], [85, 35]],
-      [[55, 65], [85, 65]]
-    ]
-  },
+    },
   {
     no: 644,
     char: "同",
@@ -955,15 +487,7 @@ export const filterRadicals = [
     etymology: "Depicts many voices gathered around a single opening (口), indicating harmony, identity, or assembly.",
     funFact: "Loose equality operator (==) or shared grouping traits. Found in 'Same' (相同) and 'Together' (共同).",
     philosophy: "Under different titles, items may share the same essence. Equality simplifies complexity.",
-    strokePaths: [
-      [[25, 25], [75, 25]],
-      [[50, 15], [50, 30]],
-      [[25, 35], [75, 35]],
-      [[25, 35], [25, 80]],
-      [[25, 35], [75, 35], [75, 80]],
-      [[25, 80], [75, 80]]
-    ]
-  },
+    },
   {
     no: 645,
     char: "异",
@@ -974,15 +498,7 @@ export const filterRadicals = [
     etymology: "Depicts hands raised to hold a mask, representing looking different, strange, or separate.",
     funFact: "Not-equal operator (!=) or variance calculation flags. Found in 'Difference' (差异) and 'Abnormal' (异常).",
     philosophy: "Symmetry is pleasant, but variance is where intelligence and life thrive.",
-    strokePaths: [
-      [[25, 25], [75, 25]],
-      [[50, 15], [50, 40]],
-      [[30, 40], [70, 40]],
-      [[30, 40], [30, 60]],
-      [[30, 60], [70, 60]],
-      [[50, 60], [50, 85]]
-    ]
-  },
+    },
   {
     no: 646,
     char: "合",
@@ -993,15 +509,7 @@ export const filterRadicals = [
     etymology: "Depicts a lid closing over a container (口), representing closing, gathering, or merging together.",
     funFact: "Merging distinct multi-filter outputs into one unique set. Found in 'Merge' (合并) and 'Union' (联合).",
     philosophy: "Merging collapses separate channels into a single coordinate stream.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45], [65, 40]],
-      [[35, 55], [65, 55]],
-      [[35, 55], [35, 85]],
-      [[35, 55], [65, 55], [65, 85]],
-      [[35, 85], [65, 85]]
-    ]
-  },
+    },
   {
     no: 647,
     char: "交",
@@ -1012,15 +520,7 @@ export const filterRadicals = [
     etymology: "A pictogram of a person crossing their legs, representing crossing, overlapping, or exchanging.",
     funFact: "Extracting only overlapping items between distinct arrays (intersection). Found in 'Intersection' (交叉 / 交互).",
     philosophy: "The crossroads is where separate systems share a brief, common coordinate.",
-    strokePaths: [
-      [[50, 15], [20, 50]],
-      [[20, 50], [80, 50]],
-      [[50, 40], [30, 70]],
-      [[30, 70], [70, 70]],
-      [[50, 40], [70, 70]],
-      [[15, 80], [85, 80]]
-    ]
-  },
+    },
   {
     no: 648,
     char: "全",
@@ -1031,15 +531,7 @@ export const filterRadicals = [
     etymology: "Combines 'enter' with 'pure jade', representing complete, perfect, unblemished, or whole.",
     funFact: "Match-all wildcard criteria (*, clear filters). Found in 'All' (全部) and 'Global' (全局).",
     philosophy: "The whole holds all parts in balance. Clearing boundaries returns us to the original state.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45], [65, 40]],
-      [[50, 40], [20, 70]],
-      [[20, 70], [80, 70]],
-      [[50, 40], [80, 70]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 649,
     char: "任",
@@ -1050,15 +542,7 @@ export const filterRadicals = [
     etymology: "Combines person (亻) with a tool frame (壬), representing loading a shoulder pole with arbitrary weight.",
     funFact: "Match-any filter rule checking if any tags match. Found in 'Arbitrary' (任意) and 'Responsibility' (任务).",
     philosophy: "To accept any is to trust the flow. It opens the boundary to arbitrary items.",
-    strokePaths: [
-      [[30, 20], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 55]],
-      [[55, 55], [85, 55]],
-      [[70, 25], [70, 85]]
-    ]
-  },
+    },
   {
     no: 650,
     char: "拟",
@@ -1069,16 +553,7 @@ export const filterRadicals = [
     etymology: "Combines hand (扌) with 'to comparison' (以), representing imitation, comparison, or modeling.",
     funFact: "Fuzzy text matching or string-distance algorithms. Found in 'Simulation' (模拟) and 'Drafting' (拟定).",
     philosophy: "Perfect matches are rare in nature. Fuzzy logic builds bridges across small gaps.",
-    strokePaths: [
-      [[15, 45], [45, 45]],
-      [[30, 20], [30, 80], [20, 70]],
-      [[15, 75], [35, 60]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]]
-    ]
-  },
+    },
   {
     no: 651,
     char: "配",
@@ -1089,19 +564,7 @@ export const filterRadicals = [
     etymology: "Combines wine vessel (酉) with person kneeling, representing mixing wines to match or marry tastes.",
     funFact: "Pattern matching, regular expression checks, or validation. Found in 'Match' (匹配) and 'Configure' (配置).",
     philosophy: "A match is the lock meeting its key. When constraints align, the door opens.",
-    strokePaths: [
-      [[35, 15], [65, 15]],
-      [[25, 30], [25, 80]],
-      [[25, 30], [75, 30], [75, 80]],
-      [[25, 50], [75, 50]],
-      [[25, 80], [75, 80]],
-      [[55, 35], [55, 65]],
-      [[55, 35], [85, 35], [85, 65], [75, 55]],
-      [[55, 65], [85, 65]],
-      [[55, 10], [55, 30]],
-      [[15, 90], [90, 90]]
-    ]
-  },
+    },
   {
     no: 652,
     char: "似",
@@ -1112,15 +575,7 @@ export const filterRadicals = [
     etymology: "Combines person (亻) with 'by means of/comparison' (以), describing resemblance or similarity.",
     funFact: "Similarity clustering, embedding match thresholds, or lookalikes. Found in 'Similarity' (相似).",
     philosophy: "Resemblance is structural cousinhood. Items with similar shapes carry related wisdom.",
-    strokePaths: [
-      [[30, 20], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]]
-    ]
-  },
+    },
   {
     no: 653,
     char: "属",
@@ -1131,21 +586,7 @@ export const filterRadicals = [
     etymology: "Combines tail/body (尸) with a connected lineage, representing direct connection, membership, or dependency.",
     funFact: "Set membership check (Array.prototype.includes). Found in 'Attribute' (属性) and 'Belong to' (属于).",
     philosophy: "Belonging anchors an item within a parent sphere, mapping its place in the taxonomy.",
-    strokePaths: [
-      [[25, 20], [75, 20]],
-      [[35, 20], [35, 50]],
-      [[65, 20], [65, 50]],
-      [[25, 50], [75, 50]],
-      [[50, 50], [50, 70]],
-      [[25, 70], [75, 70]],
-      [[25, 70], [25, 85]],
-      [[25, 70], [75, 70], [75, 85]],
-      [[25, 85], [75, 85]],
-      [[45, 50], [45, 70]],
-      [[55, 70], [85, 85]],
-      [[55, 70], [75, 80]]
-    ]
-  },
+    },
   {
     no: 654,
     char: "含",
@@ -1156,16 +597,7 @@ export const filterRadicals = [
     etymology: "Combines 'now/gathering' (今) with mouth (口), representing holding something in the mouth.",
     funFact: "Substring presence validation within specific fields. Found in 'Contain' (包含) and 'Content' (含量).",
     philosophy: "To contain is to swallow. The larger string envelopes the smaller pattern within its borders.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45], [65, 40]],
-      [[35, 55], [65, 55]],
-      [[35, 55], [35, 85]],
-      [[35, 55], [65, 55], [65, 85]],
-      [[35, 85], [65, 85]],
-      [[20, 80], [80, 80]]
-    ]
-  },
+    },
   {
     no: 655,
     char: "无",
@@ -1176,13 +608,7 @@ export const filterRadicals = [
     etymology: "Originally a pictogram of a dancer waving sleeves, borrowed for the abstract concept of nothingness or zero.",
     funFact: "Filtering fields that are empty, null, or undefined. Found in 'None / Empty' (无 / 无效).",
     philosophy: "Emptiness is the utility of the vessel. Without the null spaces, the active state has no room.",
-    strokePaths: [
-      [[20, 25], [80, 25]],
-      [[50, 15], [50, 45]],
-      [[20, 55], [80, 55]],
-      [[25, 70], [75, 85]]
-    ]
-  },
+    },
   {
     no: 656,
     char: "有",
@@ -1193,15 +619,7 @@ export const filterRadicals = [
     etymology: "Depicts a hand (又) holding meat (月), representing direct possession or active presence.",
     funFact: "Filtering fields that have active, non-null values. Found in 'Exist / Have' (有 / 有效).",
     philosophy: "Presence is the solid block. It represents active, materialized energy on the canvas.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45]],
-      [[30, 25], [80, 25]],
-      [[45, 25], [45, 75]],
-      [[45, 25], [75, 25], [75, 75]],
-      [[45, 75], [75, 75]]
-    ]
-  },
+    },
   {
     no: 657,
     char: "仅",
@@ -1212,13 +630,7 @@ export const filterRadicals = [
     etymology: "Combines person (亻) with 'clay/narrow', indicating reaching a narrow limit or boundary.",
     funFact: "Strict isolated matching, rejecting all other tags. Found in 'Only' (仅 / 仅仅).",
     philosophy: "Exclusivity shuts the doors to external noise, creating an oasis of pure focus.",
-    strokePaths: [
-      [[30, 20], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[55, 25], [85, 25]],
-      [[60, 40], [60, 80]]
-    ]
-  },
+    },
   {
     no: 658,
     char: "偏",
@@ -1229,17 +641,7 @@ export const filterRadicals = [
     etymology: "Combines person (亻) with flat/tablet, describing leaning to one side or a slanted surface.",
     funFact: "Applying soft search modifiers or bias weight adjustments. Found in 'Bias / Deviation' (偏差 / 偏好).",
     philosophy: "Leaning is not a mistake; it is the directional pull of intent that skews the balance.",
-    strokePaths: [
-      [[30, 15], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[45, 25], [80, 25]],
-      [[45, 40], [45, 80]],
-      [[45, 40], [80, 40], [80, 80]],
-      [[45, 60], [80, 60]],
-      [[45, 80], [80, 80]],
-      [[62, 10], [62, 95]]
-    ]
-  },
+    },
   {
     no: 659,
     char: "兼",
@@ -1250,19 +652,7 @@ export const filterRadicals = [
     etymology: "Depicts a hand holding two stalks of grain simultaneously, representing dual possession or overlapping roles.",
     funFact: "Dual-role filtering where items satisfy multiple tag definitions. Found in 'Compatible' (兼容).",
     philosophy: "One hand holding two stalks proves that unified focus can manage multiple dimensions.",
-    strokePaths: [
-      [[30, 15], [70, 15]],
-      [[50, 10], [50, 30]],
-      [[20, 30], [80, 30]],
-      [[35, 30], [35, 50]],
-      [[35, 30], [65, 30], [65, 50]],
-      [[35, 50], [65, 50]],
-      [[25, 60], [75, 60]],
-      [[25, 60], [25, 85]],
-      [[25, 60], [75, 60], [75, 85]],
-      [[25, 85], [75, 85]]
-    ]
-  },
+    },
   {
     no: 660,
     char: "即",
@@ -1273,16 +663,7 @@ export const filterRadicals = [
     etymology: "A person sitting next to a food vessel, representing being immediately present or ready to eat.",
     funFact: "Absolute literal matches requiring zero calculation buffers or real-time event hooks. Found in 'Immediate' (立即 / 即时).",
     philosophy: "Now is the only portal of execution. Instant actions bypass the queue of time.",
-    strokePaths: [
-      [[25, 25], [55, 25]],
-      [[40, 15], [40, 45]],
-      [[25, 45], [55, 45]],
-      [[25, 45], [25, 75]],
-      [[25, 75], [55, 75]],
-      [[65, 30], [85, 30]],
-      [[65, 30], [65, 80]]
-    ]
-  },
+    },
 
   // CATEGORY 4: Categories, Groupings, Clusters & Taxonomy Tags (UI_CONTAINER)
   {
@@ -1295,18 +676,7 @@ export const filterRadicals = [
     etymology: "Combines rice (米) with head/dog, indicating classifying grains or animal species into groups.",
     funFact: "The core data taxonomy model or object type filter. Found in 'Category' (类别 / 分类).",
     philosophy: "Classification organizes the multi-colored world into families of shared resonance.",
-    strokePaths: [
-      [[30, 15], [40, 25]],
-      [[70, 15], [60, 25]],
-      [[20, 35], [80, 35]],
-      [[50, 15], [50, 55]],
-      [[50, 35], [20, 65]],
-      [[50, 35], [80, 65]],
-      [[25, 65], [75, 65]],
-      [[30, 75], [30, 85]],
-      [[30, 75], [70, 75], [70, 85]]
-    ]
-  },
+    },
   {
     no: 662,
     char: "组",
@@ -1317,17 +687,7 @@ export const filterRadicals = [
     etymology: "Combines silk (纟) with altar/tomb (且), representing binding ancestral items with ribbons.",
     funFact: "Group-by parameters (SQL GROUP BY or array segmentations). Found in 'Group / Set' (组合 / 分组).",
     philosophy: "A group is a family of variables bound by a common thread, standing together as a single node.",
-    strokePaths: [
-      [[25, 20], [15, 40]],
-      [[15, 40], [30, 40], [20, 65]],
-      [[20, 65], [30, 75]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 55]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 80]],
-      [[55, 80], [85, 80]]
-    ]
-  },
+    },
   {
     no: 663,
     char: "别",
@@ -1338,16 +698,7 @@ export const filterRadicals = [
     etymology: "Combines bone scraping with knife (刂), representing separating bones cleanly into distinct parts.",
     funFact: "Dropdown category filters splitting items by system group boundaries. Found in 'Difference' (区别 / 类别).",
     philosophy: "Separation defines boundaries. Clean cuts make the taxonomy distinct and easy to navigate.",
-    strokePaths: [
-      [[25, 25], [75, 25]],
-      [[35, 25], [35, 55]],
-      [[35, 55], [55, 55]],
-      [[35, 25], [55, 25], [55, 55]],
-      [[35, 70], [55, 70]],
-      [[65, 25], [85, 25]],
-      [[65, 25], [65, 80]]
-    ]
-  },
+    },
   {
     no: 664,
     char: "部",
@@ -1358,19 +709,7 @@ export const filterRadicals = [
     etymology: "Combines sound/mouth with city/right cliff (阝), representing city districts or organized divisions.",
     funFact: "High-level domain-specific section divisions or folders. Found in 'Section' (部门 / 部分).",
     philosophy: "A division is a sovereign region of code, managing its own states under a global flag.",
-    strokePaths: [
-      [[25, 20], [75, 20]],
-      [[35, 20], [35, 50]],
-      [[35, 50], [65, 50]],
-      [[35, 20], [65, 20], [65, 50]],
-      [[35, 65], [65, 65]],
-      [[25, 80], [65, 80]],
-      [[70, 30], [90, 30]],
-      [[70, 30], [70, 60]],
-      [[70, 60], [90, 60]],
-      [[70, 60], [70, 85]]
-    ]
-  },
+    },
   {
     no: 665,
     char: "门",
@@ -1381,12 +720,7 @@ export const filterRadicals = [
     etymology: "A pictogram of a door with two wings, representing a gate, entryway, or school of thought.",
     funFact: "Coarse taxonomy boundaries separating major functional regions. Found in 'Portal' (门户) and 'Class / Family' (门类).",
     philosophy: "The gate is the threshold. Passing through changes the active catalog context.",
-    strokePaths: [
-      [[25, 15], [25, 85]],
-      [[25, 15], [45, 15], [45, 45]],
-      [[25, 30], [45, 30]]
-    ]
-  },
+    },
   {
     no: 666,
     char: "种",
@@ -1397,18 +731,7 @@ export const filterRadicals = [
     etymology: "Combines grain (禾) with middle/heavy (中), representing sowing specific seed varieties into fields.",
     funFact: "Individual item variations or specific sub-types. Found in 'Variety / Type' (种类 / 变种).",
     philosophy: "Like seeds sprouting different flowers, variants share a root but express separate shapes.",
-    strokePaths: [
-      [[30, 15], [70, 15]],
-      [[50, 10], [50, 45]],
-      [[20, 45], [80, 45]],
-      [[25, 55], [75, 55]],
-      [[25, 55], [25, 85]],
-      [[25, 55], [75, 55], [75, 85]],
-      [[25, 70], [75, 70]],
-      [[50, 55], [50, 85]],
-      [[15, 85], [85, 85]]
-    ]
-  },
+    },
   {
     no: 667,
     char: "系",
@@ -1419,16 +742,7 @@ export const filterRadicals = [
     etymology: "Depicts silk threads tied together in a chain, representing a connected system or lineage.",
     funFact: "Relational database tables, inheritance trees, or dependencies. Found in 'System' (系统) and 'Relation' (关系).",
     philosophy: "A system is an organic web. Each node depends on the health of the connection.",
-    strokePaths: [
-      [[50, 15], [35, 30], [55, 45], [30, 60]],
-      [[30, 60], [70, 60]],
-      [[50, 55], [50, 80]],
-      [[35, 70], [20, 85]],
-      [[65, 70], [80, 85]],
-      [[15, 90], [40, 90]],
-      [[60, 90], [85, 90]]
-    ]
-  },
+    },
   {
     no: 668,
     char: "标",
@@ -1439,18 +753,7 @@ export const filterRadicals = [
     etymology: "Combines wood (木) with a marker (示), representing placing a wooden signpost or high flag.",
     funFact: "Metadata taxonomy tagging systems or system marks. Found in 'Label' (标签) and 'Target' (目标).",
     philosophy: "A label is a signpost. It flags the nature of the data before we open its contents.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[5, 35], [35, 35]],
-      [[20, 35], [8, 55]],
-      [[20, 35], [32, 55]],
-      [[50, 20], [80, 20]],
-      [[65, 10], [65, 50]],
-      [[45, 50], [85, 50]],
-      [[65, 50], [50, 80]],
-      [[65, 50], [80, 80]]
-    ]
-  },
+    },
   {
     no: 669,
     char: "签",
@@ -1461,22 +764,7 @@ export const filterRadicals = [
     etymology: "Combines bamboo (竹) with assembly/agreement, representing signing names on bamboo slips.",
     funFact: "User-generated taxonomy tags or dynamic flags. Found in 'Sign / Label' (签字 / 标签).",
     philosophy: "Writing a label marks an element, categorizing it for future retrieval.",
-    strokePaths: [
-      [[35, 15], [20, 30]],
-      [[20, 40], [45, 40]],
-      [[35, 40], [35, 70]],
-      [[70, 15], [55, 30]],
-      [[55, 40], [80, 40]],
-      [[70, 40], [70, 70]],
-      [[30, 55], [75, 55]],
-      [[30, 55], [30, 85]],
-      [[30, 55], [75, 55], [75, 85]],
-      [[30, 70], [75, 70]],
-      [[50, 55], [50, 85]],
-      [[20, 90], [50, 90]],
-      [[60, 90], [85, 90]]
-    ]
-  },
+    },
   {
     no: 670,
     char: "段",
@@ -1487,18 +775,7 @@ export const filterRadicals = [
     etymology: "Depicts a hand holding a hammer sculpting stone, representing chopping material into distinct segments.",
     funFact: "Data range sliders or pagination record chunks. Found in 'Segment' (阶段 / 线段).",
     philosophy: "Dividing continuous streams into segments makes infinity digestible to the machine.",
-    strokePaths: [
-      [[25, 20], [75, 20]],
-      [[35, 20], [35, 50]],
-      [[35, 50], [65, 50]],
-      [[35, 20], [65, 20], [65, 50]],
-      [[35, 65], [65, 65]],
-      [[25, 80], [65, 80]],
-      [[70, 30], [90, 30]],
-      [[70, 30], [70, 60]],
-      [[70, 60], [90, 60]]
-    ]
-  },
+    },
   {
     no: 671,
     char: "堆",
@@ -1509,20 +786,7 @@ export const filterRadicals = [
     etymology: "Combines earth (土) with short bird (隹), representing stacking earth or items high like a nest.",
     funFact: "Unsorted high-volume raw data dumps or memory buffers. Found in 'Heap' (堆栈) and 'Batch' (一堆).",
     philosophy: "The heap is potential chaos. It waits for the sorting index to breathe structure into its mass.",
-    strokePaths: [
-      [[25, 45], [75, 45]],
-      [[50, 15], [50, 80]],
-      [[15, 80], [85, 80]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]],
-      [[55, 85], [85, 85]],
-      [[70, 65], [70, 85]],
-      [[35, 45], [55, 45]],
-      [[35, 45], [35, 65]]
-    ]
-  },
+    },
   {
     no: 672,
     char: "区",
@@ -1533,13 +797,7 @@ export const filterRadicals = [
     etymology: "A container wrapping an object, representing a closed regional sector or partition.",
     funFact: "Sharded table partitions or regional workspace layouts. Found in 'Partition / Zone' (分区 / 区域).",
     philosophy: "Partitioning isolates data fields, preventing overflow from flooding adjacent sectors.",
-    strokePaths: [
-      [[15, 20], [85, 20]],
-      [[35, 35], [70, 75]],
-      [[70, 35], [35, 75]],
-      [[15, 20], [15, 85], [85, 85]]
-    ]
-  },
+    },
   {
     no: 673,
     char: "范",
@@ -1550,17 +808,7 @@ export const filterRadicals = [
     etymology: "Combines herbs (艹) with water-flow and self, representing a mold or broad perimeter limits.",
     funFact: "Variables scope, query domains, or local execution spaces. Found in 'Scope' (范围) and 'Model' (范式).",
     philosophy: "The scope limits execution. Within its borders, local variables rule; outside, they fade.",
-    strokePaths: [
-      [[30, 25], [30, 55]],
-      [[20, 40], [45, 40]],
-      [[70, 25], [70, 55]],
-      [[55, 40], [80, 40]],
-      [[25, 65], [80, 65]],
-      [[40, 65], [40, 85]],
-      [[40, 65], [80, 65], [80, 85]],
-      [[40, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 674,
     char: "块",
@@ -1571,16 +819,7 @@ export const filterRadicals = [
     etymology: "Combines earth (土) with decision/divide, representing a solid block or chunk of land.",
     funFact: "Memory blocks, text layouts, or CSS block boxes. Found in 'Chunk / Block' (数据块 / 模块).",
     philosophy: "A block is a solid visual island. It occupies space with robust, non-yielding presence.",
-    strokePaths: [
-      [[10, 45], [35, 45]],
-      [[22, 20], [22, 80]],
-      [[10, 75], [35, 60]],
-      [[45, 25], [80, 25]],
-      [[65, 25], [45, 55]],
-      [[45, 55], [85, 55], [75, 85]],
-      [[55, 60], [80, 85]]
-    ]
-  },
+    },
   {
     no: 675,
     char: "列",
@@ -1591,15 +830,7 @@ export const filterRadicals = [
     etymology: "Combines bones with knife (刂), representing laying out separated bones in an orderly line.",
     funFact: "Grouping output fields into vertical property columns. Found in 'Column' (纵列 / 列表).",
     philosophy: "Columns organize attributes. They map specific properties across many parallel rows.",
-    strokePaths: [
-      [[30, 15], [70, 15]],
-      [[50, 10], [50, 45]],
-      [[20, 45], [80, 45]],
-      [[30, 55], [80, 55]],
-      [[55, 55], [55, 85]],
-      [[80, 20], [90, 30]]
-    ]
-  },
+    },
   {
     no: 676,
     char: "行",
@@ -1610,15 +841,7 @@ export const filterRadicals = [
     etymology: "A pictogram of a four-way intersection, representing pathways, walking, rows, or lanes.",
     funFact: "Individual filtered database rows or array entries. Found in 'Row' (横行 / 行列).",
     philosophy: "The row is a single life. It holds all attributes of a record across a single horizontal line.",
-    strokePaths: [
-      [[30, 20], [15, 45]],
-      [[35, 40], [20, 65]],
-      [[25, 60], [25, 90]],
-      [[50, 25], [80, 25]],
-      [[65, 15], [50, 45]],
-      [[45, 50], [85, 50], [75, 85]]
-    ]
-  },
+    },
   {
     no: 677,
     char: "队",
@@ -1629,13 +852,7 @@ export const filterRadicals = [
     etymology: "Combines cliff/mound (阝) with person, representing troops descending or aligning in a queue.",
     funFact: "Filtered processing queues or asynchronous rendering lines. Found in 'Queue' (队列) and 'Team' (队伍).",
     philosophy: "First-in, first-out. The queue coordinates temporal order, keeping execution paced.",
-    strokePaths: [
-      [[20, 25], [20, 55]],
-      [[20, 25], [35, 25], [35, 55]],
-      [[20, 55], [35, 55]],
-      [[55, 20], [80, 20]]
-    ]
-  },
+    },
   {
     no: 678,
     char: "集",
@@ -1646,21 +863,7 @@ export const filterRadicals = [
     etymology: "Depicts birds (隹) gathered on top of a tree (木), representing a meeting, assembly, or set.",
     funFact: "The ultimate filtered output payload collection. Found in 'Dataset' (数据集) and 'Collection' (集合).",
     philosophy: "The gathering of parts into a whole. A set is a unified body of unique records.",
-    strokePaths: [
-      [[50, 15], [25, 35]],
-      [[50, 15], [75, 35]],
-      [[25, 35], [75, 35]],
-      [[20, 45], [80, 45]],
-      [[35, 45], [35, 65]],
-      [[35, 45], [65, 45], [65, 65]],
-      [[35, 65], [65, 65]],
-      [[50, 45], [50, 65]],
-      [[25, 75], [75, 75]],
-      [[25, 75], [25, 90]],
-      [[25, 75], [75, 75], [75, 90]],
-      [[25, 90], [75, 90]]
-    ]
-  },
+    },
   {
     no: 679,
     char: "包",
@@ -1671,14 +874,7 @@ export const filterRadicals = [
     etymology: "A pictogram of a womb wrapping an embryo, representing wrapping, packaging, or bundling.",
     funFact: "Packed query responses or dependency packages. Found in 'Package / Bundle' (打包 / 软件包).",
     philosophy: "Wrapping hides internal complexity. The bundle presents a clean outer face to the importer.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45]],
-      [[50, 35], [20, 75]],
-      [[20, 75], [80, 75]],
-      [[40, 75], [40, 95]]
-    ]
-  },
+    },
   {
     no: 680,
     char: "款",
@@ -1689,21 +885,7 @@ export const filterRadicals = [
     etymology: "Combines standard markers with deep breathing/desire (欠), representing standard designs, formats, or models.",
     funFact: "Aesthetic style filters or hardware/software model variants. Found in 'Style' (款式 / 条款).",
     philosophy: "Format defines expression. We sort products and assets by their architectural designs.",
-    strokePaths: [
-      [[25, 20], [75, 20]],
-      [[35, 20], [35, 50]],
-      [[35, 50], [65, 50]],
-      [[35, 20], [65, 20], [65, 50]],
-      [[35, 65], [65, 65]],
-      [[25, 80], [65, 80]],
-      [[70, 30], [90, 30]],
-      [[70, 30], [70, 60]],
-      [[70, 60], [90, 60]],
-      [[70, 60], [70, 85]],
-      [[80, 85], [90, 75]],
-      [[85, 65], [95, 75]]
-    ]
-  },
+    },
 
   // CATEGORY 5: Range Metrics, Counters, Thresholds & Limits (UI_VISUAL)
   {
@@ -1716,17 +898,7 @@ export const filterRadicals = [
     etymology: "Combines cliff (阝) with eyes glaring back (艮), representing standing at a hard, non-yielding boundary.",
     funFact: "Hard caps on pagination counts or execution timeouts. Found in 'Limit' (限制 / 极限).",
     philosophy: "A boundary is not a prison; it is the shape of containment. Limits prevent memory overflow.",
-    strokePaths: [
-      [[20, 25], [20, 55]],
-      [[20, 25], [35, 25], [35, 55]],
-      [[20, 55], [35, 55]],
-      [[50, 25], [85, 25]],
-      [[65, 15], [65, 55]],
-      [[50, 55], [85, 55]],
-      [[50, 65], [80, 85]],
-      [[50, 65], [65, 85]]
-    ]
-  },
+    },
   {
     no: 682,
     char: "幅",
@@ -1737,18 +909,7 @@ export const filterRadicals = [
     etymology: "Combines cloth (巾) with wealth/full (畐), representing the width of a banner or scale of borders.",
     funFact: "Minimum-to-maximum range spreads or coordinate bounding boxes. Found in 'Range' (幅度).",
     philosophy: "The span is the playground of values. It defines how far a pointer can slide.",
-    strokePaths: [
-      [[20, 20], [20, 85]],
-      [[20, 20], [35, 20], [35, 85]],
-      [[20, 45], [35, 45]],
-      [[50, 25], [85, 25]],
-      [[45, 45], [45, 60]],
-      [[45, 45], [85, 45], [85, 60]],
-      [[45, 60], [85, 60]],
-      [[40, 75], [90, 75]],
-      [[65, 60], [65, 95]]
-    ]
-  },
+    },
   {
     no: 683,
     char: "多",
@@ -1759,15 +920,7 @@ export const filterRadicals = [
     etymology: "Two crescent moons (夕) stacked, indicating many nights passing, hence abundance, plurality, or maximums.",
     funFact: "Upper limit threshold filtering (> value). Found in 'Maximum' (最多 / 许多).",
     philosophy: "More is the expansion of mass. It step-filters inputs that overflow the baseline.",
-    strokePaths: [
-      [[30, 15], [50, 35]],
-      [[50, 35], [20, 45]],
-      [[50, 35], [80, 45]],
-      [[25, 55], [45, 75]],
-      [[45, 75], [15, 85]],
-      [[45, 75], [75, 85]]
-    ]
-  },
+    },
   {
     no: 684,
     char: "少",
@@ -1778,13 +931,7 @@ export const filterRadicals = [
     etymology: "A simplified drawing of tiny sand grains being divided, indicating small amounts or minimums.",
     funFact: "Lower limit threshold filtering (< value). Found in 'Minimum' (最少 / 少数).",
     philosophy: "Fewer is the path to elegance. Minimal filters isolate the rare, high-value nodes.",
-    strokePaths: [
-      [[30, 20], [50, 40]],
-      [[50, 40], [20, 50]],
-      [[50, 40], [80, 50]],
-      [[20, 70], [80, 70]]
-    ]
-  },
+    },
   {
     no: 685,
     char: "满",
@@ -1795,22 +942,7 @@ export const filterRadicals = [
     etymology: "Combines water (氵) with vegetation covering, representing water filling a vessel to the absolute brim.",
     funFact: "Capacity-check filtering (e.g. checking for full queues). Found in 'Full' (充满 / 满意).",
     philosophy: "Fullness is the limit of storage. When capacity is hit, the system must trigger a flush.",
-    strokePaths: [
-      [[15, 20], [20, 25]],
-      [[10, 45], [15, 50]],
-      [[10, 80], [25, 70]],
-      [[35, 25], [85, 25]],
-      [[50, 15], [50, 40]],
-      [[35, 50], [85, 50]],
-      [[35, 50], [35, 80]],
-      [[35, 80], [85, 80]],
-      [[50, 60], [50, 80]],
-      [[40, 65], [75, 65]],
-      [[30, 45], [50, 45]],
-      [[30, 45], [30, 65]],
-      [[30, 65], [50, 65]]
-    ]
-  },
+    },
   {
     no: 686,
     char: "空",
@@ -1821,17 +953,7 @@ export const filterRadicals = [
     etymology: "Combines cave (穴) with work (工), representing an empty cavern with space to carve.",
     funFact: "Filtering out arrays with length matching zero. Found in 'Empty' (空间 / 空白).",
     philosophy: "The empty state is an invitation. Zero records represent a fresh canvas waiting to be written.",
-    strokePaths: [
-      [[25, 15], [75, 15]],
-      [[50, 10], [50, 25]],
-      [[30, 25], [70, 25]],
-      [[30, 25], [30, 45]],
-      [[30, 25], [70, 25], [70, 45]],
-      [[30, 45], [70, 45]],
-      [[25, 60], [75, 60]],
-      [[50, 45], [50, 85]]
-    ]
-  },
+    },
   {
     no: 687,
     char: "数",
@@ -1842,22 +964,7 @@ export const filterRadicals = [
     etymology: "Combines female tally observer with tapping hand (攵), representing counting threads or recording items.",
     funFact: "Total matching item counts or array length indicators. Found in 'Data / Count' (数据 / 数量).",
     philosophy: "Numbers map the rhythm of reality. Counting turns abstract presence into direct math.",
-    strokePaths: [
-      [[30, 15], [70, 15]],
-      [[50, 10], [50, 45]],
-      [[20, 45], [80, 45]],
-      [[35, 55], [65, 55]],
-      [[45, 45], [45, 75]],
-      [[45, 55], [25, 85]],
-      [[65, 55], [85, 85]],
-      [[30, 30], [30, 55]],
-      [[70, 30], [70, 55]],
-      [[40, 80], [55, 75]],
-      [[55, 75], [70, 80]],
-      [[50, 80], [50, 90]],
-      [[55, 85], [65, 90]]
-    ]
-  },
+    },
   {
     no: 688,
     char: "跨",
@@ -1868,22 +975,7 @@ export const filterRadicals = [
     etymology: "Combines foot (⻊) with 'proud/stretch' (夸), representing stepping across a wide gap.",
     funFact: "Step-size parameters for range sliders or query step values. Found in 'Span / Step' (跨度 / 跨越).",
     philosophy: "Stepping across divides. A wider step skips details, accelerating the search.",
-    strokePaths: [
-      [[20, 20], [45, 20]],
-      [[30, 20], [30, 45]],
-      [[20, 45], [45, 45]],
-      [[20, 45], [20, 65]],
-      [[20, 65], [45, 55]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]],
-      [[55, 85], [85, 85]],
-      [[65, 65], [65, 85]],
-      [[40, 50], [55, 50]],
-      [[40, 50], [40, 70]]
-    ]
-  },
+    },
   {
     no: 689,
     char: "界",
@@ -1894,18 +986,7 @@ export const filterRadicals = [
     etymology: "Combines agricultural fields (田) with division lines (介), representing borders between lands.",
     funFact: "The maximum absolute coordinate or numerical ceiling limits. Found in 'Boundary' (界限 / 边界).",
     philosophy: "Borders keep separate states clean. Without fields divided, the crop gets mixed.",
-    strokePaths: [
-      [[30, 15], [30, 45]],
-      [[30, 15], [70, 15], [70, 45]],
-      [[30, 30], [70, 30]],
-      [[50, 15], [50, 45]],
-      [[30, 45], [70, 45]],
-      [[50, 50], [25, 75]],
-      [[50, 50], [75, 75]],
-      [[25, 85], [40, 80]],
-      [[60, 80], [75, 85]]
-    ]
-  },
+    },
   {
     no: 690,
     char: "额",
@@ -1916,24 +997,7 @@ export const filterRadicals = [
     etymology: "Combines 'dwelling/guest' (客) with page/face (页), describing the forehead or a fixed numerical cap.",
     funFact: "Price range boundaries, budget limits, or numeric caps. Found in 'Amount' (限额 / 份额).",
     philosophy: "A quota is a calculated allowance. It prevents individual processes from absorbing all resources.",
-    strokePaths: [
-      [[35, 15], [65, 15]],
-      [[50, 10], [50, 25]],
-      [[25, 25], [75, 25]],
-      [[40, 25], [40, 50]],
-      [[40, 25], [60, 25], [60, 50]],
-      [[40, 50], [60, 50]],
-      [[50, 25], [50, 50]],
-      [[30, 55], [80, 55]],
-      [[45, 55], [45, 85]],
-      [[45, 55], [75, 55], [75, 85]],
-      [[45, 70], [75, 70]],
-      [[60, 55], [60, 85]],
-      [[40, 85], [80, 85]],
-      [[20, 65], [10, 85]],
-      [[85, 65], [95, 85]]
-    ]
-  },
+    },
   {
     no: 691,
     char: "极",
@@ -1944,16 +1008,7 @@ export const filterRadicals = [
     etymology: "Combines wood (木) with an urgent run, representing the ridgepole at the absolute top peak of a roof.",
     funFact: "Finding maximum or minimum index extremes (e.g., Math.max). Found in 'Extreme' (极限 / 极大).",
     philosophy: "The ridgepole is the absolute limit. Standing at the peak reveals the coordinates of both sides.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[5, 35], [35, 35]],
-      [[20, 35], [8, 55]],
-      [[20, 35], [32, 55]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 55]],
-      [[55, 55], [85, 55]]
-    ]
-  },
+    },
   {
     no: 692,
     char: "余",
@@ -1964,16 +1019,7 @@ export const filterRadicals = [
     etymology: "A pictogram of a wooden shelter, meaning surplus resources, remainder, or modulo operations.",
     funFact: "Modulo filtering arrays or excess capacity checks. Found in 'Surplus' (剩余 / 余数).",
     philosophy: "The remainder is the seed of the next cycle. It holds the fractional truth that does not fit.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45]],
-      [[50, 35], [20, 75]],
-      [[20, 75], [80, 75]],
-      [[35, 55], [65, 55]],
-      [[35, 55], [35, 75]],
-      [[35, 75], [65, 75]]
-    ]
-  },
+    },
   {
     no: 693,
     char: "均",
@@ -1984,16 +1030,7 @@ export const filterRadicals = [
     etymology: "Combines earth (土) with dynamic balance/wrapping (匀), representing dividing soil equally among workers.",
     funFact: "Filtering items scoring above or below the mean value. Found in 'Average' (平均 / 均衡).",
     philosophy: "The mean is the silent center. By aligning with the average, we establish a baseline of comparison.",
-    strokePaths: [
-      [[25, 45], [75, 45]],
-      [[50, 15], [50, 80]],
-      [[15, 80], [85, 80]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]]
-    ]
-  },
+    },
   {
     no: 694,
     char: "差",
@@ -2004,18 +1041,7 @@ export const filterRadicals = [
     etymology: "Combines hand harvesting grain with a deviation indicator, representing uneven sorting or differences.",
     funFact: "Filtering based on difference margins or calculating layout offset deltas. Found in 'Variance' (差值 / 偏差).",
     philosophy: "Variance is the distance from the standard. Measuring delta reveals the rate of shift.",
-    strokePaths: [
-      [[30, 15], [70, 15]],
-      [[50, 10], [50, 45]],
-      [[20, 45], [80, 45]],
-      [[35, 45], [35, 75]],
-      [[35, 45], [65, 45], [65, 75]],
-      [[35, 75], [65, 75]],
-      [[50, 45], [50, 75]],
-      [[25, 85], [40, 80]],
-      [[60, 80], [75, 85]]
-    ]
-  },
+    },
   {
     no: 695,
     char: "倍",
@@ -2026,19 +1052,7 @@ export const filterRadicals = [
     etymology: "Combines person (亻) with division/separation (咅), representing replicating layers or multiplying fold.",
     funFact: "Scaled searching step multipliers or responsive zoom limits. Found in 'Multiplier' (倍数 / 加倍).",
     philosophy: "Scaling expands the canvas without adding new variables. It stretches perspective.",
-    strokePaths: [
-      [[30, 20], [15, 85]],
-      [[22, 40], [22, 85]],
-      [[55, 25], [85, 25]],
-      [[55, 25], [55, 55]],
-      [[55, 55], [85, 55]],
-      [[55, 55], [55, 85]],
-      [[55, 85], [85, 85]],
-      [[40, 60], [70, 60]],
-      [[40, 60], [40, 80]],
-      [[40, 80], [70, 80]]
-    ]
-  },
+    },
   {
     no: 696,
     char: "充",
@@ -2049,15 +1063,7 @@ export const filterRadicals = [
     etymology: "Combines child/origin with filling upwards, representing growth, padding, or complete filling.",
     funFact: "Overflow padding checks or UI content fill constraints. Found in 'Fill / Pad' (填充 / 充足).",
     philosophy: "Padding cushions elements, ensuring active items have breathing room within their boxes.",
-    strokePaths: [
-      [[40, 15], [65, 15]],
-      [[30, 25], [75, 25]],
-      [[50, 15], [50, 50]],
-      [[25, 50], [75, 50]],
-      [[40, 50], [40, 80]],
-      [[40, 50], [60, 50], [60, 80]]
-    ]
-  },
+    },
   {
     no: 697,
     char: "略",
@@ -2068,20 +1074,7 @@ export const filterRadicals = [
     etymology: "Combines fields (田) with 'each' (各), representing outlining strategies, skipping boundaries, or summaries.",
     funFact: "Skipping offset records (SQL OFFSET for pagination loops). Found in 'Omit' (忽略) and 'Strategy' (策略).",
     philosophy: "Omitting records accelerates travel. To gain speed, we must leave past coordinates behind.",
-    strokePaths: [
-      [[30, 15], [30, 45]],
-      [[30, 15], [70, 15], [70, 45]],
-      [[30, 30], [70, 30]],
-      [[50, 15], [50, 45]],
-      [[30, 45], [70, 45]],
-      [[50, 50], [25, 75]],
-      [[50, 50], [75, 75]],
-      [[25, 85], [40, 80]],
-      [[60, 80], [75, 85]],
-      [[40, 60], [60, 60]],
-      [[40, 60], [40, 80]]
-    ]
-  },
+    },
   {
     no: 698,
     char: "近",
@@ -2092,16 +1085,7 @@ export const filterRadicals = [
     etymology: "Combines walking (辶) with axe/weight (斤), describing stepping near or close to a target.",
     funFact: "Pushing immediate proximity metrics or recent logs to the foreground. Found in 'Recent' (最近) and 'Near' (近似).",
     philosophy: "Proximity brings immediate comfort. The closest records demand our most active observation.",
-    strokePaths: [
-      [[45, 25], [75, 25]],
-      [[65, 15], [50, 45]],
-      [[45, 45], [80, 45], [70, 75]],
-      [[35, 15], [40, 20]],
-      [[15, 75], [40, 75], [85, 80]],
-      [[30, 30], [45, 30]],
-      [[38, 30], [38, 55]]
-    ]
-  },
+    },
   {
     no: 699,
     char: "远",
@@ -2112,16 +1096,7 @@ export const filterRadicals = [
     etymology: "Combines walking (辶) with a long distance (元), representing a long road or journey.",
     funFact: "Isolating outlier values or cold data at extreme edges. Found in 'Distant' (遥远) and 'Far' (远端).",
     philosophy: "The distant point holds the horizon. Outliers remind us of the ultimate limits of our universe.",
-    strokePaths: [
-      [[45, 25], [75, 25]],
-      [[65, 15], [50, 45]],
-      [[45, 45], [80, 45], [70, 75]],
-      [[35, 15], [40, 20]],
-      [[15, 75], [40, 75], [85, 80]],
-      [[35, 30], [55, 30]],
-      [[45, 30], [45, 55]]
-    ]
-  },
+    },
   {
     no: 700,
     char: "断",
@@ -2132,18 +1107,5 @@ export const filterRadicals = [
     etymology: "Combines silk bundles (米) with an axe (斤), representing cutting threads cleanly in two.",
     funFact: "Truncating search strings, breaking queries, or hard walls on lists. Found in 'Truncate' (截断) and 'Disconnect' (断开).",
     philosophy: "Cutting a loop preserves resources. Knowing where to break stops infinite recursion.",
-    strokePaths: [
-      [[40, 15], [60, 15]],
-      [[30, 25], [75, 25]],
-      [[40, 25], [40, 55]],
-      [[40, 25], [60, 25], [60, 55]],
-      [[40, 55], [60, 55]],
-      [[25, 65], [75, 65]],
-      [[25, 65], [25, 85]],
-      [[25, 65], [75, 65], [75, 85]],
-      [[25, 85], [75, 85]],
-      [[50, 55], [50, 85]],
-      [[30, 75], [50, 75]]
-    ]
-  }
+    }
 ];

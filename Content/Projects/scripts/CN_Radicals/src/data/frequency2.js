@@ -10,22 +10,7 @@ export const frequencyRadicals2 = [
     etymology: "Combines 'sound' (音) with 'heart' (心), representing thoughts or sounds arising directly from the silent depths of the mind.",
     funFact: "Found in '意思' (meaning/fun) or '愿意' (willing to). Represents user intents, command schemas, or API definitions.",
     philosophy: "Intent is the seed of manifestation. Every action, digital or physical, begins as an unmanifested impulse in the consciousness.",
-    strokePaths: [
-      [[30, 15], [30, 45]],
-      [[30, 15], [70, 15], [70, 45]],
-      [[30, 30], [70, 30]],
-      [[50, 15], [50, 45]],
-      [[30, 45], [70, 45]],
-      [[50, 50], [25, 75]],
-      [[50, 50], [75, 75]],
-      [[25, 85], [40, 80]],
-      [[60, 80], [75, 85]],
-      [[15, 60], [40, 60]],
-      [[28, 55], [28, 90]],
-      [[40, 60], [40, 90]],
-      [[15, 90], [40, 90]]
-    ]
-  },
+    },
   {
     no: 1102,
     char: "思",
@@ -36,18 +21,7 @@ export const frequencyRadicals2 = [
     etymology: "Originally depicted a brain (囟) directly above a heart (心), showing the integration of cognitive and emotional centers.",
     funFact: "The second half of '意思' or '思考' (deep thought). Perfect for computational operations or heuristic loops.",
     philosophy: "Thinking is a reflection of awareness. By observing thoughts without attachment, we find the silent observer behind them.",
-    strokePaths: [
-      [[30, 20], [70, 20]],
-      [[30, 20], [30, 50]],
-      [[70, 20], [70, 50]],
-      [[30, 35], [70, 35]],
-      [[30, 50], [70, 50]],
-      [[50, 35], [50, 55]],
-      [[20, 60], [80, 60]],
-      [[35, 60], [35, 90]],
-      [[65, 60], [65, 90]]
-    ]
-  },
+    },
   {
     no: 1103,
     char: "认",
@@ -58,13 +32,7 @@ export const frequencyRadicals2 = [
     etymology: "Combines the 'speech' radical (讠) with 'blade/edge' (刃) for phonetic value, implying sharp, decisive acknowledgement.",
     funFact: "Used in '认为' (to think/opine) or '认识' (to know a person). Crucial for recognition algorithms and pattern matching.",
     philosophy: "To recognize is to bridge the gap between subject and object. It is a moment of cognitive reunion.",
-    strokePaths: [
-      [[30, 20], [30, 80]],
-      [[30, 30], [50, 30]],
-      [[50, 20], [50, 80]],
-      [[20, 80], [80, 80]]
-    ]
-  },
+    },
   {
     no: 1104,
     char: "识",
@@ -75,16 +43,7 @@ export const frequencyRadicals2 = [
     etymology: "Combines the 'speech' radical (讠) with 'clay/marker' (只), representing vocal signs used to identify and categorize objects.",
     funFact: "The second half of '认识' or '知识' (knowledge). Found in cognitive frameworks and memory caching buffers.",
     philosophy: "Knowledge accumulates, but wisdom simplifies. True insight is recognizing the limits of what can be known.",
-    strokePaths: [
-      [[30, 20], [30, 80]],
-      [[30, 30], [50, 30]],
-      [[50, 20], [50, 80]],
-      [[60, 20], [60, 50]],
-      [[60, 50], [80, 50]],
-      [[60, 50], [60, 80]],
-      [[80, 50], [80, 80]]
-    ]
-  },
+    },
   {
     no: 1105,
     char: "算",
@@ -95,23 +54,7 @@ export const frequencyRadicals2 = [
     etymology: "Depicts hands (廾) manipulating bamboo counting rods (竹) inside a frame, the ancient Chinese abacus mechanism.",
     funFact: "Used in '算了' (forget about it/let it go) or '计算' (calculate). Anchors math calculations and loops.",
     philosophy: "We calculate paths and compile states, yet the finest things in life remain beautifully unquantifiable.",
-    strokePaths: [
-      [[30, 10], [30, 30]],
-      [[30, 10], [70, 10], [70, 30]],
-      [[50, 10], [50, 30]],
-      [[30, 30], [70, 30]],
-      [[20, 40], [80, 40]],
-      [[20, 60], [80, 60]],
-      [[50, 40], [50, 60]],
-      [[30, 70], [30, 90]],
-      [[70, 70], [70, 90]],
-      [[20, 90], [80, 90]],
-      [[50, 70], [50, 90]],
-      [[30, 50], [30, 70]],
-      [[70, 50], [70, 70]],
-      [[50, 90], [50, 100]]
-    ]
-  },
+    },
   {
     no: 1106,
     char: "定",

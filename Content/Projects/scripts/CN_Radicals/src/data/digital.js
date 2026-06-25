@@ -10,15 +10,7 @@ export const digitalRadicals = [
     etymology: "Depicts a head with an emphasized face and hair, which later came to represent a sheet of paper or leaf of a book.",
     funFact: "Root document layout (<body>, viewport pagination, or active tabs). Found in 'Homepage' (首页), 'Next Page' (下一页), and document layouts.",
     philosophy: "The page is the primary canvas of layout. Like a blank sheet, it holds the potential of structure, text, and interactive portals.",
-    strokePaths: [
-      [[20, 20], [80, 20]],
-      [[45, 20], [45, 50]],
-      [[45, 50], [75, 50], [75, 80]],
-      [[45, 65], [75, 65]],
-      [[30, 45], [15, 80]],
-      [[60, 80], [80, 85]]
-    ]
-  },
+    },
   {
     no: 502,
     char: "窗",
@@ -29,20 +21,7 @@ export const digitalRadicals = [
     etymology: "Originally a drawing of a chimney or lattice window that lets smoke and light out of a house.",
     funFact: "Viewport overlays, native OS windows, or layout viewports.",
     philosophy: "A window is an active portal into another state. It limits our perspective yet frames our visual entry into the underlying machine.",
-    strokePaths: [
-      [[50, 10], [50, 20]],
-      [[25, 25], [25, 45]],
-      [[25, 25], [75, 25], [75, 45]],
-      [[35, 35], [35, 45]],
-      [[65, 35], [65, 45]],
-      [[20, 55], [80, 55]],
-      [[30, 55], [30, 85]],
-      [[30, 55], [70, 55], [70, 85]],
-      [[30, 70], [70, 70]],
-      [[50, 55], [50, 85]],
-      [[15, 90], [85, 90]]
-    ]
-  },
+    },
   {
     no: 503,
     char: "框",
@@ -53,18 +32,7 @@ export const digitalRadicals = [
     etymology: "Constructed with the 'wood' radical, indicating the outer wooden framing of doors, windows, or storage shelves.",
     funFact: "Input borders, focus rings, or target boundary boxes.",
     philosophy: "All UI elements are boxes under the CSS box-model. The frame outlines the boundary of existence for any visual element.",
-    strokePaths: [
-      [[25, 15], [25, 85]],
-      [[10, 35], [40, 35]],
-      [[25, 35], [12, 55]],
-      [[25, 35], [38, 55]],
-      [[45, 25], [45, 80]],
-      [[45, 25], [85, 25], [85, 80]],
-      [[52, 40], [78, 40]],
-      [[52, 60], [78, 60]],
-      [[45, 80], [85, 80]]
-    ]
-  },
+    },
   {
     no: 504,
     char: "格",
@@ -75,19 +43,7 @@ export const digitalRadicals = [
     etymology: "Combines 'wood' with 'each', describing wooden bars interlocking in a patterned partition or fence.",
     funFact: "Grid layouts (CSS Grid, coordinates, or data matrices).",
     philosophy: "Grids divide the chaos of empty space into predictable, proportional coordinates. They are the scaffolding of human layout.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[5, 35], [35, 35]],
-      [[20, 35], [8, 55]],
-      [[20, 35], [32, 55]],
-      [[45, 25], [85, 25]],
-      [[65, 15], [55, 40]],
-      [[45, 50], [85, 50], [75, 75]],
-      [[50, 60], [50, 85]],
-      [[50, 60], [80, 60], [80, 85]],
-      [[50, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 505,
     char: "板",
@@ -98,17 +54,7 @@ export const digitalRadicals = [
     etymology: "Formed from 'wood' and 'inverse/turn back', describing flat split wooden planks used to build floorings or write announcements.",
     funFact: "Solid visual background containers or settings dashboards.",
     philosophy: "The plank provides structural support. A dashboard panel mounts all options upon a physical plane of unified control.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[5, 35], [35, 35]],
-      [[20, 35], [8, 55]],
-      [[20, 35], [32, 55]],
-      [[55, 20], [45, 35]],
-      [[45, 35], [80, 35], [55, 60]],
-      [[55, 60], [45, 85]],
-      [[50, 65], [80, 85]]
-    ]
-  },
+    },
   {
     no: 506,
     char: "面",
@@ -119,18 +65,7 @@ export const digitalRadicals = [
     etymology: "An ancient drawing of a human face framed by cheeks, hair, and an eye, meaning a flat layer, face, or facet.",
     funFact: "Planar dimensions, UI face layers, or facet planes.",
     philosophy: "The screen is a planar surface. What we interact with is not the solid metal depth of the machine, but its glowing, superficial face.",
-    strokePaths: [
-      [[20, 15], [80, 15]],
-      [[50, 15], [50, 30]],
-      [[25, 30], [25, 85]],
-      [[25, 30], [75, 30], [75, 85]],
-      [[35, 45], [65, 45]],
-      [[35, 60], [65, 60]],
-      [[45, 30], [45, 75]],
-      [[55, 30], [55, 75]],
-      [[25, 85], [75, 85]]
-    ]
-  },
+    },
   {
     no: 507,
     char: "表",
@@ -141,16 +76,7 @@ export const digitalRadicals = [
     etymology: "Originally showed fur clothing worn on the outside, representing external displays, sheets, tables, and visible metadata.",
     funFact: "Tabular data matrices, sheets, or list views.",
     philosophy: "Data must be arranged externally to be useful. Tables present multidimensional numbers onto flat, readable sheets.",
-    strokePaths: [
-      [[25, 15], [75, 15]],
-      [[30, 30], [70, 30]],
-      [[15, 45], [85, 45]],
-      [[50, 10], [50, 55]],
-      [[35, 55], [20, 80]],
-      [[50, 55], [50, 80], [65, 75]],
-      [[58, 60], [78, 80]]
-    ]
-  },
+    },
   {
     no: 508,
     char: "层",
@@ -161,15 +87,7 @@ export const digitalRadicals = [
     etymology: "Combines 'corpse/frame' with 'increase', meaning nested architectural layers or levels of a building.",
     funFact: "Stack layers (z-index depth configurations or canvas stacks).",
     philosophy: "The visual stack is composed of layers. We perceive depth when one layer overlappingly floats above another.",
-    strokePaths: [
-      [[25, 20], [75, 20], [75, 45], [65, 40]],
-      [[25, 20], [25, 80]],
-      [[25, 45], [70, 45]],
-      [[40, 55], [75, 55]],
-      [[55, 55], [35, 85]],
-      [[45, 70], [80, 85]]
-    ]
-  },
+    },
   {
     no: 509,
     char: "区",
@@ -180,13 +98,7 @@ export const digitalRadicals = [
     etymology: "A small box containing items, denoting a restricted region, neighborhood, or boundary partition.",
     funFact: "Block-level bounding sections or semantic wrappers.",
     philosophy: "A region divides space into distinct functional states. Every zone serves a clear, modular purpose in an interactive system.",
-    strokePaths: [
-      [[15, 20], [85, 20]],
-      [[35, 35], [70, 75]],
-      [[70, 35], [35, 75]],
-      [[15, 20], [15, 85], [85, 85]]
-    ]
-  },
+    },
   {
     no: 510,
     char: "块",
@@ -197,16 +109,7 @@ export const digitalRadicals = [
     etymology: "Combines the 'earth' radical with a phonetic 'decide', indicating a clump of packed earth or solid piece of stone.",
     funFact: "Non-inline display blocks adhering to box-model geometry.",
     philosophy: "Blocks are the heavy clay bricks of layout. Unlike fluid text streams, blocks occupy rigid rectangular geometry in space.",
-    strokePaths: [
-      [[10, 45], [35, 45]],
-      [[22, 20], [22, 80]],
-      [[10, 75], [35, 60]],
-      [[45, 25], [80, 25]],
-      [[65, 25], [45, 55]],
-      [[45, 55], [85, 55], [75, 85]],
-      [[55, 60], [80, 85]]
-    ]
-  },
+    },
   {
     no: 511,
     char: "壳",
@@ -217,16 +120,7 @@ export const digitalRadicals = [
     etymology: "Originally depicted a hard shell (like an egg or tortoise carapace) wrapping and shielding a fragile inner substance.",
     funFact: "Wrapper nodes, structural skins, or baseline application shells.",
     philosophy: "An application shell loads first, providing a lightweight skeletal frame that holds and protects the heavy dynamic page contents inside.",
-    strokePaths: [
-      [[35, 15], [65, 15]],
-      [[50, 10], [50, 30]],
-      [[20, 30], [80, 30]],
-      [[30, 42], [70, 42], [70, 58], [60, 55]],
-      [[30, 42], [30, 75]],
-      [[40, 60], [25, 85]],
-      [[45, 62], [75, 85]]
-    ]
-  },
+    },
   {
     no: 512,
     char: "台",
@@ -237,14 +131,7 @@ export const digitalRadicals = [
     etymology: "A raised tower or platform for viewing and command, simplified to an upper nose/breath shape above a heavy mouth base.",
     funFact: "Parent workspace contexts, consoles, or control benches.",
     philosophy: "A platform hosts other components. It represents the supporting ground or engine from which all sub-routines are launched.",
-    strokePaths: [
-      [[50, 15], [25, 45]],
-      [[25, 45], [75, 45], [65, 40]],
-      [[35, 60], [35, 85]],
-      [[35, 60], [65, 60], [65, 85]],
-      [[35, 85], [65, 85]]
-    ]
-  },
+    },
   {
     no: 513,
     char: "罩",
@@ -255,21 +142,7 @@ export const digitalRadicals = [
     etymology: "A top fishing net covering a sun or bright field underneath, representing a shroud, cover, modal mask, or shield.",
     funFact: "Viewport modal overlays, dark drops, or backdrop filters.",
     philosophy: "A cover locks out the ambient workspace. By dimming the rest of the layout, it focusses user attention strictly onto an active dialog box.",
-    strokePaths: [
-      [[25, 15], [25, 35]],
-      [[25, 15], [75, 15], [75, 35]],
-      [[25, 35], [75, 35]],
-      [[40, 15], [40, 35]],
-      [[60, 15], [60, 35]],
-      [[30, 48], [70, 48]],
-      [[30, 48], [30, 68]],
-      [[30, 48], [70, 48], [70, 68]],
-      [[30, 58], [70, 58]],
-      [[30, 68], [70, 68]],
-      [[15, 82], [85, 82]],
-      [[50, 68], [50, 95]]
-    ]
-  },
+    },
   {
     no: 514,
     char: "域",
@@ -280,19 +153,7 @@ export const digitalRadicals = [
     etymology: "An ancient boundary protected by spears and marked with clay boundary markers, meaning a domain, territory, or field.",
     funFact: "Local execution scope fields or defined viewport boundaries.",
     philosophy: "Variables exist within scope. A field is a designated execution territory where values are bound, shielded from outer side-effects.",
-    strokePaths: [
-      [[10, 45], [30, 45]],
-      [[20, 25], [20, 75]],
-      [[10, 70], [30, 60]],
-      [[35, 35], [65, 35]],
-      [[40, 35], [40, 80]],
-      [[40, 35], [60, 35], [60, 80]],
-      [[40, 80], [60, 80]],
-      [[35, 20], [80, 85], [85, 75]],
-      [[40, 60], [85, 60]],
-      [[65, 25], [75, 35]]
-    ]
-  },
+    },
   // [515 was removed - duplicates Kangxi #515]
   {
     no: 516,
@@ -304,18 +165,7 @@ export const digitalRadicals = [
     etymology: "A solid wooden support structure built below a container or vocal mouth, indicating a framework, rack, or system scaffold.",
     funFact: "System scaffolding, layout wires, or structural skeletons.",
     philosophy: "Before visual skin, there must be a skeleton. Wireframe skeletons establish the architectural constraints of the screen.",
-    strokePaths: [
-      [[30, 20], [30, 45]],
-      [[15, 30], [45, 30], [35, 45]],
-      [[48, 15], [82, 15]],
-      [[48, 15], [48, 35]],
-      [[48, 35], [82, 35]],
-      [[15, 60], [85, 60]],
-      [[50, 48], [50, 90]],
-      [[50, 60], [25, 85]],
-      [[50, 60], [75, 85]]
-    ]
-  },
+    },
   {
     no: 517,
     char: "圈",
@@ -326,18 +176,7 @@ export const digitalRadicals = [
     etymology: "A full border enclosure containing an inner roll shape, representing circular bounds, hoops, rings, or radial areas.",
     funFact: "Circular bounds, radius limits, or loading spinners.",
     philosophy: "The circle is the symbol of rotation and eternal return. Unlike the rigid corners of the block, the ring has no vertex, distributing force evenly.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[20, 15], [80, 15], [80, 85]],
-      [[35, 30], [65, 30]],
-      [[35, 40], [65, 40]],
-      [[50, 30], [50, 50]],
-      [[35, 55], [65, 55], [55, 68]],
-      [[30, 75], [45, 65]],
-      [[55, 65], [70, 75]],
-      [[20, 85], [80, 85]]
-    ]
-  },
+    },
   {
     no: 518,
     char: "遮",
@@ -348,20 +187,7 @@ export const digitalRadicals = [
     etymology: "Combines 'walking' with 'common household', meaning to screen off, mask, shield, or overlay to hide some detail.",
     funFact: "CSS masking elements, clip paths, or opacity shields.",
     philosophy: "Design is as much about hiding as revealing. A mask clips the infinite chaos of rendering, framing only what is needed.",
-    strokePaths: [
-      [[50, 10], [50, 20]],
-      [[25, 25], [75, 25]],
-      [[30, 25], [30, 40]],
-      [[35, 35], [65, 35]],
-      [[30, 45], [70, 45]],
-      [[35, 45], [35, 75]],
-      [[35, 45], [65, 45], [65, 75]],
-      [[35, 60], [65, 60]],
-      [[35, 75], [65, 75]],
-      [[35, 15], [40, 20]],
-      [[15, 80], [40, 80], [85, 85]]
-    ]
-  },
+    },
   {
     no: 519,
     char: "席",
@@ -372,18 +198,7 @@ export const digitalRadicals = [
     etymology: "A flat woven straw mat laid on the floor under a shelter, signifying a seat, designated space, or canvas plane.",
     funFact: "Designated focus seats or active rendering areas.",
     philosophy: "The canvas is the primary site of assembly. Like a straw mat, it gathers loose visual assets onto a unified background plane.",
-    strokePaths: [
-      [[50, 10], [50, 20]],
-      [[25, 25], [75, 25]],
-      [[30, 25], [30, 85]],
-      [[42, 38], [58, 38]],
-      [[50, 38], [50, 55]],
-      [[35, 55], [65, 55]],
-      [[35, 55], [35, 80]],
-      [[35, 55], [65, 55], [65, 80]],
-      [[50, 55], [50, 85]]
-    ]
-  },
+    },
   {
     no: 520,
     char: "壁",
@@ -394,19 +209,7 @@ export const digitalRadicals = [
     etymology: "A cliffside or tile wall erected over an earth base, denoting rigid boundaries, solid partitions, or defensive screens.",
     funFact: "Rigid screen boundaries or structural margins.",
     philosophy: "A wall divides and structures. In screen physics, walls act as physical boundaries, rebounding canvas particles and defining layout margins.",
-    strokePaths: [
-      [[25, 15], [75, 15]],
-      [[50, 15], [50, 35]],
-      [[30, 30], [70, 30]],
-      [[25, 45], [75, 45]],
-      [[20, 55], [20, 70]],
-      [[20, 55], [45, 55], [45, 70]],
-      [[20, 70], [45, 70]],
-      [[55, 48], [75, 72]],
-      [[20, 85], [80, 85]],
-      [[50, 70], [50, 95]]
-    ]
-  },
+    },
 
   // CATEGORY 2: NAV BARS, SIDEBARS, DIVIDERS & STRUCTURAL RAILS
   {
@@ -419,18 +222,7 @@ export const digitalRadicals = [
     etymology: "Constructed with 'wood' and 'gate/railing', describing wooden column balustrades, rails, or linear barriers.",
     funFact: "Linear layout bars (Sidebar, Toolbar, Header menu rails).",
     philosophy: "A bar clusters controls in a linear flow. It bounds option lists into tight structural lines along the margins of viewports.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[5, 35], [35, 35]],
-      [[20, 35], [8, 55]],
-      [[20, 35], [32, 55]],
-      [[45, 25], [80, 25]],
-      [[45, 50], [80, 50]],
-      [[45, 75], [80, 75]],
-      [[50, 25], [50, 85]],
-      [[75, 25], [75, 85]]
-    ]
-  },
+    },
   {
     no: 522,
     char: "条",
@@ -441,16 +233,7 @@ export const digitalRadicals = [
     etymology: "A thin dangling branch of a tree, meaning a long narrow strip, line, or serial item list.",
     funFact: "Thin fluid elements (Progress bars, scrollbars, status lines).",
     philosophy: "A strip tracks fluid changes. The scrollbar and progress strip render temporal states as visible, linear spans on the page.",
-    strokePaths: [
-      [[30, 15], [70, 15]],
-      [[50, 15], [25, 45]],
-      [[50, 15], [75, 45]],
-      [[20, 45], [80, 45]],
-      [[50, 45], [30, 80]],
-      [[50, 55], [50, 85], [40, 80]],
-      [[58, 60], [82, 85]]
-    ]
-  },
+    },
   {
     no: 523,
     char: "带",
@@ -461,17 +244,7 @@ export const digitalRadicals = [
     etymology: "A drawing of a sash belt with ornamental tassels hanging down, meaning a belt, band, loop, or horizontal tracking range.",
     funFact: "Continuous horizontal spans or slider tracking lines.",
     philosophy: "A belt wraps around layout bounds. It binds distinct parts into a shared track, letting interactive points slider-slide securely.",
-    strokePaths: [
-      [[50, 10], [50, 20]],
-      [[30, 25], [35, 35]],
-      [[70, 25], [65, 35]],
-      [[20, 35], [80, 35]],
-      [[25, 48], [75, 48], [75, 60]],
-      [[30, 48], [30, 85]],
-      [[30, 48], [70, 48], [70, 85]],
-      [[50, 48], [50, 95]]
-    ]
-  },
+    },
   {
     no: 524,
     char: "线",
@@ -482,17 +255,7 @@ export const digitalRadicals = [
     etymology: "Combines the 'silk/string' radical with 'well-water/spring', describing a fine continuous thread or visual line vector.",
     funFact: "One-dimensional vector paths or divider vectors.",
     philosophy: "A line is a dot that went for a walk. It divides sections or hooks nodes together, defining structural connections without occupying depth.",
-    strokePaths: [
-      [[30, 20], [15, 45]],
-      [[15, 45], [35, 45], [20, 70]],
-      [[20, 70], [35, 80]],
-      [[45, 30], [85, 30]],
-      [[65, 15], [65, 85]],
-      [[65, 45], [45, 75]],
-      [[65, 45], [85, 75]],
-      [[75, 20], [80, 25]]
-    ]
-  },
+    },
   {
     no: 525,
     char: "轴",
@@ -503,17 +266,7 @@ export const digitalRadicals = [
     etymology: "A heavy chariot axle shaft around which the wheels rotate, describing central axes, pivots, or coordinate systems.",
     funFact: "Layout coordinate directions (X/Y/Z rendering axes).",
     philosophy: "All transformation rotates around an axis. It is the fixed, stationary pin that defines the dimensional field of movement.",
-    strokePaths: [
-      [[40, 20], [40, 60]],
-      [[40, 20], [70, 20], [70, 60]],
-      [[40, 40], [70, 40]],
-      [[30, 60], [80, 60]],
-      [[55, 10], [55, 75]],
-      [[15, 45], [35, 45]],
-      [[15, 45], [15, 80]],
-      [[85, 45], [85, 80]]
-    ]
-  },
+    },
   {
     no: 526,
     char: "路",
@@ -524,18 +277,7 @@ export const digitalRadicals = [
     etymology: "A foot taking steps on a designated path or road, signifying routing paths, directory states, or navigation ways.",
     funFact: "Target link pathways or router configuration states.",
     philosophy: "A path guides flow. In software architecture, the router maps user movements to corresponding visual states.",
-    strokePaths: [
-      [[20, 20], [45, 20]],
-      [[30, 20], [30, 45]],
-      [[20, 45], [45, 45]],
-      [[20, 45], [20, 65]],
-      [[20, 65], [45, 55]],
-      [[55, 20], [85, 20]],
-      [[70, 20], [55, 45]],
-      [[55, 45], [85, 45], [75, 70]],
-      [[55, 70], [85, 70]]
-    ]
-  },
+    },
   {
     no: 527,
     char: "丝",
@@ -546,14 +288,7 @@ export const digitalRadicals = [
     etymology: "Two skeins of fine silk thread, representing microscopic connections, pixel-thin rules, or thin rendering lines.",
     funFact: "Wireframe renders or pixel-thin column rules.",
     philosophy: "Complex systems are woven of microscopic fibers. A single pixel rule divides zones with absolute, elegant minimalism.",
-    strokePaths: [
-      [[30, 25], [20, 45], [35, 45], [15, 70]],
-      [[25, 70], [35, 80]],
-      [[70, 25], [60, 45], [75, 45], [55, 70]],
-      [[65, 70], [75, 80]],
-      [[15, 90], [85, 90]]
-    ]
-  },
+    },
   {
     no: 528,
     char: "径",
@@ -564,17 +299,7 @@ export const digitalRadicals = [
     etymology: "Formed with 'walking/step' and 'straight line/flow', meaning a shortcut path, radius, or mathematical vector route.",
     funFact: "Mathematical vector paths or file directory routes.",
     philosophy: "A radius defines proximity. In spatial layouts, bounding rings monitor cursor distance to trigger responsive hover actions.",
-    strokePaths: [
-      [[30, 20], [15, 45]],
-      [[35, 40], [20, 65]],
-      [[25, 60], [25, 90]],
-      [[50, 25], [80, 25]],
-      [[65, 15], [50, 45]],
-      [[45, 50], [85, 50], [75, 85]],
-      [[50, 65], [50, 85]],
-      [[70, 65], [70, 85]]
-    ]
-  },
+    },
   {
     no: 529,
     char: "管",
@@ -585,18 +310,7 @@ export const digitalRadicals = [
     etymology: "Constructed with 'bamboo' and 'house/hall', referring to hollow bamboo pipes, flutes, data streams, or pipelines.",
     funFact: "Data streaming columns or control pipes.",
     philosophy: "Data flows like water. A pipe channels loose raw events into formatted, secure streams parsed sequentially by render loops.",
-    strokePaths: [
-      [[20, 15], [35, 25]],
-      [[15, 25], [40, 25]],
-      [[30, 25], [25, 38]],
-      [[60, 15], [75, 25]],
-      [[55, 25], [80, 25]],
-      [[70, 25], [65, 38]],
-      [[45, 45], [55, 45]],
-      [[25, 55], [75, 55], [75, 85]],
-      [[35, 65], [65, 65]]
-    ]
-  },
+    },
   {
     no: 530,
     char: "轨",
@@ -607,17 +321,7 @@ export const digitalRadicals = [
     etymology: "A carriage wheel track left in mud, meaning a fixed track, animation timeline channel, or audio wave track.",
     funFact: "Timeline animation tracks or audio wave channels.",
     philosophy: "Movement is bounded by a track. Timeline tracks coordinate interpolation steps, moving assets smoothly over temporal dimensions.",
-    strokePaths: [
-      [[15, 25], [45, 25]],
-      [[15, 45], [45, 45]],
-      [[15, 25], [15, 65], [45, 65]],
-      [[30, 10], [30, 80]],
-      [[10, 80], [50, 80]],
-      [[60, 25], [85, 25]],
-      [[72, 25], [55, 85]],
-      [[60, 55], [85, 55], [80, 85]]
-    ]
-  },
+    },
   {
     no: 531,
     char: "缘",
@@ -628,17 +332,7 @@ export const digitalRadicals = [
     etymology: "The decorative silk border trim sewn along the edge of robes, signifying margins, borders, or fated connections.",
     funFact: "External padding spaces or boundary drop shadows.",
     philosophy: "Margins provide visual oxygen. The edge defines where a box ends and the wider workspace begins, preventing clutter.",
-    strokePaths: [
-      [[25, 20], [15, 40]],
-      [[15, 40], [30, 40], [20, 65]],
-      [[20, 65], [30, 75]],
-      [[45, 25], [85, 25]],
-      [[65, 15], [50, 45]],
-      [[45, 45], [85, 45]],
-      [[40, 65], [40, 85]],
-      [[40, 65], [80, 65], [80, 85]]
-    ]
-  },
+    },
   {
     no: 532,
     char: "缝",
@@ -649,17 +343,7 @@ export const digitalRadicals = [
     etymology: "Combines 'silk/thread' with 'meeting', representing stitched border joints, seams, layout gaps, or cracks.",
     funFact: "CSS grid gaps, flex spacing elements, or border cracks.",
     philosophy: "Structure is defined by its divisions. A gap provides proportional negative spacing between adjacent items in a flex grid.",
-    strokePaths: [
-      [[25, 20], [15, 40]],
-      [[15, 40], [30, 40], [20, 65]],
-      [[20, 65], [30, 75]],
-      [[45, 25], [80, 25]],
-      [[62, 15], [45, 45]],
-      [[62, 15], [80, 45]],
-      [[45, 55], [85, 55]],
-      [[40, 75], [60, 75], [80, 90]]
-    ]
-  },
+    },
   {
     no: 533,
     char: "隔",
@@ -670,17 +354,7 @@ export const digitalRadicals = [
     etymology: "A tall earthen mound blocking passage to a cooking cauldron, meaning separators, partitions, or layout dividers.",
     funFact: "Layout divider blocks or hard structural padding segments.",
     philosophy: "Separation brings clarity. By placing horizontal divider rules, we break visual monotony and group metadata logically.",
-    strokePaths: [
-      [[25, 15], [25, 85], [15, 75]],
-      [[25, 15], [45, 25], [25, 45]],
-      [[55, 20], [85, 20]],
-      [[55, 35], [55, 55]],
-      [[55, 35], [85, 35], [85, 55]],
-      [[55, 55], [85, 55]],
-      [[70, 55], [70, 85]],
-      [[50, 85], [90, 85]]
-    ]
-  },
+    },
   {
     no: 534,
     char: "边",
@@ -691,14 +365,7 @@ export const digitalRadicals = [
     etymology: "Walking along a remote boundary wall, describing border borders, layout boundaries, or bounding lines.",
     funFact: "The CSS border line definition or layout margins.",
     philosophy: "The border isolates inside from outside. It frames content, establishing a line of spatial security around our interactive grids.",
-    strokePaths: [
-      [[45, 25], [75, 25]],
-      [[65, 15], [50, 45]],
-      [[45, 45], [80, 45], [70, 75]],
-      [[35, 15], [40, 20]],
-      [[15, 75], [40, 75], [85, 80]]
-    ]
-  },
+    },
   {
     no: 535,
     char: "界",
@@ -709,18 +376,7 @@ export const digitalRadicals = [
     etymology: "A divided field showing local division lines, meaning borders, viewport limits, or collision boxes.",
     funFact: "Maximum constraints of a viewport or collision boxes.",
     philosophy: "A system thrives within its limits. Constraints of width and height prevent container overflows, keeping content beautifully fluid.",
-    strokePaths: [
-      [[30, 15], [30, 45]],
-      [[30, 15], [70, 15], [70, 45]],
-      [[30, 30], [70, 30]],
-      [[50, 15], [50, 45]],
-      [[30, 45], [70, 45]],
-      [[50, 50], [25, 75]],
-      [[50, 50], [75, 75]],
-      [[25, 85], [40, 80]],
-      [[60, 80], [75, 85]]
-    ]
-  },
+    },
   {
     no: 536,
     char: "端",
@@ -731,18 +387,7 @@ export const digitalRadicals = [
     etymology: "A person standing straight and steady at the edge of a platform, denoting terminus points, client terminals, or edge margins.",
     funFact: "Fixed terminus nodes or client viewport terminations.",
     philosophy: "The endpoint of a connection. Terminal nodes receive and render results, bringing the data pipeline to its final, static output.",
-    strokePaths: [
-      [[25, 20], [25, 75]],
-      [[10, 35], [40, 35]],
-      [[10, 75], [40, 75]],
-      [[55, 25], [85, 25]],
-      [[70, 15], [70, 45]],
-      [[55, 45], [85, 45]],
-      [[50, 60], [90, 60]],
-      [[55, 60], [55, 90]],
-      [[85, 60], [85, 90]]
-    ]
-  },
+    },
   {
     no: 537,
     char: "网",
@@ -753,15 +398,7 @@ export const digitalRadicals = [
     etymology: "A direct pictograph of a woven fishing net, simplified to an outer boundary frame with intersecting diagonal net meshes inside.",
     funFact: "GridLayout meshes or responsive grid guide layers. Found in 'Website' (网站), 'Network' (网络).",
     philosophy: "Nodes connect to form nets. A grid holds individual components in clean proportional positions, balancing visual weight.",
-    strokePaths: [
-      [[20, 20], [20, 85]],
-      [[20, 20], [80, 20], [80, 85], [72, 78]],
-      [[35, 35], [45, 50]],
-      [[45, 35], [35, 50]],
-      [[55, 35], [65, 50]],
-      [[65, 35], [55, 50]]
-    ]
-  },
+    },
   {
     no: 538,
     char: "纵",
@@ -772,16 +409,7 @@ export const digitalRadicals = [
     etymology: "Combines 'silk/thread' with 'standing persons', meaning vertical orientation, length, or Y-axis columns.",
     funFact: "Column axes or vertical alignment rules.",
     philosophy: "The vertical column guides the eye downward. It establishes reading hierarchy, stacking elements sequentially in space.",
-    strokePaths: [
-      [[25, 20], [15, 40]],
-      [[15, 40], [30, 40], [20, 65]],
-      [[20, 65], [30, 75]],
-      [[55, 15], [45, 45]],
-      [[45, 45], [45, 85]],
-      [[75, 15], [65, 45]],
-      [[65, 45], [65, 85]]
-    ]
-  },
+    },
   {
     no: 539,
     char: "横",
@@ -792,17 +420,7 @@ export const digitalRadicals = [
     etymology: "Wooden logs laid sideways to block paths, meaning horizontal, width, rows, or X-axis alignments.",
     funFact: "Row axes or horizontal flex layouts.",
     philosophy: "The horizontal row spans wide like the horizon. It groups related details together side-by-side, creating scanning balance.",
-    strokePaths: [
-      [[20, 15], [20, 85]],
-      [[5, 35], [35, 35]],
-      [[20, 35], [8, 55]],
-      [[20, 35], [32, 55]],
-      [[45, 25], [85, 25]],
-      [[45, 45], [85, 45]],
-      [[45, 65], [45, 85]],
-      [[45, 65], [85, 65], [85, 85]]
-    ]
-  },
+    },
   {
     no: 540,
     char: "幅",
@@ -813,16 +431,5 @@ export const digitalRadicals = [
     etymology: "A roll of woven cloth showing its width and outer limits, signifying aspect ratios, viewport widths, or spans.",
     funFact: "Aspect ratios, viewport spans, or image dimensions.",
     philosophy: "Span establishes presence. Proportional width constraints maintain legibility, preventing content from bleeding too wide.",
-    strokePaths: [
-      [[20, 20], [20, 85]],
-      [[20, 20], [35, 20], [35, 85]],
-      [[20, 45], [35, 45]],
-      [[50, 25], [85, 25]],
-      [[45, 45], [45, 60]],
-      [[45, 45], [85, 45], [85, 60]],
-      [[45, 60], [85, 60]],
-      [[40, 75], [90, 75]],
-      [[65, 60], [65, 95]]
-    ]
-  }
+    }
 ];

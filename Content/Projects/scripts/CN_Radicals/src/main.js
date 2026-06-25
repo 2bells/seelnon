@@ -26,8 +26,11 @@ const STATE = {
   // Calligraphy Canvas State
   canvas: null,
   ctx: null,
+  gridCanvas: null,
+  gridCtx: null,
   isDrawing: false,
   drawnPoints: [], // coords of current stroke
+  userSuccessfulStrokes: [], // coords of successfully completed user strokes
   practiceStrokeIndex: 0, // which stroke is the user practicing
   practiceSuccessCount: 0,
   isPracticing: false,
@@ -305,44 +308,128 @@ function setupCalligraphyCanvas() {
   // Set physical resolution
   STATE.canvas.width = 320;
   STATE.canvas.height = 320;
-  
-  // Handle interaction
-  STATE.canvas.addEventListener('mousedown', startDrawing);
-  STATE.canvas.addEventListener('mousemove', draw);
-  STATE.canvas.addEventListener('mouseup', stopDrawing);
-  STATE.canvas.addEventListener('mouseleave', stopDrawing);
-  
-  // Touch support for mobile/tablets
-  STATE.canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const rect = STATE.canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    startDrawing({ clientX: touch.clientX, clientY: touch.clientY });
-  }, { passive: false });
-  
-  STATE.canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    draw({ clientX: touch.clientX, clientY: touch.clientY });
-  }, { passive: false });
-  
-  STATE.canvas.addEventListener('touchend', stopDrawing);
 
-  drawCalligraphyGrid();
+  STATE.gridCanvas = document.getElementById('grid-canvas');
+  if (STATE.gridCanvas) {
+    STATE.gridCanvas.width = 320;
+    STATE.gridCanvas.height = 320;
+    STATE.gridCtx = STATE.gridCanvas.getContext('2d');
+    drawCalligraphyGrid();
+  }
+
+  clearDrawingCanvas();
+
+  const container = document.getElementById('hanzi-writer-container');
+  if (container) {
+    // Prevent touch action from scrolling or zooming while drawing
+    container.style.touchAction = 'none';
+
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let lastT = 0;
+    let lastWidth = 10;
+
+    const startDrawing = (e) => {
+      isDrawing = true;
+      const rect = container.getBoundingClientRect();
+      // Mathematically map client coordinate space back to the 320x320 canvas pixels
+      const x = ((e.clientX - rect.left) / rect.width) * STATE.canvas.width;
+      const y = ((e.clientY - rect.top) / rect.height) * STATE.canvas.height;
+
+      // Always clear user drawing canvas to start fresh on a new user attempt
+      clearDrawingCanvas();
+
+      lastX = x;
+      lastY = y;
+      lastT = Date.now();
+      lastWidth = 12; // Initial solid brush down
+
+      drawInkSegment(x, y, x, y, lastWidth, lastWidth);
+    };
+
+    const draw = (e) => {
+      if (!isDrawing) return;
+      const rect = container.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * STATE.canvas.width;
+      const y = ((e.clientY - rect.top) / rect.height) * STATE.canvas.height;
+
+      const t = Date.now();
+      const d = Math.hypot(x - lastX, y - lastY);
+      const dt = t - lastT;
+
+      const velocity = d / (dt || 1); // pixels/ms
+
+      // Dynamic stroke thickness based on velocity:
+      // Quick drawing thins the line (mimics fast brush lifting).
+      // Deliberate or slow movement thickens it (mimics absorption).
+      let targetWidth = 12 - (velocity * 3.5);
+      targetWidth = Math.max(3, Math.min(14, targetWidth));
+
+      // Interpolate width transitions to simulate dynamic brush flexibility
+      const currentWidth = lastWidth * 0.6 + targetWidth * 0.4;
+
+      drawInkSegment(lastX, lastY, x, y, lastWidth, currentWidth);
+
+      lastX = x;
+      lastY = y;
+      lastT = t;
+      lastWidth = currentWidth;
+    };
+
+    const stopDrawing = () => {
+      isDrawing = false;
+    };
+
+    // Remove any previously bound listeners if we setup multiple times (prevent memory leaks / duplicate events)
+    container.removeEventListener('pointerdown', container._startDrawing);
+    container.removeEventListener('pointermove', container._draw);
+    container.removeEventListener('pointerup', container._stopDrawing);
+    container.removeEventListener('pointercancel', container._stopDrawing);
+
+    // Cache handlers to clean up later
+    container._startDrawing = startDrawing;
+    container._draw = draw;
+    container._stopDrawing = stopDrawing;
+
+    container.addEventListener('pointerdown', startDrawing);
+    container.addEventListener('pointermove', draw);
+    container.addEventListener('pointerup', stopDrawing);
+    container.addEventListener('pointercancel', stopDrawing);
+  }
+}
+
+// Draw calligraphy brush segment with interpolations to keep it ultra smooth
+function drawInkSegment(x1, y1, x2, y2, w1, w2) {
+  if (!STATE.ctx) return;
+  const ctx = STATE.ctx;
+  const dist = Math.hypot(x2 - x1, y2 - y1);
+  const steps = Math.ceil(dist / 0.5); // 0.5px steps for seamless ink fill (no gaps/beads)
+
+  ctx.save();
+  for (let i = 0; i <= steps; i++) {
+    const fraction = steps === 0 ? 1 : i / steps;
+    const cx = x1 + (x2 - x1) * fraction;
+    const cy = y1 + (y2 - y1) * fraction;
+    const cw = w1 + (w2 - w1) * fraction;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, cw / 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#1a1a1a'; // Pitch black charcoal ink
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 // Traditional Mizige (米字格) Tracing Grid
 function drawCalligraphyGrid() {
-  if (!STATE.canvas || !STATE.ctx) return;
-  const ctx = STATE.ctx;
-  const w = STATE.canvas.width;
-  const h = STATE.canvas.height;
+  if (!STATE.gridCanvas || !STATE.gridCtx) return;
+  const ctx = STATE.gridCtx;
+  const w = STATE.gridCanvas.width;
+  const h = STATE.gridCanvas.height;
   
-  // Clear canvas
-  ctx.fillStyle = "#faf9f6";
-  ctx.fillRect(0, 0, w, h);
+  // Clear grid canvas completely
+  ctx.clearRect(0, 0, w, h);
   
   ctx.save();
   ctx.strokeStyle = "#e5930e"; // Traditional red/amber ink grid color
@@ -373,205 +460,93 @@ function drawCalligraphyGrid() {
   ctx.restore();
 }
 
-function drawBackgroundRadicalGlyph() {
+// High performance clear for the drawing layers
+function clearDrawingCanvas() {
   if (!STATE.canvas || !STATE.ctx) return;
-  const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
-  if (!rad) return;
-  
-  const ctx = STATE.ctx;
-  ctx.save();
-  ctx.font = `200px var(--font-serif)`;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.08)"; // Faint gray trace guide
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(rad.char, 160, 160);
-  ctx.restore();
+  STATE.ctx.clearRect(0, 0, STATE.canvas.width, STATE.canvas.height);
 }
 
-function startDrawing(e) {
+// Hanzi Writer Integration Core
+function initHanziWriter(char) {
+  const container = document.getElementById('hanzi-writer-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
   const canvasBox = document.getElementById('practice-canvas-box');
   if (canvasBox) {
     canvasBox.classList.remove('error-state', 'success-state', 'mastered-state');
   }
-  STATE.isDrawing = true;
-  STATE.drawnPoints = [];
-  const coords = getCanvasCoords(e);
-  STATE.drawnPoints.push(coords);
   
-  // Standard calligraphy ink effect start
-  STATE.ctx.save();
-  STATE.ctx.beginPath();
-  STATE.ctx.moveTo(coords.x, coords.y);
-}
-
-function draw(e) {
-  if (!STATE.isDrawing) return;
-  const coords = getCanvasCoords(e);
-  const lastPoint = STATE.drawnPoints[STATE.drawnPoints.length - 1];
+  // Always draw our traditional Mizige grid backdrop first
+  drawCalligraphyGrid();
   
-  // Brush speed calculation for dynamic ink-bleed width
-  const dist = Math.hypot(coords.x - lastPoint.x, coords.y - lastPoint.y);
-  STATE.drawnPoints.push(coords);
-  
-  // Calligraphy brush simulation (thinner line when moving fast, thicker when slow/anchoring)
-  const brushWidth = Math.max(3, Math.min(18, 12 - (dist * 0.6)));
-  
-  STATE.ctx.strokeStyle = '#1a1a1a'; // Pitch black charcoal ink
-  STATE.ctx.lineWidth = brushWidth;
-  STATE.ctx.lineCap = 'round';
-  STATE.ctx.lineJoin = 'round';
-  
-  STATE.ctx.beginPath();
-  STATE.ctx.moveTo(lastPoint.x, lastPoint.y);
-  STATE.ctx.lineTo(coords.x, coords.y);
-  STATE.ctx.stroke();
-  
-  // Emit gorgeous particles from the brush tip
-  emitInkParticles(coords.x, coords.y, 3);
-}
-
-function stopDrawing() {
-  if (!STATE.isDrawing) return;
-  STATE.isDrawing = false;
-  
-  // Analyze current stroke accuracy if in practice/study mode
-  if (STATE.drawnPoints.length > 3) {
-    evaluateStrokePractice();
+  if (typeof HanziWriter !== 'undefined') {
+    STATE.hanziWriter = HanziWriter.create('hanzi-writer-container', char, {
+      width: 320,
+      height: 320,
+      padding: 30,
+      strokeColor: '#1a1a1a', // Pitch black charcoal ink
+      outlineColor: 'rgba(0, 0, 0, 0.08)', // Faint trace guide
+      drawingColor: 'rgba(0, 0, 0, 0)', // User drawing is handled in high-perf custom canvas with speed sensitivity
+      drawingWidth: 10,
+      showOutline: true,
+      showCharacter: false, // hide initially so they can practice
+      highlightColor: '#ff4d4d', // Red highlight guide
+    });
+    
+    startHanziQuiz();
+  } else {
+    console.error('HanziWriter library is not loaded.');
   }
 }
 
-function getCanvasCoords(e) {
-  const rect = STATE.canvas.getBoundingClientRect();
-  const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-  const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-  return {
-    x: clientX - rect.left,
-    y: clientY - rect.top
-  };
-}
-
-// Evaluate user's drawn stroke against expected radical coordinate paths
-function evaluateStrokePractice() {
-  const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
-  if (!rad || !rad.strokePaths || rad.strokePaths.length === 0) return;
+function startHanziQuiz() {
+  if (!STATE.hanziWriter) return;
   
-  const currentExpectedPath = rad.strokePaths[STATE.practiceStrokeIndex];
-  if (!currentExpectedPath) return;
-  
-  const drawnStart = STATE.drawnPoints[0];
-  const drawnEnd = STATE.drawnPoints[STATE.drawnPoints.length - 1];
-  
-  // Maps target points (from 0-100 percentage layout to actual 320px coordinates)
-  const expectedStart = {
-    x: (currentExpectedPath[0][0] / 100) * 320,
-    y: (currentExpectedPath[0][1] / 100) * 320
-  };
-  const expectedEnd = {
-    x: (currentExpectedPath[currentExpectedPath.length - 1][0] / 100) * 320,
-    y: (currentExpectedPath[currentExpectedPath.length - 1][1] / 100) * 320
-  };
-  
-  // Calculate spatial accuracy: compare start to start and end to end
-  const dStart = Math.hypot(drawnStart.x - expectedStart.x, drawnStart.y - expectedStart.y);
-  const dEnd = Math.hypot(drawnEnd.x - expectedEnd.x, drawnEnd.y - expectedEnd.y);
-  
-  // Reverse direction fallback check
-  const dReverseStart = Math.hypot(drawnStart.x - expectedEnd.x, drawnStart.y - expectedEnd.y);
-  const dReverseEnd = Math.hypot(drawnEnd.x - expectedStart.x, drawnEnd.y - expectedStart.y);
-  
-  const maxDistance = 90; // Tolerant pixel radius
-  let strokeValid = false;
-  let directionCorrect = true;
-  
-  if (dStart < maxDistance && dEnd < maxDistance) {
-    strokeValid = true;
-  } else if (dReverseStart < maxDistance && dReverseEnd < maxDistance) {
-    // Correct stroke placement but wrong direction
-    strokeValid = true;
-    directionCorrect = false;
-  }
-  
-  const canvasBox = document.getElementById('practice-canvas-box');
-  
-  if (strokeValid) {
-    if (directionCorrect) {
-      STATE.practiceStrokeIndex++;
-      STATE.practiceSuccessCount++;
-      
+  STATE.hanziWriter.quiz({
+    onMistake: function(strokeData) {
+      const canvasBox = document.getElementById('practice-canvas-box');
       if (canvasBox) {
-        canvasBox.classList.remove('error-state');
-        canvasBox.classList.add('success-state');
-      }
-      
-      if (STATE.practiceStrokeIndex >= rad.strokePaths.length) {
-        if (canvasBox) {
-          canvasBox.classList.remove('success-state');
-          canvasBox.classList.add('mastered-state');
-        }
-        triggerMasteryCelebration();
-        // Record as reviewed / remembered
-        markRadicalPracticed(rad.no);
-      }
-    } else {
-      // Stroke is physically right, but drawn backwards (vital in Chinese calligraphy!)
-      if (canvasBox) {
-        canvasBox.classList.remove('success-state', 'mastered-state');
-        // Force reflow to restart shake animation on subsequent errors
-        canvasBox.classList.remove('error-state');
-        void canvasBox.offsetWidth;
+        canvasBox.classList.remove('success-state', 'mastered-state', 'error-state');
+        void canvasBox.offsetWidth; // Force reflow
         canvasBox.classList.add('error-state');
       }
+      emitInkParticles(160, 160, 10, 'var(--accent-red)');
+      clearDrawingCanvas(); // Reset speed-sensitive canvas for another attempt
+    },
+    onCorrectStroke: function(strokeData) {
+      const canvasBox = document.getElementById('practice-canvas-box');
+      if (canvasBox) {
+        canvasBox.classList.remove('error-state', 'mastered-state');
+        canvasBox.classList.add('success-state');
+        setTimeout(() => {
+          if (canvasBox.classList.contains('success-state') && !canvasBox.classList.contains('mastered-state')) {
+            canvasBox.classList.remove('success-state');
+          }
+        }, 800);
+      }
+      emitInkParticles(160, 160, 15, '#1a1a1a');
+      clearDrawingCanvas(); // Clear speed-sensitive drawing so HanziWriter vector renders perfectly
+    },
+    onComplete: function(summary) {
+      const canvasBox = document.getElementById('practice-canvas-box');
+      if (canvasBox) {
+        canvasBox.classList.remove('success-state', 'error-state');
+        canvasBox.classList.add('mastered-state');
+      }
+      triggerMasteryCelebration();
+      markRadicalPracticed(STATE.selectedRadicalNo);
+      clearDrawingCanvas(); // Clear speed-sensitive canvas on completion
     }
-  } else {
-    if (canvasBox) {
-      canvasBox.classList.remove('success-state', 'mastered-state');
-      // Force reflow to restart shake animation on subsequent errors
-      canvasBox.classList.remove('error-state');
-      void canvasBox.offsetWidth;
-      canvasBox.classList.add('error-state');
-    }
-  }
-  
-  // Redraw canvas to preserve guidelines & drawn strokes
-  redrawCurrentStrokeSession();
+  });
 }
 
-function redrawCurrentStrokeSession() {
-  if (!STATE.canvas || !STATE.ctx) return;
-  const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
-  drawCalligraphyGrid();
-  drawBackgroundRadicalGlyph();
-  
-  // Highlight the current active stroke to guide the user visually
-  if (rad && rad.strokePaths && rad.strokePaths[STATE.practiceStrokeIndex]) {
-    const stroke = rad.strokePaths[STATE.practiceStrokeIndex];
-    const ctx = STATE.ctx;
-    ctx.save();
-    ctx.strokeStyle = "rgba(255, 77, 77, 0.55)"; // Red highlight guide
-    ctx.lineWidth = 14;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo((stroke[0][0] / 100) * 320, (stroke[0][1] / 100) * 320);
-    for (let i = 1; i < stroke.length; i++) {
-      ctx.lineTo((stroke[i][0] / 100) * 320, (stroke[i][1] / 100) * 320);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
-// Reset the interactive practice mode
 function resetPracticeSession() {
-  STATE.practiceStrokeIndex = 0;
-  STATE.practiceSuccessCount = 0;
-  drawCalligraphyGrid();
-  drawBackgroundRadicalGlyph();
-  redrawCurrentStrokeSession();
-  
-  const canvasBox = document.getElementById('practice-canvas-box');
-  if (canvasBox) {
-    canvasBox.classList.remove('error-state', 'success-state', 'mastered-state');
+  const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
+  if (rad) {
+    initHanziWriter(rad.char);
+  } else {
+    clearDrawingCanvas();
   }
 }
 
@@ -585,95 +560,14 @@ function triggerMasteryCelebration() {
 }
 
 // Automatic Stroke Animation Player
-async function playStrokeAnimation() {
-  const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
-  if (!rad || !rad.strokePaths || rad.strokePaths.length === 0) return;
-  
-  resetPracticeSession();
-  
-  const ctx = STATE.ctx;
-  
-  // Step through each stroke sequentially with a beautiful delay loop
-  for (let sIndex = 0; sIndex < rad.strokePaths.length; sIndex++) {
-    const strokePoints = rad.strokePaths[sIndex];
-    if (strokePoints.length < 2) continue;
-    
-    // Animate drawing this single stroke
-    await new Promise((resolve) => {
-      let step = 0;
-      const totalSteps = 15;
-      
-      function animateFrame() {
-        if (step > totalSteps) {
-          resolve();
-          return;
-        }
-        
-        const percent = step / totalSteps;
-        
-        // Redraw base and all previous completed strokes
-        drawCalligraphyGrid();
-        drawBackgroundRadicalGlyph();
-        
-        // Redraw completed strokes in full ink
-        ctx.save();
-        ctx.strokeStyle = "#1a1a1a";
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        
-        for (let prev = 0; prev < sIndex; prev++) {
-          const prevStroke = rad.strokePaths[prev];
-          ctx.lineWidth = 10;
-          ctx.beginPath();
-          ctx.moveTo((prevStroke[0][0] / 100) * 320, (prevStroke[0][1] / 100) * 320);
-          for (let j = 1; j < prevStroke.length; j++) {
-            ctx.lineTo((prevStroke[j][0] / 100) * 320, (prevStroke[j][1] / 100) * 320);
-          }
-          ctx.stroke();
-        }
-        
-        // Draw current animating stroke up to current percentage interpolation
-        ctx.lineWidth = 10;
-        ctx.beginPath();
-        const startX = (strokePoints[0][0] / 100) * 320;
-        const startY = (strokePoints[0][1] / 100) * 320;
-        ctx.moveTo(startX, startY);
-        
-        // Interpolate along coordinates points list
-        const pointsCount = strokePoints.length;
-        const currentTargetIndex = Math.min(
-          pointsCount - 1,
-          Math.floor(percent * (pointsCount - 1))
-        );
-        
-        for (let k = 1; k <= currentTargetIndex; k++) {
-          ctx.lineTo((strokePoints[k][0] / 100) * 320, (strokePoints[k][1] / 100) * 320);
-        }
-        
-        // Add final smooth vector projection for fluid look
-        if (currentTargetIndex < pointsCount - 1) {
-          const nextPt = strokePoints[currentTargetIndex + 1];
-          const currPt = strokePoints[currentTargetIndex];
-          const segmentPercent = (percent * (pointsCount - 1)) % 1;
-          const interpX = currPt[0] + (nextPt[0] - currPt[0]) * segmentPercent;
-          const interpY = currPt[1] + (nextPt[1] - currPt[1]) * segmentPercent;
-          
-          ctx.lineTo((interpX / 100) * 320, (interpY / 100) * 320);
-          emitInkParticles((interpX / 100) * 320, (interpY / 100) * 320, 4);
-        }
-        
-        ctx.stroke();
-        ctx.restore();
-        
-        step++;
-        requestAnimationFrame(animateFrame);
+function playStrokeAnimation() {
+  if (STATE.hanziWriter) {
+    STATE.hanziWriter.cancelQuiz();
+    STATE.hanziWriter.animateCharacter({
+      onComplete: function() {
+        startHanziQuiz();
       }
-      
-      animateFrame();
     });
-    
-    // Tiny pause between sequential strokes
-    await new Promise(r => setTimeout(r, 200));
   }
 }
 
@@ -720,6 +614,7 @@ function renderRadicalGrid() {
       <span class="cell-no">${rad.no}</span>
       <span class="cell-char">${rad.char}</span>
       <span class="cell-desc">${rad.meaning}</span>
+      <span class="cell-strokes">${rad.strokes}</span>
     `;
     
     cell.addEventListener('click', () => {
@@ -742,6 +637,10 @@ function renderRadicalDetail() {
   
   // Details table fields
   document.getElementById('meta-no').innerText = `# ${rad.no}`;
+  const metaMoreLink = document.getElementById('meta-more-link');
+  if (metaMoreLink) {
+    metaMoreLink.href = `https://www.yellowbridge.com/chinese/dictionary.php?word=${encodeURIComponent(rad.char)}`;
+  }
   const metaStrokes = document.getElementById('meta-strokes');
   if (metaStrokes) metaStrokes.innerText = rad.strokes;
   
@@ -779,10 +678,14 @@ function renderStats() {
   const masteredCount = learnedKeys.filter(k => STATE.srs.learned[k].interval >= 14).length;
   const activeCount = learnedKeys.filter(k => STATE.srs.learned[k].interval < 14).length;
   
-  document.getElementById('stat-mastered').innerText = masteredCount;
-  document.getElementById('stat-learning').innerText = activeCount;
-  document.getElementById('stat-unlocked').innerText = `${learnedKeys.length}/${radicals.length}`;
-  document.getElementById('stat-streak').innerText = `${STATE.srs.streak} Days`;
+  const m = document.getElementById('stat-mastered');
+  const l = document.getElementById('stat-learning');
+  const u = document.getElementById('stat-unlocked');
+  const s = document.getElementById('stat-streak');
+  if (m) m.innerText = masteredCount;
+  if (l) l.innerText = activeCount;
+  if (u) u.innerText = `${learnedKeys.length}/${radicals.length}`;
+  if (s) s.innerText = `${STATE.srs.streak} Days`;
 }
 
 // --- SPACED REPETITION CORE IMPLEMENTATION ---
@@ -1122,6 +1025,22 @@ window.switchTab = function(tabName) {
   }
 };
 
+// Speech Synthesis for Hanzi character pronunciation
+function speakChinese(text) {
+  if ('speechSynthesis' in window) {
+    // Cancel any ongoing speech to avoid overlaps or queue blocks
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN'; // Set language to Mandarin
+    utterance.rate = 0.75;    // Slightly slower for language learners
+    
+    window.speechSynthesis.speak(utterance);
+  } else {
+    console.error("Speech synthesis not supported in this browser.");
+  }
+}
+
 // --- INITIALIZATION ---
 window.addEventListener('DOMContentLoaded', async () => {
   // Load local state
@@ -1165,6 +1084,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   // UI buttons in Dictionary Canvas area
   document.getElementById('play-btn').addEventListener('click', playStrokeAnimation);
   document.getElementById('clear-btn').addEventListener('click', resetPracticeSession);
+  
+  // Setup Speak Button
+  const speakBtn = document.getElementById('speak-btn');
+  if (speakBtn) {
+    speakBtn.addEventListener('click', () => {
+      const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
+      if (rad) {
+        speakChinese(rad.char);
+      }
+    });
+  }
   
   // Launch WebGPU engine asynchronously (runs fallback particle loops if missing)
   await initWebGPU();

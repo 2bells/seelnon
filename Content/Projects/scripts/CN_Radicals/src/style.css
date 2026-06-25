@@ -1056,3 +1056,64 @@ h1, h2, h3, h4 {
     transform: scale(1);
   }
 }
+
+.meta-more-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--accent-amber);
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+}
+
+.meta-more-btn:hover {
+  background: var(--border-color);
+  color: var(--text-light);
+  border-color: var(--accent-amber);
+}
+
+/* Calligraphy Ink Feel Filter */
+#practice-canvas,
+#hanzi-writer-container {
+  filter: url(#ink-bleed);
+}
+
+#hanzi-writer-container svg path,
+#hanzi-writer-container svg line,
+#hanzi-writer-container svg polyline {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.speak-btn {
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: var(--accent-amber);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-smooth);
+}
+
+.speak-btn:hover {
+  background: var(--accent-amber);
+  color: #0F0F0F;
+  border-color: var(--accent-amber);
+  transform: scale(1.05);
+}
+
+.speak-btn:active {
+  transform: scale(0.95);
+}
+
