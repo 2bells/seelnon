@@ -282,7 +282,6 @@ const mapped214 = raw214Radicals.map((rad) => {
 
 const combinedRadicals = [
   ...mapped214,
-  ...keyRadicalsData,
   ...digitalRadicals,
   ...searchRadicals,
   ...actionRadicals,
