@@ -879,34 +879,22 @@ function buildQuizQueue() {
     }
   });
   
-  // If no reviews are due right now, let's inject a few fresh new ones matching our active pool!
+  // If no reviews are due right now, let's inject a few of our already learned/drawn cards so we can still practice!
   if (queue.length === 0) {
-    const unlearned = radicals.filter(r => {
-      if (enabledCats.length > 0 && !enabledCats.includes(r.category.toUpperCase())) {
-        return false;
-      }
-      if (enabledStrs.length > 0 && !enabledStrs.includes(r.strokes)) {
-        return false;
-      }
-      
-      // Low chance for slang/double/triple unless explicitly filtering for it
-      if (isSlangOrDoubleTriple(r)) {
-        const isFilteringSlang = enabledCats.some(c => ['SLANG_ALPHA', 'NETIZEN_BUZZ', 'ALPHA_ACRONYM', 'NUMERIC_CODE'].includes(c.toUpperCase()));
-        if (!isFilteringSlang) {
-          if (Math.random() > 0.1) {
-            return false;
-          }
+    radicals.forEach(rad => {
+      const srsRecord = STATE.srs.learned[rad.no];
+      if (srsRecord) {
+        // Check if radical belongs to active category pool
+        if (enabledCats.length > 0 && !enabledCats.includes(rad.category.toUpperCase())) {
+          return;
         }
+        // Check if radical belongs to active stroke count pool
+        if (enabledStrs.length > 0 && !enabledStrs.includes(rad.strokes)) {
+          return;
+        }
+        queue.push(rad);
       }
-      
-      return !activeList.includes(r.no.toString());
     });
-    
-    // Pull the next 5 unlearned radicals
-    const limit = Math.min(5, unlearned.length);
-    for (let i = 0; i < limit; i++) {
-      queue.push(unlearned[i]);
-    }
   }
   
   // Shuffle queue to randomize study order
@@ -1043,6 +1031,7 @@ window.setQuizMode = function(mode) {
   });
   
   // Reset active quiz interaction state
+  STATE.quizFlipped = false;
   STATE.quizAnswerSubmitted = false;
   STATE.quizUserAnswer = '';
   STATE.quizAnswerCorrect = false;
