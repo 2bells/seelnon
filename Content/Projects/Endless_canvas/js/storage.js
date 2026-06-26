@@ -322,7 +322,6 @@ export async function loadState(projectId = null) {
             }
             if (projectData.panOffset) state.panOffset = projectData.panOffset;
             if (projectData.zoom) state.zoom = projectData.zoom;
-            if (projectData.historyIndex !== undefined) state.historyIndex = projectData.historyIndex;
 
             if (projectData.canvasSettings) {
                 state.canvasSettings = { ...state.canvasSettings, ...projectData.canvasSettings };

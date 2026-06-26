@@ -1439,15 +1439,9 @@ export function undo() {
         setSelectedStrokes([]);
         rebuildChunkMemberships();
         updateAnimatedStrokesList();
-    } else if (state.historyIndex === 0 && state.history.length > 0) {
-        state.historyIndex = -1;
-        state.strokes = [];
-        setSelectedStrokes([]);
-        rebuildChunkMemberships();
-        updateAnimatedStrokesList();
+        invalidateBackgroundCache(true);
+        scheduleSave();
     }
-    invalidateBackgroundCache(true);
-    scheduleSave();
 }
 
 export function redo() {
