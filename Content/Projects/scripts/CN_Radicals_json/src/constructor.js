@@ -3,7 +3,7 @@
 
 import importNames from './import.json' with { type: 'json' };
 
-const modules = import.meta.glob('./data/*.json', { eager: true, as: 'json' });
+const modules = import.meta.glob('./data/*.json', { eager: true });
 
 function getModuleData(name) {
   const path = `./data/${name}.json`;
