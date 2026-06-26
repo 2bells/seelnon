@@ -196,6 +196,9 @@ export function init(canvas) {
     }
 
     canvas.addEventListener('pointerdown', (e) => {
+        // Focus the window immediately so keyboard shortcuts (Ctrl+Z, etc.) are captured by the iframe
+        window.focus();
+
         // Multi-touch tracking
         state.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
 
