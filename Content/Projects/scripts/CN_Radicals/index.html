@@ -37,8 +37,9 @@
           <input type="text" id="search-input" class="search-input" placeholder="Type character, pinyin, or meaning..." />
           
           <div class="filter-grid">
-            <select id="filter-category" class="filter-select">
-              <option value="ALL">ALL CATEGORIES</option>
+            <div style="display: flex; gap: 8px; width: 100%; align-items: center;">
+              <select id="filter-category" class="filter-select" style="flex: 1; min-width: 0;">
+                <option value="ALL">ALL CATEGORIES</option>
               <option value="SPIRITUAL">ANCIENT PHILOSOPHY & SPIRITUALITY</option>
               <option value="ABSTRACT">ABSTRACT</option>
               <option value="NATURE">NATURE</option>
@@ -70,6 +71,8 @@
               <option value="ALPHA_ACRONYM">ALPHABETIC & ACRONYMS</option>
               <option value="NUMERIC_CODE">NUMERIC CODES & PUNS</option>
             </select>
+            <button class="settings-gear-btn" id="open-settings-btn" title="Configure Study Pool Settings"><span class="gear-icon">⚙️</span></button>
+            </div>
 
           </div>
         </div>
@@ -175,24 +178,12 @@
         <!-- VIEW B: SPACED REPETITION (SRS) LEARNING VIEW -->
         <div id="view-srs" class="workspace-panel srs-panel" style="display: none;">
           
-          <!-- SRS statistics header -->
-          <div class="srs-stats-row">
-            <div class="srs-stat-card">
-              <span>MASTERED</span>
-              <div class="srs-stat-val active-green" id="srs-mastered-val">0</div>
-            </div>
-            <div class="srs-stat-card">
-              <span>LEARNING</span>
-              <div class="srs-stat-val active-amber" id="srs-learning-val">0</div>
-            </div>
-            <div class="srs-stat-card">
-              <span>DUE REVIEWS</span>
-              <div class="srs-stat-val active-red" id="srs-pending-val">0</div>
-            </div>
-            <div class="srs-stat-card">
-              <span>STREAK</span>
-              <div class="srs-stat-val" id="srs-streak-val">0 Days</div>
-            </div>
+          <!-- SRS Mode Select buttons on top -->
+          <div class="mode-buttons-row" style="width: 100%; margin-bottom: -8px;">
+            <button class="mode-btn active" id="mode-btn-flashcard" onclick="setQuizMode('flashcard')">👁️ MEMORY</button>
+            <button class="mode-btn" id="mode-btn-pinyin" onclick="setQuizMode('pinyin')">🎙️ PINYIN</button>
+            <button class="mode-btn" id="mode-btn-translation" onclick="setQuizMode('translation')">📝 MEANING</button>
+            <button class="mode-btn" id="mode-btn-symbol" onclick="setQuizMode('symbol')">🔍 SYMBOL</button>
           </div>
           
           <!-- The Study/Review Container -->
@@ -200,13 +191,36 @@
             <!-- Populated via javascript -->
           </div>
           
+          <!-- SRS statistics header -->
+          <div class="srs-stats-row srs-stats-small">
+            <div class="srs-stat-card clickable-stat" onclick="openSrsLibrary('mastered')">
+              <span>MASTERED</span>
+              <div class="srs-stat-val active-green" id="srs-mastered-val">0</div>
+            </div>
+            <div class="srs-stat-card clickable-stat" onclick="openSrsLibrary('learning')">
+              <span>LEARNING</span>
+              <div class="srs-stat-val active-amber" id="srs-learning-val">0</div>
+            </div>
+            <div class="srs-stat-card clickable-stat" onclick="openSrsLibrary('due')">
+              <span>DUE REVIEWS</span>
+              <div class="srs-stat-val active-red" id="srs-pending-val">0</div>
+            </div>
+            <div class="srs-stat-card clickable-stat" onclick="openSrsLibrary('forgotten')">
+              <span>FORGOTTEN</span>
+              <div class="srs-stat-val active-blue" id="srs-forgotten-val">0</div>
+            </div>
+          </div>
+          
           <!-- Trouble Radicals Segment -->
-          <div class="trouble-section">
-            <h3 style="font-size:1rem; border-bottom: 3px solid var(--border-color); padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-              <span>⚠️ TROUBLESOME RADICALS (EASILY FORGOTTEN)</span>
-              <span style="font-size:0.75rem; background:var(--accent-red); color:white; padding:2px 6px;">ACTION REQUIRED</span>
+          <div class="trouble-section" id="trouble-section">
+            <h3 id="trouble-header" class="trouble-header" onclick="toggleTroubleSection()">
+              <div style="display: flex; align-items: center;">
+                <span id="trouble-toggle-icon" class="trouble-toggle-icon">▶</span>
+                <span>⚠️ TROUBLESOME RADICALS (EASILY FORGOTTEN)</span>
+              </div>
+              <span style="font-size:0.75rem; background:var(--accent-red); color:white; padding:2px 6px; font-family: var(--font-mono); font-weight: 800;">ACTION REQUIRED</span>
             </h3>
-            <div class="trouble-grid" id="trouble-grid">
+            <div class="trouble-grid" id="trouble-grid" style="display: none;">
               <!-- Trouble radical cards -->
             </div>
           </div>
@@ -247,5 +261,74 @@
         </filter>
       </defs>
     </svg>
+
+    <!-- Global Study Pool Settings Modal -->
+    <div id="settings-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="modal-title">⚙️ GLOBAL STUDY POOL SETTINGS</span>
+          <button class="modal-close-btn" id="close-settings-btn">&times;</button>
+        </div>
+        
+        <p class="modal-intro">Configure which categories and stroke counts are active globally. This filters both the dictionary list and your active SRS study pool.</p>
+
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- KANGXI SETS (CATEGORIES IN POOL) -->
+          <div class="config-section">
+            <div class="modal-section-header">
+              <span class="config-label">KANGXI SETS (CATEGORIES IN POOL):</span>
+              <div class="toggle-helpers">
+                <button class="small-helper-btn" onclick="toggleAllCategories(true)">ALL ON</button>
+                <button class="small-helper-btn" onclick="toggleAllCategories(false)">ALL OFF</button>
+              </div>
+            </div>
+            <div class="checkbox-pool-grid" id="modal-category-pool-toggles">
+              <!-- Dynamically populated categories toggles -->
+            </div>
+          </div>
+
+          <!-- STROKE COUNTS IN POOL -->
+          <div class="config-section">
+            <div class="modal-section-header">
+              <span class="config-label">STROKE COUNTS IN POOL:</span>
+              <div class="toggle-helpers">
+                <button class="small-helper-btn" onclick="toggleAllStrokes(true)">ALL ON</button>
+                <button class="small-helper-btn" onclick="toggleAllStrokes(false)">ALL OFF</button>
+              </div>
+            </div>
+            <div class="checkbox-pool-grid" id="modal-strokes-pool-toggles">
+              <!-- Dynamically populated strokes toggles -->
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+          <button class="btn-raw btn-accent" id="save-settings-btn" style="width: 100%; padding: 12px; font-weight: 800;">APPLY & CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SRS State Library Manager Modal -->
+    <div id="srs-library-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content" style="max-width: 650px;">
+        <div class="modal-header">
+          <span class="modal-title" id="srs-library-modal-title">SRS STATE MANAGER</span>
+          <button class="modal-close-btn" id="close-srs-library-btn" onclick="closeSrsLibrary()">&times;</button>
+        </div>
+        
+        <p class="modal-intro" id="srs-library-modal-desc">View and manage your active spaced repetition items in this category.</p>
+
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+          <div id="srs-library-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+            <!-- Populated dynamically with cards -->
+          </div>
+        </div>
+        
+        <div class="modal-footer" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+          <button class="btn-raw btn-accent" onclick="closeSrsLibrary()" style="width: 100%; padding: 12px; font-weight: 800;">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>
