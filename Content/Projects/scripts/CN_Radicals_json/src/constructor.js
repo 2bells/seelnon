@@ -1,23 +1,10 @@
 // The 214 Kangxi Radicals Database
 // Styled for the brutalist approach: zero bloat, high structure.
 
-import importNames from './import.json' with { type: 'json' };
+import importNames from './import.json';
+import allData from './data/all.json';
 
-const modules = import.meta.glob('./data/*.json', { eager: true });
-
-function getModuleData(name) {
-  const path = `./data/${name}.json`;
-  const mod = modules[path];
-  if (!mod) return [];
-  const data = mod.default || mod;
-  return data.map(item => ({ ...item, source: path }));
-}
-
-// Map of all radicals data by filename
-const dataMap = {};
-importNames.forEach(name => {
-  dataMap[name] = getModuleData(name);
-});
+const dataMap = allData;
 
 // Constructor/Procedural fallback for missing radical properties
 const enrichRadical = (rad, index) => {
