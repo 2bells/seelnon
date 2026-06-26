@@ -3,24 +3,27 @@
 
 import { importNames } from './import.js';
 
-const modules = import.meta.glob('./data/*.json', { eager: true });
-
-function getModuleData(name) {
-  const path = `./data/${name}.json`;
-  const mod = modules[path];
-  if (!mod) return [];
-  const data = mod.default || mod;
-  return data.map(item => ({ ...item, source: path }));
+async function grabJsonFile(fileName) {
+  try {
+    const targetUrl = new URL(`./data/${fileName}.json`, import.meta.url).href;
+    
+    console.log(`Fetching from: ${targetUrl}`);
+    const response = await fetch(targetUrl);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP Error Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error loading dataset segment for '${fileName}':`, error);
+    return [];
+  }
 }
 
-// Map of all radicals data by filename
-const dataMap = {};
-importNames.forEach(name => {
-  dataMap[name] = getModuleData(name);
-});
-
 // Constructor/Procedural fallback for missing radical properties
-const enrichRadical = (rad, index) => {
+export const enrichRadical = (rad, index, dataMap) => {
   const base = {
     no: rad.no || index + 1,
     char: rad.char,
@@ -72,12 +75,19 @@ const enrichRadical = (rad, index) => {
   return { ...base, etymology, funFact, philosophy };
 };
 
-// Base radicals from 214.json, enriched procedurally
-const enriched214 = (dataMap['214'] || []).map(enrichRadical);
+export async function getRadicals() {
+  const dataMap = {};
+  await Promise.all(importNames.map(async (name) => {
+    dataMap[name] = await grabJsonFile(name);
+  }));
 
-const combinedRadicals = [
-  ...enriched214,
-  ...importNames.filter(name => name !== '214').flatMap(name => dataMap[name] || [])
-];
+  // Base radicals from 214.json, enriched procedurally
+  const enriched214 = (dataMap['214'] || []).map((rad, i) => enrichRadical(rad, i, dataMap));
 
-export const radicals = combinedRadicals;
+  const combinedRadicals = [
+    ...enriched214,
+    ...importNames.filter(name => name !== '214').flatMap(name => dataMap[name] || [])
+  ];
+
+  return combinedRadicals;
+}
