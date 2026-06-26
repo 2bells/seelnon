@@ -1,9 +1,9 @@
 // The 214 Kangxi Radicals Database
 // Styled for the brutalist approach: zero bloat, high structure.
 
-import importNames from './import.json';
+import importNames from './import.json' with { type: 'json' };
 
-const modules = import.meta.glob('./data/*.json', { eager: true });
+const modules = import.meta.glob('./data/*.json', { eager: true, as: 'json' });
 
 function getModuleData(name) {
   const path = `./data/${name}.json`;
