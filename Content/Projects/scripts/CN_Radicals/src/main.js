@@ -550,9 +550,9 @@ function initHanziWriter(char) {
   const isLatin = targetChar && (/^[A-Za-z0-9\s\-_]$/.test(targetChar) || targetChar.charCodeAt(0) < 128);
   if (isLatin) {
     container.innerHTML = `
-      <div class="latin-char-display" style="font-size: 6rem; font-family: var(--font-sans); font-weight: 800; color: var(--accent-amber); text-align: center; line-height: 320px; animation: popIn 0.5s ease; position: relative; z-index: 2;">
+      <div class="latin-char-display" style="font-size: 6rem; font-family: var(--font-sans); font-weight: 800; color: var(--accent-amber); text-align: center; line-height: 320px; animation: popIn 0.5s ease; position: relative; z-index: 2; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; pointer-events: none;">
         ${targetChar}
-        <div style="font-size: 0.8rem; font-family: var(--font-mono); color: #888; position: absolute; bottom: 20px; left: 0; right: 0; line-height: 1.2; letter-spacing: 1px; text-transform: uppercase;">Latin Character - Auto OK</div>
+        <div style="font-size: 0.8rem; font-family: var(--font-mono); color: #888; position: absolute; bottom: 20px; left: 0; right: 0; line-height: 1.2; letter-spacing: 1px; text-transform: uppercase; user-select: none; -webkit-user-select: none;">Latin Character - Auto OK</div>
       </div>
     `;
     
@@ -653,6 +653,8 @@ function startHanziQuiz() {
 function resetPracticeSession() {
   const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
   if (rad) {
+    STATE.multiCharSequence = [];
+    STATE.multiCharIndex = 0;
     initHanziWriter(rad.char);
   } else {
     clearDrawingCanvas();
@@ -690,6 +692,38 @@ function normalizeForSearch(str) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/ü/g, 'v');
+}
+
+// Render a string of characters (single or multi-character) as a grid or beautifully aligned box
+function renderCharAsGrid(char) {
+  if (!char) return '';
+  if (char.length <= 1) {
+    return `<div style="font-size: 1.8rem; font-family: var(--font-serif); font-weight: 700; color: var(--accent-amber); display: flex; align-items: center; justify-content: center; height: 100%; user-select: none; -webkit-user-select: none;">${char}</div>`;
+  }
+  
+  let columns = 2;
+  let fontSize = '0.9rem';
+  let lineHeight = '1.1';
+  
+  if (char.length === 2) {
+    columns = 2;
+    fontSize = '1.1rem';
+  } else if (char.length === 3) {
+    columns = 2;
+    fontSize = '0.95rem';
+  } else if (char.length >= 4) {
+    columns = 2;
+    fontSize = '0.85rem';
+  }
+  
+  const chars = Array.from(char);
+  const items = chars.map(c => `<span style="display: flex; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none;">${c}</span>`).join('');
+  
+  return `
+    <div style="display: grid; grid-template-columns: repeat(${columns}, 1fr); gap: 1px; justify-items: center; align-items: center; font-size: ${fontSize}; font-family: var(--font-serif); font-weight: 700; color: var(--accent-amber); line-height: ${lineHeight}; width: 100%; height: 100%; text-align: center; box-sizing: border-box; user-select: none; -webkit-user-select: none;">
+      ${items}
+    </div>
+  `;
 }
 
 // Filter and display the Left Radical Grid list
@@ -1794,7 +1828,9 @@ function renderTroubleRadicals() {
     const card = document.createElement('div');
     card.className = "trouble-card";
     card.innerHTML = `
-      <span class="trouble-char">${rad.char}</span>
+      <div class="trouble-char" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 2px; box-sizing: border-box; flex-shrink: 0;">
+        ${renderCharAsGrid(rad.char)}
+      </div>
       <div class="trouble-details">
         <span class="trouble-meaning">${rad.meaning.toUpperCase()}</span>
         <span class="trouble-score">FORGOT: ${item.record.forgotCount}x</span>
@@ -2080,7 +2116,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       const itemHtml = `
         <div class="srs-library-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-card-alt); border: 1px solid var(--border-color); border-radius: var(--radius-md); gap: 16px;">
           <div style="display: flex; align-items: center; gap: 16px;">
-            <div class="srs-library-char" style="font-size: 1.8rem; font-family: var(--font-serif); font-weight: 700; color: var(--accent-amber); background: var(--bg-primary); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">${item.rad.char}</div>
+            <div class="srs-library-char" style="background: var(--bg-primary); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 2px; box-sizing: border-box; flex-shrink: 0;">
+              ${renderCharAsGrid(item.rad.char)}
+            </div>
             <div style="display: flex; flex-direction: column;">
               <span style="font-weight: 700; color: var(--text-light); font-size: 1rem;">${item.rad.meaning.toUpperCase()}</span>
               <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">${item.rad.pinyin.toUpperCase()}</span>
