@@ -1,7 +1,9 @@
 // Core Logic for the Chinese Radicals Study Application
 // Built with pure Vanilla JS, Canvas, and WebGPU fallback. Zero modern bloat.
 
-import { radicals } from './constructor.js';
+import { getRadicals } from './constructor.js';
+
+let radicals = [];
 
 // --- APPLICATION STATE ---
 const STATE = {
@@ -1895,6 +1897,7 @@ function speakChinese(text) {
 
 // --- INITIALIZATION ---
 window.addEventListener('DOMContentLoaded', async () => {
+  radicals = await getRadicals();
   // Load local state
   loadSrsData();
   renderStats();
