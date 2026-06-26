@@ -546,6 +546,39 @@ function initHanziWriter(char) {
     }
   }
   
+  // Handle Latin or ASCII characters (like 'Q' or space or numbers) which can't be drawn
+  const isLatin = targetChar && (/^[A-Za-z0-9\s\-_]$/.test(targetChar) || targetChar.charCodeAt(0) < 128);
+  if (isLatin) {
+    container.innerHTML = `
+      <div class="latin-char-display" style="font-size: 6rem; font-family: var(--font-sans); font-weight: 800; color: var(--accent-amber); text-align: center; line-height: 320px; animation: popIn 0.5s ease; position: relative; z-index: 2;">
+        ${targetChar}
+        <div style="font-size: 0.8rem; font-family: var(--font-mono); color: #888; position: absolute; bottom: 20px; left: 0; right: 0; line-height: 1.2; letter-spacing: 1px; text-transform: uppercase;">Latin Character - Auto OK</div>
+      </div>
+    `;
+    
+    setTimeout(() => {
+      const canvasBox = document.getElementById('practice-canvas-box');
+      if (canvasBox) {
+        canvasBox.classList.remove('success-state', 'error-state');
+        canvasBox.classList.add('mastered-state');
+      }
+      triggerMasteryCelebration();
+      
+      // If we are in a multi-character sequence and have characters remaining, advance to the next
+      if (STATE.multiCharSequence.length > 1 && STATE.multiCharIndex < STATE.multiCharSequence.length - 1) {
+        STATE.multiCharIndex++;
+        setTimeout(() => {
+          initHanziWriter(STATE.multiCharSequence.join(''));
+        }, 1200);
+        return;
+      }
+      
+      markRadicalPracticed(STATE.selectedRadicalNo);
+      clearDrawingCanvas();
+    }, 1000);
+    return;
+  }
+  
   if (typeof HanziWriter !== 'undefined') {
     STATE.hanziWriter = HanziWriter.create('hanzi-writer-container', targetChar, {
       width: 320,
@@ -649,6 +682,16 @@ function playStrokeAnimation() {
 
 // --- RENDERING VIEWS ---
 
+// Normalize string by converting to lowercase and stripping accents / diacritics for search
+function normalizeForSearch(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ü/g, 'v');
+}
+
 // Filter and display the Left Radical Grid list
 function renderRadicalGrid() {
   const grid = document.getElementById('radical-grid');
@@ -670,10 +713,11 @@ function renderRadicalGrid() {
     }
 
     // Search query matches character, pinyin, or meaning
+    const queryNorm = normalizeForSearch(STATE.searchQuery);
     const matchesSearch = 
       rad.char.includes(STATE.searchQuery) ||
-      rad.pinyin.toLowerCase().includes(STATE.searchQuery.toLowerCase()) ||
-      rad.meaning.toLowerCase().includes(STATE.searchQuery.toLowerCase());
+      normalizeForSearch(rad.pinyin).includes(queryNorm) ||
+      normalizeForSearch(rad.meaning).includes(queryNorm);
       
     // Stroke count filter
     const matchesStrokes = STATE.filterStrokes === 'ALL' || rad.strokes === parseInt(STATE.filterStrokes);
