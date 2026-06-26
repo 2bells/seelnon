@@ -1187,6 +1187,27 @@ function renderSrsQuizView() {
   const container = document.getElementById('srs-quiz-box');
   if (!container) return;
   
+  // Dynamically update bottom SRS stats
+  const srsData = STATE.srs.learned;
+  const masteredCount = Object.keys(srsData).filter(k => srsData[k].interval >= 14).length;
+  const activeCount = Object.keys(srsData).filter(k => srsData[k].interval < 14).length;
+  
+  const mVal = document.getElementById('srs-mastered-val');
+  if (mVal) mVal.innerText = masteredCount;
+  const lVal = document.getElementById('srs-learning-val');
+  if (lVal) lVal.innerText = activeCount;
+  
+  const now = new Date();
+  const pendingCount = Object.keys(srsData).filter(k => new Date(srsData[k].nextReview) <= now).length;
+  const pVal = document.getElementById('srs-pending-val');
+  if (pVal) pVal.innerText = pendingCount;
+
+  const forgottenCount = Object.keys(srsData).filter(k => srsData[k].forgotCount > 0).length;
+  const fVal = document.getElementById('srs-forgotten-val');
+  if (fVal) fVal.innerText = forgottenCount;
+
+  renderTroubleRadicals();
+  
   if (STATE.quizQueue.length === 0) {
     container.innerHTML = `
       <div style="text-align: center; margin: auto;">
@@ -1629,9 +1650,14 @@ function submitSrsScore(radicalNo, score) {
     // Reduce ease factor to show more frequently
     record.ease = Math.max(1.3, record.ease - 0.2);
     emitInkParticles(160, 160, 20, 'var(--accent-red)');
+  } else if (score === 3) {
+    // Hard item: set interval to 0 so it remains/goes back to "due reviews" immediately
+    record.interval = 0;
+    record.ease = Math.max(1.3, record.ease - 0.1);
+    emitInkParticles(160, 160, 20, 'var(--accent-amber)');
   } else {
     // Answer was correct: expand review interval
-    if (record.interval === 1) {
+    if (record.interval === 0 || record.interval === 1) {
       record.interval = 3;
     } else if (record.interval === 3) {
       record.interval = 7;
