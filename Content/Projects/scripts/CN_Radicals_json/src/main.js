@@ -972,7 +972,15 @@ function buildQuizQueue() {
     const srsRecord = STATE.srs.learned[rad.no];
     if (srsRecord) {
       const nextReviewDate = new Date(srsRecord.nextReview);
-      if (nextReviewDate <= now) {
+      
+      // Calculate weight based on SRS status
+      let weight = 10; // Default weight
+      if (nextReviewDate <= now) weight = 100; // Due cards - high priority
+      else if (srsRecord.forgotCount > 0 || srsRecord.interval < 3) weight = 100; // Forgotten/Needs review
+      else if (srsRecord.interval >= 14) weight = 1; // Mastered cards - low priority
+
+      // Add to queue based on weight
+      if (Math.random() * 100 < weight) {
         queue.push(rad);
       }
     }
@@ -1762,7 +1770,7 @@ function submitSrsScore(radicalNo, score) {
       record.interval = 7;
     } else {
       // Multiply current interval by ease factor
-      record.interval = Math.min(180, Math.round(record.interval * record.ease));
+      record.interval = Math.min(365, Math.round(record.interval * record.ease));
     }
     
     // Adjust ease parameter based on score
