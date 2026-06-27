@@ -193,7 +193,7 @@ function updateWebGpuStatus(active) {
 
 // --- PARTICLE EMISSION CORE ---
 function emitInkParticles(x, y, count = 8, colorHex = '#1a1a1a') {
-  // Splashes and particle emission disabled for a cleaner and highly-polished drawing style.
+  // Completely disabled based on user feedback. It doesn't match the clean calligraphy lines.
   return;
 }
 
@@ -207,9 +207,13 @@ function updateAndRenderParticles() {
     p.gpuX += p.gpuVx;
     p.gpuY += p.gpuVy;
     
-    p.vx *= 0.95; // Fluid friction
-    p.vy *= 0.95;
-    p.gpuVx *= 0.95;
+    // Calligraphy liquid dynamics: strong gravity pull downwards, horizontal drag
+    p.vy += 0.12; // Gravity
+    p.gpuVy -= 0.12 / 160;
+    
+    p.vx *= 0.91; // Horizontal friction (limits wide spreading)
+    p.vy *= 0.95; // Heavy fluid friction (creates realistic viscous terminal velocity)
+    p.gpuVx *= 0.91;
     p.gpuVy *= 0.95;
     
     p.life -= p.decay;
@@ -227,9 +231,22 @@ function updateAndRenderParticles() {
     tempCtx.save();
     for (const p of STATE.particles2D) {
       tempCtx.fillStyle = p.color;
-      tempCtx.globalAlpha = p.alpha * 0.5;
+      tempCtx.globalAlpha = p.alpha * 0.55;
+      
+      // Calculate speed and angle to stretch the ink droplet along its motion path
+      const speed = Math.hypot(p.vx, p.vy);
+      const angle = Math.atan2(p.vy, p.vx);
+      
       tempCtx.beginPath();
-      tempCtx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+      const rx = p.size * 1.1;
+      const ry = p.size * (1.1 + speed * 0.35); // Visually elongates the drip based on velocity
+      
+      if (tempCtx.ellipse) {
+        // Draw standard teardrop-shaped ellipse pointing along velocity vector
+        tempCtx.ellipse(p.x, p.y, rx, ry, angle - Math.PI / 2, 0, Math.PI * 2);
+      } else {
+        tempCtx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+      }
       tempCtx.fill();
     }
     tempCtx.restore();
@@ -250,9 +267,9 @@ function updateAndRenderParticles() {
         data[offset + 1] = p.gpuY;
         
         // Parse Color to RGBA
-        data[offset + 2] = 0.1; // R
-        data[offset + 3] = 0.1; // G
-        data[offset + 4] = 0.1; // B
+        data[offset + 2] = p.r || 0.1; // R
+        data[offset + 3] = p.g || 0.1; // G
+        data[offset + 4] = p.b || 0.1; // B
         data[offset + 5] = p.alpha; // A
         
         data[offset + 6] = p.size * 0.05; // size scalar
@@ -294,7 +311,9 @@ function updateAndRenderParticles() {
     }
   }
   
-  requestAnimationFrame(updateAndRenderParticles);
+  if (STATE.particles2D.length > 0) {
+    requestAnimationFrame(updateAndRenderParticles);
+  }
 }
 
 // --- LOCAL STORAGE PERSISTENCE ---
