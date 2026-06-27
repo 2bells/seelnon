@@ -1,0 +1,782 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+* {
+    box-sizing: border-box;
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #0b0b0c; /* High contrast dark canvas */
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+canvas {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* --- Top Bar Styling --- */
+#top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 52px;
+    background-color: #ffffff;
+    border-bottom: 3px solid #000000;
+    box-shadow: 0px 4px 0px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    pointer-events: auto;
+}
+
+.top-bar-left, .top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.top-bar-separator {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: #000000;
+    margin: 0 8px;
+    user-select: none;
+}
+
+.top-bar-sliders {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-grow: 1;
+    justify-content: center;
+}
+
+.top-slider-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+
+.top-slider-label {
+    display: flex;
+    justify-content: space-between;
+    width: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #000000;
+    white-space: nowrap;
+}
+
+.top-slider-label span {
+    background-color: #000000;
+    color: #ffffff;
+    padding: 0px 4px;
+    font-size: 8px;
+    margin-left: auto;
+}
+
+/* Universal Button Style */
+.button, .bar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #000000;
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    box-shadow: 2px 2px 0px #000000;
+    cursor: pointer;
+    pointer-events: auto;
+    user-select: none;
+    transition: none; /* Instant feedback */
+}
+
+.button:hover, .bar-btn:hover {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+.button:active, .bar-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px #000000;
+}
+
+.clear-btn {
+    background-color: #ff3333;
+    color: #ffffff;
+}
+
+.clear-btn:hover {
+    background-color: #000000;
+    color: #ff3333;
+    border-color: #ff3333;
+}
+
+/* Custom Sliders */
+.top-slider {
+    position: relative;
+    width: 100px !important;
+    height: 12px !important;
+    border: 2px solid #000000;
+    background-color: #f4f4f5;
+    cursor: ew-resize;
+    pointer-events: auto;
+    user-select: none;
+}
+
+/* --- Floating Windows/Cards --- */
+.widget-card {
+    pointer-events: auto;
+    background-color: #ffffff;
+    border: 3px solid #000000;
+    box-shadow: 6px 6px 0px #000000;
+    padding: 14px;
+    border-radius: 0px;
+    position: absolute;
+}
+
+/* --- Color Palette Window --- */
+#color-palette-window {
+    position: absolute;
+    top: 76px;
+    right: 24px;
+    width: 150px;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    background-color: transparent !important; /* Transparent parent container */
+    border: 3px solid #000000;
+    box-shadow: 6px 6px 0px #000000;
+    pointer-events: none; /* Pass pointer events to canvas/WebGL picker beneath */
+    border-radius: 0px;
+    box-sizing: border-box;
+}
+
+.palette-header-row {
+    background-color: #ffffff;
+    padding: 10px 10px 8px 10px;
+    box-sizing: border-box;
+    width: 100%;
+    pointer-events: auto;
+}
+
+.palette-picker-row {
+    display: flex;
+    flex-direction: row;
+    height: 120px;
+    width: 100%;
+    background-color: transparent;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.palette-wing-left,
+.palette-wing-right {
+    flex-grow: 1;
+    height: 100%;
+    background-color: #ffffff;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
+.palette-footer-row {
+    background-color: #ffffff;
+    padding: 8px 10px 10px 10px;
+    box-sizing: border-box;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.palette-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 6px;
+    cursor: move; /* Draggable indicator */
+}
+
+.palette-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: -0.2px;
+}
+
+#palette-color-preview {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #000000;
+    background-color: #e7e7e7;
+    box-shadow: 1px 1px 0px #000000;
+}
+
+/* Transparent Target for WebGL Color Picker */
+#color-picker-target {
+    width: 120px;
+    height: 120px;
+    box-sizing: border-box;
+    background-color: transparent;
+    pointer-events: none; /* Let events pass to canvas */
+    border: 2px solid #000000;
+}
+
+/* Swatches Grid */
+.swatches-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+}
+
+.swatch {
+    grid-column: span var(--span, 1);
+    height: 16px;
+    border: 2px solid #000000;
+    cursor: pointer;
+    box-shadow: 1.5px 1.5px 0px #000000;
+}
+
+.swatch-active {
+    outline: 2px solid #000000;
+    outline-offset: 1.5px;
+    z-index: 2;
+}
+
+.swatch:hover {
+    transform: scale(1.08);
+    z-index: 5;
+    box-shadow: 2px 2px 0px #000000;
+}
+
+.swatch:active {
+    transform: scale(0.95);
+    box-shadow: none;
+}
+
+#palette-reset-btn {
+    width: 100%;
+    height: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    box-shadow: 3px 3px 0px #000000;
+    cursor: pointer;
+}
+
+#palette-reset-btn:hover {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+#palette-reset-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0px #000000;
+}
+
+/* --- Settings Window --- */
+#settings-window {
+    top: 76px;
+    right: 380px; /* Offset from color palette */
+    width: 310px;
+    z-index: 110;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 8px;
+}
+
+.settings-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+#close-settings-btn {
+    background: #ffffff;
+    border: 2px solid #000000;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 10px;
+    cursor: pointer;
+    box-shadow: 1.5px 1.5px 0px #000000;
+}
+
+#close-settings-btn:hover {
+    background: #000000;
+    color: #ffffff;
+}
+
+.settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #000000;
+    margin-bottom: 4px;
+}
+
+/* Segments/Buttons Group */
+.buttons {
+    display: flex;
+    border: 2px solid #000000;
+    background: #ffffff;
+    box-shadow: 2px 2px 0px #000000;
+    pointer-events: auto;
+    margin-bottom: 12px;
+}
+
+.buttons div {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-right: 2px solid #000000;
+    color: #000000;
+    background: #ffffff;
+    user-select: none;
+}
+
+.buttons div:last-child {
+    border-right: none;
+}
+
+.button-selected {
+    background: #000000 !important;
+    color: #ffffff !important;
+    cursor: default;
+}
+
+.button-unselected {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.button-unselected:hover {
+    background: #f4f4f5 !important;
+}
+
+/* Settings sliders */
+.settings-sliders-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.settings-slider-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-slider-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #000000;
+    white-space: nowrap;
+}
+
+.settings-slider-label span {
+    background-color: #000000;
+    color: #ffffff;
+    padding: 2px 5px;
+    font-size: 9px;
+    margin-left: 4px;
+}
+
+.settings-slider {
+    position: relative;
+    width: 140px !important;
+    height: 12px !important;
+    border: 2px solid #000000;
+    background-color: #f4f4f5;
+    cursor: ew-resize;
+    pointer-events: auto;
+    user-select: none;
+}
+
+.settings-hr {
+    border: none;
+    border-top: 2px dashed #000000;
+    margin: 8px 0;
+}
+
+#instructions-container {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    line-height: 1.6;
+    color: #333333;
+}
+
+#instructions-container span {
+    font-weight: 700;
+    color: #000000;
+    border-bottom: 1.5px solid #000000;
+}
+
+#settings-footer {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #555555;
+    text-align: center;
+    margin-top: 4px;
+}
+
+#settings-footer a {
+    color: #000000;
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 1.5px solid #000000;
+    padding-bottom: 1px;
+}
+
+#settings-footer a:hover {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+/* Utilities */
+.hidden {
+    display: none !important;
+}
+
+/* Undo/Redo state styling */
+.do-button-active {
+    /* Normal button */
+}
+
+.do-button-inactive {
+    background-color: #e4e4e7 !important;
+    color: #a1a1aa !important;
+    border-color: #a1a1aa !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+/* No support styles */
+#no-support-container {
+    position: absolute;
+    width: 320px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    border: 3px solid #000000;
+    box-shadow: 6px 6px 0px #000000;
+    padding: 24px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: #000000;
+    z-index: 100;
+}
+
+#no-support-container a {
+    color: #000000;
+    font-weight: bold;
+    border-bottom: 2px solid #000000;
+    text-decoration: none;
+}
+
+#no-support-container a:hover {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+/* --- Viewport Window --- */
+#viewport-window {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    width: 175px;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border: 3px solid #000000;
+    box-shadow: 4px 4px 0px #000000;
+}
+
+.viewport-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+}
+
+.viewport-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.viewport-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.viewport-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    width: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #000000;
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    box-shadow: 2px 2px 0px #000000;
+    cursor: pointer;
+    user-select: none;
+}
+
+.viewport-btn:hover {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+.viewport-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px #000000;
+}
+
+.viewport-btn.zoom-text-btn {
+    width: 45px;
+    font-size: 10px;
+}
+
+.viewport-btn.fit-btn {
+    width: auto;
+    padding: 0 8px;
+    font-size: 10px;
+}
+
+/* --- Tools Window --- */
+#tools-window {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    width: 210px;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border: 3px solid #000000;
+    box-shadow: 4px 4px 0px #000000;
+}
+
+.tools-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    cursor: move;
+}
+
+.tools-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.tools-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.tool-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    width: 32px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #000000;
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    box-shadow: 2px 2px 0px #000000;
+    cursor: pointer;
+    user-select: none;
+}
+
+.tool-btn:hover {
+    background-color: #f4f4f5;
+}
+
+.tool-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px #000000;
+}
+
+.tool-btn.active-tool {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+.tool-btn.disabled-tool {
+    background-color: #f4f4f5 !important;
+    color: #a1a1aa !important;
+    border-color: #a1a1aa !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+/* Eraser options */
+.eraser-options {
+    display: flex;
+    margin-top: 8px;
+    border-top: 2px dashed #000000;
+    padding-top: 8px;
+    gap: 6px;
+    width: 100%;
+}
+
+.eraser-opt-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: #000000;
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    box-shadow: 2px 2px 0px #000000;
+    cursor: pointer;
+    user-select: none;
+}
+
+.eraser-opt-btn:hover {
+    background-color: #f4f4f5;
+}
+
+.eraser-opt-btn.active-opt {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+/* Custom Inverted Ink Crosshair Cursor */
+.custom-ink-cursor {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+    z-index: 10000;
+    mix-blend-mode: difference;
+    transform: translate(-50%, -50%);
+}
+
+.custom-ink-cursor::before,
+.custom-ink-cursor::after {
+    content: '';
+    position: absolute;
+    background-color: #ffffff; /* White in difference mode will invert whatever color is underneath */
+}
+
+/* Horizontal crosshair line */
+.custom-ink-cursor::before {
+    top: 11px;
+    left: 0;
+    width: 24px;
+    height: 2px;
+}
+
+/* Vertical crosshair line */
+.custom-ink-cursor::after {
+    top: 0;
+    left: 11px;
+    width: 2px;
+    height: 24px;
+}
+
+/* Custom Inverted Blur Circle Cursor */
+.custom-blur-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10000;
+    mix-blend-mode: difference;
+    transform: translate(-50%, -50%);
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+

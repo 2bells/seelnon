@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Fluid Brute</title>
+
+        <meta name="description" content="Fluid paint simulation">
+
+        <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700,800' rel='stylesheet' type='text/css'>
+        <link rel="stylesheet" href="paint.css">
+    </head>
+
+    <body>
+        <script type="text/template" id="main">
+            <!-- Modern Brutalist Top  Bar Menu -->
+            <div id="top-bar">
+                <div class="top-bar-left">
+                    <button id="save-button" class="bar-btn" title="Save Image">💾 SAVE</button>
+                    <button id="undo-button" class="bar-btn" title="Undo">↶ UNDO</button>
+                    <button id="redo-button" class="bar-btn" title="Redo">↷ REDO</button>
+                </div>
+                
+                <div class="top-bar-separator">⋮</div>
+                
+                <div class="top-bar-sliders">
+                    <!-- Group 1: Main 3 Controls -->
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">FLUIDITY <span id="val-fluidity">75%</span></span>
+                        <div id="fluidity-slider" class="top-slider"></div>
+                    </div>
+                    
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">BRISTLES <span id="val-bristles">10</span></span>
+                        <div id="bristles-slider" class="top-slider"></div>
+                    </div>
+                    
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">SIZE <span id="val-size">50</span></span>
+                        <div id="size-slider" class="top-slider"></div>
+                    </div>
+                    
+                    <div class="top-bar-separator">⋮</div>
+                    
+                    <!-- Group 2: Other 4 Controls -->
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">LENGTH <span id="val-length">4.5</span></span>
+                        <div id="length-slider" class="top-slider"></div>
+                    </div>
+                    
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">TENSION <span id="val-tension">0.3</span></span>
+                        <div id="tension-slider" class="top-slider"></div>
+                    </div>
+                    
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">JITTER <span id="val-jitter">0.5</span></span>
+                        <div id="jitter-slider" class="top-slider"></div>
+                    </div>
+                    
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">SCATTER <span id="val-scatter">1.0</span></span>
+                        <div id="scatter-slider" class="top-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="top-bar-right">
+                    <button id="settings-toggle-button" class="bar-btn" title="Settings / Info">⚙ SETTINGS</button>
+                    <button id="clear-button" class="bar-btn clear-btn" title="Clear Painting">CLEAR</button>
+                </div>
+            </div>
+
+            <!-- Draggable Color Palette Window -->
+            <div id="color-palette-window">
+                <!-- Row 1: Header (opaque white) -->
+                <div class="palette-header-row">
+                    <div class="palette-header">
+                        <div class="palette-title">COLOR PALETTE</div>
+                        <div id="palette-color-preview"></div>
+                    </div>
+                </div>
+                
+                <!-- Row 2: Picker Row (transparent center, white sides) -->
+                <div class="palette-picker-row">
+                    <div class="palette-wing-left"></div>
+                    <!-- Transparent target for WebGL Picker -->
+                    <div id="color-picker-target"></div>
+                    <div class="palette-wing-right"></div>
+                </div>
+                
+                <!-- Row 3: Footer/Swatches (opaque white) -->
+                <div class="palette-footer-row">
+                    <!-- Procedural Swatches Grid -->
+                    <div class="swatches-grid" id="swatches-grid-container"></div>
+                    
+                    <button id="palette-reset-btn">RESET</button>
+                </div>
+            </div>
+
+            <!-- Draggable Viewport Control Window -->
+            <div id="viewport-window" class="widget-card">
+                <div class="viewport-header">
+                    <div class="viewport-title">VIEWPORT</div>
+                </div>
+                <div class="viewport-content">
+                    <button id="zoom-out-btn" class="viewport-btn" title="Zoom Out">-</button>
+                    <button id="zoom-level-btn" class="viewport-btn zoom-text-btn" title="Reset Zoom">100%</button>
+                    <button id="zoom-in-btn" class="viewport-btn" title="Zoom In">+</button>
+                    <button id="zoom-fit-btn" class="viewport-btn fit-btn" title="Fit to Screen">FIT</button>
+                </div>
+            </div>
+
+            <!-- Draggable Tools Window -->
+            <div id="tools-window" class="widget-card">
+                <div class="tools-header">
+                    <div class="tools-title">TOOLS</div>
+                </div>
+                <div class="tools-content">
+                    <button id="tool-paint-btn" class="tool-btn active-tool" title="Paint (Brush) [Key 1]">🖌️ 1</button>
+                    <button id="tool-ink-btn" class="tool-btn" title="Ink (Sketching) [Key 2]">🖋️ 2</button>
+                    <button id="tool-dry-btn" class="tool-btn" title="Dry Media (Pencil/Sketch) [Key 3]">✏️ 3</button>
+                    <button id="tool-smudge-btn" class="tool-btn" title="Smudge (Blend Paint) [Key 4]">🌪️ 4</button>
+                    <button id="tool-eraser-btn" class="tool-btn" title="Eraser / Scraper [Key 5]">🧹 5</button>
+                </div>
+                <!-- Eraser Options Sub-panel (visible only when Eraser is active) -->
+                <div id="eraser-options-panel" class="eraser-options hidden">
+                    <button id="eraser-bristles-btn" class="eraser-opt-btn active-opt" title="Negative Bristles (fine grooves)">BRISTLES</button>
+                    <button id="eraser-scraper-btn" class="eraser-opt-btn" title="Plate Scraper (flat blade)">SCRAPER</button>
+                </div>
+                <!-- Smudge Options Sub-panel (visible only when Smudge is active) -->
+                <div id="smudge-options-panel" class="eraser-options hidden">
+                    <button id="smudge-smudge-btn" class="eraser-opt-btn active-opt" title="Advective Smudge (drag paint around)">SMUDGE</button>
+                    <button id="smudge-blur-btn" class="eraser-opt-btn" title="Pure Blur (soft blend in place)">BLUR</button>
+                </div>
+                <!-- Dry Options Sub-panel (visible only when Dry Media is active) -->
+                <div id="dry-options-panel" class="eraser-options hidden">
+                    <button id="dry-chalk-btn" class="eraser-opt-btn active-opt" title="Pencil/Chalk (Dry blend)">CHALK</button>
+                    <button id="dry-impasto-btn" class="eraser-opt-btn" title="Impasto (Thick stacking texture)">IMPASTO</button>
+                </div>
+            </div>
+
+            <!-- Settings & Information Popup -->
+            <div id="settings-window" class="widget-card hidden">
+                <div class="settings-header">
+                    <div class="settings-title">⚙ SETTINGS & INFO</div>
+                    <button id="close-settings-btn">✕</button>
+                </div>
+                
+                <div class="settings-content">
+                    <div class="control-label">Quality</div>
+                    <div class="buttons" id="qualities"></div>
+
+                    <div class="control-label">Color Mode</div>
+                    <div class="buttons" id="models"></div>
+
+                    <hr class="settings-hr" />
+
+                    <div class="control-label">Instructions</div>
+                    <div id="instructions-container">
+                        <p><span>Click and hold</span> to paint</p>
+                        <p><span>Scroll</span> to change brush size</p>
+                        <p><span>Space + drag</span> to pan</p>
+                        <p><span>Drag edges</span> to resize canvas</p>
+                    </div>
+
+                    <hr class="settings-hr" />
+
+                    <div id="settings-footer">
+                        <a href="http://david.li" target="_blank" rel="noopener noreferrer">david.li</a> | <a href="http://github.com/dli/paint" target="_blank" rel="noopener noreferrer">Source code</a>
+                    </div>
+                </div>
+            </div>
+        </script>
+
+        <script type="text/template" id="no-support">
+            <div id="no-support-container">
+                <div id="error"></div>
+                <div id="backlink"><a href="http://david.li">Back to david.li</a></div>
+            </div>
+        </script>
+
+        <div id="placeholder"></div>
+
+
+        <script src="wrappedgl.js"></script>
+        <script src="utilities.js"></script>
+        <script src="rectangle.js"></script>
+        <script src="brush.js"></script>
+        <script src="simulator.js"></script>
+        <script src="colorpicker.js"></script>
+        <script src="slider.js"></script>
+        <script src="buttons.js"></script>
+        <!--<script src="brushviewer.js"></script>-->
+        <script type="module" src="paint.js"></script>
+
+        <script type="module">
+            'use strict';
+
+            var canvas = document.createElement('canvas');
+            canvas.tabIndex = 0;
+            canvas.style.outline = 'none';
+            var wgl = WrappedGL.create(canvas);
+
+            if (wgl !== null && wgl.hasFloatTextureSupport()) { //required features are supported
+                document.body.appendChild(canvas);
+                document.getElementById('placeholder').outerHTML = document.getElementById('main').innerHTML;
+                var painter = new Paint(canvas, wgl);
+            } else { //required features unsupported
+                document.getElementById('placeholder').outerHTML = document.getElementById('no-support').innerHTML;
+
+                if (wgl === null) {
+                    document.getElementById('error').innerHTML = 'Unfortunately, your browser does not support WebGL.';
+                } else {
+                    document.getElementById('error').innerHTML = 'Unfortunately, your browser does not support WebGL floating point textures.';
+                }
+            }
+        </script>
+
+    </body>
+</html>
