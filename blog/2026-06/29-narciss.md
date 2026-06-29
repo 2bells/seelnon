@@ -67,7 +67,7 @@ But some do get help? Yes, people who already acknowledged that they have a prob
 
 One thing is to be: 'yeah, I do DARVO and I have a whole deck of victim cards'. You can wear such idea with some layer of pride and state: "But I'm working on it!" Which is also a narcissistic trait: proclaim their "HARD WORK" on their deficiencies and how 'not perfect' they are. While their result: they talk about it, never do anything about it or find a reason why they cannot fully do anything about it yet.
 
-Wearing coats made of words of unfulfilled promises. We all do, but the length is the difference.
+Wearing coats made of words that describe unfulfilled promises. We all do, but the length is the difference.
 
 But the other thing is: 'yeah, I'm narcissistic'. You can't have a pride badge on it, because it says: 'I am an objectively bad and self absolved person'. And those people use logic, science and objectivity as their world view anchor and giving a concrete definition of 'narcissism' is logically, scientifically saying: 'you are a bad boy.'
 So in order to be narcissistic and wear it with pride, you have to be into 'villain RP', otherwise roads are closed and the only other way is for something monumental to happen. [It is also a problem of how narcissism is viewed, compared to, let's say, a bipolar disorder. One is bad, other just needs help]
@@ -158,7 +158,7 @@ Every other way, in my experience, was unsuccessful and, in general, main consen
 
 `explainers`
 
-1. Progression loop that features scoring and specific scores dictate categories to put a human in. This creates a natural exploit of lie, deceive, pretend to put yourself into a category. Because a person is asked on the category and not their 'way' of achieving it, path of least resistance becomes: achieve the thing, show the thing, dont mention how much time was spend on the knees.
+1. Progression loop that features scoring and specific scores dictate categories to put a human in. This creates a natural exploit of lie, deceive, pretend to put yourself into a category. Because a person is asked on the category and not their 'way' of achieving it, path of least resistance becomes: achieve the thing, show the thing, don't mention how much time was spend on the knees.
 2. Narcissus rejected the advances of all women and men who approached him, instead falling in love with his own reflection in a pool of water.
 3. Logical barriers: resolutions / axioms that are assumed to explain workings of the society / world inside ones psyche.
 4. Conscious activity means active interactions with assumed 'truths' and additional explanations of 'why(?)'. Without any stress testing of own assumptions, it leads to absence of that ability.
