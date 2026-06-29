@@ -2,9 +2,9 @@
 
 ![img](https://i.pinimg.com/1200x/a4/06/5a/a4065a878ebfe11e51525f8872c3f17c.jpg)
 
-Relatively a big topic considering today's 'progression loop'[1] of an individual within society and the paradoxical nature of defensive mechanism that is 'narcissism'.
+Relatively a big topic considering today's 'progression loop'[1] of an individual within the society and the paradoxical nature of defensive mechanism that is 'narcissism'.
 
-And because I popped of on 'Claude' as a machine trained to be like that, I decided to expand the topic:
+And because I popped off on 'Claude' as a machine trained to be like that, I decided to expand the topic:
 
 ## What is Narcissism?
 
