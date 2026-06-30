@@ -8,6 +8,9 @@ BUT! it is fun to use. Almost like 'anti-perfectionism' weapon in action, becaus
 ![img](https://www.dropbox.com/scl/fi/jyfsxjjiv978jhbsqavzu/fluid_brute.jpg?rlkey=r4s9436ukfvfy01gnus0jk2cq&st=oivglesp&raw=1)
 
 I do think it is more of a tool for people who are already knee deep in art and just enjoy the process of it. So it gives a very messy physics based environment without a need to buy half of a globe to just test it out... Kind of brings me back: thinking how I used Rebelle and a few activists came in and started telling me about dangers of 'oil paints'... that was funny.
+
+[Fluid Brute](https://2bells.github.io/seelnon/Content/Projects/Fluid_Brute/)
+
 Anyway... yeah... not much crazy stories to tell.
 
 Watched a bit of Evo. People seem to be popping off on 2xko btw. [I have it installed, haven't pressed the play button for like... 3 months...] Still want to catch up on top 8 of Strive, SF6 and Granblue. But it was interesting to see that on almost every match on 2xko emotions were very high, so that's inviting for sure.
