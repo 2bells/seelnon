@@ -46,9 +46,17 @@ void main () {
             blurred = center;
         }
 
-        gl_FragColor = mix(center, blurred, finalMix);
+        vec4 result = mix(center, blurred, finalMix);
+        if (result.a < 0.012) {
+            result.rgb = vec3(0.0);
+        }
+        gl_FragColor = result;
     } else {
-        gl_FragColor = center;
+        vec4 result = center;
+        if (result.a < 0.012) {
+            result.rgb = vec3(0.0);
+        }
+        gl_FragColor = result;
     }
 }
 

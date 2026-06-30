@@ -14,7 +14,7 @@ var Slider = (function () {
 
         var sliderLeftDiv = document.createElement('div');
         sliderLeftDiv.style.position = 'absolute';
-        sliderLeftDiv.style.width = length + 'px';
+        sliderLeftDiv.style.width = '0px';
         sliderLeftDiv.style.height = '100%';
         sliderLeftDiv.style.backgroundColor = '#000000';
         sliderLeftDiv.style.top = '0px';
@@ -23,7 +23,7 @@ var Slider = (function () {
 
         var sliderRightDiv = document.createElement('div');
         sliderRightDiv.style.position = 'absolute';
-        sliderRightDiv.style.width = length + 'px';
+        sliderRightDiv.style.width = '0px';
         sliderRightDiv.style.height = '100%';
         sliderRightDiv.style.backgroundColor = '#f4f4f5';
         sliderRightDiv.style.top = '0px';
@@ -38,7 +38,7 @@ var Slider = (function () {
         handleDiv.style.border = '2px solid #000000';
         handleDiv.style.cursor = 'ew-resize';
         handleDiv.style.background = '#ffffff';
-        handleDiv.style.top = '-7px';
+        handleDiv.style.top = Math.floor((height - 24) / 2) + 'px';
         handleDiv.style.boxShadow = '1px 1px 0px #000000';
         handleDiv.style.zIndex = 1000;
         div.appendChild(handleDiv);
@@ -46,19 +46,20 @@ var Slider = (function () {
         var value = initialValue; 
 
         var redraw = function () {
+            var currentLength = element.clientWidth || length || 96;
             var fraction = (value - minValue) / (maxValue - minValue);
 
-            sliderLeftDiv.style.width = fraction * length + 'px';
-            sliderRightDiv.style.width = (1.0 - fraction) * length + 'px';
-            sliderRightDiv.style.left = Math.floor(fraction * length) + 'px';
-            handleDiv.style.left = (Math.floor(fraction * length) - 6) + 'px';
-            sliderRightDiv.width = (1.0 - fraction) * length + 'px';
+            sliderLeftDiv.style.width = fraction * currentLength + 'px';
+            sliderRightDiv.style.width = (1.0 - fraction) * currentLength + 'px';
+            sliderRightDiv.style.left = Math.floor(fraction * currentLength) + 'px';
+            handleDiv.style.left = (Math.floor(fraction * currentLength) - 6) + 'px';
         };
 
         var onChange = function (event) {
+            var currentLength = element.clientWidth || length || 96;
             var mouseX = Utilities.getMousePosition(event, div).x;
 
-            value = Utilities.clamp((mouseX / length) * (maxValue - minValue) + minValue, minValue, maxValue);
+            value = Utilities.clamp((mouseX / currentLength) * (maxValue - minValue) + minValue, minValue, maxValue);
 
             changeCallback(value);
 
@@ -105,6 +106,10 @@ var Slider = (function () {
         this.setMinMax = function (newMin, newMax) {
             minValue = newMin;
             maxValue = newMax;
+            redraw();
+        };
+
+        this.redraw = function () {
             redraw();
         };
 

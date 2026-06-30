@@ -2,41 +2,57 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title>Fluid Brute</title>
+        <title>Fluid Paint</title>
 
         <meta name="description" content="Fluid paint simulation">
 
         <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700,800' rel='stylesheet' type='text/css'>
-        <link rel="stylesheet" href="paint.css">
+        <link rel="stylesheet" href="./js/paint.css">
     </head>
 
     <body>
         <script type="text/template" id="main">
-            <!-- Modern Brutalist Top  Bar Menu -->
+            <!-- Modern Brutalist Top  Bar Menu  -->
             <div id="top-bar">
                 <div class="top-bar-left">
-                    <button id="save-button" class="bar-btn" title="Save Image">💾 SAVE</button>
-                    <button id="undo-button" class="bar-btn" title="Undo">↶ UNDO</button>
-                    <button id="redo-button" class="bar-btn" title="Redo">↷ REDO</button>
+                    <button id="save-button" class="bar-btn bar-btn-icon" title="Save Image">💾</button>
+                    <button id="undo-button" class="bar-btn bar-btn-icon" title="Undo">↶</button>
+                    <button id="redo-button" class="bar-btn bar-btn-icon" title="Redo">↷</button>
+                    <button id="resize-toggle-button" class="bar-btn bar-btn-icon" title="Toggle Canvas Resize Mode">⤢</button>
                 </div>
                 
                 <div class="top-bar-separator">⋮</div>
                 
                 <div class="top-bar-sliders">
-                    <!-- Group 1: Main 3 Controls -->
-                    <div class="top-slider-group">
+                    <!-- Group 1: Main Controls -->
+                    <div id="fluidity-slider-group" class="top-slider-group">
                         <span class="top-slider-label">FLUIDITY <span id="val-fluidity">75%</span></span>
                         <div id="fluidity-slider" class="top-slider"></div>
                     </div>
                     
-                    <div class="top-slider-group">
+                    <div id="bristles-slider-group" class="top-slider-group">
                         <span class="top-slider-label">BRISTLES <span id="val-bristles">10</span></span>
                         <div id="bristles-slider" class="top-slider"></div>
                     </div>
                     
-                    <div class="top-slider-group">
+                    <div id="size-slider-group" class="top-slider-group">
                         <span class="top-slider-label">SIZE <span id="val-size">50</span></span>
                         <div id="size-slider" class="top-slider"></div>
+                    </div>
+
+                    <div id="opacity-slider-group" class="top-slider-group">
+                        <span class="top-slider-label">OPACITY <span id="val-opacity">80%</span></span>
+                        <div id="opacity-slider" class="top-slider"></div>
+                    </div>
+
+                    <div id="liquify-falloff-group" class="top-slider-group hidden">
+                        <span class="top-slider-label">FALLOFF <span id="val-liquify-falloff">2.0</span></span>
+                        <div id="liquify-falloff-slider" class="top-slider"></div>
+                    </div>
+
+                    <div id="liquify-intensity-group" class="top-slider-group hidden">
+                        <span class="top-slider-label">INTENSITY <span id="val-liquify-intensity">70%</span></span>
+                        <div id="liquify-intensity-slider" class="top-slider"></div>
                     </div>
                     
                     <div class="top-bar-separator">⋮</div>
@@ -61,39 +77,35 @@
                         <span class="top-slider-label">SCATTER <span id="val-scatter">1.0</span></span>
                         <div id="scatter-slider" class="top-slider"></div>
                     </div>
+                    
+                    <div class="top-slider-group">
+                        <span class="top-slider-label">HEIGHT <span id="val-height">1.0</span></span>
+                        <div id="height-slider" class="top-slider"></div>
+                    </div>
                 </div>
                 
                 <div class="top-bar-right">
-                    <button id="settings-toggle-button" class="bar-btn" title="Settings / Info">⚙ SETTINGS</button>
+                    <button id="settings-toggle-button" class="bar-btn" title="Settings / Info">⚙</button>
                     <button id="clear-button" class="bar-btn clear-btn" title="Clear Painting">CLEAR</button>
                 </div>
             </div>
 
-            <!-- Draggable Color Palette Window -->
-            <div id="color-palette-window">
-                <!-- Row 1: Header (opaque white) -->
-                <div class="palette-header-row">
-                    <div class="palette-header">
-                        <div class="palette-title">COLOR PALETTE</div>
-                        <div id="palette-color-preview"></div>
-                    </div>
+            <!-- Draggable Color Palette Window  -->
+            <div id="color-palette-window" class="widget-card">
+                <div class="palette-header">
+                    <div class="palette-title">COLOR PALETTE</div>
+                    <div id="palette-color-preview"></div>
                 </div>
                 
-                <!-- Row 2: Picker Row (transparent center, white sides) -->
-                <div class="palette-picker-row">
-                    <div class="palette-wing-left"></div>
-                    <!-- Transparent target for WebGL Picker -->
-                    <div id="color-picker-target"></div>
-                    <div class="palette-wing-right"></div>
+                <!-- Target container for WebGL Picker -->
+                <div id="color-picker-target">
+                    <canvas id="color-picker-canvas" width="180" height="210"></canvas>
                 </div>
                 
-                <!-- Row 3: Footer/Swatches (opaque white) -->
-                <div class="palette-footer-row">
-                    <!-- Procedural Swatches Grid -->
-                    <div class="swatches-grid" id="swatches-grid-container"></div>
-                    
-                    <button id="palette-reset-btn">RESET</button>
-                </div>
+                <!-- Procedural Swatches Grid -->
+                <div class="swatches-grid" id="swatches-grid-container"></div>
+                
+                <button id="palette-reset-btn">RESET</button>
             </div>
 
             <!-- Draggable Viewport Control Window -->
@@ -106,6 +118,12 @@
                     <button id="zoom-level-btn" class="viewport-btn zoom-text-btn" title="Reset Zoom">100%</button>
                     <button id="zoom-in-btn" class="viewport-btn" title="Zoom In">+</button>
                     <button id="zoom-fit-btn" class="viewport-btn fit-btn" title="Fit to Screen">FIT</button>
+                    <button id="mirror-flip-btn" class="viewport-btn flip-btn" title="Mirror Viewport (B)">FLIP</button>
+                </div>
+                <div id="viewport-stats" class="stats-row">
+                    <span id="stats-fps">FPS: --</span>
+                    <span id="stats-ms">-- ms</span>
+                    <span id="stats-status">PAUSED</span>
                 </div>
             </div>
 
@@ -120,6 +138,13 @@
                     <button id="tool-dry-btn" class="tool-btn" title="Dry Media (Pencil/Sketch) [Key 3]">✏️ 3</button>
                     <button id="tool-smudge-btn" class="tool-btn" title="Smudge (Blend Paint) [Key 4]">🌪️ 4</button>
                     <button id="tool-eraser-btn" class="tool-btn" title="Eraser / Scraper [Key 5]">🧹 5</button>
+                    <button id="tool-liquify-btn" class="tool-btn" title="Liquify (Warp Paint) [Key 6]">💧 6</button>
+                    <button id="tool-select-btn" class="tool-btn" title="Select / Transform [Key 7]">⛶ 7</button>
+                </div>
+                <!-- Paint Options Sub-panel (visible only when Paint is active) -->
+                <div id="paint-options-panel" class="eraser-options hidden">
+                    <button id="paint-bristles-btn" class="eraser-opt-btn active-opt" title="Oil Bristles Brush">BRISTLES</button>
+                    <button id="paint-oil-btn" class="eraser-opt-btn" title="Thick Oil Paint">OIL</button>
                 </div>
                 <!-- Eraser Options Sub-panel (visible only when Eraser is active) -->
                 <div id="eraser-options-panel" class="eraser-options hidden">
@@ -133,19 +158,68 @@
                 </div>
                 <!-- Dry Options Sub-panel (visible only when Dry Media is active) -->
                 <div id="dry-options-panel" class="eraser-options hidden">
-                    <button id="dry-chalk-btn" class="eraser-opt-btn active-opt" title="Pencil/Chalk (Dry blend)">CHALK</button>
-                    <button id="dry-impasto-btn" class="eraser-opt-btn" title="Impasto (Thick stacking texture)">IMPASTO</button>
+                    <button id="dry-chalk-btn" class="eraser-opt-btn active-opt" title="Chalk (Soft dry blend)">CHALK</button>
+                    <button id="dry-pencil-btn" class="eraser-opt-btn" title="Basic sketching pencil">PENCIL</button>
+                </div>
+                <!-- Liquify Options Sub-panel (visible only when Liquify is active) -->
+                <div id="liquify-options-panel" class="eraser-options hidden">
+                    <button id="liquify-push-btn" class="eraser-opt-btn active-opt" title="Push: drag paint with brush">PUSH</button>
+                    <button id="liquify-twirlcw-btn" class="eraser-opt-btn" title="Twirl Clockwise">🌀 CW</button>
+                    <button id="liquify-twirlccw-btn" class="eraser-opt-btn" title="Twirl Counter-Clockwise">🌀 CCW</button>
+                    <button id="liquify-pinch-btn" class="eraser-opt-btn" title="Pinch: squeeze paint inward">PINCH</button>
+                    <button id="liquify-bloat-btn" class="eraser-opt-btn" title="Bloat: expand paint outward">BLOAT</button>
+                </div>
+                <!-- Select Options Sub-panel (visible only when Select is active) -->
+                <div id="select-options-panel" class="eraser-options hidden">
+                    <button id="select-rect-btn" class="eraser-opt-btn active-opt" title="Rectangular Selection">RECTANGLE</button>
+                    <button id="select-freehand-btn" class="eraser-opt-btn" title="Freehand Lasso Selection">LASSO</button>
+                </div>
+            </div>
+
+            <!-- Draggable Reference Image Window -->
+            <div id="ref-image-window" class="widget-card">
+                <div class="ref-image-header">
+                    <div class="ref-image-title">REFERENCE IMAGE</div>
+                    <button id="ref-minimize-btn" title="Toggle Collapse">▼</button>
+                </div>
+                <div class="ref-image-content">
+                    <button id="ref-upload-btn" class="button" style="width: 100%; text-align: center;">📂 UPLOAD IMAGE</button>
+                    <input type="file" id="ref-file-input" accept="image/*" style="display: none;" multiple />
+                    
+                    <div class="settings-slider-group">
+                        <span class="settings-slider-label">OPACITY <span id="val-ref-opacity">50%</span></span>
+                        <div id="ref-opacity-slider" class="settings-slider"></div>
+                    </div>
+                    
+                    <div class="settings-slider-group">
+                        <span class="settings-slider-label">SCALE <span id="val-ref-scale">1.0x</span></span>
+                        <div id="ref-scale-slider" class="settings-slider"></div>
+                    </div>
+
+                    <div id="ref-images-list" style="margin-top: 6px; border-top: 2px solid #000000; padding-top: 6px; display: none;">
+                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: bold; margin-bottom: 4px;">IMAGES:</div>
+                        <div id="ref-images-items" style="max-height: 85px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;">
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Settings & Information Popup -->
             <div id="settings-window" class="widget-card hidden">
                 <div class="settings-header">
-                    <div class="settings-title">⚙ SETTINGS & INFO</div>
+                    <div class="settings-title">SETTINGS</div>
                     <button id="close-settings-btn">✕</button>
                 </div>
+
+                <!-- Brutalist Settings Tabs -->
+                <div class="settings-tabs">
+                    <button id="tab-preferences-btn" class="settings-tab-btn active-tab">GEN</button>
+                    <button id="tab-projects-btn" class="settings-tab-btn">PRJ</button>
+                    <button id="tab-data-btn" class="settings-tab-btn">DATA</button>
+                    <button id="tab-info-btn" class="settings-tab-btn">INFO</button>
+                </div>
                 
-                <div class="settings-content">
+                <div id="tab-preferences-content" class="settings-content">
                     <div class="control-label">Quality</div>
                     <div class="buttons" id="qualities"></div>
 
@@ -154,19 +228,149 @@
 
                     <hr class="settings-hr" />
 
-                    <div class="control-label">Instructions</div>
-                    <div id="instructions-container">
-                        <p><span>Click and hold</span> to paint</p>
-                        <p><span>Scroll</span> to change brush size</p>
-                        <p><span>Space + drag</span> to pan</p>
-                        <p><span>Drag edges</span> to resize canvas</p>
+                    <!-- Advanced Material Adjustments moved from Export -->
+                    <div class="control-label">3D Lighting & Paint Relief</div>
+                    
+                    <div class="settings-row" style="margin-bottom: 8px; display: flex; flex-direction: column; align-items: stretch;">
+                        <div class="top-slider-label" style="width: 100%;">Impasto Height <span id="val-global-normal-scale">7.0</span></div>
+                        <input type="range" id="global-normal-scale" min="0.0" max="20.0" step="0.5" value="7.0" class="brutalist-range" style="width: 100%; margin-top: 4px;" />
+                    </div>
+
+                    <div class="settings-row" style="margin-bottom: 8px; display: flex; flex-direction: column; align-items: stretch;">
+                        <div class="top-slider-label" style="width: 100%;">Roughness (Matte) <span id="val-global-roughness">0.08</span></div>
+                        <input type="range" id="global-roughness" min="0.01" max="0.5" step="0.01" value="0.08" class="brutalist-range" style="width: 100%; margin-top: 4px;" />
+                    </div>
+
+                    <div class="settings-row" style="margin-bottom: 8px; display: flex; flex-direction: column; align-items: stretch;">
+                        <div class="top-slider-label" style="width: 100%;">Specular Shine <span id="val-global-specular">0.50</span></div>
+                        <input type="range" id="global-specular" min="0.0" max="1.5" step="0.05" value="0.5" class="brutalist-range" style="width: 100%; margin-top: 4px;" />
+                    </div>
+
+                    <div class="settings-row" style="margin-bottom: 12px; display: flex; flex-direction: column; align-items: stretch;">
+                        <div class="top-slider-label" style="width: 100%;">Light Direction <span id="val-global-light-angle">45°</span></div>
+                        <input type="range" id="global-light-angle" min="0" max="360" step="5" value="45" class="brutalist-range" style="width: 100%; margin-top: 4px;" />
+                    </div>
+                </div>
+
+                <!-- Projects Manager Tab Content -->
+                <div id="tab-projects-content" class="settings-content hidden">
+                    <div class="control-label">CREATE NEW PROJECT</div>
+                    <div class="settings-row" style="margin-bottom: 12px; display: flex; gap: 8px;">
+                        <input type="text" id="new-project-name" class="brutalist-input" placeholder="Project Name..." style="flex: 1;" />
+                        <button id="create-project-btn" class="button button-action" style="padding: 0 12px; height: 32px; font-weight: bold; background-color: #000; color: #fff;">+ NEW</button>
+                    </div>
+
+                    <div class="control-label" style="margin-top: 12px;">SWITCH / LOAD PROJECT</div>
+                    <div id="projects-list-container" style="max-height: 180px; overflow-y: auto; border: 2px solid #000; background: #fff; padding: 4px; display: flex; flex-direction: column; gap: 4px;">
+                        <!-- Projects list will be populated here dynamically -->
+                    </div>
+                </div>
+
+                <div id="tab-data-content" class="settings-content hidden">
+                    <div class="control-label">Autosave Settings</div>
+                    <div class="settings-row" style="margin-bottom: 12px;">
+                        <label class="custom-checkbox-container">
+                            <input type="checkbox" id="autosave-enabled-checkbox" checked />
+                            <span class="custom-checkbox-label">Enable Autosave</span>
+                        </label>
+                    </div>
+
+                    <div class="settings-slider-group" style="margin-bottom: 12px;">
+                        <span class="settings-slider-label">Autosave Delay <span id="autosave-delay-val">3s</span></span>
+                        <div id="autosave-delay-slider" class="settings-slider"></div>
                     </div>
 
                     <hr class="settings-hr" />
 
-                    <div id="settings-footer">
-                        <a href="http://david.li" target="_blank" rel="noopener noreferrer">david.li</a> | <a href="http://github.com/dli/paint" target="_blank" rel="noopener noreferrer">Source code</a>
+                    <div class="control-label">Database Storage Usage</div>
+                    <div class="settings-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; background: #fff; padding: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px;">
+                        <span>Total Storage Used:</span>
+                        <span id="db-storage-size" style="font-weight: bold;">Calculating...</span>
                     </div>
+
+                    <hr class="settings-hr" />
+
+                    <div class="control-label">Local Data Actions</div>
+                    <button id="clear-autosave-btn" class="button button-action" style="width: 100%; text-align: center; margin-bottom: 8px;">🗑️ Clear Stored Canvas</button>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        <button id="backup-data-btn" class="button button-action" style="flex: 1; text-align: center;">📥 Export Backup</button>
+                        <button id="restore-data-btn" class="button button-action" style="flex: 1; text-align: center;">📤 Import Backup</button>
+                    </div>
+                    <input type="file" id="import-backup-file" accept=".json" style="display: none;" />
+                </div>
+
+                <!-- Info Tab Content -->
+                <div id="tab-info-content" class="settings-content hidden">
+                    <div class="control-label">KEYBOARD SHORTCUTS</div>
+                    <div class="info-shortcuts" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; border: 2px solid #000; background: #fff; padding: 8px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">1 - 7</span> : Switch Tools (Paint, Ink, Dry, Smudge, Eraser, Liquify, Select)</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">B</span> : Mirror canvas (horizontal flip)</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Ctrl + Z</span> : Undo last action</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Ctrl + Y</span> : Redo action</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Space + Drag</span> : Pan canvas</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Scroll</span> : Change brush size</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Click + Hold</span> : Paint on canvas</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Drag Edges</span> : Resize painting area</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Ctrl + C</span> : Copy selection (Select tool)</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Ctrl + V</span> : Paste selection (Select tool)</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">T</span> : Toggle Transform Mode (Select tool)</div>
+                        <div><span style="font-weight: bold; background: #eee; padding: 1px 4px; border: 1px solid #000;">Enter</span> : Commit transform (Select tool)</div>
+                    </div>
+
+                    <hr class="settings-hr" />
+
+                    <div id="settings-footer" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 8px 0; line-height: 1.4;">
+                        Credits - original tech demo by <a href="http://david.li" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; font-weight: bold; color: #000;">david.li</a> | <a href="http://github.com/dli/paint" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; font-weight: bold; color: #000;">source code</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save & Export Window -->
+            <div id="export-window" class="widget-card hidden">
+                <div class="settings-header">
+                    <div class="settings-title" style="cursor: move;">💾 SAVE & EXPORT</div>
+                    <button id="close-export-btn">✕</button>
+                </div>
+
+                <div class="settings-content">
+                    <div class="control-label">File Name</div>
+                    <div class="settings-row" style="margin-bottom: 8px;">
+                        <input type="text" id="export-filename" class="brutalist-input" value="painting" style="width: 100%;" placeholder="Enter file name..." />
+                    </div>
+
+                    <div class="control-label">Format</div>
+                    <div class="settings-row" style="margin-bottom: 8px;">
+                        <div class="buttons" id="export-formats" style="width: 100%; display: flex; gap: 4px;">
+                            <button id="export-format-png" class="button active" style="flex: 1;">PNG</button>
+                            <button id="export-format-jpg" class="button" style="flex: 1;">JPEG</button>
+                        </div>
+                    </div>
+
+                    <div id="jpg-quality-group" class="hidden">
+                        <div class="control-label">JPEG Quality</div>
+                        <div class="settings-row" style="margin-bottom: 8px;">
+                            <input type="range" id="export-jpeg-quality" min="0.1" max="1.0" step="0.05" value="0.9" class="brutalist-range" style="flex: 1;" />
+                            <span id="export-jpeg-quality-val" class="badge-val">90%</span>
+                        </div>
+                    </div>
+
+                    <div class="control-label">Resolution Scale</div>
+                    <div class="settings-row" style="margin-bottom: 8px;">
+                        <div class="buttons" id="export-scales" style="width: 100%; display: flex; gap: 4px; flex-wrap: wrap;">
+                            <button id="export-scale-1" class="button active" style="flex: 1; min-width: 45px;">1x</button>
+                            <button id="export-scale-2" class="button" style="flex: 1; min-width: 45px;">2x</button>
+                            <button id="export-scale-4" class="button" style="flex: 1; min-width: 45px;">4x</button>
+                            <button id="export-scale-8" class="button" style="flex: 1; min-width: 45px;">8x</button>
+                        </div>
+                    </div>
+                    <div id="export-resolution-info" style="font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; color: #666; margin-top: -4px; margin-bottom: 8px; text-align: center;">
+                        Size: 1024 x 768 px
+                    </div>
+
+                    <hr class="settings-hr" style="margin: 4px 0;" />
+
+                    <button id="confirm-export-btn" class="button button-action" style="width: 100%; text-align: center; height: 38px; font-size: 13px; background-color: #000; color: #fff;">💾 DOWNLOAD IMAGE</button>
                 </div>
             </div>
         </script>
@@ -181,16 +385,16 @@
         <div id="placeholder"></div>
 
 
-        <script src="wrappedgl.js"></script>
-        <script src="utilities.js"></script>
-        <script src="rectangle.js"></script>
-        <script src="brush.js"></script>
-        <script src="simulator.js"></script>
-        <script src="colorpicker.js"></script>
-        <script src="slider.js"></script>
-        <script src="buttons.js"></script>
+        <script src="./js/wrappedgl.js"></script>
+        <script src="./js/utilities.js"></script>
+        <script src="./js/rectangle.js"></script>
+        <script src="./js/brush.js"></script>
+        <script src="./js/simulator.js"></script>
+        <script src="./js/colorpicker.js"></script>
+        <script src="./js/slider.js"></script>
+        <script src="./js/buttons.js"></script>
         <!--<script src="brushviewer.js"></script>-->
-        <script type="module" src="paint.js"></script>
+        <script type="module" src="./js/paint.js"></script>
 
         <script type="module">
             'use strict';

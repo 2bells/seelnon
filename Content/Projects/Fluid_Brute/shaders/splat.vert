@@ -13,6 +13,8 @@ uniform sampler2D u_previousPositionsTexture;
 uniform vec2 u_brushCenter;
 uniform vec2 u_previousBrushCenter;
 uniform bool u_unified;
+uniform bool u_isRect;
+uniform bool u_rectRotate90;
 
 varying vec2 v_coordinates; //in [-1, 1]
 
@@ -57,7 +59,13 @@ void main () {
     vec2 tangent = vec2(-direction.y, direction.x);
 
 
-    vec2 finalPosition = mid + coordinates.x * direction * (dist * 0.5 + u_splatRadius) + coordinates.y * tangent * u_splatRadius;
+    float extension = u_isRect ? max(0.0, u_splatRadius - dist * 0.5) : u_splatRadius;
+    vec2 finalPosition;
+    if (u_isRect && u_rectRotate90) {
+        finalPosition = mid + coordinates.x * tangent * (dist * 0.5 + extension) + coordinates.y * (-direction) * u_splatRadius;
+    } else {
+        finalPosition = mid + coordinates.x * direction * (dist * 0.5 + extension) + coordinates.y * tangent * u_splatRadius;
+    }
 
     //finalPosition = mid + coordinates * u_splatRadius;
    

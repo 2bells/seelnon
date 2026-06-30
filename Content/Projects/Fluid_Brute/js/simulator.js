@@ -3,7 +3,7 @@ var Simulator = (function () {
 
     var PRESSURE_JACOBI_ITERATIONS = 2;
 
-    var FRAMES_TO_SIMULATE = 60; //how many frames to simulate the area induced by each splat for
+    var FRAMES_TO_SIMULATE = 300; //how many frames to simulate the area induced by each splat for (5 seconds at 60fps)
 
     var SPLAT_PADDING = 4.5; //approximately sqrt(BRISTLE_LENGTH * BRISTLE_LENGTH - BRUSH_HEIGHT * BRUSH_HEIGHT)
     var SPEED_PADDING = 1.1;
@@ -246,7 +246,11 @@ var Simulator = (function () {
         return simulationArea;
     };
 
-    Simulator.prototype.splat = function (brush, zThreshold, paintingRectangle, splatColor, splatRadius, velocityScale, isEraser, isDry, isUnified) {
+    Simulator.prototype.splat = function (brush, zThreshold, paintingRectangle, splatColor, splatRadius, velocityScale, isEraser, isDry, isUnified, isRect, isRectRotate90) {
+        isDry = !!isDry;
+        isUnified = !!isUnified;
+        isRect = !!isRect;
+        isRectRotate90 = !!isRectRotate90;
 
         //the area we need to simulate for this set of splats
         var brushPadding = Math.ceil(brush.scale * SPLAT_PADDING);
@@ -314,11 +318,13 @@ var Simulator = (function () {
             .uniformTexture('u_previousPositionsTexture', 1, wgl.TEXTURE_2D, brush.previousPositionsTexture)
             .uniform1f('u_zThreshold', zThreshold)
             .uniform1i('u_unified', isUnified ? 1 : 0)
+            .uniform1i('u_isRect', isRect ? 1 : 0)
+            .uniform1i('u_rectRotate90', isRectRotate90 ? 1 : 0)
             .uniform2f('u_brushCenter', brush.positionX, brush.positionY)
             .uniform2f('u_previousBrushCenter', brush.previousPositionX !== undefined ? brush.previousPositionX : brush.positionX, brush.previousPositionY !== undefined ? brush.previousPositionY : brush.positionY);
 
         wgl.framebufferTexture2D(this.simulationFramebuffer, wgl.FRAMEBUFFER, wgl.COLOR_ATTACHMENT0, wgl.TEXTURE_2D, this.paintTexture, 0);
-        wgl.drawElements(splatPaintDrawState, wgl.TRIANGLES, brush.splatIndexCount * brush.bristleCount / brush.maxBristleCount, wgl.UNSIGNED_SHORT, 0);
+        wgl.drawElements(splatPaintDrawState, wgl.TRIANGLES, isUnified ? 6 : brush.splatIndexCount * brush.bristleCount / brush.maxBristleCount, wgl.UNSIGNED_SHORT, 0);
 
 
 
@@ -350,10 +356,12 @@ var Simulator = (function () {
             .uniform1f('u_zThreshold', zThreshold)
             .uniform1f('u_velocityScale', velocityScale)
             .uniform1i('u_unified', isUnified ? 1 : 0)
+            .uniform1i('u_isRect', isRect ? 1 : 0)
+            .uniform1i('u_rectRotate90', isRectRotate90 ? 1 : 0)
             .uniform2f('u_brushCenter', brush.positionX, brush.positionY)
             .uniform2f('u_previousBrushCenter', brush.previousPositionX !== undefined ? brush.previousPositionX : brush.positionX, brush.previousPositionY !== undefined ? brush.previousPositionY : brush.positionY);
 
-        wgl.drawElements(splatVelocityDrawState, wgl.TRIANGLES, brush.splatIndexCount * brush.bristleCount / brush.maxBristleCount, wgl.UNSIGNED_SHORT, 0);
+        wgl.drawElements(splatVelocityDrawState, wgl.TRIANGLES, isUnified ? 6 : brush.splatIndexCount * brush.bristleCount / brush.maxBristleCount, wgl.UNSIGNED_SHORT, 0);
 
     };
 

@@ -162,5 +162,9 @@ void main () {
 
     vec3 surfaceColor = color * diffuse + specular * u_specularScale;
     
+#ifdef SAVE
     gl_FragColor = vec4(surfaceColor, 1.0);
+#else
+    gl_FragColor = vec4(surfaceColor, 1.0);
+#endif
 }

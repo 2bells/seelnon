@@ -28,6 +28,11 @@ canvas {
     z-index: 1;
 }
 
+canvas.mirrored {
+    transform: scaleX(-1);
+    -webkit-transform: scaleX(-1);
+}
+
 /* --- Top Bar Styling --- */
 #top-bar {
     position: absolute;
@@ -129,6 +134,12 @@ canvas {
     box-shadow: 1px 1px 0px #000000;
 }
 
+.bar-btn-icon {
+    width: 32px;
+    padding: 0;
+    font-size: 14px;
+}
+
 .clear-btn {
     background-color: #ff3333;
     color: #ffffff;
@@ -158,7 +169,7 @@ canvas {
     background-color: #ffffff;
     border: 3px solid #000000;
     box-shadow: 6px 6px 0px #000000;
-    padding: 14px;
+    padding: 6px 8px;
     border-radius: 0px;
     position: absolute;
 }
@@ -168,54 +179,13 @@ canvas {
     position: absolute;
     top: 76px;
     right: 24px;
-    width: 150px;
+    width: 218px; /* 180px content + 4px target border + 28px padding + 6px window border = 218px total */
     z-index: 90;
     display: flex;
     flex-direction: column;
-    background-color: transparent !important; /* Transparent parent container */
-    border: 3px solid #000000;
-    box-shadow: 6px 6px 0px #000000;
-    pointer-events: none; /* Pass pointer events to canvas/WebGL picker beneath */
-    border-radius: 0px;
+    gap: 12px;
+    padding: 6px 14px;
     box-sizing: border-box;
-}
-
-.palette-header-row {
-    background-color: #ffffff;
-    padding: 10px 10px 8px 10px;
-    box-sizing: border-box;
-    width: 100%;
-    pointer-events: auto;
-}
-
-.palette-picker-row {
-    display: flex;
-    flex-direction: row;
-    height: 120px;
-    width: 100%;
-    background-color: transparent;
-    box-sizing: border-box;
-    pointer-events: none;
-}
-
-.palette-wing-left,
-.palette-wing-right {
-    flex-grow: 1;
-    height: 100%;
-    background-color: #ffffff;
-    flex-shrink: 0;
-    pointer-events: auto;
-}
-
-.palette-footer-row {
-    background-color: #ffffff;
-    padding: 8px 10px 10px 10px;
-    box-sizing: border-box;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: auto;
 }
 
 .palette-header {
@@ -223,33 +193,47 @@ canvas {
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #000000;
-    padding-bottom: 6px;
+    padding-bottom: 3px;
     cursor: move; /* Draggable indicator */
 }
 
 .palette-title {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    font-size: 11px;
+    font-size: 13px; /* was 11px */
     letter-spacing: -0.2px;
 }
 
 #palette-color-preview {
-    width: 14px;
-    height: 14px;
+    width: 20px; /* was 14px */
+    height: 20px; /* was 14px */
     border: 2px solid #000000;
     background-color: #e7e7e7;
     box-shadow: 1px 1px 0px #000000;
 }
 
-/* Transparent Target for WebGL Color Picker */
+/* Target for WebGL Color Picker */
 #color-picker-target {
-    width: 120px;
-    height: 120px;
-    box-sizing: border-box;
-    background-color: transparent;
-    pointer-events: none; /* Let events pass to canvas */
+    position: relative;
+    width: 180px;
+    height: 210px;
+    box-sizing: content-box;
+    background-color: #ffffff;
+    pointer-events: auto; /* Enable pointer-events to capture events directly */
     border: 2px solid #000000;
+}
+
+#color-picker-canvas {
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: transparent;
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 2;
 }
 
 /* Swatches Grid */
@@ -261,10 +245,9 @@ canvas {
 
 .swatch {
     grid-column: span var(--span, 1);
-    height: 16px;
+    height: 24px; /* was 16px */
     border: 2px solid #000000;
     cursor: pointer;
-    box-shadow: 1.5px 1.5px 0px #000000;
 }
 
 .swatch-active {
@@ -286,10 +269,10 @@ canvas {
 
 #palette-reset-btn {
     width: 100%;
-    height: 28px;
+    height: 38px; /* was 28px */
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    font-size: 11px;
+    font-size: 13px; /* was 11px */
     background-color: #ffffff;
     border: 2px solid #000000;
     box-shadow: 3px 3px 0px #000000;
@@ -322,7 +305,8 @@ canvas {
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #000000;
-    padding-bottom: 8px;
+    padding-bottom: 4px;
+    cursor: move;
 }
 
 .settings-title {
@@ -332,7 +316,7 @@ canvas {
     letter-spacing: 1px;
 }
 
-#close-settings-btn {
+#close-settings-btn, #close-export-btn, .close-btn {
     background: #ffffff;
     border: 2px solid #000000;
     width: 24px;
@@ -344,17 +328,131 @@ canvas {
     font-size: 10px;
     cursor: pointer;
     box-shadow: 1.5px 1.5px 0px #000000;
+    color: #000000;
 }
 
-#close-settings-btn:hover {
+#close-settings-btn:hover, #close-export-btn:hover, .close-btn:hover {
     background: #000000;
     color: #ffffff;
 }
+
+/* --- Export Window & Brutalist Input --- */
+#export-window {
+    top: 76px;
+    right: 380px; /* Offset from color palette */
+    width: 310px;
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.brutalist-input {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 8px;
+    border: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    box-shadow: 2px 2px 0px #000000;
+    outline: none;
+}
+
+.brutalist-input:focus {
+    box-shadow: 3px 3px 0px #000000;
+    background-color: #fcfcfc;
+}
+
 
 .settings-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+/* --- Settings Tabs --- */
+.settings-tabs {
+    display: flex;
+    border: 2px solid #000000;
+    margin-bottom: 4px;
+    background-color: #ffffff;
+    box-shadow: 2px 2px 0px #000000;
+}
+
+.settings-tab-btn {
+    flex: 1;
+    padding: 8px 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    border: none;
+    border-right: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    text-align: center;
+}
+
+.settings-tab-btn:last-child {
+    border-right: none;
+}
+
+.settings-tab-btn.active-tab {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+.settings-tab-btn:hover:not(.active-tab) {
+    background-color: #f4f4f5;
+}
+
+/* --- Brutalist range & inputs --- */
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.custom-checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.custom-checkbox-container input {
+    accent-color: #000000;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.badge-val {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 6px;
+    font-weight: 700;
+}
+
+.brutalist-range {
+    flex-grow: 1;
+    accent-color: #000000;
+    height: 6px;
+    background: #f4f4f5;
+    border: 2px solid #000000;
+    cursor: pointer;
+}
+
+.button-action {
+    height: 32px;
+    font-size: 10px;
 }
 
 .control-label {
@@ -415,38 +513,45 @@ canvas {
 .settings-sliders-container {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 8px;
+    width: 100%;
 }
 
 .settings-slider-group {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    margin-bottom: 8px;
+    width: 100%;
 }
 
 .settings-slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #000000;
-    white-space: nowrap;
+    width: 100%;
 }
 
 .settings-slider-label span {
     background-color: #000000;
     color: #ffffff;
-    padding: 2px 5px;
+    padding: 1px 4px;
     font-size: 9px;
-    margin-left: 4px;
+    margin-left: auto;
+    display: inline-block;
 }
 
 .settings-slider {
     position: relative;
-    width: 140px !important;
+    width: 100% !important;
     height: 12px !important;
     border: 2px solid #000000;
     background-color: #f4f4f5;
@@ -549,11 +654,11 @@ canvas {
     position: absolute;
     bottom: 24px;
     right: 24px;
-    width: 175px;
+    width: 220px;
     z-index: 90;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: 6px 8px;
     border: 3px solid #000000;
     box-shadow: 4px 4px 0px #000000;
 }
@@ -563,8 +668,8 @@ canvas {
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #000000;
-    padding-bottom: 4px;
-    margin-bottom: 8px;
+    padding: 2px 0px 3px 0px;
+    margin-bottom: 5px;
 }
 
 .viewport-title {
@@ -618,6 +723,51 @@ canvas {
     font-size: 10px;
 }
 
+.viewport-btn.flip-btn {
+    width: auto;
+    padding: 0 8px;
+    font-size: 10px;
+}
+
+.bar-btn.active {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    border-top: 2px solid #000000;
+    padding-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+#stats-fps {
+    color: #000000;
+}
+
+#stats-ms {
+    color: #555555;
+}
+
+#stats-status {
+    background-color: #ff3333;
+    color: #ffffff;
+    padding: 1px 4px;
+    border: 1.5px solid #000000;
+    box-shadow: 1px 1px 0px #000000;
+    font-size: 9px;
+}
+
+#stats-status.active {
+    background-color: #33cc33;
+    color: #000000;
+}
+
 /* --- Tools Window --- */
 #tools-window {
     position: absolute;
@@ -627,7 +777,7 @@ canvas {
     z-index: 90;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: 6px 8px;
     border: 3px solid #000000;
     box-shadow: 4px 4px 0px #000000;
 }
@@ -637,8 +787,8 @@ canvas {
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #000000;
-    padding-bottom: 4px;
-    margin-bottom: 8px;
+    padding: 2px 0px 3px 0px;
+    margin-bottom: 5px;
     cursor: move;
 }
 
@@ -778,5 +928,218 @@ canvas {
     border-radius: 50%;
     box-sizing: border-box;
 }
+
+/* Custom Inverted Impasto Rectangle Cursor */
+.custom-impasto-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10000;
+    mix-blend-mode: difference;
+    transform: translate(-50%, -50%);
+    border: 1.5px solid #ffffff;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+/* Custom Inverted Liquify Circle Cursor */
+.custom-liquify-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10000;
+    mix-blend-mode: difference;
+    transform: translate(-50%, -50%);
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+/* --- Reference Image Window --- */
+#ref-image-window {
+    position: absolute;
+    bottom: 234px;
+    left: 24px;
+    width: 230px;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    border: 3px solid #000000;
+    box-shadow: 4px 4px 0px #000000;
+}
+
+.ref-image-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000000;
+    padding: 2px 0px 3px 0px;
+    margin-bottom: 5px;
+    cursor: move;
+}
+
+.ref-image-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.ref-image-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.reference-canvas-item {
+    position: absolute;
+    z-index: 10;
+    border: 3px solid #000000;
+    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.25);
+    cursor: grab;
+    transform-origin: center center;
+    pointer-events: auto;
+    width: auto !important;
+    height: auto !important;
+}
+
+.reference-canvas-item:active {
+    cursor: grabbing;
+}
+
+#ref-minimize-btn {
+    background: #ffffff;
+    border: 2px solid #000000;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 8px;
+    cursor: pointer;
+    box-shadow: 1.5px 1.5px 0px #000000;
+    margin-left: auto;
+}
+
+#ref-minimize-btn:hover {
+    background: #000000;
+    color: #ffffff;
+}
+
+#ref-image-window.minimized {
+    height: auto !important;
+}
+
+#ref-image-window.minimized .ref-image-content {
+    display: none !important;
+}
+
+/* --- Selection & Transform Tool --- */
+.selection-overlay {
+    position: absolute;
+    border: 1.5px dashed #0055ff;
+    background-color: rgba(0, 85, 255, 0.08);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.transform-container {
+    position: absolute;
+    border: 1.5px dashed #0055ff;
+    cursor: move;
+    z-index: 1001;
+    transform-origin: center center;
+    box-sizing: border-box;
+}
+
+.transform-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Transform handles */
+.transform-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #ffffff;
+    border: 1.5px solid #0055ff;
+    box-sizing: border-box;
+    z-index: 1002;
+}
+
+/* Position handles */
+.transform-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+.transform-handle.tm { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.transform-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.transform-handle.ml { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.transform-handle.mr { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+.transform-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.transform-handle.bm { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.transform-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+/* Rotate pin */
+.rotate-pin-line {
+    position: absolute;
+    top: -24px;
+    left: calc(50% - 1px);
+    width: 2px;
+    height: 20px;
+    background-color: #0055ff;
+    z-index: 1001;
+}
+
+.rotate-pin-handle {
+    position: absolute;
+    top: -32px;
+    left: calc(50% - 6px);
+    width: 12px;
+    height: 12px;
+    background-color: #ffffff;
+    border: 1.5px solid #0055ff;
+    border-radius: 50%;
+    cursor: grab;
+    z-index: 1002;
+    box-sizing: border-box;
+}
+
+/* Transform Labels from user's sketch (+t and -t) */
+.transform-label-plus {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Open Sans', 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+    color: #0055ff;
+    pointer-events: none;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 1px 6px;
+    border-radius: 2px;
+    border: 1px solid rgba(0, 85, 255, 0.3);
+}
+
+.transform-label-minus {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Open Sans', 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+    color: #0055ff;
+    pointer-events: none;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 1px 6px;
+    border-radius: 2px;
+    border: 1px solid rgba(0, 85, 255, 0.3);
+}
+
 
 

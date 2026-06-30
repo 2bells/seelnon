@@ -24,5 +24,9 @@ void main () {
 
     vec2 finalCoordinates = coordinates - halfVelocity * u_deltaTime;
 
-    gl_FragColor = texture2D(u_inputTexture, clamp(finalCoordinates, u_min, u_max) / u_resolution) * u_dissipation;
+    vec4 color = texture2D(u_inputTexture, clamp(finalCoordinates, u_min, u_max) / u_resolution) * u_dissipation;
+    if (color.a < 0.012) {
+        color.rgb = vec3(0.0);
+    }
+    gl_FragColor = color;
 }

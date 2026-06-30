@@ -1,28 +1,21 @@
 var ColorPicker = (function () {
     'use strict';
 
-    var WIDTH = 120;
-    var HEIGHT = 120;
+    var WIDTH = 180;
+    var HEIGHT = 210;
 
-    //coordinates are all relative to [left, bottom]
+    // Dimensions for SV square and Hue slider
+    var SQ_LEFT = 10;
+    var SQ_RIGHT = 170; // WIDTH - 10
+    var SQ_BOTTOM = 40;
+    var SQ_TOP = 200; // HEIGHT - 10
+    var SQ_SIZE = 160;
 
-    var ALPHA_SLIDER_X = 0;
-    var ALPHA_SLIDER_Y = 0;
-    var ALPHA_SLIDER_WIDTH = 0;
-    var ALPHA_SLIDER_HEIGHT = 0;
-
-    //center of the hue circle
-    var CIRCLE_X = WIDTH / 2;
-    var CIRCLE_Y = HEIGHT / 2;
-
-    // Circle is fully inside the square, with a tiny margin
-    var OUTER_RADIUS = (WIDTH / 2) - 3;
-    // Circle is a thin line (thickness of 4.5px)
-    var INNER_RADIUS = OUTER_RADIUS - 4.5;
-
-    //dimensions of the inner saturation brightness square
-    // Inscribed in the inner circle to take maximum space possible
-    var SQUARE_WIDTH = INNER_RADIUS * Math.sqrt(2);
+    var HUE_LEFT = 10;
+    var HUE_RIGHT = 170;
+    var HUE_BOTTOM = 12;
+    var HUE_TOP = 28;
+    var HUE_HEIGHT = 16;
 
     //edits a HSVA array
     function ColorPicker (painter, parameterName, wgl, canvas, shaderSources, left, bottom) {
@@ -62,16 +55,11 @@ var ColorPicker = (function () {
             .vertexAttribPointer(this.quadVertexBuffer, 0, 2, wgl.FLOAT, wgl.FALSE, 0, 0)
             .useProgram(rgbModel ? this.pickerProgramRGB : this.pickerProgram)
             .uniform2f('u_resolution', WIDTH, HEIGHT)
-            .uniform1f('u_innerRadius', INNER_RADIUS)
-            .uniform1f('u_outerRadius', OUTER_RADIUS)
-            .uniform1f('u_squareWidth', SQUARE_WIDTH)
-            .uniform2f('u_circlePosition', CIRCLE_X, CIRCLE_Y)
-            .uniform2f('u_alphaSliderPosition', ALPHA_SLIDER_X, ALPHA_SLIDER_Y)
-            .uniform2f('u_alphaSliderDimensions', ALPHA_SLIDER_WIDTH, ALPHA_SLIDER_HEIGHT)
             .uniform4f('u_currentHSVA', hsva[0], hsva[1], hsva[2], hsva[3])
             .uniform2f('u_screenResolution', this.canvas.width, this.canvas.height)
             .uniform2f('u_position', this.left, this.bottom)
             .uniform2f('u_dimensions', WIDTH, HEIGHT)
+            .uniform1f('u_isMirrored', 0.0)
             .enable(wgl.BLEND)
             .blendFunc(wgl.ONE, wgl.ONE_MINUS_SRC_ALPHA); //premultiplied alpha
 
@@ -79,29 +67,19 @@ var ColorPicker = (function () {
     };
 
     ColorPicker.prototype.overControl = function (x, y) {
-        return this.overHue(x, y) || this.overSaturationLightness(x, y) || this.overAlpha(x, y);
+        return this.overHue(x, y) || this.overSaturationLightness(x, y);
     };
 
     ColorPicker.prototype.overHue = function (x, y) { //x and y are relative to the canvas
         x -= this.left;
         y -= this.bottom;
-
-        var xDist = x - CIRCLE_X;
-        var yDist = y - CIRCLE_Y;
-
-        var distance = Math.sqrt(xDist * xDist + yDist * yDist);
-
-        return (distance < OUTER_RADIUS && distance > INNER_RADIUS);
+        return (x >= HUE_LEFT && x <= HUE_RIGHT && y >= HUE_BOTTOM && y <= HUE_TOP);
     };
 
     ColorPicker.prototype.overSaturationLightness = function (x, y) { //x and y are relative to the canvas
         x -= this.left;
         y -= this.bottom;
-
-        var xDist = x - CIRCLE_X;
-        var yDist = y - CIRCLE_Y;
-
-        return (Math.abs(xDist) <= SQUARE_WIDTH / 2 && Math.abs(yDist) <= SQUARE_WIDTH / 2);
+        return (x >= SQ_LEFT && x <= SQ_RIGHT && y >= SQ_BOTTOM && y <= SQ_TOP);
     };
 
     ColorPicker.prototype.overAlpha = function (x, y) { //x and y are relative to the canvas
@@ -113,8 +91,6 @@ var ColorPicker = (function () {
             this.huePressed = true;
         } else if (this.overSaturationLightness(x, y)) {
             this.saturationLightnessPressed = true;
-        } else if (this.overAlpha(x, y)) {
-            this.alphaPressed = true;
         }
 
         this.onMouseMove(x, y);
@@ -139,29 +115,25 @@ var ColorPicker = (function () {
             var hsva = this.painter[this.parameterName];
 
             if (this.huePressed) {
-                var angle = Math.atan2(mouseY - CIRCLE_Y, mouseX - CIRCLE_X);
-                if (angle < 0) angle += 2.0 * Math.PI; //[-PI, PI] -> [0, 2 * PI]
-
-                //hue
-                hsva[0] = angle / (2.0 * Math.PI);
+                var t = (mouseX - HUE_LEFT) / (HUE_RIGHT - HUE_LEFT);
+                t = Utilities.clamp(t, 0.0, 1.0);
+                hsva[0] = t;
 
             } else if (this.saturationLightnessPressed) {
-                //saturation
-                hsva[1] = (mouseX - (CIRCLE_X - SQUARE_WIDTH / 2)) / SQUARE_WIDTH;
-                hsva[1] = Utilities.clamp(hsva[1], 0.0, 1.0);
+                var s = (mouseX - SQ_LEFT) / SQ_SIZE;
+                s = Utilities.clamp(s, 0.0, 1.0);
 
-                //brightness
-                var relativeY = (mouseY - (CIRCLE_Y - SQUARE_WIDTH / 2)) / SQUARE_WIDTH;
+                var v = (mouseY - SQ_BOTTOM) / SQ_SIZE;
+                v = Utilities.clamp(v, 0.0, 1.0);
+
                 var isRyb = (this.painter.colorModel === 0); // ColorModel.RYB
                 if (isRyb) {
-                    hsva[2] = 1.0 - relativeY;
+                    hsva[2] = 1.0 - v;
                 } else {
-                    hsva[2] = relativeY;
+                    hsva[2] = v;
                 }
                 hsva[2] = Utilities.clamp(hsva[2], 0.0, 1.0);
-            } else if (this.alphaPressed) {
-                //alpha
-                hsva[3] = Utilities.clamp((mouseY - ALPHA_SLIDER_Y) / ALPHA_SLIDER_HEIGHT, 0, 1);
+                hsva[1] = s;
             }
         }
     };

@@ -9,6 +9,8 @@ uniform vec4 u_splatColor;
 #endif
 
 uniform float u_splatRadius;
+uniform bool u_isRect;
+uniform bool u_rectRotate90;
 
 varying vec2 v_previousPosition;
 varying vec2 v_position;
@@ -42,9 +44,45 @@ vec2 clampVelocity (vec2 vel) {
 }
 
 void main () {
-    float splatDistance = distanceToLine(v_previousPosition, v_position, v_quadPosition);
+    float multiplier;
+    if (u_isRect) {
+        float dist = distance(v_previousPosition, v_position);
+        vec2 direction = vec2(1.0, 0.0);
+        if (dist > 0.0001) {
+            direction = (v_position - v_previousPosition) / dist;
+        }
+        vec2 tangent = vec2(-direction.y, direction.x);
 
-    float multiplier = max(1.0 - splatDistance / u_splatRadius, 0.0);
+        vec2 toFragment = v_quadPosition - v_previousPosition;
+        float projD = dot(toFragment, direction);
+        float projT = dot(toFragment, tangent);
+
+        if (u_rectRotate90) {
+            float temp = projD;
+            projD = projT;
+            projT = temp;
+        }
+
+        float distD = (projD < 0.0) ? -projD : ((projD > dist) ? (projD - dist) : 0.0);
+        float distT = abs(projT);
+
+        // Perpendicular profile: flat in the middle, beveled at the edges
+        float multiplierT = smoothstep(1.0, 0.7, distT / u_splatRadius);
+
+        // Add gorgeous continuous bristle groove bumps based on normalized perpendicular distance
+        float normalizedT = projT / u_splatRadius;
+        float ridgeNoise = sin(normalizedT * 22.0) * 0.25 + sin(normalizedT * 48.0) * 0.12;
+        multiplierT = clamp(multiplierT + ridgeNoise * multiplierT, 0.0, 1.0);
+
+        // Parallel profile: flat ends with very short bevel
+        float endLimit = u_splatRadius * 0.2;
+        float multiplierD = smoothstep(endLimit, 0.0, distD);
+
+        multiplier = multiplierT * multiplierD;
+    } else {
+        float splatDistance = distanceToLine(v_previousPosition, v_position, v_quadPosition);
+        multiplier = max(1.0 - splatDistance / u_splatRadius, 0.0);
+    }
 
 
 #ifdef VELOCITY
