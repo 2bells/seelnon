@@ -12,7 +12,7 @@
 
     <body>
         <script type="text/template" id="main">
-            <!-- Modern Brutalist Top  Bar Menu  -->
+            <!--  Modern Brutalist Top  Bar Menu  -->
             <div id="top-bar">
                 <div class="top-bar-left">
                     <button id="save-button" class="bar-btn bar-btn-icon" title="Save Image">💾</button>
@@ -21,66 +21,70 @@
                     <button id="resize-toggle-button" class="bar-btn bar-btn-icon" title="Toggle Canvas Resize Mode">⤢</button>
                 </div>
                 
-                <div class="top-bar-separator">⋮</div>
-                
                 <div class="top-bar-sliders">
-                    <!-- Group 1: Main Controls -->
-                    <div id="fluidity-slider-group" class="top-slider-group">
-                        <span class="top-slider-label">FLUIDITY <span id="val-fluidity">75%</span></span>
-                        <div id="fluidity-slider" class="top-slider"></div>
-                    </div>
-                    
-                    <div id="bristles-slider-group" class="top-slider-group">
-                        <span class="top-slider-label">BRISTLES <span id="val-bristles">10</span></span>
-                        <div id="bristles-slider" class="top-slider"></div>
-                    </div>
-                    
-                    <div id="size-slider-group" class="top-slider-group">
-                        <span class="top-slider-label">SIZE <span id="val-size">50</span></span>
-                        <div id="size-slider" class="top-slider"></div>
-                    </div>
+                    <!-- Sub-group 1: Main Controls -->
+                    <div class="top-bar-sub-group" id="sub-group-1">
+                        <div class="top-bar-separator" id="sep-group-1" title="Click to toggle group visibility">⋮</div>
+                        
+                        <div id="fluidity-slider-group" class="top-slider-group">
+                            <span class="top-slider-label">FLUIDITY <span id="val-fluidity">75%</span></span>
+                            <div id="fluidity-slider" class="top-slider"></div>
+                        </div>
+                        
+                        <div id="bristles-slider-group" class="top-slider-group">
+                            <span class="top-slider-label">BRISTLES <span id="val-bristles">10</span></span>
+                            <div id="bristles-slider" class="top-slider"></div>
+                        </div>
+                        
+                        <div id="size-slider-group" class="top-slider-group">
+                            <span class="top-slider-label">SIZE <span id="val-size">50</span></span>
+                            <div id="size-slider" class="top-slider"></div>
+                        </div>
 
-                    <div id="opacity-slider-group" class="top-slider-group">
-                        <span class="top-slider-label">OPACITY <span id="val-opacity">80%</span></span>
-                        <div id="opacity-slider" class="top-slider"></div>
-                    </div>
+                        <div id="opacity-slider-group" class="top-slider-group">
+                            <span class="top-slider-label">OPACITY <span id="val-opacity">80%</span></span>
+                            <div id="opacity-slider" class="top-slider"></div>
+                        </div>
 
-                    <div id="liquify-falloff-group" class="top-slider-group hidden">
-                        <span class="top-slider-label">FALLOFF <span id="val-liquify-falloff">2.0</span></span>
-                        <div id="liquify-falloff-slider" class="top-slider"></div>
-                    </div>
+                        <div id="liquify-falloff-group" class="top-slider-group hidden">
+                            <span class="top-slider-label">FALLOFF <span id="val-liquify-falloff">2.0</span></span>
+                            <div id="liquify-falloff-slider" class="top-slider"></div>
+                        </div>
 
-                    <div id="liquify-intensity-group" class="top-slider-group hidden">
-                        <span class="top-slider-label">INTENSITY <span id="val-liquify-intensity">70%</span></span>
-                        <div id="liquify-intensity-slider" class="top-slider"></div>
+                        <div id="liquify-intensity-group" class="top-slider-group hidden">
+                            <span class="top-slider-label">INTENSITY <span id="val-liquify-intensity">70%</span></span>
+                            <div id="liquify-intensity-slider" class="top-slider"></div>
+                        </div>
                     </div>
                     
-                    <div class="top-bar-separator">⋮</div>
-                    
-                    <!-- Group 2: Other 4 Controls -->
-                    <div class="top-slider-group">
-                        <span class="top-slider-label">LENGTH <span id="val-length">4.5</span></span>
-                        <div id="length-slider" class="top-slider"></div>
-                    </div>
-                    
-                    <div class="top-slider-group">
-                        <span class="top-slider-label">TENSION <span id="val-tension">0.3</span></span>
-                        <div id="tension-slider" class="top-slider"></div>
-                    </div>
-                    
-                    <div class="top-slider-group">
-                        <span class="top-slider-label">JITTER <span id="val-jitter">0.5</span></span>
-                        <div id="jitter-slider" class="top-slider"></div>
-                    </div>
-                    
-                    <div class="top-slider-group">
-                        <span class="top-slider-label">SCATTER <span id="val-scatter">1.0</span></span>
-                        <div id="scatter-slider" class="top-slider"></div>
-                    </div>
-                    
-                    <div class="top-slider-group">
-                        <span class="top-slider-label">HEIGHT <span id="val-height">1.0</span></span>
-                        <div id="height-slider" class="top-slider"></div>
+                    <!-- Sub-group 2: Secondary Controls -->
+                    <div class="top-bar-sub-group" id="sub-group-2">
+                        <div class="top-bar-separator" id="sep-group-2" title="Click to toggle group visibility">⋮</div>
+                        
+                        <div class="top-slider-group">
+                            <span class="top-slider-label">LENGTH <span id="val-length">4.5</span></span>
+                            <div id="length-slider" class="top-slider"></div>
+                        </div>
+                        
+                        <div class="top-slider-group">
+                            <span class="top-slider-label">TENSION <span id="val-tension">0.3</span></span>
+                            <div id="tension-slider" class="top-slider"></div>
+                        </div>
+                        
+                        <div class="top-slider-group">
+                            <span class="top-slider-label">JITTER <span id="val-jitter">0.5</span></span>
+                            <div id="jitter-slider" class="top-slider"></div>
+                        </div>
+                        
+                        <div class="top-slider-group">
+                            <span class="top-slider-label">SCATTER <span id="val-scatter">1.0</span></span>
+                            <div id="scatter-slider" class="top-slider"></div>
+                        </div>
+                        
+                        <div class="top-slider-group">
+                            <span class="top-slider-label">HEIGHT <span id="val-height">1.0</span></span>
+                            <div id="height-slider" class="top-slider"></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -137,9 +141,9 @@
                     <button id="tool-ink-btn" class="tool-btn" title="Ink (Sketching) [Key 2]">🖋️ 2</button>
                     <button id="tool-dry-btn" class="tool-btn" title="Dry Media (Pencil/Sketch) [Key 3]">✏️ 3</button>
                     <button id="tool-smudge-btn" class="tool-btn" title="Smudge (Blend Paint) [Key 4]">🌪️ 4</button>
-                    <button id="tool-eraser-btn" class="tool-btn" title="Eraser / Scraper [Key 5]">🧹 5</button>
-                    <button id="tool-liquify-btn" class="tool-btn" title="Liquify (Warp Paint) [Key 6]">💧 6</button>
-                    <button id="tool-select-btn" class="tool-btn" title="Select / Transform [Key 7]">⛶ 7</button>
+                    <button id="tool-eraser-btn" class="tool-btn" title="Eraser / Scraper [Key 5]">❌ 5</button>
+                    <button id="tool-liquify-btn" class="tool-btn" title="Liquify (Warp Paint) [Key 6]">💧 G</button>
+                    <button id="tool-select-btn" class="tool-btn" title="Select / Transform [Key 7]">⛶ S</button>
                 </div>
                 <!-- Paint Options Sub-panel (visible only when Paint is active) -->
                 <div id="paint-options-panel" class="eraser-options hidden">

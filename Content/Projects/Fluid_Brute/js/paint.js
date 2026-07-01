@@ -806,6 +806,61 @@ var Paint = (function () {
                 });
             }
 
+            this.redrawAllSliders = function () {
+                if (this.fluiditySlider) this.fluiditySlider.redraw();
+                if (this.bristleCountSlider) this.bristleCountSlider.redraw();
+                if (this.brushSizeSlider) this.brushSizeSlider.redraw();
+                if (this.opacitySlider) this.opacitySlider.redraw();
+                if (this.liquifyFalloffSlider) this.liquifyFalloffSlider.redraw();
+                if (this.liquifyIntensitySlider) this.liquifyIntensitySlider.redraw();
+                if (this.bristleLengthSlider) this.bristleLengthSlider.redraw();
+                if (this.bristleStiffnessSlider) this.bristleStiffnessSlider.redraw();
+                if (this.bristleJitterSlider) this.bristleJitterSlider.redraw();
+                if (this.bristleScatterSlider) this.bristleScatterSlider.redraw();
+                if (this.paintHeightSlider) this.paintHeightSlider.redraw();
+            };
+
+            var sep1 = document.getElementById('sep-group-1');
+            var sep2 = document.getElementById('sep-group-2');
+            var sub1 = document.getElementById('sub-group-1');
+            var sub2 = document.getElementById('sub-group-2');
+
+            var self = this;
+            var toggleGroup1 = function (e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (sub1) {
+                    sub1.classList.toggle('collapsed');
+                    setTimeout(function () {
+                        self.redrawAllSliders();
+                    }, 50);
+                }
+            };
+
+            var toggleGroup2 = function (e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (sub2) {
+                    sub2.classList.toggle('collapsed');
+                    setTimeout(function () {
+                        self.redrawAllSliders();
+                    }, 50);
+                }
+            };
+
+            if (sep1) {
+                sep1.addEventListener('click', toggleGroup1);
+                sep1.addEventListener('touchstart', toggleGroup1);
+            }
+            if (sep2) {
+                sep2.addEventListener('click', toggleGroup2);
+                sep2.addEventListener('touchstart', toggleGroup2);
+            }
+
             this.onResize = function () {
                 this.canvas.width = window.innerWidth;
                 this.canvas.height = window.innerHeight;
@@ -828,6 +883,7 @@ var Paint = (function () {
 
 
                 this.needsRedraw = true;
+                this.redrawAllSliders();
             };
             this.onResize();
 
@@ -896,12 +952,42 @@ var Paint = (function () {
                         this.altDown = true;
                         this.needsRedraw = true;
                     } else if (event.keyCode === 87) { // w
-                        this.brushScale = Utilities.clamp(this.brushScale - 1.5, MIN_BRUSH_SCALE, MAX_BRUSH_SCALE);
+                        var maxS = (this.currentTool === 'liquify') ? 2000 : MAX_BRUSH_SCALE;
+                        var current = this.brushScale;
+                        var step;
+                        if (current <= 10) step = 1;
+                        else if (current <= 25) step = 2;
+                        else if (current <= 50) step = 5;
+                        else if (current <= 150) step = 10;
+                        else if (current <= 300) step = 20;
+                        else if (current <= 600) step = 50;
+                        else step = 100;
+                        
+                        var prev = current - step;
+                        if (step > 1) {
+                            prev = Math.floor(prev / step) * step;
+                        }
+                        this.brushScale = Utilities.clamp(prev, MIN_BRUSH_SCALE, maxS);
                         this.brushSizeSlider.setValue(this.brushScale);
                         if (this.updateSizeLabel) this.updateSizeLabel(this.brushScale);
                         this.updateCurrentToolSetting('brushScale', this.brushScale);
                     } else if (event.keyCode === 69) { // e
-                        this.brushScale = Utilities.clamp(this.brushScale + 1.5, MIN_BRUSH_SCALE, MAX_BRUSH_SCALE);
+                        var maxS = (this.currentTool === 'liquify') ? 2000 : MAX_BRUSH_SCALE;
+                        var current = this.brushScale;
+                        var step;
+                        if (current < 10) step = 1;
+                        else if (current < 25) step = 2;
+                        else if (current < 50) step = 5;
+                        else if (current < 150) step = 10;
+                        else if (current < 300) step = 20;
+                        else if (current < 600) step = 50;
+                        else step = 100;
+                        
+                        var next = current + step;
+                        if (step > 1) {
+                            next = Math.ceil(next / step) * step;
+                        }
+                        this.brushScale = Utilities.clamp(next, MIN_BRUSH_SCALE, maxS);
                         this.brushSizeSlider.setValue(this.brushScale);
                         if (this.updateSizeLabel) this.updateSizeLabel(this.brushScale);
                         this.updateCurrentToolSetting('brushScale', this.brushScale);
@@ -2273,6 +2359,9 @@ var Paint = (function () {
 
             // Keyboard Shortcuts
             window.addEventListener('keydown', (function (e) {
+                if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
+                    return;
+                }
                 if (e.key === '1') {
                     setTool('paint');
                 } else if (e.key === '2') {
@@ -2283,9 +2372,9 @@ var Paint = (function () {
                     setTool('smudge');
                 } else if (e.key === '5') {
                     setTool('eraser');
-                } else if (e.key === '6') {
+                } else if (e.key === '6' || e.key === 'g' || e.key === 'G') {
                     setTool('liquify');
-                } else if (e.key === '7') {
+                } else if (e.key === '7' || e.key === 's' || e.key === 'S') {
                     setTool('select');
                 } else if (e.key === 't' || e.key === 'T') {
                     if (this.currentTool === 'select') {
@@ -2575,6 +2664,11 @@ var Paint = (function () {
 
                 wgl.framebufferTexture2D(this.simulator.simulationFramebuffer, wgl.FRAMEBUFFER, wgl.COLOR_ATTACHMENT0, wgl.TEXTURE_2D, this.simulator.paintTextureTemp, 0);
 
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTexture, wgl.TEXTURE_MIN_FILTER, wgl.NEAREST);
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTexture, wgl.TEXTURE_MAG_FILTER, wgl.NEAREST);
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTextureTemp, wgl.TEXTURE_MIN_FILTER, wgl.NEAREST);
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTextureTemp, wgl.TEXTURE_MAG_FILTER, wgl.NEAREST);
+
                 var liquifyDrawState = wgl.createDrawState()
                     .bindFramebuffer(this.simulator.simulationFramebuffer)
                     .viewport(0, 0, this.simulator.resolutionWidth, this.simulator.resolutionHeight)
@@ -2589,6 +2683,11 @@ var Paint = (function () {
                     .uniform1i('u_mode', modeInt);
 
                 wgl.drawArrays(liquifyDrawState, wgl.TRIANGLE_STRIP, 0, 4);
+
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTexture, wgl.TEXTURE_MIN_FILTER, wgl.LINEAR);
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTexture, wgl.TEXTURE_MAG_FILTER, wgl.LINEAR);
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTextureTemp, wgl.TEXTURE_MIN_FILTER, wgl.LINEAR);
+                wgl.texParameteri(wgl.TEXTURE_2D, this.simulator.paintTextureTemp, wgl.TEXTURE_MAG_FILTER, wgl.LINEAR);
 
                 Utilities.swap(this.simulator, 'paintTexture', 'paintTextureTemp');
                 

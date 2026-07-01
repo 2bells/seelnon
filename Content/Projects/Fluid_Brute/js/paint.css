@@ -57,34 +57,74 @@ canvas.mirrored {
     gap: 8px;
 }
 
+.top-bar-right {
+    margin-left: 12px;
+}
+
 .top-bar-separator {
     font-family: 'JetBrains Mono', monospace;
     font-size: 18px;
     font-weight: 700;
     color: #000000;
-    margin: 0 8px;
+    margin: 0 4px;
     user-select: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.top-bar-separator:active {
+    color: #888888;
 }
 
 .top-bar-sliders {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     flex-grow: 1;
-    justify-content: center;
+    justify-content: flex-start;
+    min-width: 0;
+}
+
+.top-bar-sub-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    min-width: 0;
+    max-width: 800px;
+}
+
+.top-bar-sub-group.collapsed {
+    flex: 0 0 auto;
+    gap: 0;
+}
+
+.top-bar-sub-group.collapsed .top-slider-group {
+    display: none !important;
+}
+
+.top-bar-sub-group.collapsed .top-bar-separator {
+    color: #888888;
 }
 
 .top-slider-group {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 3px;
+    flex: 1 1 140px;
+    min-width: 55px;
+    max-width: 180px;
 }
 
 .top-slider-label {
     display: flex;
     justify-content: space-between;
-    width: 100px;
+    width: 100%;
     font-family: 'JetBrains Mono', monospace;
     font-size: 8px;
     font-weight: 700;
@@ -154,7 +194,7 @@ canvas.mirrored {
 /* Custom Sliders */
 .top-slider {
     position: relative;
-    width: 100px !important;
+    width: 100% !important;
     height: 12px !important;
     border: 2px solid #000000;
     background-color: #f4f4f5;
@@ -807,12 +847,13 @@ canvas.mirrored {
 
 .tool-btn {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 32px;
+    height: 40px;
     width: 32px;
     font-family: 'Space Grotesk', system-ui, sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: #000000;
     background-color: #ffffff;
@@ -820,6 +861,8 @@ canvas.mirrored {
     box-shadow: 2px 2px 0px #000000;
     cursor: pointer;
     user-select: none;
+    line-height: 1.1;
+    padding: 3px 0;
 }
 
 .tool-btn:hover {

@@ -2,46 +2,46 @@
 
 export const DEFAULT_TOOL_SETTINGS = {
     paint_bristles: {
-        bristleCount: 75,
-        bristleLength: 4.5,
-        bristleStiffness: 0.3,
-        bristleJitter: 0.5,
-        bristleScatter: 1.0,
-        brushScale: 30,
-        fluidity: 0.75,
-        paintHeight: 1.0,
-        opacity: 0.8
-    },
-    paint_oil: {
-        bristleCount: 16,
+        bristleCount: 50,
         bristleLength: 2.5,
         bristleStiffness: 0.4,
+        bristleJitter: 0.5,
+        bristleScatter: 1.0,
+        brushScale: 35,
+        fluidity: 0.70,
+        paintHeight: 1.0,
+        opacity: 1.0
+    },
+    paint_oil: {
+        bristleCount: 15,
+        bristleLength: 0.5,
+        bristleStiffness: 0.1,
         bristleJitter: 0.6,
         bristleScatter: 0.30,
         brushScale: 20,
-        fluidity: 0.75,
+        fluidity: 0.50,
         paintHeight: 2.2,
         opacity: 1.0
     },
     ink: {
         bristleCount: 1,
-        bristleLength: 1.2,
-        bristleStiffness: 0.5,
+        bristleLength: 0.1,
+        bristleStiffness: 0.2,
         bristleJitter: 0.0,
-        bristleScatter: 1.0,
+        bristleScatter: 0.0,
         brushScale: 12,
-        fluidity: 0.85,
+        fluidity: 0.55,
         paintHeight: 0.1,
         opacity: 1.0
     },
     dry_chalk: {
-        bristleCount: 12,
-        bristleLength: 2.0,
+        bristleCount: 30,
+        bristleLength: 1.0,
         bristleStiffness: 0.8,
         bristleJitter: 1.2,
-        bristleScatter: 0.15,
+        bristleScatter: 0.3,
         brushScale: 12,
-        fluidity: 0.60,
+        fluidity: 0.55,
         paintHeight: 0.2,
         opacity: 0.6
     },
