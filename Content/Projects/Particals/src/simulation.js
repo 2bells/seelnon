@@ -21,6 +21,7 @@ export class Simulation {
     this.orbitalBoost = 1.0; // Swirl speed
     this.gravityRange = 450.0; // Pull reach range
     this.initialAngularVelocity = 2.5; // Starting spin for newly clumped magnets
+    this.centerBias = 1.0; // Gentle background pull to center (0.0 to disable)
     this.populationStyle = 'grid'; // How dots start
     this.intraCollisions = true; // Do dots bump into each other?
     this.waveTrails = true; // Draw tails?
@@ -251,8 +252,8 @@ export class Simulation {
       const distCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter) || 1;
       
       if (distCenter > 40) {
-        obj.vx += (dxCenter / distCenter) * 0.03;
-        obj.vy += (dyCenter / distCenter) * 0.03;
+        obj.vx += (dxCenter / distCenter) * 0.03 * this.centerBias;
+        obj.vy += (dyCenter / distCenter) * 0.03 * this.centerBias;
       }
       
       // Decay velocity slightly over time for stable orbits and settling
@@ -846,8 +847,8 @@ export class Simulation {
         // Add a gentle background drift towards center so orbits stabilize
         const G_sim = (this.gravity * 1e11) * 20.0;
         if (distCenter > 10) {
-          ax += (dxCenter / distCenter) * (G_sim * 0.01);
-          ay += (dyCenter / distCenter) * (G_sim * 0.01);
+          ax += (dxCenter / distCenter) * (G_sim * 0.01) * this.centerBias;
+          ay += (dyCenter / distCenter) * (G_sim * 0.01) * this.centerBias;
         }
       }
 

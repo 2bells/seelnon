@@ -39,6 +39,8 @@ const rangeGravityRange = document.getElementById('range-gravity-range');
 const gravityRangeValDisplay = document.getElementById('gravity-range-val-display');
 const rangeSpinVelocity = document.getElementById('range-spin-velocity');
 const spinVelocityValDisplay = document.getElementById('spin-velocity-val-display');
+const rangeCenterBias = document.getElementById('range-center-bias');
+const centerBiasValDisplay = document.getElementById('center-bias-val-display');
 
 // Action buttons
 const btnPause = document.getElementById('btn-pause');
@@ -260,6 +262,7 @@ async function main() {
   if (rangeDrag) sim.drag = parseFloat(rangeDrag.value);
   if (rangeSimSpeed) sim.simSpeed = parseFloat(rangeSimSpeed.value);
   if (rangeDarkEnergy) sim.darkEnergy = parseFloat(rangeDarkEnergy.value);
+  if (rangeCenterBias) sim.centerBias = parseFloat(rangeCenterBias.value);
 
   // Configure progressive sliders
   if (rangeOrbitalBoost) {
@@ -313,6 +316,7 @@ async function main() {
   if (orbitalBoostValDisplay) orbitalBoostValDisplay.value = sim.orbitalBoost.toFixed(1) + 'x';
   if (gravityRangeValDisplay) gravityRangeValDisplay.value = sim.gravityRange.toFixed(0) + 'px';
   if (spinVelocityValDisplay) spinVelocityValDisplay.value = sim.initialAngularVelocity.toFixed(1) + ' rad/s';
+  if (centerBiasValDisplay) centerBiasValDisplay.value = sim.centerBias.toFixed(1) + 'x';
 
   // 2. Initialize WebGPU
   gpuStatus.textContent = "CHECKING_WEBGPU...";
@@ -527,6 +531,32 @@ async function main() {
   };
   spinVelocityValDisplay.addEventListener('change', updateSpinVelocityFromInput);
   spinVelocityValDisplay.addEventListener('keydown', (e) => { if (e.key === 'Enter') { updateSpinVelocityFromInput(); spinVelocityValDisplay.blur(); } });
+
+  if (rangeCenterBias) {
+    rangeCenterBias.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      sim.centerBias = val;
+      if (centerBiasValDisplay) centerBiasValDisplay.value = val.toFixed(1) + 'x';
+      appendLog(`CENTER_BIAS_SET: ${val.toFixed(1)}x`);
+    });
+  }
+
+  const updateCenterBiasFromInput = () => {
+    if (!centerBiasValDisplay || !rangeCenterBias) return;
+    let val = parseFloat(centerBiasValDisplay.value);
+    if (isNaN(val)) {
+      centerBiasValDisplay.value = sim.centerBias.toFixed(1) + 'x';
+      return;
+    }
+    sim.centerBias = val;
+    rangeCenterBias.value = val;
+    centerBiasValDisplay.value = val.toFixed(1) + 'x';
+    appendLog(`CENTER_BIAS_SET: ${val.toFixed(1)}x`);
+  };
+  if (centerBiasValDisplay) {
+    centerBiasValDisplay.addEventListener('change', updateCenterBiasFromInput);
+    centerBiasValDisplay.addEventListener('keydown', (e) => { if (e.key === 'Enter') { updateCenterBiasFromInput(); centerBiasValDisplay.blur(); } });
+  }
 
   // Population Style selector logic
   distributionSelect.addEventListener('change', (e) => {

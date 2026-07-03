@@ -87,7 +87,7 @@ export class WebGPURenderer {
         orbitalBoost: f32,
         gravityRange: f32,
         initialAngularVelocity: f32,
-        pad2: f32,
+        centerBias: f32,
       }
 
       struct Particle {
@@ -280,8 +280,8 @@ export class WebGPURenderer {
         if (anyCollapsed) {
           let G_sim = (params.gravity * 100000000000.0) * 20.0;
           if (distCenter > 10.0) {
-            ax += (dxCenter / distCenter) * (G_sim * 0.01);
-            ay += (dyCenter / distCenter) * (G_sim * 0.01);
+            ax += (dxCenter / distCenter) * (G_sim * 0.01) * params.centerBias;
+            ay += (dyCenter / distCenter) * (G_sim * 0.01) * params.centerBias;
           }
         }
 
@@ -590,7 +590,7 @@ export class WebGPURenderer {
     viewF32[16] = sim.orbitalBoost;
     viewF32[17] = sim.gravityRange;
     viewF32[18] = sim.initialAngularVelocity || 0.0;
-    viewF32[19] = 0.0;
+    viewF32[19] = sim.centerBias !== undefined ? sim.centerBias : 1.0;
 
     this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
 
