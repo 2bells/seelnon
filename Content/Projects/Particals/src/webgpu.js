@@ -88,6 +88,10 @@ export class WebGPURenderer {
         gravityRange: f32,
         initialAngularVelocity: f32,
         centerBias: f32,
+        individualPull: u32,
+        pad1: u32,
+        pad2: u32,
+        pad3: u32,
       }
 
       struct Particle {
@@ -182,11 +186,22 @@ export class WebGPURenderer {
             let dy = sing.pos.y - p.pos.y;
             let dist = max(1.0, length(vec2<f32>(dx, dy)));
 
-            if (dist < params.gravityRange) {
-              let G_sim = (params.gravity * 100000000000.0) * 20.0;
-              let rs = (2.0 * G_sim * sing.mass) / (params.c * params.c);
-              let eventHorizon = max(12.0, min(60.0, rs));
+            let G_sim = (params.gravity * 100000000000.0) * 20.0;
+            let rs = (2.0 * G_sim * sing.mass) / (params.c * params.c);
+            let eventHorizon = max(12.0, min(60.0, rs));
 
+            let clumpThreshold = sqrt((params.h * params.c) / max(1e-18, params.gravity));
+            let massScale = sqrt(sing.mass / max(1e-18, clumpThreshold));
+            var effectiveRange = params.gravityRange;
+            if (params.individualPull == 1u) {
+              effectiveRange = params.gravityRange + 100.0 * (massScale - 1.0);
+            }
+
+            let startDecay = effectiveRange * 0.5;
+            let endDecay = effectiveRange * 1.5;
+            let rangeFactor = 1.0 - smoothstep(startDecay, endDecay, dist);
+
+            if (rangeFactor > 0.0) {
               if (dist < 8.0) {
                 // Plunged into the central singularity core!
                 let seed = index + u32(params.time * 1337.0);
@@ -222,11 +237,8 @@ export class WebGPURenderer {
                 let grCorrection = 1.0 + (3.0 * L2) / (c2 * (dist * dist + 16.0));
                 var force = (G_sim * sing.mass) / (dist * dist + 16.0) * grCorrection;
                 
-                // Smooth range cutoff at gravityRange boundaries
-                if (dist > params.gravityRange * 0.8) {
-                  let rangeFactor = 1.0 - (dist - params.gravityRange * 0.8) / (params.gravityRange * 0.2);
-                  force = force * max(0.0, rangeFactor);
-                }
+                // Apply smooth gravity range factor
+                force = force * rangeFactor;
 
                 ax += (dx / dist) * force;
                 ay += (dy / dist) * force;
@@ -236,37 +248,46 @@ export class WebGPURenderer {
                 let vDrag = (2.0 * G_sim * J) / (c2 * (dist * dist + 100.0));
                 let tx = -dy / dist;
                 let ty = dx / dist;
-                ax += (tx * vDrag - rvx) * 0.15;
-                ay += (ty * vDrag - rvy) * 0.15;
+                ax += (tx * vDrag - rvx) * 0.15 * rangeFactor;
+                ay += (ty * vDrag - rvy) * 0.15 * rangeFactor;
 
                 // Instead of dark energy repulsion, rotate space around the collapsed object (rotating the spacetime well)
                 if (params.darkEnergy > 0.0) {
                   let wellRotationSpeed = params.darkEnergy * (sing.mass / 100.0) * (20.0 / (dist + 30.0));
-                  ax += -ry * wellRotationSpeed * 0.05;
-                  ay += rx * wellRotationSpeed * 0.05;
+                  ax += -ry * wellRotationSpeed * 0.05 * rangeFactor;
+                  ay += rx * wellRotationSpeed * 0.05 * rangeFactor;
                 }
 
                 // Centrifugal/Orbital Tangential Velocity Injection
                 if (params.orbitalBoost > 0.0) {
                   let tangentialX = -dy / dist;
                   let tangentialY = dx / dist;
-                  ax += tangentialX * params.orbitalBoost * 1.5;
-                  ay += tangentialY * params.orbitalBoost * 1.5;
+                  ax += tangentialX * params.orbitalBoost * 1.5 * rangeFactor;
+                  ay += tangentialY * params.orbitalBoost * 1.5 * rangeFactor;
                 }
 
-                // Color particles based on accretion disk zones
-                if (dist < eventHorizon) {
+                // Color particles based on accretion disk zones - completely smooth gradient!
+                let k = dist / eventHorizon;
+                if (k < 1.0) {
+                  let t = k;
                   p.color_r = 1.0;
-                  p.color_g = 0.2;
-                  p.color_b = 0.0; // #ff3300 inside Schwarzschild event horizon
-                } else if (dist < eventHorizon * 2.0) {
+                  p.color_g = 1.0 - 0.8 * t;
+                  p.color_b = 1.0 - 1.0 * t;
+                } else if (k < 2.0) {
+                  let t = k - 1.0;
                   p.color_r = 1.0;
-                  p.color_g = 0.6;
-                  p.color_b = 0.0; // #ff9900 inner accretion disk
-                } else if (dist < eventHorizon * 3.5) {
+                  p.color_g = 0.2 + 0.4 * t;
+                  p.color_b = 0.0;
+                } else if (k < 3.5) {
+                  let t = (k - 2.0) / 1.5;
                   p.color_r = 1.0;
-                  p.color_g = 0.8;
-                  p.color_b = 0.0; // #ffcc00 outer accretion disk
+                  p.color_g = 0.6 + 0.2 * t;
+                  p.color_b = 0.0;
+                } else if (k < 5.0) {
+                  let t = (k - 3.5) / 1.5;
+                  p.color_r = 1.0 + (p.orig_r - 1.0) * t;
+                  p.color_g = 0.8 + (p.orig_g - 0.8) * t;
+                  p.color_b = 0.0 + (p.orig_b - 0.0) * t;
                 } else {
                   p.color_r = p.orig_r;
                   p.color_g = p.orig_g;
@@ -291,20 +312,20 @@ export class WebGPURenderer {
           let dyAttr = params.attractorY - p.pos.y;
           let distAttr = max(1.0, length(vec2<f32>(dxAttr, dyAttr)));
 
-          if (distAttr < params.gravityRange) {
-            var force = (5.0 * (params.gravity * 100000000000.0)) / (distAttr * 0.01 + 1.0);
+          let startDecay = params.gravityRange * 0.5;
+          let endDecay = params.gravityRange * 1.5;
+          let rangeFactor = 1.0 - smoothstep(startDecay, endDecay, distAttr);
 
-            if (distAttr > params.gravityRange * 0.8) {
-              let rangeFactor = 1.0 - (distAttr - params.gravityRange * 0.8) / (params.gravityRange * 0.2);
-              force = force * max(0.0, rangeFactor);
-            }
+          if (rangeFactor > 0.0) {
+            var force = (5.0 * (params.gravity * 100000000000.0)) / (distAttr * 0.01 + 1.0);
+            force = force * rangeFactor;
 
             ax += (dxAttr / distAttr) * force;
             ay += (dyAttr / distAttr) * force;
 
             // Dark Energy Repulsion for user well (Einstein Cosmological Constant: proportional to distance)
             if (params.darkEnergy > 0.0) {
-              let repulsion = params.darkEnergy * distAttr * 0.03;
+              let repulsion = params.darkEnergy * distAttr * 0.03 * rangeFactor;
               ax -= (dxAttr / distAttr) * repulsion;
               ay -= (dyAttr / distAttr) * repulsion;
             }
@@ -313,8 +334,8 @@ export class WebGPURenderer {
             if (params.orbitalBoost > 0.0) {
               let tangentialX = -dyAttr / distAttr;
               let tangentialY = dxAttr / distAttr;
-              ax += tangentialX * params.orbitalBoost * 1.5;
-              ay += tangentialY * params.orbitalBoost * 1.5;
+              ax += tangentialX * params.orbitalBoost * 1.5 * rangeFactor;
+              ay += tangentialY * params.orbitalBoost * 1.5 * rangeFactor;
             }
           }
         }
@@ -436,7 +457,7 @@ export class WebGPURenderer {
 
     // 2. Setup storage and uniform buffers
     this.uniformBuffer = this.device.createBuffer({
-      size: 80, // 20 floats/ints (80 bytes)
+      size: 96, // 24 floats/ints (96 bytes)
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
 
@@ -567,7 +588,7 @@ export class WebGPURenderer {
     const frequency = sim.frequency;
 
     // 2. Update uniform values on the GPU
-    const uniformData = new ArrayBuffer(80);
+    const uniformData = new ArrayBuffer(96);
     const viewF32 = new Float32Array(uniformData);
     const viewU32 = new Uint32Array(uniformData);
 
@@ -591,6 +612,7 @@ export class WebGPURenderer {
     viewF32[17] = sim.gravityRange;
     viewF32[18] = sim.initialAngularVelocity || 0.0;
     viewF32[19] = sim.centerBias !== undefined ? sim.centerBias : 1.0;
+    viewU32[20] = sim.individualPull ? 1 : 0;
 
     this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
 

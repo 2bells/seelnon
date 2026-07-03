@@ -23,6 +23,7 @@ export class Simulation {
     this.initialAngularVelocity = 2.5; // Starting spin for newly clumped magnets
     this.centerBias = 1.0; // Gentle background pull to center (0.0 to disable)
     this.populationStyle = 'grid'; // How dots start
+    this.individualPull = false; // Scale range based on mass of gravity source
     this.intraCollisions = true; // Do dots bump into each other?
     this.waveTrails = true; // Draw tails?
     this.nonDestructibleCores = true; // Magnets don't break when bumping
@@ -217,11 +218,15 @@ export class Simulation {
         }
         
         const G = this.gravity * 1e11;
-        let force = (G * o1.mass * o2.mass) / (dist * dist + 100); // soft-cored gravity
+        let force = (G * o1.mass * o2.mass) / (dist * dist); // soft-cored gravity
         
-        // Smooth range limit cutoff based on gravityRange
-        if (dist > this.gravityRange) {
-          force *= Math.exp(-(dist - this.gravityRange) / 40.0);
+        // Smooth range limit cutoff based on mass-scaled effective gravityRange
+        const massScale1 = Math.sqrt(o1.mass / Math.max(1e-18, this.clumpThreshold));
+        const massScale2 = Math.sqrt(o2.mass / Math.max(1e-18, this.clumpThreshold));
+        const effectiveRange = this.individualPull ? (this.gravityRange + 1 * (0.5 * (massScale1 + massScale2) - 1.0)) : this.gravityRange;
+        
+        if (dist > effectiveRange) {
+          force *= Math.exp(-(dist - effectiveRange) / 40.0);
         }
         
         forces[i].fx += (dx / dist) * force;
@@ -735,13 +740,24 @@ export class Simulation {
           const dy = obj.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           
-          if (dist < this.gravityRange) {
-            // Magnet pull force calculation
-            const G_sim = (this.gravity * 1e11) * 20.0;
-            // Radius depends on the magnet weight and max speed
-            const rs = (2.0 * G_sim * obj.mass) / (this.c * this.c);
-            obj.radius = Math.max(12, Math.min(60, rs));
+          const G_sim = (this.gravity * 1e11) * 20.0;
+          const rs = (2.0 * G_sim * obj.mass) / (this.c * this.c);
+          obj.radius = Math.max(12, Math.min(60, rs));
 
+          // Calculate smooth gravity range factor (smoothstep) based on mass-scaled effective range
+          const massScale = Math.sqrt(obj.mass / Math.max(1e-18, this.clumpThreshold));
+          const effectiveRange = this.individualPull ? (this.gravityRange + 1 * (massScale - 1.0)) : this.gravityRange;
+
+          let rangeFactor = 1.0;
+          const startDecay = effectiveRange * 0.5;
+          const endDecay = effectiveRange * 1.5;
+          if (dist > startDecay) {
+            const t = (dist - startDecay) / (endDecay - startDecay || 1);
+            const clampedT = Math.max(0.0, Math.min(1.0, t));
+            rangeFactor = 1.0 - (clampedT * clampedT * (3.0 - 2.0 * clampedT));
+          }
+
+          if (rangeFactor > 0.0) {
             if (dist < 8.0) {
               // Sucked into the magnet!
               // Smooth momentum absorption and mass accretion
@@ -798,45 +814,71 @@ export class Simulation {
               const grCorrection = 1.0 + (3.0 * L2) / (c2 * (dist * dist + 16.0));
               let force = (G_sim * obj.mass) / (dist * dist + 16.0) * grCorrection;
               
-              // Smooth range cutoff at gravityRange boundaries
-              if (dist > this.gravityRange * 0.8) {
-                const rangeFactor = 1.0 - (dist - this.gravityRange * 0.8) / (this.gravityRange * 0.2);
-                force *= Math.max(0.0, rangeFactor);
-              }
+              // Apply smooth gravity range factor
+              force *= rangeFactor;
 
               ax += (dx / dist) * force;
               ay += (dy / dist) * force;
 
               // Drag dots with the magnet's spin
               const J = 0.4 * obj.mass * (obj.radius * obj.radius) * (obj.angularVelocity || 0.0);
-              const vDrag = (2.0 * G_sim * J) / (c2 * (dist * dist + 100.0));
+              const vDrag = (2.0 * G_sim * J) / (c2 * (dist * dist));
               const tx = -dy / dist;
               const ty = dx / dist;
-              ax += (tx * vDrag - rvx) * 0.15;
-              ay += (ty * vDrag - rvy) * 0.15;
+              ax += (tx * vDrag - rvx) * 0.15 * rangeFactor;
+              ay += (ty * vDrag - rvy) * 0.15 * rangeFactor;
 
               // Rotate space around the magnet
               if (this.darkEnergy > 0.0) {
                 const wellRotationSpeed = this.darkEnergy * (obj.mass / 100.0) * (20.0 / (dist + 30.0));
-                ax += -ry * wellRotationSpeed * 0.05;
-                ay += rx * wellRotationSpeed * 0.05;
+                ax += -ry * wellRotationSpeed * 0.05 * rangeFactor;
+                ay += rx * wellRotationSpeed * 0.05 * rangeFactor;
               }
 
               // Push dots to swirl around
               if (this.orbitalBoost > 0.0) {
                 const tangentialX = -dy / dist;
                 const tangentialY = dx / dist;
-                ax += tangentialX * this.orbitalBoost * 1.5;
-                ay += tangentialY * this.orbitalBoost * 1.5;
+                ax += tangentialX * this.orbitalBoost * 1.5 * rangeFactor;
+                ay += tangentialY * this.orbitalBoost * 1.5 * rangeFactor;
               }
 
-              // Color dots by distance zones
-              if (dist < obj.radius) {
-                p.color = '#ff3300'; // super close
-              } else if (dist < obj.radius * 2.0) {
-                p.color = '#ff9900'; // close
-              } else if (dist < obj.radius * 3.5) {
-                p.color = '#ffcc00'; // middle distance
+              // Color dots by distance zones - completely smooth gradient!
+              const k = dist / obj.radius;
+              if (k < 1.0) {
+                // Blend from white (#ffffff) to red-orange (#ff3300)
+                const t = k;
+                const r = 255;
+                const g = Math.round(255 - 204 * t);
+                const b = Math.round(255 - 255 * t);
+                p.color = `rgb(${r},${g},${b})`;
+              } else if (k < 2.0) {
+                // Blend from red-orange (#ff3300 = rgb(255,51,0)) to orange (#ff9900 = rgb(255,153,0))
+                const t = k - 1.0;
+                const r = 255;
+                const g = Math.round(51 + 102 * t);
+                const b = 0;
+                p.color = `rgb(${r},${g},${b})`;
+              } else if (k < 3.5) {
+                // Blend from orange (#ff9900 = rgb(255,153,0)) to yellow (#ffcc00 = rgb(255,204,0))
+                const t = (k - 2.0) / 1.5;
+                const r = 255;
+                const g = Math.round(153 + 51 * t);
+                const b = 0;
+                p.color = `rgb(${r},${g},${b})`;
+              } else if (k < 5.0) {
+                // Blend from yellow (#ffcc00 = rgb(255,204,0)) to original color
+                const t = (k - 3.5) / 1.5;
+                let origR = 0, origG = 255, origB = 102; // default fallback green
+                if (p.originalColor.startsWith('#')) {
+                  origR = parseInt(p.originalColor.slice(1, 3), 16);
+                  origG = parseInt(p.originalColor.slice(3, 5), 16);
+                  origB = parseInt(p.originalColor.slice(5, 7), 16);
+                }
+                const r = Math.round(255 + (origR - 255) * t);
+                const g = Math.round(204 + (origG - 204) * t);
+                const b = Math.round(0 + (origB - 0) * t);
+                p.color = `rgb(${r},${g},${b})`;
               } else {
                 p.color = p.originalColor;
               }
@@ -858,18 +900,27 @@ export class Simulation {
         const dyAttr = this.attractor.y - p.y;
         const distAttr = Math.sqrt(dxAttr * dxAttr + dyAttr * dyAttr) || 1;
         
-        if (distAttr < this.gravityRange) {
+        const strengthScale = Math.sqrt(this.attractor.strength / 5.0);
+        const effectiveRange = this.individualPull ? (this.gravityRange + 1 * (strengthScale - 1.0)) : this.gravityRange;
+
+        let rangeFactor = 1.0;
+        const startDecay = effectiveRange * 0.5;
+        const endDecay = effectiveRange * 1.5;
+        if (distAttr > startDecay) {
+          const t = (distAttr - startDecay) / (endDecay - startDecay || 1);
+          const clampedT = Math.max(0.0, Math.min(1.0, t));
+          rangeFactor = 1.0 - (clampedT * clampedT * (3.0 - 2.0 * clampedT));
+        }
+
+        if (rangeFactor > 0.0) {
           let force = (this.attractor.strength * (this.gravity * 1e11)) / (distAttr * 0.01 + 1);
-          
-          if (distAttr > this.gravityRange * 0.8) {
-            const rangeFactor = 1.0 - (distAttr - this.gravityRange * 0.8) / (this.gravityRange * 0.2);
-            force *= Math.max(0.0, rangeFactor);
-          }
+          force *= rangeFactor;
 
           ax += (dxAttr / distAttr) * force;
           ay += (dyAttr / distAttr) * force;
+
           if (this.darkEnergy > 0.0) {
-            const repulsion = this.darkEnergy * distAttr * 0.03;
+            const repulsion = this.darkEnergy * distAttr * 0.03 * rangeFactor;
             ax -= (dxAttr / distAttr) * repulsion;
             ay -= (dyAttr / distAttr) * repulsion;
           }
@@ -878,8 +929,8 @@ export class Simulation {
           if (this.orbitalBoost > 0.0) {
             const tangentialX = -dyAttr / distAttr;
             const tangentialY = dxAttr / distAttr;
-            ax += tangentialX * this.orbitalBoost * 1.5;
-            ay += tangentialY * this.orbitalBoost * 1.5;
+            ax += tangentialX * this.orbitalBoost * 1.5 * rangeFactor;
+            ay += tangentialY * this.orbitalBoost * 1.5 * rangeFactor;
           }
         }
       }
@@ -1038,15 +1089,23 @@ export class Simulation {
           const dx = obj.x - node.ox;
           const dy = obj.y - node.oy;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          if (dist < this.gravityRange) {
+          
+          const massScale = Math.sqrt(obj.mass / Math.max(1e-18, this.clumpThreshold));
+          const effectiveRange = this.individualPull ? (this.gravityRange + 1 * (massScale - 1.0)) : this.gravityRange;
+
+          let rangeFactor = 1.0;
+          const startDecay = effectiveRange * 0.5;
+          const endDecay = effectiveRange * 1.5;
+          if (dist > startDecay) {
+            const t = (dist - startDecay) / (endDecay - startDecay || 1);
+            const clampedT = Math.max(0.0, Math.min(1.0, t));
+            rangeFactor = 1.0 - (clampedT * clampedT * (3.0 - 2.0 * clampedT));
+          }
+
+          if (rangeFactor > 0.0) {
             // Pull grid lines towards magnets
             let pull = (obj.mass * 60.0) / (dist * 0.04 + 1);
-
-            // Smooth range cutoff at gravityRange boundaries
-            if (dist > this.gravityRange * 0.8) {
-              const rangeFactor = 1.0 - (dist - this.gravityRange * 0.8) / (this.gravityRange * 0.2);
-              pull *= Math.max(0.0, rangeFactor);
-            }
+            pull *= rangeFactor;
 
             let pullX = (dx / dist) * pull;
             let pullY = (dy / dist) * pull;
@@ -1055,11 +1114,11 @@ export class Simulation {
             const G_sim = (this.gravity * 1e11) * 20.0;
             const J = 0.4 * obj.mass * (obj.radius * obj.radius) * (obj.angularVelocity || 0.0);
             const c2 = this.c * this.c;
-            const omegaDrag = (2.0 * G_sim * J) / (c2 * (dist * dist * dist + 1000.0));
+            const omegaDrag = (2.0 * G_sim * J) / (c2 * (dist * dist * dist));
 
             // Rotational twist based on push away setting
             const deRotation = this.darkEnergy > 0.0 ? (this.darkEnergy * 0.015 * (obj.mass / 100.0) * Math.exp(-dist / 80.0)) : 0.0;
-            const totalTwist = (omegaDrag * 6.0) + deRotation; // Amplified multiplier for beautiful 2D rendering
+            const totalTwist = ((omegaDrag * 6.0) + deRotation) * rangeFactor; // Amplified multiplier for beautiful 2D rendering
 
             if (totalTwist > 0.0) {
               const cosT = Math.cos(totalTwist);
@@ -1082,14 +1141,21 @@ export class Simulation {
         const dyAttr = this.attractor.y - node.oy;
         const distAttr = Math.sqrt(dxAttr * dxAttr + dyAttr * dyAttr) || 1;
         
-        if (distAttr < this.gravityRange) {
-          let pull = (this.attractor.strength * 18.0) / (distAttr * 0.04 + 1);
+        const strengthScale = Math.sqrt(this.attractor.strength / 5.0);
+        const effectiveRange = this.individualPull ? (this.gravityRange + 1 * (strengthScale - 1.0)) : this.gravityRange;
 
-          // Smooth range cutoff at gravityRange boundaries
-          if (distAttr > this.gravityRange * 0.8) {
-            const rangeFactor = 1.0 - (distAttr - this.gravityRange * 0.8) / (this.gravityRange * 0.2);
-            pull *= Math.max(0.0, rangeFactor);
-          }
+        let rangeFactor = 1.0;
+        const startDecay = effectiveRange * 0.5;
+        const endDecay = effectiveRange * 1.5;
+        if (distAttr > startDecay) {
+          const t = (distAttr - startDecay) / (endDecay - startDecay || 1);
+          const clampedT = Math.max(0.0, Math.min(1.0, t));
+          rangeFactor = 1.0 - (clampedT * clampedT * (3.0 - 2.0 * clampedT));
+        }
+
+        if (rangeFactor > 0.0) {
+          let pull = (this.attractor.strength * 18.0) / (distAttr * 0.04 + 1);
+          pull *= rangeFactor;
 
           dxTotal += (dxAttr / distAttr) * pull;
           dyTotal += (dyAttr / distAttr) * pull;

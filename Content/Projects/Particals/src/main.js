@@ -69,6 +69,7 @@ const explanationText = document.getElementById('explanation-text');
 const eventLogList = document.getElementById('event-log-list');
 
 // Interactive Toggles
+const toggleIndividualPull = document.getElementById('toggle-individual-pull');
 const toggleCollisions = document.getElementById('toggle-collisions');
 const toggleWaveforms = document.getElementById('toggle-waveforms');
 const toggleNonDestructible = document.getElementById('toggle-non-destructible');
@@ -291,6 +292,7 @@ async function main() {
   }
 
   if (distributionSelect) sim.populationStyle = distributionSelect.value;
+  if (toggleIndividualPull) sim.individualPull = toggleIndividualPull.checked;
   if (toggleCollisions) sim.intraCollisions = toggleCollisions.checked;
   if (toggleWaveforms) sim.waveTrails = toggleWaveforms.checked;
   if (toggleNonDestructible) sim.nonDestructibleCores = toggleNonDestructible.checked;
@@ -639,6 +641,13 @@ async function main() {
   tabVector.addEventListener('click', () => updateTabs(tabVector, 'vector'));
 
   // Toggles
+  if (toggleIndividualPull) {
+    toggleIndividualPull.addEventListener('change', (e) => {
+      sim.individualPull = e.target.checked;
+      appendLog(`INDIVIDUAL_PULL_RANGE_STATE: ${sim.individualPull}`);
+    });
+  }
+
   toggleCollisions.addEventListener('change', (e) => {
     sim.intraCollisions = e.target.checked;
     appendLog(`PARTICLE_INTER_COLLISION_STATE: ${sim.intraCollisions}`);
