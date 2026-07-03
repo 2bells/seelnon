@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Particle Playground</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div class="terminal-container">
+    
+    <!-- Header: Brutalist System Title -->
+    <header class="terminal-header">
+      <div class="header-main">
+        <h1 class="logo-title">PARTICLE_PLAYGROUND_v1.0.0</h1>
+      </div>
+      <div class="header-status">
+        <div class="status-indicator">
+          <span class="indicator-label">HARDWARE:</span>
+          <span id="gpu-status" class="indicator-value status-checking">DETECTING...</span>
+        </div>
+        <div class="status-indicator">
+          <span class="indicator-label">CURRENT_STATE:</span>
+          <span id="vibrational-state" class="indicator-value text-amber">STABLE</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Core Layout Grid -->
+    <main class="terminal-grid">
+      
+      <!-- Left Column: Parameters and Medium Config -->
+      <section class="control-panel panel">
+        <h2 class="panel-title">[01] CONTROLS</h2>
+        
+        <!-- Starting Shape Selector -->
+        <div class="control-group">
+          <label class="control-label" for="medium-select">STARTING_SHAPE</label>
+          <select id="medium-select" class="terminal-select">
+            <option value="A" selected>Option A: Straight Lines</option>
+            <option value="B">Option B: Swirling Circle</option>
+            <option value="C">Option C: Free Flowing</option>
+          </select>
+        </div>
+
+        <!-- Particle Sandbox Knobs -->
+        <div class="panel-section-title">WIND_OPTIONS</div>
+        
+        <div class="control-row">
+          <div class="control-group">
+            <label class="control-label" for="input-frequency">WIND_SPEED</label>
+            <div class="input-with-unit">
+              <input type="number" id="input-frequency" class="terminal-input" value="1.0" step="0.1">
+              <span id="frequency-unit" class="input-unit">units</span>
+            </div>
+            <input type="range" id="range-frequency" class="terminal-slider" min="0.0" max="100" step="0.1" value="1.0">
+          </div>
+        </div>
+
+
+        <!-- Movement Options -->
+        <div class="panel-section-title">MOVEMENT_OPTIONS</div>
+
+        <div class="control-row">
+          <div class="control-group">
+            <label class="control-label" for="distribution-select">STARTING_PATTERN</label>
+            <select id="distribution-select" class="terminal-select">
+              <option value="default">Standard Group</option>
+              <option value="orbital">Round Ring</option>
+              <option value="chaos">Messy Cloud</option>
+              <option value="spiral">Spiral Swirl</option>
+              <option value="grid" selected>Square Grid</option>
+              <option value="central">Center Pile</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <div class="control-group">
+            <label class="control-label" for="range-particles">DOT_COUNT</label>
+            <div class="slider-header">
+              <input type="range" id="range-particles" class="terminal-slider" min="500" max="10000" step="100" value="3000">
+              <input type="text" id="particle-count-display" class="badge" value="3000">
+            </div>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <div class="control-group">
+            <label class="control-label" for="range-gravity">PULL_FORCE</label>
+            <div class="slider-header">
+              <input type="range" id="range-gravity" class="terminal-slider" min="0.1" max="30.0" step="0.01" value="6.67">
+              <input type="text" id="gravity-val-display" class="badge" value="6.67">
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="range-drag">FRICTION</label>
+            <div class="slider-header">
+              <input type="range" id="range-drag" class="terminal-slider" min="0" max="0.2" step="0.001" value="0.1">
+              <input type="text" id="drag-val-display" class="badge" value="0.100">
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="range-sim-speed">PLAY_SPEED</label>
+            <div class="slider-header">
+              <input type="range" id="range-sim-speed" class="terminal-slider" min="0.1" max="10.0" step="0.1" value="1.0">
+              <input type="text" id="sim-speed-display" class="badge" value="1.0x">
+            </div>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <div class="control-group">
+            <label class="control-label" for="range-dark-energy">PUSH_AWAY_FORCE</label>
+            <div class="slider-header">
+              <input type="range" id="range-dark-energy" class="terminal-slider" min="0" max="30.0" step="0.1" value="0.0">
+              <input type="text" id="dark-energy-val-display" class="badge" value="0.0">
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="range-orbital-boost">SPIN_SPEED</label>
+            <div class="slider-header">
+              <input type="range" id="range-orbital-boost" class="terminal-slider" min="0" max="400.0" step="0.1" value="105.0">
+              <input type="text" id="orbital-boost-val-display" class="badge" value="105.0x">
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="range-gravity-range">PULL_DISTANCE</label>
+            <div class="slider-header">
+              <input type="range" id="range-gravity-range" class="terminal-slider" min="0" max="800" step="5" value="70">
+              <input type="text" id="gravity-range-val-display" class="badge" value="70px">
+            </div>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <div class="control-group">
+            <label class="control-label" for="range-spin-velocity">STARTING_SPIN</label>
+            <div class="slider-header">
+              <input type="range" id="range-spin-velocity" class="terminal-slider" min="-10.0" max="10.0" step="0.1" value="2.5">
+              <input type="text" id="spin-velocity-val-display" class="badge" value="2.5 rad/s">
+            </div>
+          </div>
+        </div>
+
+        <div class="control-buttons">
+          <button id="btn-pause" class="terminal-btn font-mono">PAUSE</button>
+          <button id="btn-explode" class="terminal-btn font-mono btn-alert">BOOM</button>
+          <button id="btn-supernova" class="terminal-btn font-mono btn-alert" style="color: #ffaa00; border-color: #ffaa00;">MAGNET_BOOM</button>
+          <button id="btn-reset" class="terminal-btn font-mono">RESTART</button>
+        </div>
+      </section>
+
+      <!-- Center Column: Main Interactive Canvas -->
+      <section class="viewport-panel panel">
+        <div class="viewport-header">
+          <h2 class="panel-title">[02] THE_PLAYGROUND</h2>
+          <div class="viewport-mode-tabs">
+            <button id="tab-physics" class="tab-btn">DOTS</button>
+            <button id="tab-grid" class="tab-btn active">WOBBLY_GRID</button>
+            <button id="tab-vector" class="tab-btn">FLOW_ARROWS</button>
+          </div>
+        </div>
+        
+        <div class="canvas-container">
+          <canvas id="sim-canvas"></canvas>
+          
+          <!-- On-Canvas HUD HUD HUD -->
+          <div class="canvas-hud">
+            <div class="hud-item" style="display: none;">
+              <span class="hud-lbl">SPEED:</span>
+              <span id="hud-val-freq" class="hud-val text-green">---</span>
+            </div>
+            <div class="hud-item" style="display: none;">
+              <span class="hud-lbl">ENERGY:</span>
+              <span id="hud-val-energy" class="hud-val text-amber">---</span>
+            </div>
+            <div class="hud-item" style="display: none;">
+              <span class="hud-lbl">SPIN_TYPE:</span>
+              <span id="hud-val-dim" class="hud-val">---</span>
+            </div>
+            <div class="hud-item" style="display: none;">
+              <span class="hud-lbl">BURST_LIMIT:</span>
+              <span id="hud-val-clump-threshold" class="hud-val text-cyan">---</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-lbl">STATE:</span>
+              <span id="hud-val-spacetime-state" class="hud-val text-red">---</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid distortion controller & interactive attractors -->
+        <div class="viewport-footer">
+          <span class="footer-hint">CLICK OR DRAG THE SCREEN TO ADD MAGNETS</span>
+          <div class="interactive-toggles">
+            <label class="toggle-container">
+              <input type="checkbox" id="toggle-collisions" checked>
+              <span class="toggle-label">DOTS_BUMP</span>
+            </label>
+            <label class="toggle-container">
+              <input type="checkbox" id="toggle-waveforms" checked>
+              <span class="toggle-label">TAIL_TRAILS</span>
+            </label>
+            <label class="toggle-container">
+              <input type="checkbox" id="toggle-non-destructible" checked>
+              <span class="toggle-label">UNBREAKABLE_MAGNETS</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer Status Bar -->
+    <footer class="terminal-footer">
+      <div class="footer-item">TIME: <span id="clock-display" class="font-mono">00:00:00</span></div>
+      <div class="footer-item">DRAW_METHOD: <span id="active-engine" class="font-mono text-green">---</span></div>
+      <div class="footer-item">PORTFOLIO_DEPLOY: <span class="font-mono text-amber">Hi!</span></div>
+    </footer>
+
+  </div>
+
+  <!-- Entry module script -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
