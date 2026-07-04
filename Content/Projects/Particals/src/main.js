@@ -73,6 +73,8 @@ const toggleIndividualPull = document.getElementById('toggle-individual-pull');
 const toggleCollisions = document.getElementById('toggle-collisions');
 const toggleWaveforms = document.getElementById('toggle-waveforms');
 const toggleNonDestructible = document.getElementById('toggle-non-destructible');
+const togglePermanentClump = document.getElementById('toggle-permanent-clump');
+const toggleTrappedDots = document.getElementById('toggle-trapped-dots');
 
 // Core App Instances
 let sim = null;
@@ -87,6 +89,7 @@ function appendLog(message) {
   eventLogList.appendChild(line);
   eventLogList.scrollTop = eventLogList.scrollHeight;
 }
+window.appendLog = appendLog;
 
 
 function formatSci(val) {
@@ -296,6 +299,8 @@ async function main() {
   if (toggleCollisions) sim.intraCollisions = toggleCollisions.checked;
   if (toggleWaveforms) sim.waveTrails = toggleWaveforms.checked;
   if (toggleNonDestructible) sim.nonDestructibleCores = toggleNonDestructible.checked;
+  if (togglePermanentClump) sim.permanentClumps = togglePermanentClump.checked;
+  if (toggleTrappedDots) sim.trappedDots = toggleTrappedDots.checked;
 
   // Re-run simulation initialization with the synchronized values
   sim.init();
@@ -662,6 +667,20 @@ async function main() {
     sim.nonDestructibleCores = e.target.checked;
     appendLog(`NON_DESTRUCTIBLE_CORES_STATE: ${sim.nonDestructibleCores}`);
   });
+
+  if (togglePermanentClump) {
+    togglePermanentClump.addEventListener('change', (e) => {
+      sim.permanentClumps = e.target.checked;
+      appendLog(`PERMANENT_CLUMPS_STATE: ${sim.permanentClumps}`);
+    });
+  }
+
+  if (toggleTrappedDots) {
+    toggleTrappedDots.addEventListener('change', (e) => {
+      sim.trappedDots = e.target.checked;
+      appendLog(`TRAPPED_DOTS_STATE: ${sim.trappedDots}`);
+    });
+  }
 
   // Interactive mouse click attractor setup
   const getCanvasMousePos = (e) => {

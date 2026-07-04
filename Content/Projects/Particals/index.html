@@ -96,12 +96,12 @@
           <div class="control-group">
             <label class="control-label" for="range-drag">FRICTION</label>
             <div class="slider-header">
-              <input type="range" id="range-drag" class="terminal-slider" min="0" max="0.2" step="0.001" value="0.1">
-              <input type="text" id="drag-val-display" class="badge" value="0.100">
+              <input type="range" id="range-drag" class="terminal-slider" min="0" max="0.2" step="0.001" value="0.0">
+              <input type="text" id="drag-val-display" class="badge" value="0.000">
             </div>
           </div>
           <div class="control-group">
-            <label class="control-label" for="range-sim-speed">PLAY_SPEED</label>
+            <label class="control-label" for="range-sim-speed">PHASE</label>
             <div class="slider-header">
               <input type="range" id="range-sim-speed" class="terminal-slider" min="0.1" max="10.0" step="0.1" value="1.0">
               <input type="text" id="sim-speed-display" class="badge" value="1.0x">
@@ -120,8 +120,8 @@
           <div class="control-group">
             <label class="control-label" for="range-orbital-boost">SPIN_SPEED</label>
             <div class="slider-header">
-              <input type="range" id="range-orbital-boost" class="terminal-slider" min="0" max="400.0" step="0.1" value="44.0">
-              <input type="text" id="orbital-boost-val-display" class="badge" value="44.0x">
+              <input type="range" id="range-orbital-boost" class="terminal-slider" min="0" max="400.0" step="0.1" value="50.0">
+              <input type="text" id="orbital-boost-val-display" class="badge" value="50.0x">
             </div>
           </div>
           <div class="control-group">
@@ -137,15 +137,15 @@
           <div class="control-group">
             <label class="control-label" for="range-spin-velocity">STARTING_SPIN</label>
             <div class="slider-header">
-              <input type="range" id="range-spin-velocity" class="terminal-slider" min="-10.0" max="10.0" step="0.1" value="2.5">
-              <input type="text" id="spin-velocity-val-display" class="badge" value="2.5 rad/s">
+              <input type="range" id="range-spin-velocity" class="terminal-slider" min="-10.0" max="10.0" step="0.1" value="1.0">
+              <input type="text" id="spin-velocity-val-display" class="badge" value="1.0 rad/s">
             </div>
           </div>
           <div class="control-group">
             <label class="control-label" for="range-center-bias">CENTER_BIAS</label>
             <div class="slider-header">
-              <input type="range" id="range-center-bias" class="terminal-slider" min="0.0" max="5.0" step="0.1" value="1.0">
-              <input type="text" id="center-bias-val-display" class="badge" value="1.0x">
+              <input type="range" id="range-center-bias" class="terminal-slider" min="0.0" max="5.0" step="0.1" value="0.0">
+              <input type="text" id="center-bias-val-display" class="badge" value="0.0x">
             </div>
           </div>
         </div>
@@ -201,7 +201,7 @@
         <div class="viewport-footer">
           <div class="interactive-toggles">
             <label class="toggle-container">
-              <input type="checkbox" id="toggle-individual-pull">
+              <input type="checkbox" id="toggle-individual-pull" checked>
               <span class="toggle-label">INDIVIDUAL_PULL</span>
             </label>
             <label class="toggle-container">
@@ -215,6 +215,14 @@
             <label class="toggle-container">
               <input type="checkbox" id="toggle-non-destructible" checked>
               <span class="toggle-label">UNBREAKABLE_MAGNETS</span>
+            </label>
+            <label class="toggle-container">
+              <input type="checkbox" id="toggle-permanent-clump" checked>
+              <span class="toggle-label">PERMANENT_CLUMPS</span>
+            </label>
+            <label class="toggle-container">
+              <input type="checkbox" id="toggle-trapped-dots" checked>
+              <span class="toggle-label">TRAPPED_DOTS</span>
             </label>
           </div>
         </div>

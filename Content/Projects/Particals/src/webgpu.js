@@ -116,8 +116,8 @@ export class WebGPURenderer {
         radius: f32,
         active: u32,
         spin: f32,
-        pad2: f32,
-        pad3: f32,
+        isForming: u32,
+        foldingProgress: f32,
       }
 
       @group(0) @binding(2) var<uniform> singularities: array<Singularity, 16>;
@@ -202,7 +202,7 @@ export class WebGPURenderer {
             let rangeFactor = 1.0 - smoothstep(startDecay, endDecay, dist);
 
             if (rangeFactor > 0.0) {
-              if (dist < 8.0) {
+              if (dist < 8.0 && sing.isForming == 0u) {
                 // Plunged into the central singularity core!
                 let seed = index + u32(params.time * 1337.0);
                 if (hash(seed) < 0.002) {
@@ -233,65 +233,93 @@ export class WebGPURenderer {
                 let L2 = L * L;
                 let c2 = params.c * params.c;
                 
-                // Relativistic correction factor (attractive force increases dramatically near event horizon)
-                let grCorrection = 1.0 + (3.0 * L2) / (c2 * (dist * dist + 16.0));
-                var force = (G_sim * sing.mass) / (dist * dist + 16.0) * grCorrection;
-                
-                // Apply smooth gravity range factor
-                force = force * rangeFactor;
+                if (sing.isForming == 1u) {
+                  // Speculative Fold Suction & Wrapping Mechanics
+                  let grCorrection = 1.0 + (3.0 * L2) / (c2 * (dist * dist + 16.0));
+                  let baseGravityForce = (G_sim * sing.mass) / (dist * dist + 16.0) * grCorrection;
+                  var force = baseGravityForce * sing.foldingProgress; // Gravity grows as progress seals
+                  force = force * rangeFactor;
 
-                ax += (dx / dist) * force;
-                ay += (dy / dist) * force;
+                  ax += (dx / dist) * force;
+                  ay += (dy / dist) * force;
 
-                // Relativistic Lense-Thirring frame dragging in WebGPU
-                let J = 0.4 * sing.mass * (sing.radius * sing.radius) * sing.spin;
-                let vDrag = (2.0 * G_sim * J) / (c2 * (dist * dist + 100.0));
-                let tx = -dy / dist;
-                let ty = dx / dist;
-                ax += (tx * vDrag - rvx) * 0.15 * rangeFactor;
-                ay += (ty * vDrag - rvy) * 0.15 * rangeFactor;
+                  // Strong spiral suction pull to pack energy in
+                  let suction = (sing.mass * 8.0 * (1.0 - sing.foldingProgress)) / (dist + 20.0);
+                  ax += (dx / dist) * suction * rangeFactor;
+                  ay += (dy / dist) * suction * rangeFactor;
 
-                // Instead of dark energy repulsion, rotate space around the collapsed object (rotating the spacetime well)
-                if (params.darkEnergy > 0.0) {
-                  let wellRotationSpeed = params.darkEnergy * (sing.mass / 100.0) * (20.0 / (dist + 30.0));
-                  ax += -ry * wellRotationSpeed * 0.05 * rangeFactor;
-                  ay += rx * wellRotationSpeed * 0.05 * rangeFactor;
-                }
+                  // Spiral twisting "cloth wrap" tangential force
+                  let wrapSpin = 8.0 * (1.0 - sing.foldingProgress) * (sing.mass / 100.0) * (30.0 / (dist + 20.0));
+                  let tx = -dy / dist;
+                  let ty = dx / dist;
+                  ax += tx * wrapSpin * rangeFactor;
+                  ay += ty * wrapSpin * rangeFactor;
 
-                // Centrifugal/Orbital Tangential Velocity Injection
-                if (params.orbitalBoost > 0.0) {
-                  let tangentialX = -dy / dist;
-                  let tangentialY = dx / dist;
-                  ax += tangentialX * params.orbitalBoost * 1.5 * rangeFactor;
-                  ay += tangentialY * params.orbitalBoost * 1.5 * rangeFactor;
-                }
-
-                // Color particles based on accretion disk zones - completely smooth gradient!
-                let k = dist / eventHorizon;
-                if (k < 1.0) {
-                  let t = k;
-                  p.color_r = 1.0;
-                  p.color_g = 1.0 - 0.8 * t;
-                  p.color_b = 1.0 - 1.0 * t;
-                } else if (k < 2.0) {
-                  let t = k - 1.0;
-                  p.color_r = 1.0;
-                  p.color_g = 0.2 + 0.4 * t;
-                  p.color_b = 0.0;
-                } else if (k < 3.5) {
-                  let t = (k - 2.0) / 1.5;
-                  p.color_r = 1.0;
-                  p.color_g = 0.6 + 0.2 * t;
-                  p.color_b = 0.0;
-                } else if (k < 5.0) {
-                  let t = (k - 3.5) / 1.5;
-                  p.color_r = 1.0 + (p.orig_r - 1.0) * t;
-                  p.color_g = 0.8 + (p.orig_g - 0.8) * t;
-                  p.color_b = 0.0 + (p.orig_b - 0.0) * t;
-                } else {
+                  // Particles are not bound yet and keep their original colors
                   p.color_r = p.orig_r;
                   p.color_g = p.orig_g;
                   p.color_b = p.orig_b;
+                } else {
+                  // Standard Newtonian/GR Gravity & Frame Dragging
+                  let grCorrection = 1.0 + (3.0 * L2) / (c2 * (dist * dist + 16.0));
+                  var force = (G_sim * sing.mass) / (dist * dist + 16.0) * grCorrection;
+                  
+                  // Apply smooth gravity range factor
+                  force = force * rangeFactor;
+
+                  ax += (dx / dist) * force;
+                  ay += (dy / dist) * force;
+
+                  // Relativistic Lense-Thirring frame dragging in WebGPU
+                  let J = 0.4 * sing.mass * (sing.radius * sing.radius) * sing.spin;
+                  let vDrag = (2.0 * G_sim * J) / (c2 * (dist * dist + 100.0));
+                  let tx = -dy / dist;
+                  let ty = dx / dist;
+                  ax += (tx * vDrag - rvx) * 0.15 * rangeFactor;
+                  ay += (ty * vDrag - rvy) * 0.15 * rangeFactor;
+
+                  // Instead of dark energy repulsion, rotate space around the collapsed object (rotating the spacetime well)
+                  if (params.darkEnergy > 0.0) {
+                    let wellRotationSpeed = params.darkEnergy * (sing.mass / 100.0) * (20.0 / (dist + 30.0));
+                    ax += -ry * wellRotationSpeed * 0.05 * rangeFactor;
+                    ay += rx * wellRotationSpeed * 0.05 * rangeFactor;
+                  }
+
+                  // Centrifugal/Orbital Tangential Velocity Injection
+                  if (params.orbitalBoost > 0.0) {
+                    let tangentialX = -dy / dist;
+                    let tangentialY = dx / dist;
+                    ax += tangentialX * params.orbitalBoost * 1.5 * rangeFactor;
+                    ay += tangentialY * params.orbitalBoost * 1.5 * rangeFactor;
+                  }
+
+                  // Color particles based on accretion disk zones - completely smooth gradient!
+                  let k = dist / eventHorizon;
+                  if (k < 1.0) {
+                    let t = k;
+                    p.color_r = 1.0;
+                    p.color_g = 1.0 - 0.8 * t;
+                    p.color_b = 1.0 - 1.0 * t;
+                  } else if (k < 2.0) {
+                    let t = k - 1.0;
+                    p.color_r = 1.0;
+                    p.color_g = 0.2 + 0.4 * t;
+                    p.color_b = 0.0;
+                  } else if (k < 3.5) {
+                    let t = (k - 2.0) / 1.5;
+                    p.color_r = 1.0;
+                    p.color_g = 0.6 + 0.2 * t;
+                    p.color_b = 0.0;
+                  } else if (k < 5.0) {
+                    let t = (k - 3.5) / 1.5;
+                    p.color_r = 1.0 + (p.orig_r - 1.0) * t;
+                    p.color_g = 0.8 + (p.orig_g - 0.8) * t;
+                    p.color_b = 0.0 + (p.orig_b - 0.0) * t;
+                  } else {
+                    p.color_r = p.orig_r;
+                    p.color_g = p.orig_g;
+                    p.color_b = p.orig_b;
+                  }
                 }
               }
             }
@@ -633,8 +661,8 @@ export class WebGPURenderer {
         singViewF32[offset + 3] = obj.radius;
         singViewU32[offset + 4] = 1; // active
         singViewF32[offset + 5] = obj.angularVelocity || 0.0;
-        singViewF32[offset + 6] = 0.0;
-        singViewF32[offset + 7] = 0.0;
+        singViewU32[offset + 6] = obj.isForming ? 1 : 0; // isForming
+        singViewF32[offset + 7] = obj.foldingProgress || 0.0; // foldingProgress
       } else {
         singViewF32[offset + 0] = 0.0;
         singViewF32[offset + 1] = 0.0;
