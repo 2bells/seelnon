@@ -2,7 +2,7 @@
 
 ![img](blog/2026-07/img/Eye.jpg)
 
-Made robust particle system to play around. It fun to watch stuff happen and the suddenly getting a fun visuals
+Made robust particle system to play around. It fun to watch stuff happen and then suddenly getting a fun visuals
 
 ![](blog/2026-07/img/coo14_.jpg)
 ![](blog/2026-07/img/coo21_.jpg)
