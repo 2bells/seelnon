@@ -1150,8 +1150,7 @@ h1, h2, h3, h4 {
 }
 
 /* Calligraphy Ink Feel Filter */
-#practice-canvas,
-#hanzi-writer-container {
+#practice-canvas {
   filter: url(#ink-bleed);
 }
 

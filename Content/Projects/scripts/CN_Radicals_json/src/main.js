@@ -407,9 +407,13 @@ function setupCalligraphyCanvas() {
       // Compute and cache rect once at the beginning of the stroke gesture
       rect = container.getBoundingClientRect();
       
+      // Safe clientX/clientY with TouchEvent fallback for mobile WebKit / iPads
+      const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+      const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
       // Mathematically map client coordinate space back to the 320x320 canvas pixels
-      const x = ((e.clientX - rect.left) / rect.width) * STATE.canvas.width;
-      const y = ((e.clientY - rect.top) / rect.height) * STATE.canvas.height;
+      const x = ((clientX - rect.left) / rect.width) * STATE.canvas.width;
+      const y = ((clientY - rect.top) / rect.height) * STATE.canvas.height;
 
       // Always clear user drawing canvas to start fresh on a new user attempt
       clearDrawingCanvas();
@@ -430,8 +434,12 @@ function setupCalligraphyCanvas() {
         rect = container.getBoundingClientRect();
       }
       
-      const x = ((e.clientX - rect.left) / rect.width) * STATE.canvas.width;
-      const y = ((e.clientY - rect.top) / rect.height) * STATE.canvas.height;
+      // Safe clientX/clientY with TouchEvent fallback for mobile WebKit / iPads
+      const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+      const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
+      const x = ((clientX - rect.left) / rect.width) * STATE.canvas.width;
+      const y = ((clientY - rect.top) / rect.height) * STATE.canvas.height;
 
       const t = Date.now();
       const d = Math.hypot(x - lastX, y - lastY);
@@ -641,6 +649,19 @@ function initHanziWriter(char) {
       showOutline: true,
       showCharacter: false, // hide initially so they can practice
       highlightColor: '#ff4d4d', // Red highlight guide
+      onLoadCharDataSuccess: function(charData) {
+        // Once successfully loaded, perform a clean programmatical clear to avoid scuffed states
+        setTimeout(() => {
+          clearDrawingCanvas();
+          const canvasBox = document.getElementById('practice-canvas-box');
+          if (canvasBox) {
+            canvasBox.classList.remove('error-state', 'success-state', 'mastered-state');
+          }
+        }, 80);
+      },
+      onLoadCharDataError: function(err) {
+        console.warn('Failed to load Hanzi character data:', err);
+      }
     });
     
     startHanziQuiz();
@@ -870,8 +891,10 @@ function renderRadicalDetail() {
   document.getElementById('funfact-text').innerText = rad.funFact;
   document.getElementById('philosophy-quote').innerText = `“ ${rad.philosophy} ”`;
   
-  // Setup practice engine state
-  resetPracticeSession();
+  // Setup practice engine state with a small delay to avoid thread contention with DOM updates
+  setTimeout(() => {
+    resetPracticeSession();
+  }, 100);
 }
 
 function selectRadical(no) {
