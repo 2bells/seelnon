@@ -52,6 +52,7 @@ const STATE = {
   isPracticing: false,
   multiCharSequence: [], // characters in a multi-character word
   multiCharIndex: 0, // current character index being practiced
+  hanziWriterLoaded: false,
   
   // Particle Systems
   particles2D: [],
@@ -371,6 +372,8 @@ function saveSrsData() {
 
 // --- CALIGRAPHY CANVAS DRAWING ENGINE ---
 function setupCalligraphyCanvas() {
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1);
+  
   STATE.canvas = document.getElementById('practice-canvas');
   if (!STATE.canvas) return;
   STATE.ctx = STATE.canvas.getContext('2d');
@@ -388,6 +391,14 @@ function setupCalligraphyCanvas() {
   }
 
   clearDrawingCanvas();
+
+  if (isMobileDevice) {
+    // Hide our custom practice canvas on mobile/iPad to avoid heavy ink bleed SVG filters and use high performance native SVG drawing instead
+    STATE.canvas.style.display = 'none';
+    return;
+  } else {
+    STATE.canvas.style.display = 'block';
+  }
 
   const container = document.getElementById('hanzi-writer-container');
   if (container) {
@@ -637,6 +648,9 @@ function initHanziWriter(char) {
     return;
   }
   
+  STATE.hanziWriterLoaded = false;
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1);
+
   if (typeof HanziWriter !== 'undefined') {
     STATE.hanziWriter = HanziWriter.create('hanzi-writer-container', targetChar, {
       width: 320,
@@ -644,12 +658,13 @@ function initHanziWriter(char) {
       padding: 30,
       strokeColor: '#1a1a1a', // Pitch black charcoal ink
       outlineColor: 'rgba(0, 0, 0, 0.08)', // Faint trace guide
-      drawingColor: 'rgba(0, 0, 0, 0)', // User drawing is handled in high-perf custom canvas with speed sensitivity
+      drawingColor: isMobileDevice ? '#1a1a1a' : 'rgba(0, 0, 0, 0)', // User drawing is native on mobile, custom-buffered on desktop
       drawingWidth: 10,
       showOutline: true,
       showCharacter: false, // hide initially so they can practice
       highlightColor: '#ff4d4d', // Red highlight guide
       onLoadCharDataSuccess: function(charData) {
+        STATE.hanziWriterLoaded = true;
         // Once successfully loaded, perform a clean programmatical clear to avoid scuffed states
         setTimeout(() => {
           clearDrawingCanvas();
@@ -724,9 +739,23 @@ function startHanziQuiz() {
 function resetPracticeSession() {
   const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
   if (rad) {
-    STATE.multiCharSequence = [];
-    STATE.multiCharIndex = 0;
-    initHanziWriter(rad.char);
+    if (STATE.hanziWriter && STATE.hanziWriterLoaded) {
+      // Re-use the existing, already loaded HanziWriter instance to prevent redundant network requests and DOM recreations!
+      try {
+        STATE.hanziWriter.cancelQuiz();
+      } catch (e) {}
+      clearDrawingCanvas();
+      const canvasBox = document.getElementById('practice-canvas-box');
+      if (canvasBox) {
+        canvasBox.className = 'brush-canvas-box'; // reset state modifier classes
+      }
+      startHanziQuiz();
+    } else if (!STATE.hanziWriter) {
+      // Create new writer only when starting or when explicitly nullified
+      STATE.multiCharSequence = [];
+      STATE.multiCharIndex = 0;
+      initHanziWriter(rad.char);
+    }
   } else {
     clearDrawingCanvas();
   }
@@ -911,6 +940,15 @@ function selectRadical(no) {
   // Reset multi-character sequence on selection of a different item
   STATE.multiCharSequence = [];
   STATE.multiCharIndex = 0;
+  
+  // Explicitly cancel and nullify previous HanziWriter reference on new selection
+  if (STATE.hanziWriter) {
+    try {
+      STATE.hanziWriter.cancelQuiz();
+    } catch (e) {}
+    STATE.hanziWriter = null;
+  }
+  STATE.hanziWriterLoaded = false;
   
   renderRadicalDetail();
 }
