@@ -1556,6 +1556,14 @@ h1, h2, h3, h4 {
   transform: translateY(-1px);
 }
 
+/* Optimize the canvases to avoid slow compositing and promote hardware acceleration */
+.brush-canvas-box canvas {
+  will-change: transform;
+  transform: translateZ(0);
+  image-rendering: -webkit-optimize-contrast;
+}
+
+
 
 
 

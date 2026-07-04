@@ -369,15 +369,6 @@ function saveSrsData() {
   renderStats();
 }
 
-// Clean up accumulated transparent SVG paths rendered by HanziWriter for user drawings
-function cleanupHanziWriterUserStrokes() {
-  const container = document.getElementById('hanzi-writer-container');
-  if (!container) return;
-  // Select all SVG nodes used for user drawings (styled transparent) and remove them to prevent DOM bloat/lag
-  const userStrokes = container.querySelectorAll('[stroke*="rgba(0, 0, 0, 0)"], [stroke*="rgba(0,0,0,0)"], [stroke="transparent"]');
-  userStrokes.forEach(el => el.remove());
-}
-
 // --- CALIGRAPHY CANVAS DRAWING ENGINE ---
 function setupCalligraphyCanvas() {
   STATE.canvas = document.getElementById('practice-canvas');
@@ -408,10 +399,14 @@ function setupCalligraphyCanvas() {
     let lastY = 0;
     let lastT = 0;
     let lastWidth = 10;
+    let rect = null; // Cache rect to completely prevent layout thrashing on pointermove
 
     const startDrawing = (e) => {
       isDrawing = true;
-      const rect = container.getBoundingClientRect();
+      
+      // Compute and cache rect once at the beginning of the stroke gesture
+      rect = container.getBoundingClientRect();
+      
       // Mathematically map client coordinate space back to the 320x320 canvas pixels
       const x = ((e.clientX - rect.left) / rect.width) * STATE.canvas.width;
       const y = ((e.clientY - rect.top) / rect.height) * STATE.canvas.height;
@@ -429,7 +424,12 @@ function setupCalligraphyCanvas() {
 
     const draw = (e) => {
       if (!isDrawing) return;
-      const rect = container.getBoundingClientRect();
+      
+      // Robust fallback if rect wasn't cached on pointerdown
+      if (!rect) {
+        rect = container.getBoundingClientRect();
+      }
+      
       const x = ((e.clientX - rect.left) / rect.width) * STATE.canvas.width;
       const y = ((e.clientY - rect.top) / rect.height) * STATE.canvas.height;
 
@@ -458,8 +458,7 @@ function setupCalligraphyCanvas() {
 
     const stopDrawing = () => {
       isDrawing = false;
-      // Schedule a tiny microtask to clean up any leftover transparent stroke SVG paths
-      setTimeout(cleanupHanziWriterUserStrokes, 50);
+      rect = null; // Reset cached rect
     };
 
     // Remove any previously bound listeners if we setup multiple times (prevent memory leaks / duplicate events)
@@ -485,17 +484,12 @@ function drawInkSegment(x1, y1, x2, y2, w1, w2) {
   if (!STATE.ctx) return;
   const ctx = STATE.ctx;
 
-  // Ultra-lightweight native line rendering for zero lag on mobile and desktop
-  ctx.save();
+  // Extremely streamlined native rendering - no heavy ctx.save() or ctx.restore() overhead
+  ctx.lineWidth = (w1 + w2) / 2;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
-  ctx.lineWidth = (w1 + w2) / 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#1a1a1a'; // Pitch black charcoal ink
   ctx.stroke();
-  ctx.restore();
 }
 
 // Traditional Mizige (米字格) Tracing Grid
@@ -541,6 +535,10 @@ function drawCalligraphyGrid() {
 function clearDrawingCanvas() {
   if (!STATE.canvas || !STATE.ctx) return;
   STATE.ctx.clearRect(0, 0, STATE.canvas.width, STATE.canvas.height);
+  // Configure default drawing state once to avoid context state mutation overhead inside drawInkSegment
+  STATE.ctx.lineCap = 'round';
+  STATE.ctx.lineJoin = 'round';
+  STATE.ctx.strokeStyle = '#1a1a1a'; // Pitch black charcoal ink
 }
 
 // Hanzi Writer Integration Core
@@ -664,7 +662,6 @@ function startHanziQuiz() {
       }
       emitInkParticles(160, 160, 10, 'var(--accent-red)');
       clearDrawingCanvas(); // Reset speed-sensitive canvas for another attempt
-      cleanupHanziWriterUserStrokes(); // Remove transparent SVG drawings from HanziWriter
     },
     onCorrectStroke: function(strokeData) {
       const canvasBox = document.getElementById('practice-canvas-box');
@@ -679,7 +676,6 @@ function startHanziQuiz() {
       }
       emitInkParticles(160, 160, 15, '#1a1a1a');
       clearDrawingCanvas(); // Clear speed-sensitive drawing so HanziWriter vector renders perfectly
-      cleanupHanziWriterUserStrokes(); // Remove transparent SVG drawings from HanziWriter
     },
     onComplete: function(summary) {
       const canvasBox = document.getElementById('practice-canvas-box');
@@ -700,7 +696,6 @@ function startHanziQuiz() {
       
       markRadicalPracticed(STATE.selectedRadicalNo);
       clearDrawingCanvas(); // Clear speed-sensitive canvas on completion
-      cleanupHanziWriterUserStrokes(); // Clear transparent SVG drawings
     }
   });
 }
