@@ -114,6 +114,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
 // Initialize WebGPU if available
 async function initWebGPU() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  if (isMobile) {
+    console.log("Mobile device detected. Bypassing WebGPU initialization for an ultra-lightweight mobile experience.");
+    updateWebGpuStatus(false);
+    return;
+  }
+
   if (!navigator.gpu) {
     console.log("WebGPU not supported in this browser. Running high-performance 2D canvas particle fallback.");
     updateWebGpuStatus(false);
@@ -466,21 +473,17 @@ function setupCalligraphyCanvas() {
 function drawInkSegment(x1, y1, x2, y2, w1, w2) {
   if (!STATE.ctx) return;
   const ctx = STATE.ctx;
-  const dist = Math.hypot(x2 - x1, y2 - y1);
-  const steps = Math.ceil(dist / 0.5); // 0.5px steps for seamless ink fill (no gaps/beads)
 
+  // Ultra-lightweight native line rendering for zero lag on mobile and desktop
   ctx.save();
-  for (let i = 0; i <= steps; i++) {
-    const fraction = steps === 0 ? 1 : i / steps;
-    const cx = x1 + (x2 - x1) * fraction;
-    const cy = y1 + (y2 - y1) * fraction;
-    const cw = w1 + (w2 - w1) * fraction;
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, cw / 2, 0, Math.PI * 2);
-    ctx.fillStyle = '#1a1a1a'; // Pitch black charcoal ink
-    ctx.fill();
-  }
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineWidth = (w1 + w2) / 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1a1a1a'; // Pitch black charcoal ink
+  ctx.stroke();
   ctx.restore();
 }
 
