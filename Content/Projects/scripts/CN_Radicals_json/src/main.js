@@ -369,6 +369,15 @@ function saveSrsData() {
   renderStats();
 }
 
+// Clean up accumulated transparent SVG paths rendered by HanziWriter for user drawings
+function cleanupHanziWriterUserStrokes() {
+  const container = document.getElementById('hanzi-writer-container');
+  if (!container) return;
+  // Select all SVG nodes used for user drawings (styled transparent) and remove them to prevent DOM bloat/lag
+  const userStrokes = container.querySelectorAll('[stroke*="rgba(0, 0, 0, 0)"], [stroke*="rgba(0,0,0,0)"], [stroke="transparent"]');
+  userStrokes.forEach(el => el.remove());
+}
+
 // --- CALIGRAPHY CANVAS DRAWING ENGINE ---
 function setupCalligraphyCanvas() {
   STATE.canvas = document.getElementById('practice-canvas');
@@ -449,6 +458,8 @@ function setupCalligraphyCanvas() {
 
     const stopDrawing = () => {
       isDrawing = false;
+      // Schedule a tiny microtask to clean up any leftover transparent stroke SVG paths
+      setTimeout(cleanupHanziWriterUserStrokes, 50);
     };
 
     // Remove any previously bound listeners if we setup multiple times (prevent memory leaks / duplicate events)
@@ -534,9 +545,26 @@ function clearDrawingCanvas() {
 
 // Hanzi Writer Integration Core
 function initHanziWriter(char) {
-  const container = document.getElementById('hanzi-writer-container');
+  // Properly cancel previous quiz to release any internal HanziWriter references/timers
+  if (STATE.hanziWriter) {
+    try {
+      STATE.hanziWriter.cancelQuiz();
+    } catch (e) {
+      console.warn("Could not cancel previous quiz:", e);
+    }
+    STATE.hanziWriter = null;
+  }
+
+  let container = document.getElementById('hanzi-writer-container');
   if (!container) return;
-  container.innerHTML = '';
+  
+  // Re-create the container by cloning to strip all HanziWriter and previous event listeners completely
+  const newContainer = container.cloneNode(false);
+  container.parentNode.replaceChild(newContainer, container);
+  container = newContainer;
+  
+  // Re-run calligraphy canvas setup to attach clean drawing listeners to the new container node
+  setupCalligraphyCanvas();
   
   const canvasBox = document.getElementById('practice-canvas-box');
   if (canvasBox) {
@@ -636,6 +664,7 @@ function startHanziQuiz() {
       }
       emitInkParticles(160, 160, 10, 'var(--accent-red)');
       clearDrawingCanvas(); // Reset speed-sensitive canvas for another attempt
+      cleanupHanziWriterUserStrokes(); // Remove transparent SVG drawings from HanziWriter
     },
     onCorrectStroke: function(strokeData) {
       const canvasBox = document.getElementById('practice-canvas-box');
@@ -650,6 +679,7 @@ function startHanziQuiz() {
       }
       emitInkParticles(160, 160, 15, '#1a1a1a');
       clearDrawingCanvas(); // Clear speed-sensitive drawing so HanziWriter vector renders perfectly
+      cleanupHanziWriterUserStrokes(); // Remove transparent SVG drawings from HanziWriter
     },
     onComplete: function(summary) {
       const canvasBox = document.getElementById('practice-canvas-box');
@@ -670,6 +700,7 @@ function startHanziQuiz() {
       
       markRadicalPracticed(STATE.selectedRadicalNo);
       clearDrawingCanvas(); // Clear speed-sensitive canvas on completion
+      cleanupHanziWriterUserStrokes(); // Clear transparent SVG drawings
     }
   });
 }
