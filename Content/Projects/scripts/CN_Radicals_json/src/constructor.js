@@ -83,6 +83,16 @@ export const enrichRadical = (rad, index, dataMap) => {
 };
 
 export async function getRadicals() {
+  try {
+    const cached = localStorage.getItem('kangxi_all_radicals_cached');
+    if (cached) {
+      console.log('Using cached radicals database.');
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    console.warn('Could not read cached radicals database:', e);
+  }
+
   const dataMap = {};
   await Promise.all(importNames.map(async (name) => {
     dataMap[name] = await grabJsonFile(name);
@@ -95,6 +105,12 @@ export async function getRadicals() {
     ...enriched214,
     ...importNames.filter(name => name !== '214').flatMap(name => dataMap[name] || [])
   ];
+
+  try {
+    localStorage.setItem('kangxi_all_radicals_cached', JSON.stringify(combinedRadicals));
+  } catch (e) {
+    console.warn('Could not save radicals database to localStorage:', e);
+  }
 
   return combinedRadicals;
 }

@@ -560,7 +560,54 @@ function clearDrawingCanvas() {
   STATE.ctx.strokeStyle = '#1a1a1a'; // Pitch black charcoal ink
 }
 
-// Hanzi Writer Integration Core
+// Hanzi Writer Integration Core with Dual-Layer caching (In-Memory + persistent LocalStorage)
+const HANZI_CHAR_DATA_CACHE = new Map();
+
+function customCharDataLoader(char, onComplete, onFailure) {
+  // 1. Check in-memory cache
+  if (HANZI_CHAR_DATA_CACHE.has(char)) {
+    onComplete(HANZI_CHAR_DATA_CACHE.get(char));
+    return;
+  }
+  
+  // 2. Check localStorage cache to completely eliminate slow loading & lags!
+  try {
+    const cached = localStorage.getItem(`hanzi-char-svg-${char}`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      HANZI_CHAR_DATA_CACHE.set(char, parsed);
+      onComplete(parsed);
+      return;
+    }
+  } catch (e) {
+    console.warn("localStorage read error in customCharDataLoader:", e);
+  }
+  
+  // 3. Fallback to fast JSDelivr CDN
+  const cdnUrl = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(char)}.json`;
+  
+  fetch(cdnUrl)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      // Save to memory cache
+      HANZI_CHAR_DATA_CACHE.set(char, data);
+      
+      // Save to persistent storage cache
+      try {
+        localStorage.setItem(`hanzi-char-svg-${char}`, JSON.stringify(data));
+      } catch (e) {
+        // Safe check for quota limits or incognito restrictions
+      }
+      onComplete(data);
+    })
+    .catch(err => {
+      onFailure(err);
+    });
+}
+
 function initHanziWriter(char) {
   // Properly cancel previous quiz to release any internal HanziWriter references/timers
   if (STATE.hanziWriter) {
@@ -663,6 +710,7 @@ function initHanziWriter(char) {
       showOutline: true,
       showCharacter: false, // hide initially so they can practice
       highlightColor: '#ff4d4d', // Red highlight guide
+      charDataLoader: customCharDataLoader, // Enable instant local storage caching
       onLoadCharDataSuccess: function(charData) {
         STATE.hanziWriterLoaded = true;
         // Once successfully loaded, perform a clean programmatical clear to avoid scuffed states
@@ -738,17 +786,20 @@ function startHanziQuiz() {
 
 function resetPracticeSession() {
   const rad = radicals.find(r => r.no === STATE.selectedRadicalNo);
+  
+  // ALWAYS clear the user's drawing layers and container status classes instantly!
+  clearDrawingCanvas();
+  const canvasBox = document.getElementById('practice-canvas-box');
+  if (canvasBox) {
+    canvasBox.className = 'brush-canvas-box'; // Reset state modifier classes
+  }
+
   if (rad) {
     if (STATE.hanziWriter && STATE.hanziWriterLoaded) {
       // Re-use the existing, already loaded HanziWriter instance to prevent redundant network requests and DOM recreations!
       try {
         STATE.hanziWriter.cancelQuiz();
       } catch (e) {}
-      clearDrawingCanvas();
-      const canvasBox = document.getElementById('practice-canvas-box');
-      if (canvasBox) {
-        canvasBox.className = 'brush-canvas-box'; // reset state modifier classes
-      }
       startHanziQuiz();
     } else if (!STATE.hanziWriter) {
       // Create new writer only when starting or when explicitly nullified
@@ -756,8 +807,6 @@ function resetPracticeSession() {
       STATE.multiCharIndex = 0;
       initHanziWriter(rad.char);
     }
-  } else {
-    clearDrawingCanvas();
   }
 }
 
@@ -868,7 +917,14 @@ function renderRadicalGrid() {
     countDisplay.innerText = `${filtered.length} / ${radicals.length}`;
   }
   
-  filtered.forEach(rad => {
+  // Limit visible items for blazing-fast DOM performance and zero layout lag!
+  if (!STATE.gridLimit) {
+    STATE.gridLimit = 120;
+  }
+  const LIMIT = STATE.gridLimit;
+  const visibleItems = filtered.slice(0, LIMIT);
+  
+  visibleItems.forEach(rad => {
     const cell = document.createElement('div');
     const isActive = rad.no === STATE.selectedRadicalNo;
     cell.className = `radical-cell ${isActive ? 'active' : ''}`;
@@ -889,6 +945,45 @@ function renderRadicalGrid() {
     
     grid.appendChild(cell);
   });
+  
+  // Render show more button if there are more remaining matching items
+  if (filtered.length > LIMIT) {
+    const showMoreCell = document.createElement('div');
+    showMoreCell.className = 'radical-cell show-more-cell';
+    showMoreCell.style.gridColumn = '1 / -1';
+    showMoreCell.style.aspectRatio = 'auto';
+    showMoreCell.style.padding = '14px';
+    showMoreCell.style.marginTop = '6px';
+    showMoreCell.style.textAlign = 'center';
+    showMoreCell.style.background = 'rgba(212, 175, 55, 0.08)';
+    showMoreCell.style.border = '1px dashed rgba(212, 175, 55, 0.4)';
+    showMoreCell.style.borderRadius = 'var(--radius-md)';
+    showMoreCell.style.color = 'var(--accent-amber)';
+    showMoreCell.style.fontWeight = '700';
+    showMoreCell.style.fontSize = '0.8rem';
+    showMoreCell.style.fontFamily = 'var(--font-mono)';
+    showMoreCell.style.cursor = 'pointer';
+    showMoreCell.style.transition = 'all 0.2s ease';
+    
+    // Simple hover effect
+    showMoreCell.addEventListener('mouseenter', () => {
+      showMoreCell.style.background = 'rgba(212, 175, 55, 0.15)';
+      showMoreCell.style.borderColor = 'var(--accent-amber)';
+    });
+    showMoreCell.addEventListener('mouseleave', () => {
+      showMoreCell.style.background = 'rgba(212, 175, 55, 0.08)';
+      showMoreCell.style.borderColor = 'rgba(212, 175, 55, 0.4)';
+    });
+    
+    showMoreCell.innerHTML = `<span>SHOW MORE RADICALS (+${filtered.length - LIMIT} REMAINING)</span>`;
+    
+    showMoreCell.addEventListener('click', () => {
+      STATE.gridLimit += 120;
+      renderRadicalGrid();
+    });
+    
+    grid.appendChild(showMoreCell);
+  }
 }
 
 // Load details of the active selected radical into the Right View
@@ -2031,6 +2126,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (sInput) {
     sInput.addEventListener('input', (e) => {
       STATE.searchQuery = e.target.value;
+      STATE.gridLimit = 120;
       renderRadicalGrid();
     });
   }
@@ -2048,6 +2144,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     fCat.addEventListener('change', (e) => {
       STATE.filterCategory = e.target.value;
+      STATE.gridLimit = 120;
       renderRadicalGrid();
     });
   }
@@ -2057,6 +2154,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (fStrs) {
     fStrs.addEventListener('change', (e) => {
       STATE.filterStrokes = e.target.value;
+      STATE.gridLimit = 120;
       renderRadicalGrid();
     });
   }
