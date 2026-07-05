@@ -384,8 +384,8 @@ h1, h2, h3, h4 {
 }
 
 .radical-cell.active {
-  background: var(--accent-amber);
-  border-color: var(--accent-amber);
+  background: var(--accent-amber) !important;
+  border-color: var(--accent-amber) !important;
 }
 
 .radical-cell.active * {
@@ -402,28 +402,35 @@ h1, h2, h3, h4 {
   color: var(--text-muted);
 }
 
-.radical-cell .learned-dot {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 6px;
-  height: 6px;
-  background-color: var(--accent-amber);
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  z-index: 10;
+/* Learned / SRS State Background Tints */
+.radical-cell.state-mastered {
+  background: rgba(59, 130, 246, 0.05); /* Modern Blue Tint */
+  border-color: rgba(59, 130, 246, 0.12);
 }
 
-.radical-cell .learned-dot.mastered {
-  background-color: #3b82f6; /* Modern Blue */
+.radical-cell.state-mastered:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.6);
 }
 
-.radical-cell .learned-dot.forgotten {
-  background-color: #ef4444; /* Modern Red */
+.radical-cell.state-forgotten {
+  background: rgba(239, 68, 68, 0.05); /* Modern Red Tint */
+  border-color: rgba(239, 68, 68, 0.12);
 }
 
-.radical-cell.active .learned-dot {
-  background-color: #0F0F0F;
+.radical-cell.state-forgotten:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.radical-cell.state-learning {
+  background: rgba(212, 175, 55, 0.05); /* Modern Amber Tint */
+  border-color: rgba(212, 175, 55, 0.12);
+}
+
+.radical-cell.state-learning:hover {
+  background: rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.6);
 }
 
 .radical-cell .cell-char {

@@ -1041,29 +1041,31 @@ function renderRadicalGrid() {
   visibleItems.forEach(rad => {
     const cell = document.createElement('div');
     const isActive = rad.no === STATE.selectedRadicalNo;
-    cell.className = `radical-cell ${isActive ? 'active' : ''}`;
-    cell.setAttribute('data-no', rad.no);
-    cell.id = `cell-${rad.no}`;
+    let learnedClass = '';
     
     const isLearned = learnedSet.has(String(rad.no));
-    let dotHtml = '';
     if (isLearned) {
       const record = STATE.srs.learned[String(rad.no)];
-      let dotClass = '';
       if (record) {
         if (record.interval >= 14) {
-          dotClass = ' mastered';
+          learnedClass = ' state-mastered';
         } else if (record.forgotCount > 0 && record.interval <= 1) {
-          dotClass = ' forgotten';
+          learnedClass = ' state-forgotten';
+        } else {
+          learnedClass = ' state-learning';
         }
+      } else {
+        learnedClass = ' state-learning';
       }
-      dotHtml = `<span class="learned-dot${dotClass}" title="Learned Spaced Repetition Radical"></span>`;
     }
+    
+    cell.className = `radical-cell ${isActive ? 'active' : ''}${learnedClass}`;
+    cell.setAttribute('data-no', rad.no);
+    cell.id = `cell-${rad.no}`;
     
     // Display index inside grid item
     cell.innerHTML = `
       <span class="cell-no">${rad.no}</span>
-      ${dotHtml}
       <span class="cell-char">${rad.char}</span>
       <span class="cell-desc">${rad.meaning}</span>
       <span class="cell-strokes">${rad.strokes}</span>
@@ -1195,7 +1197,7 @@ function renderStats() {
   if (s) s.innerText = `${STATE.srs.streak} Days`;
 }
 
-// Update learned dots dynamically across all rendered cards in the grid
+// Update learned tints dynamically across all rendered cards in the grid
 function updateAllGridDots() {
   if (!STATE.srs || !STATE.srs.learned) return;
   const learnedSet = new Set(Object.keys(STATE.srs.learned).map(String));
@@ -1205,34 +1207,25 @@ function updateAllGridDots() {
     const no = cell.getAttribute('data-no');
     if (!no) return;
     
-    const isLearned = learnedSet.has(String(no));
-    let dot = cell.querySelector('.learned-dot');
+    // First, remove existing state classes and the legacy dot if present
+    cell.classList.remove('state-mastered', 'state-forgotten', 'state-learning');
+    const dot = cell.querySelector('.learned-dot');
+    if (dot) dot.remove();
     
+    const isLearned = learnedSet.has(String(no));
     if (isLearned) {
       const record = STATE.srs.learned[String(no)];
-      if (!dot) {
-        dot = document.createElement('span');
-        dot.className = 'learned-dot';
-        dot.title = 'Learned Spaced Repetition Radical';
-        const cellNo = cell.querySelector('.cell-no');
-        if (cellNo) {
-          cellNo.after(dot);
-        } else {
-          cell.appendChild(dot);
-        }
-      }
-      
-      // Reset classes & apply new status colors
-      dot.className = 'learned-dot';
       if (record) {
         if (record.interval >= 14) {
-          dot.classList.add('mastered');
+          cell.classList.add('state-mastered');
         } else if (record.forgotCount > 0 && record.interval <= 1) {
-          dot.classList.add('forgotten');
+          cell.classList.add('state-forgotten');
+        } else {
+          cell.classList.add('state-learning');
         }
+      } else {
+        cell.classList.add('state-learning');
       }
-    } else {
-      if (dot) dot.remove();
     }
   });
 }
