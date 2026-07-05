@@ -223,12 +223,55 @@ export async function openBlogWindow(title, openWindowFn) {
     if (videoMatch) cleanText = cleanText.replace(/\[video: .*\]/g, '').trim();
     if (iconMatch) cleanText = cleanText.replace(/\[icon: .*\]/g, '').trim();
 
+    const mathBlocks = [];
+    
+    // Replace display math blocks ($$...$$) first
+    cleanText = cleanText.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+      const placeholder = `MATHDISPLAYX${mathBlocks.length}X`;
+      mathBlocks.push({
+        placeholder,
+        formula: formula.trim(),
+        display: true
+      });
+      return placeholder;
+    });
+
+    // Replace inline math blocks ($...$)
+    cleanText = cleanText.replace(/\$([^\s$](?:[^\n$]*?[^\s$])?)\$/g, (match, formula) => {
+      const placeholder = `MATHINLINEX${mathBlocks.length}X`;
+      mathBlocks.push({
+        placeholder,
+        formula: formula.trim(),
+        display: false
+      });
+      return placeholder;
+    });
+
     let html = '';
     try {
       html = marked.parse(cleanText, { breaks: true, gfm: true });
     } catch (e) {
       html = marked.parse(cleanText);
     }
+
+    // Restore and render math blocks using KaTeX
+    mathBlocks.forEach(item => {
+      let rendered = '';
+      if (window.katex) {
+        try {
+          rendered = window.katex.renderToString(item.formula, {
+            displayMode: item.display,
+            throwOnError: false
+          });
+        } catch (err) {
+          console.error("KaTeX error rendering formula:", item.formula, err);
+          rendered = `<span class="math-error" style="color: #ef4444;">${item.formula}</span>`;
+        }
+      } else {
+        rendered = `<code class="math-fallback">${item.formula}</code>`;
+      }
+      html = html.replace(item.placeholder, rendered);
+    });
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     tempDiv.querySelectorAll('p').forEach(p => {
