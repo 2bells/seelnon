@@ -2,6 +2,7 @@
 // Built with pure Vanilla JS, Canvas, and WebGPU fallback. Zero modern bloat.
 
 import { getRadicals } from './constructor.js';
+import { getCachedSvg, setCachedSvg, getSrsState, setSrsState, getSrsConfig, setSrsConfig, getDbStorageStats } from './db.js';
 
 let radicals = [];
 
@@ -324,32 +325,55 @@ function updateAndRenderParticles() {
   }
 }
 
-// --- LOCAL STORAGE PERSISTENCE ---
-function loadSrsData() {
-  const saved = localStorage.getItem('kangxi_srs_state');
-  if (saved) {
-    try {
-      STATE.srs = JSON.parse(saved);
-      // Ensure essential fields exist
-      if (!STATE.srs.learned) STATE.srs.learned = {};
-      if (!STATE.srs.streak) STATE.srs.streak = 0;
-    } catch (e) {
-      console.warn("Could not load local storage SRS data.", e);
+// --- LOCAL STORAGE & INDEXEDDB PERSISTENCE ---
+async function loadSrsData() {
+  try {
+    const saved = await getSrsState();
+    if (saved) {
+      STATE.srs = saved;
+    } else {
+      // Fallback to localStorage for seamless migration!
+      const oldSaved = localStorage.getItem('kangxi_srs_state');
+      if (oldSaved) {
+        try {
+          STATE.srs = JSON.parse(oldSaved);
+          await setSrsState(STATE.srs);
+        } catch (e) {
+          console.warn("Could not migrate SRS data from localStorage:", e);
+        }
+      }
     }
+  } catch (e) {
+    console.warn("Could not load IndexedDB SRS data:", e);
   }
+
+  // Ensure essential fields exist
+  if (!STATE.srs) STATE.srs = {};
+  if (!STATE.srs.learned) STATE.srs.learned = {};
+  if (!STATE.srs.streak) STATE.srs.streak = 0;
   
   // Load srsConfig
-  const savedConfig = localStorage.getItem('kangxi_srs_config');
-  if (savedConfig) {
-    try {
-      STATE.srsConfig = JSON.parse(savedConfig);
-      if (!STATE.srsConfig.quizMode) STATE.srsConfig.quizMode = 'flashcard';
-      if (!STATE.srsConfig.enabledCategories) STATE.srsConfig.enabledCategories = [];
-      if (!STATE.srsConfig.enabledStrokes) STATE.srsConfig.enabledStrokes = [];
-    } catch (e) {
-      console.warn("Could not load local storage SRS config.", e);
+  try {
+    const savedConfig = await getSrsConfig();
+    if (savedConfig) {
+      STATE.srsConfig = savedConfig;
+    } else {
+      // Fallback to localStorage
+      const oldConfig = localStorage.getItem('kangxi_srs_config');
+      if (oldConfig) {
+        try {
+          STATE.srsConfig = JSON.parse(oldConfig);
+          await setSrsConfig(STATE.srsConfig);
+        } catch (e) {
+          console.warn("Could not migrate SRS config from localStorage:", e);
+        }
+      }
     }
-  } else {
+  } catch (e) {
+    console.warn("Could not load IndexedDB SRS config:", e);
+  }
+
+  if (!STATE.srsConfig) {
     // Enable all categories & strokes by default
     const allCategories = Array.from(new Set(radicals.map(r => r.category.toUpperCase())));
     const allStrokes = Array.from(new Set(radicals.map(r => r.strokes)));
@@ -358,16 +382,29 @@ function loadSrsData() {
       enabledCategories: allCategories,
       enabledStrokes: allStrokes
     };
+  } else {
+    if (!STATE.srsConfig.quizMode) STATE.srsConfig.quizMode = 'flashcard';
+    if (!STATE.srsConfig.enabledCategories) STATE.srsConfig.enabledCategories = [];
+    if (!STATE.srsConfig.enabledStrokes) STATE.srsConfig.enabledStrokes = [];
   }
 }
 
-function saveSrsConfig() {
-  localStorage.setItem('kangxi_srs_config', JSON.stringify(STATE.srsConfig));
+async function saveSrsConfig() {
+  try {
+    await setSrsConfig(STATE.srsConfig);
+  } catch (e) {
+    console.warn("Could not save SRS config to IndexedDB:", e);
+  }
 }
 
-function saveSrsData() {
-  localStorage.setItem('kangxi_srs_state', JSON.stringify(STATE.srs));
+async function saveSrsData() {
+  try {
+    await setSrsState(STATE.srs);
+  } catch (e) {
+    console.warn("Could not save SRS data to IndexedDB:", e);
+  }
   renderStats();
+  syncOfflineHanziData();
 }
 
 // --- CALIGRAPHY CANVAS DRAWING ENGINE ---
@@ -560,7 +597,7 @@ function clearDrawingCanvas() {
   STATE.ctx.strokeStyle = '#1a1a1a'; // Pitch black charcoal ink
 }
 
-// Hanzi Writer Integration Core with Dual-Layer caching (In-Memory + persistent LocalStorage)
+// Hanzi Writer Integration Core with Dual-Layer caching (In-Memory + persistent IndexedDB)
 const HANZI_CHAR_DATA_CACHE = new Map();
 
 function customCharDataLoader(char, onComplete, onFailure) {
@@ -570,42 +607,116 @@ function customCharDataLoader(char, onComplete, onFailure) {
     return;
   }
   
-  // 2. Check localStorage cache to completely eliminate slow loading & lags!
-  try {
-    const cached = localStorage.getItem(`hanzi-char-svg-${char}`);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      HANZI_CHAR_DATA_CACHE.set(char, parsed);
-      onComplete(parsed);
-      return;
-    }
-  } catch (e) {
-    console.warn("localStorage read error in customCharDataLoader:", e);
-  }
-  
-  // 3. Fallback to fast JSDelivr CDN
-  const cdnUrl = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(char)}.json`;
-  
-  fetch(cdnUrl)
-    .then(res => {
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return res.json();
-    })
-    .then(data => {
-      // Save to memory cache
-      HANZI_CHAR_DATA_CACHE.set(char, data);
-      
-      // Save to persistent storage cache
-      try {
-        localStorage.setItem(`hanzi-char-svg-${char}`, JSON.stringify(data));
-      } catch (e) {
-        // Safe check for quota limits or incognito restrictions
+  // 2. Check IndexedDB cache to completely eliminate slow loading, lags, & localStorage 5MB quota errors!
+  getCachedSvg(char)
+    .then(cached => {
+      if (cached) {
+        HANZI_CHAR_DATA_CACHE.set(char, cached);
+        onComplete(cached);
+      } else {
+        // Fallback to check localStorage for backward compatibility / migration
+        try {
+          const lsCached = localStorage.getItem(`hanzi-char-svg-${char}`);
+          if (lsCached) {
+            const parsed = JSON.parse(lsCached);
+            HANZI_CHAR_DATA_CACHE.set(char, parsed);
+            // Migrate it to IndexedDB in background
+            setCachedSvg(char, parsed).catch(()=>{});
+            onComplete(parsed);
+            return;
+          }
+        } catch (e) {}
+
+        // 3. Fallback to fast JSDelivr CDN
+        const cdnUrl = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(char)}.json`;
+        
+        fetch(cdnUrl)
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+            return res.json();
+          })
+          .then(data => {
+            // Save to memory cache
+            HANZI_CHAR_DATA_CACHE.set(char, data);
+            
+            // Save to persistent IndexedDB cache
+            setCachedSvg(char, data).catch(()=>{});
+            onComplete(data);
+          })
+          .catch(err => {
+            onFailure(err);
+          });
       }
-      onComplete(data);
     })
     .catch(err => {
-      onFailure(err);
+      console.warn("IndexedDB read error in customCharDataLoader, falling back to CDN:", err);
+      const cdnUrl = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(char)}.json`;
+      fetch(cdnUrl)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          HANZI_CHAR_DATA_CACHE.set(char, data);
+          onComplete(data);
+        })
+        .catch(err => {
+          onFailure(err);
+        });
     });
+}
+
+function syncOfflineHanziData() {
+  if (!STATE.srs || !STATE.srs.learned || !radicals || radicals.length === 0) return;
+  const learnedKeys = Object.keys(STATE.srs.learned);
+  
+  learnedKeys.forEach(no => {
+    const rad = radicals.find(r => r.no === parseInt(no) || r.no === String(no));
+    if (!rad || !rad.char) return;
+    
+    const charsToCache = Array.from(rad.char);
+    charsToCache.forEach(c => {
+      const isLatin = /^[A-Za-z0-9\s\-_]$/.test(c) || c.charCodeAt(0) < 128;
+      if (isLatin) return;
+
+      getCachedSvg(c)
+        .then(cached => {
+          if (!cached) {
+            // Check localStorage as well for migration
+            try {
+              const lsCached = localStorage.getItem(`hanzi-char-svg-${c}`);
+              if (lsCached) {
+                const parsed = JSON.parse(lsCached);
+                setCachedSvg(c, parsed).catch(()=>{});
+                HANZI_CHAR_DATA_CACHE.set(c, parsed);
+                return;
+              }
+            } catch (e) {}
+
+            const cdnUrl = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(c)}.json`;
+            fetch(cdnUrl)
+              .then(res => {
+                if (res.ok) return res.json();
+                throw new Error(`HTTP error ${res.status}`);
+              })
+              .then(data => {
+                if (data) {
+                  setCachedSvg(c, data)
+                    .then(() => {
+                      HANZI_CHAR_DATA_CACHE.set(c, data);
+                      console.log(`Preloaded and cached offline SVG data for learned character in IndexedDB: ${c}`);
+                    })
+                    .catch(() => {});
+                }
+              })
+              .catch(err => {
+                // Fail silently in the background
+              });
+          }
+        })
+        .catch(() => {});
+    });
+  });
 }
 
 function initHanziWriter(char) {
@@ -924,6 +1035,8 @@ function renderRadicalGrid() {
   const LIMIT = STATE.gridLimit;
   const visibleItems = filtered.slice(0, LIMIT);
   
+  const learnedSet = new Set(Object.keys(STATE.srs.learned).map(String));
+  
   visibleItems.forEach(rad => {
     const cell = document.createElement('div');
     const isActive = rad.no === STATE.selectedRadicalNo;
@@ -931,9 +1044,12 @@ function renderRadicalGrid() {
     cell.setAttribute('data-no', rad.no);
     cell.id = `cell-${rad.no}`;
     
+    const isLearned = learnedSet.has(String(rad.no));
+    
     // Display index inside grid item
     cell.innerHTML = `
       <span class="cell-no">${rad.no}</span>
+      ${isLearned ? '<span class="learned-dot" title="Learned Spaced Repetition Radical"></span>' : ''}
       <span class="cell-char">${rad.char}</span>
       <span class="cell-desc">${rad.meaning}</span>
       <span class="cell-strokes">${rad.strokes}</span>
@@ -1068,6 +1184,7 @@ function renderStats() {
 
 // Mark radical as practiced/correct during normal dictionary run
 function markRadicalPracticed(no) {
+  const isNew = !STATE.srs.learned[no];
   const srsRecord = STATE.srs.learned[no];
   if (!srsRecord) {
     // New unlocked radical!
@@ -1083,6 +1200,21 @@ function markRadicalPracticed(no) {
     srsRecord.repetitions += 1;
   }
   saveSrsData();
+  
+  if (isNew) {
+    const cell = document.getElementById(`cell-${no}`);
+    if (cell && !cell.querySelector('.learned-dot')) {
+      const dot = document.createElement('span');
+      dot.className = 'learned-dot';
+      dot.title = 'Learned Spaced Repetition Radical';
+      const cellNo = cell.querySelector('.cell-no');
+      if (cellNo) {
+        cellNo.after(dot);
+      } else {
+        cell.appendChild(dot);
+      }
+    }
+  }
 }
 
 // Normalization helper to strip tone accents from Pinyin (for forgiving matching)
@@ -1334,8 +1466,8 @@ window.setQuizMode = function(mode) {
 };
 
 // Render SRS Dashboard & Active Quiz Item
-function renderSrsView() {
-  loadSrsData();
+async function renderSrsView() {
+  await loadSrsData();
   renderStats();
   
   // Update internal metrics inside SRS View
@@ -2111,8 +2243,9 @@ function speakChinese(text) {
 window.addEventListener('DOMContentLoaded', async () => {
   radicals = await getRadicals();
   // Load local state
-  loadSrsData();
+  await loadSrsData();
   renderStats();
+  syncOfflineHanziData();
   
   // Set up canvas first to prevent null drawing errors on page load
   setupCalligraphyCanvas();

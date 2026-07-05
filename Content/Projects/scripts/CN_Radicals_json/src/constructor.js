@@ -2,6 +2,7 @@
 // Styled for the brutalist approach: zero bloat, high structure.
 
 import { importNames } from './import.js';
+import { getRadicalsCache, setRadicalsCache } from './db.js';
 
 async function grabJsonFile(fileName) {
   try {
@@ -84,13 +85,13 @@ export const enrichRadical = (rad, index, dataMap) => {
 
 export async function getRadicals() {
   try {
-    const cached = localStorage.getItem('kangxi_all_radicals_cached');
+    const cached = await getRadicalsCache();
     if (cached) {
-      console.log('Using cached radicals database.');
-      return JSON.parse(cached);
+      console.log('Using cached radicals database from IndexedDB.');
+      return cached;
     }
   } catch (e) {
-    console.warn('Could not read cached radicals database:', e);
+    console.warn('Could not read cached radicals database from IndexedDB:', e);
   }
 
   const dataMap = {};
@@ -107,9 +108,9 @@ export async function getRadicals() {
   ];
 
   try {
-    localStorage.setItem('kangxi_all_radicals_cached', JSON.stringify(combinedRadicals));
+    await setRadicalsCache(combinedRadicals);
   } catch (e) {
-    console.warn('Could not save radicals database to localStorage:', e);
+    console.warn('Could not save radicals database to IndexedDB:', e);
   }
 
   return combinedRadicals;

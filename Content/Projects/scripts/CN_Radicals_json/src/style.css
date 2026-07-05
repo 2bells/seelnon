@@ -402,6 +402,22 @@ h1, h2, h3, h4 {
   color: var(--text-muted);
 }
 
+.radical-cell .learned-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-amber);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.radical-cell.active .learned-dot {
+  background-color: #0F0F0F;
+}
+
 .radical-cell .cell-char {
   font-family: var(--font-serif);
   font-size: 1.8rem;
