@@ -414,6 +414,14 @@ h1, h2, h3, h4 {
   z-index: 10;
 }
 
+.radical-cell .learned-dot.mastered {
+  background-color: #3b82f6; /* Modern Blue */
+}
+
+.radical-cell .learned-dot.forgotten {
+  background-color: #ef4444; /* Modern Red */
+}
+
 .radical-cell.active .learned-dot {
   background-color: #0F0F0F;
 }

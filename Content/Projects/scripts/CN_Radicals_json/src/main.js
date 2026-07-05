@@ -1,8 +1,8 @@
 // Core Logic for the Chinese Radicals Study Application
 // Built with pure Vanilla JS, Canvas, and WebGPU fallback. Zero modern bloat.
 
-import { getRadicals } from './constructor.js';
-import { getCachedSvg, setCachedSvg, getSrsState, setSrsState, getSrsConfig, setSrsConfig, getDbStorageStats } from './db.js';
+import { getRadicals, enrichRadical } from './constructor.js';
+import { getCachedSvg, setCachedSvg, getSrsState, setSrsState, getSrsConfig, setSrsConfig, getDbStorageStats, setRadicalsCache } from './db.js';
 
 let radicals = [];
 
@@ -404,6 +404,7 @@ async function saveSrsData() {
     console.warn("Could not save SRS data to IndexedDB:", e);
   }
   renderStats();
+  updateAllGridDots();
   syncOfflineHanziData();
 }
 
@@ -1045,11 +1046,24 @@ function renderRadicalGrid() {
     cell.id = `cell-${rad.no}`;
     
     const isLearned = learnedSet.has(String(rad.no));
+    let dotHtml = '';
+    if (isLearned) {
+      const record = STATE.srs.learned[String(rad.no)];
+      let dotClass = '';
+      if (record) {
+        if (record.interval >= 14) {
+          dotClass = ' mastered';
+        } else if (record.forgotCount > 0 && record.interval <= 1) {
+          dotClass = ' forgotten';
+        }
+      }
+      dotHtml = `<span class="learned-dot${dotClass}" title="Learned Spaced Repetition Radical"></span>`;
+    }
     
     // Display index inside grid item
     cell.innerHTML = `
       <span class="cell-no">${rad.no}</span>
-      ${isLearned ? '<span class="learned-dot" title="Learned Spaced Repetition Radical"></span>' : ''}
+      ${dotHtml}
       <span class="cell-char">${rad.char}</span>
       <span class="cell-desc">${rad.meaning}</span>
       <span class="cell-strokes">${rad.strokes}</span>
@@ -1143,6 +1157,7 @@ function selectRadical(no) {
   if (prevActive) prevActive.classList.remove('active');
   
   STATE.selectedRadicalNo = no;
+  localStorage.setItem('last_selected_radical_no', String(no));
   
   // Highlight new cell
   const newActive = document.getElementById(`cell-${no}`);
@@ -1180,11 +1195,52 @@ function renderStats() {
   if (s) s.innerText = `${STATE.srs.streak} Days`;
 }
 
+// Update learned dots dynamically across all rendered cards in the grid
+function updateAllGridDots() {
+  if (!STATE.srs || !STATE.srs.learned) return;
+  const learnedSet = new Set(Object.keys(STATE.srs.learned).map(String));
+  const cells = document.querySelectorAll('[id^="cell-"]');
+  
+  cells.forEach(cell => {
+    const no = cell.getAttribute('data-no');
+    if (!no) return;
+    
+    const isLearned = learnedSet.has(String(no));
+    let dot = cell.querySelector('.learned-dot');
+    
+    if (isLearned) {
+      const record = STATE.srs.learned[String(no)];
+      if (!dot) {
+        dot = document.createElement('span');
+        dot.className = 'learned-dot';
+        dot.title = 'Learned Spaced Repetition Radical';
+        const cellNo = cell.querySelector('.cell-no');
+        if (cellNo) {
+          cellNo.after(dot);
+        } else {
+          cell.appendChild(dot);
+        }
+      }
+      
+      // Reset classes & apply new status colors
+      dot.className = 'learned-dot';
+      if (record) {
+        if (record.interval >= 14) {
+          dot.classList.add('mastered');
+        } else if (record.forgotCount > 0 && record.interval <= 1) {
+          dot.classList.add('forgotten');
+        }
+      }
+    } else {
+      if (dot) dot.remove();
+    }
+  });
+}
+
 // --- SPACED REPETITION CORE IMPLEMENTATION ---
 
 // Mark radical as practiced/correct during normal dictionary run
 function markRadicalPracticed(no) {
-  const isNew = !STATE.srs.learned[no];
   const srsRecord = STATE.srs.learned[no];
   if (!srsRecord) {
     // New unlocked radical!
@@ -1200,21 +1256,6 @@ function markRadicalPracticed(no) {
     srsRecord.repetitions += 1;
   }
   saveSrsData();
-  
-  if (isNew) {
-    const cell = document.getElementById(`cell-${no}`);
-    if (cell && !cell.querySelector('.learned-dot')) {
-      const dot = document.createElement('span');
-      dot.className = 'learned-dot';
-      dot.title = 'Learned Spaced Repetition Radical';
-      const cellNo = cell.querySelector('.cell-no');
-      if (cellNo) {
-        cellNo.after(dot);
-      } else {
-        cell.appendChild(dot);
-      }
-    }
-  }
 }
 
 // Normalization helper to strip tone accents from Pinyin (for forgiving matching)
@@ -2239,21 +2280,106 @@ function speakChinese(text) {
   }
 }
 
+// Populate Category Filter dropdown with unique categories from current list
+function populateCategoryFilterOptions() {
+  const fCat = document.getElementById('filter-category');
+  if (!fCat) return;
+  
+  // Preserve default ALL option
+  fCat.innerHTML = '<option value="ALL">ALL CATEGORIES</option>';
+  
+  const categories = Array.from(new Set(radicals.map(r => r.category).filter(Boolean))).sort();
+  categories.forEach(cat => {
+    const option = document.createElement('option');
+    option.value = cat;
+    option.innerText = cat.replace(/_/g, ' ');
+    fCat.appendChild(option);
+  });
+}
+
 // --- INITIALIZATION ---
 window.addEventListener('DOMContentLoaded', async () => {
-  radicals = await getRadicals();
-  // Load local state
-  await loadSrsData();
-  renderStats();
-  syncOfflineHanziData();
-  
-  // Set up canvas first to prevent null drawing errors on page load
-  setupCalligraphyCanvas();
-  
-  // Set up Left list and select default
+  // STEP 1: Load the UI and main 214 from 214.json instantly (no DB blocking)
+  try {
+    const targetUrl = new URL('./data/214.json', import.meta.url).href;
+    const response = await fetch(targetUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data214 = await response.json();
+    
+    // Procedural enrich so basic structures (number, char, meaning, strokes, etc.) are valid
+    const dataMap214 = { '214': data214 };
+    radicals = data214.map((rad, i) => enrichRadical(rad, i, dataMap214));
+  } catch (e) {
+    console.error("Could not load 214.json, falling back to database cached load:", e);
+    radicals = await getRadicals();
+  }
+
+  // Render the initial 214 list UI immediately so the user doesn't face half-loaded or empty lists!
   renderRadicalGrid();
-  selectRadical(1); // Default to 一 (One)
+  populateCategoryFilterOptions();
+
+  // STEP 2: Go to the next .json files in the background and load/merge them
+  const otherFiles = ["action", "ancient", "digital", "filter", "frequency", "frequency2", "search", "slang"];
+  const fullDataMap = { '214': radicals };
   
+  Promise.all(otherFiles.map(async (name) => {
+    try {
+      const targetUrl = new URL(`./data/${name}.json`, import.meta.url).href;
+      const res = await fetch(targetUrl);
+      if (res.ok) {
+        fullDataMap[name] = await res.json();
+      }
+    } catch (e) {
+      console.warn(`Could not load secondary segment ${name}:`, e);
+    }
+  })).then(() => {
+    // Merge loaded fields into standard radicals
+    radicals = radicals.map((rad, i) => enrichRadical(rad, i, fullDataMap));
+    
+    // Append any extra/supplementary characters with indices > 214
+    const otherCharacters = otherFiles.flatMap(name => fullDataMap[name] || [])
+      .filter(item => item && item.no && item.no > 214);
+      
+    const existingNos = new Set(radicals.map(r => r.no));
+    otherCharacters.forEach(item => {
+      if (!existingNos.has(item.no)) {
+        radicals.push(item);
+      }
+    });
+    
+    // Quietly update active detail views (philosophy, etymology, etc.) and filter selections
+    renderRadicalGrid();
+    updateAllGridDots();
+    renderStats();
+    populateCategoryFilterOptions();
+
+    // If the last selected was >214 and now successfully loaded, switch to it!
+    const lastSelected = localStorage.getItem('last_selected_radical_no');
+    if (lastSelected) {
+      const parsed = parseInt(lastSelected);
+      if (parsed > 214) {
+        if (radicals.some(r => r.no === parsed)) {
+          selectRadical(parsed);
+        }
+      } else {
+        renderRadicalDetail();
+      }
+    } else {
+      renderRadicalDetail();
+    }
+    
+    // Cache the fully merged list to IndexedDB
+    setRadicalsCache(radicals).catch(() => {});
+  });
+
+  // STEPS 3 & 4: Go to IndexedDB, query active filters, then get 'dots' status
+  await loadSrsData(); // Retrieves filter config and SRS states from IndexedDB
+  renderStats();
+  updateAllGridDots(); // Red, yellow, blue dots are rendered instantly on top of the already loaded cards!
+
+  // STEP 5: Set up the rest of the physical components (calligraphy canvas, filter event listeners, etc.)
+  setupCalligraphyCanvas();
+
   // Setup Search Input Event
   const sInput = document.getElementById('search-input');
   if (sInput) {
@@ -2264,17 +2390,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  // Setup Category Filter
+  // Setup Category Filter Event Listener
   const fCat = document.getElementById('filter-category');
   if (fCat) {
-    const categories = Array.from(new Set(radicals.map(r => r.category))).sort();
-    categories.forEach(cat => {
-      const option = document.createElement('option');
-      option.value = cat;
-      option.innerText = cat.replace(/_/g, ' ');
-      fCat.appendChild(option);
-    });
-    
     fCat.addEventListener('change', (e) => {
       STATE.filterCategory = e.target.value;
       STATE.gridLimit = 120;
@@ -2282,7 +2400,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  // Setup Stroke Count Filter
+  // Setup Stroke Count Filter Event Listener
   const fStrs = document.getElementById('filter-strokes');
   if (fStrs) {
     fStrs.addEventListener('change', (e) => {
@@ -2291,6 +2409,29 @@ window.addEventListener('DOMContentLoaded', async () => {
       renderRadicalGrid();
     });
   }
+  
+  // STEP 6: Finally select and initialize Hanzi Writer to show the first symbol safely with zero loading artifacts
+  if (radicals.length > 0) {
+    let initialNo = 1;
+    const lastSelected = localStorage.getItem('last_selected_radical_no');
+    if (lastSelected) {
+      const parsed = parseInt(lastSelected);
+      if (!isNaN(parsed) && parsed > 0) {
+        initialNo = parsed;
+      }
+    }
+    // If the last selected radical is not yet in our radicals list (e.g. >214),
+    // default to 1 temporarily, but keep the initialNo so we can select it once STEP 2 completes!
+    const hasRadical = radicals.some(r => r.no === initialNo);
+    if (hasRadical) {
+      selectRadical(initialNo);
+    } else {
+      selectRadical(1);
+    }
+  }
+  
+  // Pre-fetch offline vector database quietly
+  syncOfflineHanziData();
   
   // UI buttons in Dictionary Canvas area
   document.getElementById('play-btn').addEventListener('click', playStrokeAnimation);
