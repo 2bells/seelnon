@@ -137,6 +137,39 @@ export class Editor {
       });
     });
     
+    // Hide code blocks (both block level ```...``` and inline code `...`) to avoid processing formulas inside code
+    const tempBlocks = [];
+    md = md.replace(/(```[\s\S]*?```|`[^`\n]+`)/g, (match) => {
+      const placeholder = `__CODE_PLACEHOLDER_${tempBlocks.length}__`;
+      tempBlocks.push({ placeholder, content: match });
+      return placeholder;
+    });
+
+    // Extract and hide math formulas
+    const mathPlaceholders = [];
+    
+    // Extract display math: $$ ... $$
+    md = md.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
+      const placeholder = `MATHBLOCKA${mathPlaceholders.length}A`;
+      mathPlaceholders.push({ placeholder, formula, display: true });
+      return placeholder;
+    });
+
+    // Extract inline math: $ ... $ (avoid empty ones or typical currency numbers like $10)
+    md = md.replace(/\$([^$\n]+?)\$/g, (match, formula) => {
+      if (!formula.trim() || /^\d+(\.\d+)?$/.test(formula.trim())) {
+        return match;
+      }
+      const placeholder = `MATHINLINEA${mathPlaceholders.length}A`;
+      mathPlaceholders.push({ placeholder, formula, display: false });
+      return placeholder;
+    });
+
+    // Restore hidden code blocks safely
+    for (const block of tempBlocks) {
+      md = md.replace(block.placeholder, () => block.content);
+    }
+    
     // Ensure marked is configured for GFM
     if (typeof marked !== 'undefined') {
       marked.setOptions({
@@ -199,6 +232,32 @@ export class Editor {
       marked.setOptions({ renderer });
 
       let html = marked.parse(md);
+      
+      // Render and restore math blocks using KaTeX if available
+      if (typeof katex !== 'undefined') {
+        for (const math of mathPlaceholders) {
+          try {
+            const rendered = katex.renderToString(math.formula, {
+              displayMode: math.display,
+              throwOnError: false
+            });
+            html = html.replace(math.placeholder, () => rendered);
+          } catch (err) {
+            console.error("KaTeX rendering error:", err);
+            const fb = math.display 
+              ? `<div class="katex-fallback">$$${math.formula}$$</div>` 
+              : `<span class="katex-fallback">$${math.formula}$</span>`;
+            html = html.replace(math.placeholder, () => fb);
+          }
+        }
+      } else {
+        for (const math of mathPlaceholders) {
+          const fb = math.display 
+            ? `<div class="katex-fallback" style="text-align: center; margin: 10px 0; font-family: var(--font-mono); opacity: 0.8;">$$${math.formula}$$</div>` 
+            : `<code class="katex-fallback" style="font-family: var(--font-mono); opacity: 0.8;">$${math.formula}$</code>`;
+          html = html.replace(math.placeholder, () => fb);
+        }
+      }
       
       // Brutalist Hack: marked makes checkboxes 'disabled' by default. 
       // We strip that so they are interactive and we can catch the click.
