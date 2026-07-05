@@ -32,3 +32,8 @@ music is
 a harmony extracted
 from nature
 ```
+
+Oh yeah.. Also I saw a rainbow the last day, I thought they went extinct... It was years since the last one for me and not only that I saw the spawn point as well!!! No leprechaun with a pot of gold was spotted, but still. 
+I did a few photos and then I heard some people talking that it is a DOUBLE! I look closely... and indeed: it was THE double rainbow, all the way! (It was a bit blocked, but I have my 'believers' rights to think it was the full way)
+
+I would show the photots, but those are classified, sorry. Need proper clerance to show them.
