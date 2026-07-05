@@ -404,7 +404,7 @@ h1, h2, h3, h4 {
 
 /* Learned / SRS State Background Tints */
 .radical-cell.state-mastered {
-  background: rgba(59, 130, 246, 0.05); /* Modern Blue Tint */
+  background: rgba(59, 130, 246, 0.08); /* Modern Blue Tint */
   border-color: rgba(59, 130, 246, 0.12);
 }
 
@@ -414,7 +414,7 @@ h1, h2, h3, h4 {
 }
 
 .radical-cell.state-forgotten {
-  background: rgba(239, 68, 68, 0.05); /* Modern Red Tint */
+  background: rgba(239, 68, 68, 0.08); /* Modern Red Tint */
   border-color: rgba(239, 68, 68, 0.12);
 }
 
@@ -424,7 +424,7 @@ h1, h2, h3, h4 {
 }
 
 .radical-cell.state-learning {
-  background: rgba(212, 175, 55, 0.05); /* Modern Amber Tint */
+  background: rgba(212, 175, 55, 0.08); /* Modern Amber Tint */
   border-color: rgba(212, 175, 55, 0.12);
 }
 
