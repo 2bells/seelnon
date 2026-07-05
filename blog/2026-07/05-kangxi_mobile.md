@@ -15,6 +15,12 @@ Meaning my app won't fetch .svg if you are offline. Right now it should be cache
 
 fix only on _json version. Will be sticking to it.
 
+## Katex
+
+Also updated Fri-ren notes and this blog to use 'katex' to do this: $E=mc^2$
+
+For 'notes' it is local as well. While Blog is fetching the library online.
+
 ```
 thought of a day
 
