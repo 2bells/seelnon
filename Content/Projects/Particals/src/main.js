@@ -1,5 +1,4 @@
 import { Simulation } from './simulation.js';
-import { WebGPURenderer } from './webgpu.js';
 import { MEDIUMS, computeEngineMetrics } from './math.js';
 
 // DOM Elements Selection
@@ -325,34 +324,13 @@ async function main() {
   if (spinVelocityValDisplay) spinVelocityValDisplay.value = sim.initialAngularVelocity.toFixed(1) + ' rad/s';
   if (centerBiasValDisplay) centerBiasValDisplay.value = sim.centerBias.toFixed(1) + 'x';
 
-  // 2. Initialize WebGPU
-  gpuStatus.textContent = "CHECKING_WEBGPU...";
-  gpuStatus.className = "indicator-value status-checking";
-
-  try {
-    gpuRenderer = new WebGPURenderer(canvas);
-    await gpuRenderer.init();
-    
-    // Sync starting particles directly to GPU VRAM
-    gpuRenderer.syncParticlesToGPU(sim.particles);
-    
-    // Success: activate WebGPU
-    isWebGPUActive = true;
-    gpuStatus.textContent = "WEBGPU_ACTIVE [OK]";
-    gpuStatus.className = "indicator-value status-active";
-    activeEngineLabel.textContent = "WEBGPU_HARDWARE";
-    activeEngineLabel.className = "font-mono text-green";
-    appendLog("ACCELERATED_PIPELINE_LOADED");
-  } catch (err) {
-    console.warn("WebGPU initialization failed:", err);
-    // Fallback: Use standard 2D canvas simulation
-    isWebGPUActive = false;
-    gpuStatus.textContent = "WEBGPU_UNAVAILABLE [FALLBACK]";
-    gpuStatus.className = "indicator-value status-fallback";
-    activeEngineLabel.textContent = "CANVAS_2D_ENGINE";
-    activeEngineLabel.className = "font-mono text-cyan";
-    appendLog(`STANDARD_PIPELINE_LOADED`);
-  }
+  // 2. Disable WebGPU and enforce Canvas 2D engine fallback
+  isWebGPUActive = false;
+  gpuStatus.textContent = "WEBGPU_DISABLED";
+  gpuStatus.className = "indicator-value status-fallback";
+  activeEngineLabel.textContent = "CANVAS_2D_ENGINE";
+  activeEngineLabel.className = "font-mono text-cyan";
+  appendLog(`STANDARD_PIPELINE_LOADED`);
 
   // 3. Connect Control Sliders
   bindSliderWithInput(rangeFrequency, inputFrequency, (val) => {
