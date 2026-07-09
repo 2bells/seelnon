@@ -4,11 +4,11 @@
 
 Oh, hi!
 
-Me? Just doing stuff. Don't mind that giant hole in the space time, it will heal itself in a while.
+Me? Just doing stuff. Don't mind that giant hole in the spacetime, it will heal itself in a while.
 
 Some ancient souls came in, asked for buffs.
 
-And sometimes they like to test it to check on the quality of the product.
+And sometimes they like to test things on the spot to check on the quality of the product.
 
 Everything is under control, trust.
 
