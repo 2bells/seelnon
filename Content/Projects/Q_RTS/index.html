@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum RTS - Fleet Operations</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div class="terminal-container">
+    
+    <!-- Core Layout Grid  -->
+    <main class="terminal-grid widescreen-mode">
+      
+      <!-- Widescreen Interactive Map Viewport -->
+      <section class="viewport-panel panel">
+        <div class="viewport-header">
+          <div class="hud-inline-bar font-mono">
+            <span class="hud-sec-num text-cyan font-bold">[02]</span>
+            
+            <div class="hud-divider"></div>
+            
+            <!-- Matter Stockpile -->
+            <div class="hud-inline-item">
+              <span id="qm-display" class="text-cyan font-bold" style="font-size: 13px;">250</span>
+              <span class="text-green font-bold ml-1.5" style="font-size: 9px; opacity: 0.85;">[+1 QM/S]</span>
+            </div>
+            
+            <div class="hud-divider"></div>
+
+            <!-- Fleet Capacity -->
+            <div class="hud-inline-item">
+              <span id="hud-fleet-count" class="text-green font-bold" style="font-size: 11px;">1 / 50</span>
+            </div>
+            
+            <div class="hud-divider"></div>
+
+            <!-- Cosmic Weather -->
+            <div class="hud-inline-item">
+              <span id="weather-display" class="text-green font-bold" style="font-size: 11px;">STABLE FOLDS</span>
+            </div>
+          </div>
+          
+          <div class="viewport-mode-tabs" style="align-items: center; display: flex; flex-wrap: wrap; gap: 4px;">
+            <div id="fps-counter" style="color: var(--color-text-dim); font-family: var(--font-mono); font-size: 10px; font-weight: bold; padding: 8px 16px; border-left: 1px solid var(--color-border); user-select: none;">FPS: --</div>
+            <button id="tab-tactical" class="tab-btn active">COSMIC_SECTOR</button>
+            <button id="tab-mothership" class="tab-btn" style="color: var(--color-green);">MOTHERSHIP_BASE</button>
+            <button id="tab-conquest" class="tab-btn" style="color: var(--color-red); display: none;">CONQUEST_FIELD</button>
+          </div>
+        </div>
+        
+        <div class="canvas-container">
+          <canvas id="sim-canvas"></canvas>
+          
+          <!-- Debug Toggle Bug Button -->
+          <button id="btn-toggle-debug-menu" class="debug-toggle-btn" title="Toggle Debug Panel">🪲</button>
+          
+          <!-- Collapsible Floating Tactical Combat Log in Top-Right -->
+          <div id="collapsible-log" class="collapsible-log-panel">
+            <div id="log-header-toggle" class="log-header">
+              <span>[01] TACTICAL_COMBAT_LOG</span>
+              <span id="log-toggle-indicator" class="log-toggle-btn">[—]</span>
+            </div>
+            <div class="log-body">
+              <div id="event-log-list" class="event-list font-mono">
+                <div>&gt; Tactical Quantum grid initialised. Ready for fleet commands...</div>
+                <div>&gt; Command Carrier hyperjumped to sector coordinates [0, 0].</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Sector Radar Minimap absolute positioned at bottom-right of active grid -->
+          <div class="radar-container">
+            <canvas id="radar-canvas" width="170" height="170"></canvas>
+            <div class="radar-overlay">SECTOR_RADAR</div>
+          </div>
+          
+          <!-- On-Canvas RTS Controls Overlay Info (minimal coordinates and threat) -->
+          <div class="canvas-hud">
+            <div class="hud-item">
+              <span class="hud-lbl">CAMERA_POS:</span>
+              <span id="hud-cam-coords" class="hud-val text-cyan">0, 0</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-lbl">THREAT_LVL:</span>
+              <span id="hud-threat-level" class="hud-val text-red">STABLE</span>
+            </div>
+            <div class="hud-item" style="border-top: 1px dashed var(--color-border); margin-top: 4px; padding-top: 4px;">
+              <span class="hud-lbl">COSMIC_ZONE:</span>
+              <span id="hud-region-name" class="hud-val" style="color: #ff1133;">Aries Domain of Friction</span>
+            </div>
+            <div class="hud-item" style="max-width: 250px;">
+              <span class="hud-lbl">LUST_FREQUENCY:</span>
+              <span id="hud-region-title" class="hud-val text-white" style="font-size: 8px;">The Lust for Dominance (The Apex)</span>
+            </div>
+          </div>
+
+          <!-- RTS Carrier Shipyard and Production overlay (slides in on left) -->
+          <div id="shipyard-hud-overlay" class="battleship-overlay shipyard-overlay">
+            <div class="overlay-header">
+              <div class="overlay-title-line">BATTLESHIP_BLUEPRINTS</div>
+              <div class="overlay-desc-line">Direct manufacturing matrices.</div>
+            </div>
+            
+            <div class="overlay-layout-vertical">
+              <!-- Shipyard Blueprints Matrix -->
+              <div class="overlay-column">
+                <div class="overlay-build-grid">
+                  <button class="build-btn" id="build-fighter">
+                    <div class="build-btn-title"><span class="text-green">▲</span> Fighter</div>
+                    <div class="build-btn-cost">50 QM</div>
+                  </button>
+                  <button class="build-btn" id="build-cruiser">
+                    <div class="build-btn-title"><span class="text-cyan">◆</span> Cruiser</div>
+                    <div class="build-btn-cost">150 QM</div>
+                  </button>
+                  <button class="build-btn" id="build-dreadnought">
+                    <div class="build-btn-title"><span class="text-amber">⬢</span> Dreadnought</div>
+                    <div class="build-btn-cost">450 QM</div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Carrier status and production queue slot -->
+              <div class="overlay-column" style="border-top: 1px dashed var(--color-border); padding-top: 6px;">
+                <div class="overlay-title" style="margin-bottom: 2px;">PRODUCTION_STATUS</div>
+                <div id="carrier-production-status" class="production-status-panel">
+                  <div class="empty-selection-msg" style="padding-top: 5px; font-size: 8.5px;">Flagship construction yards idle. Select ship above to build.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RTS Carrier Tactical Commands overlay (slides in on right) -->
+          <div id="command-hud-overlay" class="battleship-overlay command-overlay">
+            <div class="overlay-header">
+              <div class="overlay-title-line">TACTICAL_COMMANDS</div>
+              <div class="overlay-desc-line">Fleet formations & space tearing.</div>
+            </div>
+            
+            <div class="overlay-column">
+              <div class="overlay-tactics-row" style="grid-template-columns: 1fr;">
+                <button id="btn-recall" class="tactics-btn font-mono" style="padding: 4px; font-size: 8px;">RECALL_FLEET</button>
+                <button id="btn-hyperjump" class="tactics-btn font-mono text-cyan" style="padding: 4px; font-size: 8px; margin-top: 3px;">HYPERJUMP_FLAGSHIP</button>
+                <button id="btn-spawn-enemy" class="tactics-btn font-mono text-red" style="padding: 4px; font-size: 8px; margin-top: 3px;">SUMMON_VOID_VORTEX</button>
+                <button id="btn-trigger-storm" class="tactics-btn font-mono text-pink" style="padding: 4px; font-size: 8px; margin-top: 3px;">TRIGGER_STORM</button>
+                <button id="btn-heal-spacetime" class="tactics-btn font-mono text-green" style="padding: 4px; font-size: 8px; margin-top: 3px;">RECONSTRUCT_SPACETIME</button>
+                <button id="btn-build-symmetric-guns" class="tactics-btn font-mono" style="padding: 4px; font-size: 8px; margin-top: 3px; border-color: #00e5ff; color: #00e5ff; background: rgba(0, 229, 255, 0.05); text-transform: uppercase;">UPGRADE: SYMMETRIC_GUNS (5 Elements + 3 Sym)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Always-accessible Debug Spatial Deployment Panel -->
+          <div id="debug-deploy-hud-overlay" class="debug-deploy-overlay" style="display: none;">
+            <div style="color: var(--color-cyan); font-weight: bold; font-size: 10px; margin-bottom: 5px; text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 0.5px;">🛠 DEBUG_SPATIAL_DEPLOY</div>
+            <div style="margin-bottom: 6px;">
+              <label style="font-size: 7.5px; color: var(--color-text-dim); display: block; margin-bottom: 2px; font-family: var(--font-mono);">SELECT OBJECT TYPE:</label>
+              <select id="deploy-type-select" style="width: 100%; background: #0c0d12; color: var(--color-text); border: 1px solid var(--color-border); font-family: var(--font-mono); font-size: 9px; padding: 3px; cursor: pointer; outline: none;">
+                <option value="citadel">Hostile Citadel (Destroy for Tear)</option>
+                <option value="space_tear_scifi">Space Tear - SciFi Biome</option>
+                <option value="space_tear_fantasy">Space Tear - Fantasy Biome</option>
+                <option value="space_tear_realistic">Space Tear - Realistic Biome</option>
+                <option value="vortex">Void Vortex (Portal)</option>
+                <option value="interceptor">Hostile Raider Interceptor</option>
+                <option value="anomaly_bh">Anomaly: Black Hole</option>
+                <option value="anomaly_wh">Anomaly: White Hole</option>
+                <option value="player_raider">Player Escort: Raider</option>
+                <option value="player_tank">Player Escort: Tank</option>
+                <option value="player_gunship">Player Escort: Gunship</option>
+              </select>
+            </div>
+            <button id="btn-toggle-deploy-tool" class="tactics-btn font-mono text-cyan" style="width: 100%; padding: 5px; font-size: 8px; font-weight: bold; border-color: var(--color-cyan); background: rgba(0, 229, 255, 0.05);">
+              🔧 DEPLOY_LASER: INACTIVE
+            </button>
+          </div>
+
+          <!-- RTS Selection Formation and Health overlays (slides up in center bottom) -->
+          <div id="formation-hud-overlay" class="battleship-overlay formation-overlay">
+            <div class="overlay-header" style="margin-bottom: 4px; border-bottom-color: rgba(0, 255, 102, 0.15);">
+              <div class="overlay-title-line" style="color: var(--color-green); text-shadow: 0 0 5px rgba(0, 255, 102, 0.3);">SELECTED_SHIPS_FORMATION</div>
+              <div class="overlay-desc-line">Auxiliary escort statistics.</div>
+            </div>
+            <div id="selection-deck" class="selection-deck-overlay">
+              <div class="empty-selection-msg" style="padding-top: 2px; font-size: 8.5px;">No auxiliary fleet selected. Click-drag box to select escorts.</div>
+            </div>
+          </div>
+
+          <!-- MOTHERSHIP BASE FACTORY OVERLAY -->
+          <div id="mothership-hud-overlay" class="battleship-overlay mothership-overlay" style="display: none; top: 10px; left: 10px; bottom: auto; width: 280px; max-height: calc(100% - 20px);">
+            <div class="overlay-header">
+              <div class="overlay-title-line" style="color: var(--color-green);">MOTHERSHIP_DECK_O1</div>
+              <div class="overlay-desc-line">Homebase Automation & Processing</div>
+            </div>
+            
+            <!-- Factory Resources Storage -->
+            <div style="border: 1px solid var(--color-border); background: rgba(0,255,102,0.02); padding: 8px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 11px;">
+              <div style="color: var(--color-green); font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid var(--color-border); padding-bottom: 2px;">⚡ ASSEMBLER VAULT</div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>Raw Quantum Matter:</span>
+                <span id="base-qm-val" class="text-cyan font-bold">350</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>Exotic Energy Cores:</span>
+                <span id="exotic-cores-val" style="color: #ff33ff; font-weight: bold;">5</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>Zodiac Tethers:</span>
+                <span id="zodiac-tethers-val" class="text-amber font-bold">2</span>
+              </div>
+              <div style="border-top: 1px dotted var(--color-border); margin-top: 5px; padding-top: 5px; color: var(--color-text-dim); font-size: 9px; text-transform: uppercase;">🌍 TERRESTRIAL SURFACE ELEMENTS</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9px; margin-top: 3px;">
+                <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 2px 4px; border: 1px solid rgba(255,255,255,0.05);">
+                  <span style="color: #c2b09e;">🤎 Earth:</span>
+                  <span id="elem-earth-val" style="color: #ffffff; font-weight: bold;">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 2px 4px; border: 1px solid rgba(255,255,255,0.05);">
+                  <span style="color: #b3e5fc;">💨 Air:</span>
+                  <span id="elem-air-val" style="color: #ffffff; font-weight: bold;">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 2px 4px; border: 1px solid rgba(255,255,255,0.05);">
+                  <span style="color: #42a5f5;">💧 Water:</span>
+                  <span id="elem-water-val" style="color: #ffffff; font-weight: bold;">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 2px 4px; border: 1px solid rgba(255,255,255,0.05);">
+                  <span style="color: #cfd8dc;">⚙️ Metal:</span>
+                  <span id="elem-metal-val" style="color: #ffffff; font-weight: bold;">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 2px 4px; border: 1px solid rgba(255,255,255,0.05);">
+                  <span style="color: #8d6e63;">🌱 Soil:</span>
+                  <span id="elem-soil-val" style="color: #ffffff; font-weight: bold;">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; background: rgba(0, 229, 255, 0.04); padding: 2px 4px; border: 1px solid rgba(0, 229, 255, 0.15);">
+                  <span style="color: #00e5ff;">✨ Symmetry:</span>
+                  <span id="elem-symmetry-val" style="color: #00e5ff; font-weight: bold;">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Factory Placing Tools -->
+            <div style="border: 1px solid var(--color-border); padding: 6px; margin-bottom: 8px;">
+              <div style="color: var(--color-text); font-weight: bold; font-size: 10px; margin-bottom: 4px; text-transform: uppercase;">🛠 advisory: Select Tool</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                <button class="build-btn" id="tool-extractor" style="padding: 4px; font-size: 8px;">
+                  <div>🌀 Extractor</div>
+                  <div style="color: var(--color-text-dim);">60 QM</div>
+                </button>
+                <button class="build-btn" id="tool-belt" style="padding: 4px; font-size: 8px;">
+                  <div>➡ Conveyor</div>
+                  <div style="color: var(--color-text-dim);">15 QM</div>
+                </button>
+                <button class="build-btn" id="tool-synthesizer" style="padding: 4px; font-size: 8px;">
+                  <div>⚛ Transmuter</div>
+                  <div style="color: var(--color-text-dim);">120 QM</div>
+                </button>
+                <button class="build-btn" id="tool-storage" style="padding: 4px; font-size: 8px;">
+                  <div>📦 Storage Silo</div>
+                  <div style="color: var(--color-text-dim);">80 QM</div>
+                </button>
+                <button class="build-btn" id="tool-assembler" style="padding: 4px; font-size: 8px;">
+                  <div>🛠️ Assembler</div>
+                  <div style="color: var(--color-text-dim);">150 QM</div>
+                </button>
+                <button class="build-btn" id="tool-deployer" style="padding: 4px; font-size: 8px;">
+                  <div>🚚 Deploy Gate</div>
+                  <div style="color: var(--color-text-dim);">100 QM</div>
+                </button>
+              </div>
+              <button class="build-btn" id="tool-demolish" style="width: 100%; padding: 4px; margin-top: 4px; font-size: 8.5px; border-color: var(--color-red); color: var(--color-red);">
+                🚜 Demolish Structure
+              </button>
+            </div>
+
+            <!-- Launch Mission Drop Selector -->
+            <div style="border: 1px solid var(--color-border); background: rgba(0,229,255,0.02); padding: 8px;">
+              <div style="color: var(--color-cyan); font-weight: bold; font-size: 10px; margin-bottom: 6px; text-transform: uppercase;">🌌 Drop Mission Launcher</div>
+              
+              <div style="margin-bottom: 6px;">
+                <label style="font-size: 8px; color: var(--color-text-dim); display: block; margin-bottom: 2px;">SELECT SECTOR LOCATION:</label>
+                <select id="drop-theme-select" style="width: 100%; background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border); font-family: var(--font-mono); font-size: 10px; padding: 3px;">
+                  <option value="scifi">Metatronic Grid (Sci-Fi)</option>
+                  <option value="fantasy">Elven Fjord (Fantasy)</option>
+                  <option value="realistic">Highland Foothills (Realistic)</option>
+                </select>
+              </div>
+
+              <button id="btn-launch-conquest" class="tactics-btn font-mono text-cyan" style="width: 100%; padding: 6px; font-size: 10px; font-weight: bold; text-shadow: 0 0 5px rgba(0, 229, 255, 0.4);">
+                🚀 LAUNCH CONQUEST DROP
+              </button>
+            </div>
+          </div>
+
+          <!-- CONQUEST FIELD BATTLE OVERLAY -->
+          <div id="conquest-hud-overlay" class="battleship-overlay conquest-overlay" style="display: none; top: 10px; left: 10px; bottom: auto; width: 280px; max-height: calc(100% - 20px);">
+            <div class="overlay-header">
+              <div class="overlay-title-line" style="color: var(--color-red);">CONQUEST_COMMAND_DECK</div>
+              <div class="overlay-desc-line">Massive RTS Planetary Raid</div>
+            </div>
+
+            <!-- Battle Resources & Objectives -->
+            <div style="border: 1px solid var(--color-border); background: rgba(255,51,68,0.02); padding: 8px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 11px;">
+              <div style="color: var(--color-red); font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid var(--color-border); padding-bottom: 2px;">🏹 RAID OBJECTIVES</div>
+              
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>Battle Alloys (Ore):</span>
+                <span id="battle-ore-val" class="text-cyan font-bold" style="font-size: 13px;">400</span>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>Hostile Citadels Cleared:</span>
+                <span id="conquest-camps-val" class="text-red font-bold">0 / 3</span>
+              </div>
+
+              <div id="conquest-status-text" style="color: var(--color-text-dim); font-size: 9px; margin-top: 4px; font-style: italic;">
+                Commanders, drop gatherers onto ores to extract battle alloys. Wipe out the hostile defense camps.
+              </div>
+            </div>
+
+            <!-- Manufacture Assault Army -->
+            <div style="border: 1px solid var(--color-border); padding: 6px; margin-bottom: 8px;">
+              <div style="color: var(--color-text); font-weight: bold; font-size: 10px; margin-bottom: 4px; text-transform: uppercase;">🏭 Manufacture Assault Army</div>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 4px;">
+                <button class="build-btn" id="build-conquest-raider" style="padding: 4px; text-align: left;">
+                  <div style="font-weight: bold; font-size: 9px;">▲ Vanguard Raider</div>
+                  <div style="font-size: 8px; color: var(--color-text-dim);">Cost: 35 Alloy | Fast Assault Infantry</div>
+                </button>
+                <button class="build-btn" id="build-conquest-tank" style="padding: 4px; text-align: left;">
+                  <div style="font-weight: bold; font-size: 9px;">⬢ Goliath Heavy Tank</div>
+                  <div style="font-size: 8px; color: var(--color-text-dim);">Cost: 90 Alloy | Extreme Armor & Cannon</div>
+                </button>
+                <button class="build-btn" id="build-conquest-gunship" style="padding: 4px; text-align: left;">
+                  <div style="font-weight: bold; font-size: 9px;">✦ Reaver Gunship</div>
+                  <div style="font-size: 8px; color: var(--color-text-dim);">Cost: 140 Alloy | Anti-Gravity Flyer Drone</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Mission End / Claim Rewards -->
+            <button id="btn-conquest-return" class="tactics-btn font-mono" style="width: 100%; padding: 6px; font-size: 9.5px; border-color: var(--color-cyan); color: var(--color-cyan);">
+              ↩ RETURN TO COSMIC SECTOR
+            </button>
+          </div>
+
+          <!-- Quick instructions panel inside viewport -->
+          <div class="controls-overlay">
+            <span class="text-cyan font-bold">CONTROLS:</span> 
+            <span class="text-dim">Drag-Select / Left-Click to select ships (e.g. Flagship Carrier to open builds). Right-Click to pilot. WASD or Right-drag to scroll.</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Entry module script -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
