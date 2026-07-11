@@ -4,9 +4,9 @@
 
 Kind of just making the RTS. It is interesting, because I have a lot of ideas and almost 0 drive to make it... And I have that 'I see the vision' type approach.
 
-![1](blog/2026-07/img/test_rts3.jpg)
-![2](blog/2026-07/img/test_rts2.jpg)
-![3](blog/2026-07/img/test_rts.jpg)
+![img](blog/2026-07/img/test_rts3.jpg)
+![img](blog/2026-07/img/test_rts2.jpg)
+![img](blog/2026-07/img/test_rts.jpg)
 
 To test (it is very buggy btw):
 
