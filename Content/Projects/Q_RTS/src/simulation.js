@@ -765,6 +765,10 @@ export class Simulation {
     // Spacing separation offset to avoid overlap bundle when landing
     const count = selectedShips.length;
     selectedShips.forEach((ship, idx) => {
+      if (ship.type === 'carrier' && ship.deployState && ship.deployState !== 'none') {
+        // Ignore movement order while deployed/docked/deploying
+        return;
+      }
       if (count === 1) {
         ship.targetX = worldX;
         ship.targetY = worldY;
@@ -1044,6 +1048,44 @@ export class Simulation {
       if (ship.teleportCooldown > 0) ship.teleportCooldown--;
 
       if (ship.type === 'carrier') {
+        if (ship.deployCooldown > 0) {
+          ship.deployCooldown--;
+        }
+
+        if (!ship.deployState) {
+          ship.deployState = 'none';
+          ship.deployProgress = 0;
+        }
+
+        if (ship.deployState === 'deploying') {
+          ship.deployProgress = Math.min(1.0, ship.deployProgress + 0.00833); // approx 2 seconds at 60 FPS
+          ship.vx = 0;
+          ship.vy = 0;
+          ship.targetX = null;
+          ship.targetY = null;
+          if (ship.deployProgress >= 1.0) {
+            ship.deployState = 'deployed';
+            this.appendFeed("⚓ DEPLOYED: Flagship deployed tentacles into spacetime tear. Click anywhere on the tear or use launch drop to drop!");
+          }
+        } else if (ship.deployState === 'deployed') {
+          ship.vx = 0;
+          ship.vy = 0;
+          ship.targetX = null;
+          ship.targetY = null;
+        } else if (ship.deployState === 'undeploying') {
+          ship.deployProgress = Math.max(0.0, ship.deployProgress - 0.0125); // retract slightly quicker, ~1.3 seconds
+          ship.vx = 0;
+          ship.vy = 0;
+          ship.targetX = null;
+          ship.targetY = null;
+          if (ship.deployProgress <= 0.0) {
+            ship.deployState = 'none';
+            ship.dockedTearId = null;
+            ship.deployCooldown = 180; // 3 seconds re-docking safety cooldown
+            this.appendFeed("⚓ UN-DEPLOYED: Flagship retracted tentacles. Engines active.");
+          }
+        }
+
         // Process production queue
         if (ship.productionQueue && ship.productionQueue.length > 0) {
           const currentItem = ship.productionQueue[0];
@@ -1212,6 +1254,11 @@ export class Simulation {
           ship.vy += (dy / dist) * pushForce;
         }
       });
+
+      if (ship.type === 'carrier' && ship.deployState && ship.deployState !== 'none') {
+        ship.vx = 0;
+        ship.vy = 0;
+      }
 
       // Apply coordinates shift
       ship.x += ship.vx;
@@ -1629,6 +1676,10 @@ export class Simulation {
 
     // 9. Harvest nearby quantum matter crystals automatically
     this.debris = this.debris.filter(scrap => {
+      if (scrap.age === undefined) scrap.age = 0;
+      scrap.age++;
+      if (scrap.age > 10800) return false; // 3 minutes decay time
+      
       let collected = false;
       
       this.ships.forEach(ship => {
@@ -1646,6 +1697,11 @@ export class Simulation {
 
       return !collected;
     });
+
+    // Cap maximum amount of uncollected debris to avoid performance/memory leaks
+    if (this.debris.length > 100) {
+      this.debris = this.debris.slice(-100);
+    }
 
     // 10. Compute continuous infinite grid fabric distortion based on active world locations
     this.updateGridDistortion();
@@ -2272,6 +2328,11 @@ export class Simulation {
   hyperjumpCarrier() {
     const carrier = this.ships.find(s => s.type === 'carrier');
     if (!carrier) return;
+
+    if (carrier.deployState && carrier.deployState !== 'none') {
+      this.appendFeed(`JUMP_ABORT: FLAGSHIP IS DEPLOYED AND ANCHORED IN A SPACETIME TEAR. RETRACT TENTACLES FIRST.`);
+      return;
+    }
 
     // Hyperjump costs 100 QM
     if (this.qm < 100) {
@@ -3041,8 +3102,22 @@ export class Simulation {
         this.ctx.font = 'bold 9px var(--font-mono)';
         this.ctx.textAlign = 'center';
         this.ctx.fillText('⚡ WARNING: SPACETIME_TEAR', sX, sY - 12);
-        this.ctx.fillStyle = '#00ffff';
-        this.ctx.fillText(`CLICK TO DROP [${tear.themeId.toUpperCase()}]`, sX, sY + 8);
+        const carrier = this.ships.find(s => s.type === 'carrier');
+        if (carrier && carrier.dockedTearId === tear.id) {
+          if (carrier.deployState === 'deploying') {
+            this.ctx.fillStyle = '#ffaa00';
+            this.ctx.fillText(`DOCKING SEQUENCE: ${Math.round((carrier.deployProgress || 0) * 100)}%`, sX, sY + 8);
+          } else if (carrier.deployState === 'deployed') {
+            this.ctx.fillStyle = '#00ff66';
+            this.ctx.fillText('⚓ DEPLOYED - CLICK TO DROP!', sX, sY + 8);
+          } else if (carrier.deployState === 'undeploying') {
+            this.ctx.fillStyle = '#ff3344';
+            this.ctx.fillText(`RETRACTING TENTACLES: ${Math.round((carrier.deployProgress || 0) * 100)}%`, sX, sY + 8);
+          }
+        } else {
+          this.ctx.fillStyle = '#00ffff';
+          this.ctx.fillText(`SWIM FLAGSHIP HERE TO DOCK`, sX, sY + 8);
+        }
       }
     });
     this.ctx.restore();
@@ -3422,14 +3497,29 @@ export class Simulation {
           });
 
           // Update joint physics in world space
+          const progress = ship.deployProgress || 0;
           ship.tentacles.forEach((tentacle, tIndex) => {
             const start = tentacleStarts[tIndex];
             
+            let currentAngleOffset = start.angleOffset;
+            if (progress > 0) {
+              let spreadOffset = 0;
+              if (tIndex === 0) spreadOffset = -Math.PI * 0.25;
+              if (tIndex === 1) spreadOffset = -Math.PI * 0.75;
+              if (tIndex === 2) spreadOffset = Math.PI * 0.75;
+              if (tIndex === 3) spreadOffset = Math.PI * 0.25;
+              // Lerp angle offset
+              currentAngleOffset = start.angleOffset * (1 - progress) + spreadOffset * progress;
+            }
+
             // Base joint is locked to the ship's attachment point
             tentacle.joints[0].x = ship.x + (start.x * cosA - start.y * sinA);
             tentacle.joints[0].y = ship.y + (start.x * sinA + start.y * cosA);
 
-            const segmentLength = 8 + (tIndex % 2) * 2;
+            let segmentLength = 8 + (tIndex % 2) * 2;
+            if (progress > 0) {
+              segmentLength += 8 * progress; // lengthen tentacles as they spread!
+            }
             const lag = 0.32; // Organic trailing delay multiplier (dynamic bones stiffness)
 
             for (let i = 1; i < tentacle.joints.length; i++) {
@@ -3445,13 +3535,22 @@ export class Simulation {
               const targetX = prev.x + (dx / dist) * segmentLength;
               const targetY = prev.y + (dy / dist) * segmentLength;
 
+              // Pull towards fully extended radial position when deploying/deployed
+              const angleForTentacle = ship.angle + currentAngleOffset;
+              const radialTargetX = prev.x + Math.cos(angleForTentacle) * segmentLength;
+              const radialTargetY = prev.y + Math.sin(angleForTentacle) * segmentLength;
+
+              // Lerp the target based on deployProgress
+              const finalTargetX = targetX * (1 - progress) + radialTargetX * progress;
+              const finalTargetY = targetY * (1 - progress) + radialTargetY * progress;
+
               // Lag/inertia interpolation
-              curr.x += (targetX - curr.x) * lag;
-              curr.y += (targetY - curr.y) * lag;
+              curr.x += (finalTargetX - curr.x) * lag;
+              curr.y += (finalTargetY - curr.y) * lag;
 
               // Perpendicular wave wiggle in response to turbulence
               const wiggleSpeed = 0.08 + fluctuation * 0.04;
-              const wiggleAmp = 0.14 + fluctuation * 0.16;
+              const wiggleAmp = (0.14 + fluctuation * 0.16) * (1 + progress * 2.5); // more wiggle when deployed!
               const wiggleOffset = Math.sin(this.time * wiggleSpeed - i * 0.8 + tIndex * 1.5) * wiggleAmp;
 
               const px = -dy / dist;

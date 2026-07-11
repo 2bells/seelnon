@@ -368,6 +368,71 @@ export class ConquestBattle {
     const costs = { raider: 35, tank: 90, gunship: 140 };
     const cost = costs[type];
 
+    // Check if we can deploy from our base's standing army first!
+    if (window.mothershipBase && window.mothershipBase.standingArmy) {
+      const reserves = window.mothershipBase.standingArmy[type] || 0;
+      if (reserves <= 0) {
+        window.appendLog(`❌ STANDING_ARMY_DEPLOY: No [${type.toUpperCase()}] units remaining in base reserves! Route assembled chassis to the Central Portal inside Mothership first.`);
+        return;
+      }
+
+      // Deduct from reserves
+      window.mothershipBase.standingArmy[type]--;
+      window.appendLog(`🛸 STANDING_ARMY_DEPLOY: Warping in 1 [${type.toUpperCase()}] instantly from Mothership standing reserves! (0 Alloy cost)`);
+
+      // Spawn instantly
+      const halfX = this.map.width / 2;
+      const halfY = this.map.height / 2;
+      const angle = Math.random() * Math.PI * 2;
+      const dist = this.mothership ? this.mothership.radius + 30 : 120;
+      const rx = halfX + Math.cos(angle) * dist;
+      const ry = halfY + Math.sin(angle) * dist;
+
+      const uData = {
+        id: `${type}-${Date.now()}-${Math.random()}`,
+        type: type,
+        name: type === 'raider' ? 'FT-Raider' : type === 'tank' ? 'DN-Goliath' : 'RV-Reaver',
+        x: rx,
+        y: ry,
+        radius: type === 'raider' ? 9 : type === 'tank' ? 15 : 12,
+        speed: type === 'raider' ? 3.5 : type === 'tank' ? 2.0 : 4.0,
+        health: type === 'raider' ? 120 : type === 'tank' ? 450 : 220,
+        maxHealth: type === 'raider' ? 120 : type === 'tank' ? 450 : 220,
+        weaponRange: type === 'raider' ? 160 : type === 'tank' ? 240 : 180,
+        weaponCooldown: 0,
+        damage: type === 'raider' ? 12 : type === 'tank' ? 45 : 20,
+        angle: angle,
+        path: [],
+        target: null
+      };
+
+      this.playerUnits.push(uData);
+
+      // Trigger visual warp splash in the conquest battle
+      if (this.explosions) {
+        for (let i = 0; i < 15; i++) {
+          const pAngle = Math.random() * Math.PI * 2;
+          const pSpeed = 1 + Math.random() * 3;
+          this.explosions.push({
+            x: rx,
+            y: ry,
+            vx: Math.cos(pAngle) * pSpeed,
+            vy: Math.sin(pAngle) * pSpeed,
+            color: type === 'raider' ? '#00ff66' : type === 'tank' ? '#ffb300' : '#ff33ff',
+            radius: 2 + Math.random() * 3,
+            alpha: 1.0,
+            age: 0,
+            maxAge: 20 + Math.random() * 20
+          });
+        }
+      }
+
+      // Sync and save
+      window.mothershipBase.updateUiDisplay();
+      if (window.saveGame) window.saveGame();
+      return;
+    }
+
     if (this.battleOre < cost) {
       window.appendLog(`❌ SHIPYARD_QUEUE: Insufficient battle ore. Need ${cost} Alloy.`);
       return;

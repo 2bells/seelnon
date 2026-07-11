@@ -1,6 +1,7 @@
 import { Simulation } from './simulation.js';
 import { MothershipBase } from './mothership/base.js';
 import { ConquestBattle } from './maps/conquest.js';
+import { GameStorage } from './storage.js';
 
 // DOM Elements
 const canvas = document.getElementById('sim-canvas');
@@ -60,6 +61,11 @@ window.appendLog = appendLog; // Expose to Simulation engine
 
 // Initialize application
 function initApp() {
+  if (window.appInitializedReal) return;
+  window.appInitializedReal = true;
+  window.keysPressed = keysPressed;
+  window.GameStorage = GameStorage;
+
   if (!canvas) return;
 
   // Set canvas scale to fill containment window
@@ -161,6 +167,39 @@ function initApp() {
         appendLog("📡 UPGRADE_COMPLETE: Flagship Carrier equipped with Symmetric Pulse Laser Arrays! Special energy weapons online.");
       } else {
         appendLog("❌ UPGRADE_BLOCKED: Insufficient elemental resources or Symmetry Crystals. Go to planetary Conquest to collect them!");
+      }
+    });
+  }
+
+  // Deployed flagship panel bindings
+  const btnDeployedLaunch = document.getElementById('btn-deployed-launch');
+  const btnDeployedUndeploy = document.getElementById('btn-deployed-undeploy');
+
+  if (btnDeployedLaunch) {
+    btnDeployedLaunch.addEventListener('click', () => {
+      const carrier = sim.ships.find(s => s.type === 'carrier');
+      if (carrier && carrier.deployState === 'deployed' && carrier.dockedTearId) {
+        const tear = sim.spaceTears.find(t => t.id === carrier.dockedTearId);
+        if (tear) {
+          appendLog(`🔮 VOID_GATEWAY: Commencing Conquest deployment. Drop target theme: [${tear.themeId.toUpperCase()}].`);
+          // Filter out the triggered tear
+          sim.spaceTears = sim.spaceTears.filter(t => t.id !== tear.id);
+          // Reset carrier deploy state
+          carrier.deployState = 'none';
+          carrier.dockedTearId = null;
+          carrier.deployProgress = 0;
+          launchConquest(tear.themeId, tear.isSmallGrind);
+        }
+      }
+    });
+  }
+
+  if (btnDeployedUndeploy) {
+    btnDeployedUndeploy.addEventListener('click', () => {
+      const carrier = sim.ships.find(s => s.type === 'carrier');
+      if (carrier && (carrier.deployState === 'deployed' || carrier.deployState === 'deploying')) {
+        carrier.deployState = 'undeploying';
+        appendLog(`⚓ UN-DOCKING: Flagship has initiated un-docking procedures. Retracting tentacles...`);
       }
     });
   }
@@ -346,6 +385,45 @@ function initApp() {
     });
   }
 
+  function updateMothershipUiStockpile() {
+    if (!mothershipBase) return;
+    const baseQmVal = document.getElementById('base-qm-val');
+    const exoticCoresVal = document.getElementById('exotic-cores-val');
+    const zodiacTethersVal = document.getElementById('zodiac-tethers-val');
+
+    const elemEarth = document.getElementById('elem-earth-val');
+    const elemAir = document.getElementById('elem-air-val');
+    const elemWater = document.getElementById('elem-water-val');
+    const elemMetal = document.getElementById('elem-metal-val');
+    const elemSoil = document.getElementById('elem-soil-val');
+    const elemSymmetry = document.getElementById('elem-symmetry-val');
+
+    if (baseQmVal) baseQmVal.textContent = Math.round(mothershipBase.inventory.quantumMatter);
+    if (exoticCoresVal) exoticCoresVal.textContent = Math.round(mothershipBase.inventory.exoticCores);
+    if (zodiacTethersVal) zodiacTethersVal.textContent = Math.round(mothershipBase.inventory.zodiacTethers);
+
+    if (elemEarth) elemEarth.textContent = Math.round(mothershipBase.inventory.earthElement || 0);
+    if (elemAir) elemAir.textContent = Math.round(mothershipBase.inventory.airElement || 0);
+    if (elemWater) elemWater.textContent = Math.round(mothershipBase.inventory.waterElement || 0);
+    if (elemMetal) elemMetal.textContent = Math.round(mothershipBase.inventory.metalElement || 0);
+    if (elemSoil) elemSoil.textContent = Math.round(mothershipBase.inventory.soilElement || 0);
+    if (elemSymmetry) elemSymmetry.textContent = Math.round(mothershipBase.inventory.symmetryCrystal || 0);
+  }
+  window.updateMothershipUiStockpile = updateMothershipUiStockpile;
+
+  function updateDebugUiVisibility() {
+    const btnToggleDebugMenu = document.getElementById('btn-toggle-debug-menu');
+    const debugWindowOverlay = document.getElementById('debug-window-overlay');
+    const debugDeployHud = document.getElementById('debug-deploy-hud-overlay');
+    if (btnToggleDebugMenu) btnToggleDebugMenu.classList.toggle('active', debugMenuVisible);
+    if (debugWindowOverlay) {
+      debugWindowOverlay.style.display = debugMenuVisible ? 'flex' : 'none';
+    }
+    if (debugDeployHud) {
+      debugDeployHud.style.display = (debugMenuVisible && activeMode === 'cosmic') ? 'flex' : 'none';
+    }
+  }
+
   // Switch visual mode orchestrator
   function switchMode(newMode) {
     if (newMode === 'grid') {
@@ -384,9 +462,7 @@ function initApp() {
       if (canvasHud) canvasHud.style.display = 'block';
       if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'flex';
       
-      if (debugDeployHud) {
-        debugDeployHud.style.display = debugMenuVisible ? 'flex' : 'none';
-      }
+      updateDebugUiVisibility();
       
       if (mothershipHud) {
         mothershipHud.style.display = 'none';
@@ -407,8 +483,9 @@ function initApp() {
       if (radarContainer) radarContainer.style.display = 'none';
       if (controlsOverlay) controlsOverlay.style.display = 'none';
       if (canvasHud) canvasHud.style.display = 'none';
-      if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'none';
-      if (debugDeployHud) debugDeployHud.style.display = 'none';
+      if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'flex';
+      
+      updateDebugUiVisibility();
       
       if (mothershipHud) {
         mothershipHud.style.display = 'block';
@@ -424,8 +501,26 @@ function initApp() {
       // Lazy initialize MothershipBase
       if (!mothershipBase && sim) {
         mothershipBase = new MothershipBase(canvas);
+        window.mothershipBase = mothershipBase;
+        window.saveGame = () => {
+          if (mothershipBase) mothershipBase.saveToStorage();
+        };
+
         // Sync material stockpile from simulation to mothership
         mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+
+        // Load progress from IndexedDB
+        mothershipBase.loadFromStorage()
+          .then(loaded => {
+            if (loaded) {
+              appendLog("🗄️ DATABASE: Restored Mothership Base layout and progression from offline state!");
+              // Update simulation qm with loaded qm
+              sim.qm = mothershipBase.inventory.quantumMatter;
+            } else {
+              appendLog("🗄️ DATABASE: Created new Mothership Base factory matrix core.");
+            }
+            updateMothershipUiStockpile();
+          });
       }
     } 
     else if (newMode === 'conquest') {
@@ -435,8 +530,9 @@ function initApp() {
       if (radarContainer) radarContainer.style.display = 'none';
       if (controlsOverlay) controlsOverlay.style.display = 'none';
       if (canvasHud) canvasHud.style.display = 'none';
-      if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'none';
-      if (debugDeployHud) debugDeployHud.style.display = 'none';
+      if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'flex';
+      
+      updateDebugUiVisibility();
       
       if (mothershipHud) {
         mothershipHud.style.display = 'none';
@@ -474,12 +570,18 @@ function initApp() {
   if (btnToggleDebugMenu) {
     btnToggleDebugMenu.addEventListener('click', () => {
       debugMenuVisible = !debugMenuVisible;
-      btnToggleDebugMenu.classList.toggle('active', debugMenuVisible);
-      const debugDeployHud = document.getElementById('debug-deploy-hud-overlay');
-      if (debugDeployHud) {
-        debugDeployHud.style.display = debugMenuVisible ? 'flex' : 'none';
-      }
+      updateDebugUiVisibility();
       appendLog(`DEBUG_SYSTEM: Spatial deployment overlay ${debugMenuVisible ? "ONLINE" : "OFFLINE"}.`);
+    });
+  }
+
+  // Close debug button click handler
+  const btnCloseDebugConsole = document.getElementById('btn-close-debug-console');
+  if (btnCloseDebugConsole) {
+    btnCloseDebugConsole.addEventListener('click', () => {
+      debugMenuVisible = false;
+      updateDebugUiVisibility();
+      appendLog("DEBUG_SYSTEM: Spatial deployment overlay OFFLINE.");
     });
   }
 
@@ -496,6 +598,370 @@ function initApp() {
     tabConquestBtn.addEventListener('click', () => {
       switchMode('conquest');
       appendLog("CONQUEST_MISSION_VIEWPORT_ENGAGED.");
+    });
+  }
+
+  // 12 ZODIAC COGNITIVE TECHS DATABASE
+  const ZODIAC_TECHS = {
+    aries: { name: "Aries", symbol: "♈", title: "The Pioneer - Core Speed Amplification", desc: "Increases conveyor belt item movement speed by 50% throughout the entire factory grid, optimizing throughput for high-rate fabrication.", cost: { quantumMatter: 500, exoticCores: 2 } },
+    taurus: { name: "Taurus", symbol: "♉", title: "The Builder - Substrate Efficiency", desc: "Reduces the construction cost of all new conveyor belts and factory machines by 25%.", cost: { quantumMatter: 750, exoticCores: 3 } },
+    gemini: { name: "Gemini", symbol: "♊", title: "The Twin - Dual Extractor Matrix", desc: "Extractor drills now draw resources twice as fast, extracting two items per cycle instead of one.", cost: { quantumMatter: 1000, exoticCores: 5 } },
+    cancer: { name: "Cancer", symbol: "♋", title: "The Guardian - Structural Fortitude", desc: "All player vehicles deployed in Conquest battlegrounds receive +150 extra maximum shield and armor health.", cost: { quantumMatter: 1200, exoticCores: 6 } },
+    leo: { name: "Leo", symbol: "♌", title: "The Commander - Tactical Logistics", desc: "Standing Army limit is unlocked, allowing larger forces to be deployed on planetary surfaces.", cost: { quantumMatter: 1500, exoticCores: 8, airElement: 10 } },
+    virgo: { name: "Virgo", symbol: "♍", title: "The Analyst - Yield Maximization", desc: "Planetary Synthesizers achieve 100% molecular transformation efficiency, producing double yield outputs.", cost: { quantumMatter: 1800, exoticCores: 10, waterElement: 15 } },
+    libra: { name: "Libra", symbol: "♎", title: "The Architect - Spatial Expansion", desc: "Reduces the Quantum Matter and Exotic Core cost to integrate and unlock adjacent grid sectors by 30%.", cost: { quantumMatter: 2000, exoticCores: 12, earthElement: 15 } },
+    scorpio: { name: "Scorpio", symbol: "♏", title: "The Catalyst - Assembly Hyperdrive", desc: "All Assembler fabricators perform construction pipelines 50% faster, converting elements to units rapidly.", cost: { quantumMatter: 2500, exoticCores: 15, metalElement: 20 } },
+    sagittarius: { name: "Sagittarius", symbol: "♐", title: "The Explorer - Deep Space Warp-drive", desc: "Warp coordinates stabilized. Reduces Carrier hyperjump recharge delay by 40%.", cost: { quantumMatter: 3000, exoticCores: 18, soilElement: 20 } },
+    capricorn: { name: "Capricorn", symbol: "♑", title: "The Overseer - Passive QM Generation", desc: "Passively synthesizes +10 Quantum Matter per second inside the base mainframe, even while idle.", cost: { quantumMatter: 4000, exoticCores: 25, symmetryCrystal: 5 } },
+    aquarius: { name: "Aquarius", symbol: "♒", title: "The Innovator - Element Recycling Core", desc: "Recovers 10% of element costs when materials are fed into the central standing army conversion portal.", cost: { quantumMatter: 5000, exoticCores: 30, symmetryCrystal: 10 } },
+    pisces: { name: "Pisces", symbol: "♓", title: "The Dreamer - Cosmic Transcendence", desc: "Enables symmetric firing array pulses on the Flagship Carrier, maximizing defensive firepower.", cost: { quantumMatter: 8000, exoticCores: 50, symmetryCrystal: 20 } }
+  };
+
+  let selectedTechId = null;
+
+  function updateTechTreeModal() {
+    ensureMothershipBase();
+    if (!mothershipBase) return;
+
+    const baseInv = mothershipBase.inventory;
+    const unlockedList = mothershipBase.unlockedTech || [];
+
+    // Update node status labels
+    Object.keys(ZODIAC_TECHS).forEach(techId => {
+      const btn = document.getElementById(`tech-${techId}`);
+      if (btn) {
+        const isUnlocked = unlockedList.includes(techId);
+        const statusLabel = btn.querySelector('.tech-status-label');
+        if (statusLabel) {
+          statusLabel.textContent = isUnlocked ? "ACTIVE" : "LOCKED";
+          statusLabel.style.color = isUnlocked ? "var(--color-green)" : "var(--color-text-dim)";
+          statusLabel.style.borderColor = isUnlocked ? "rgba(0, 255, 102, 0.4)" : "rgba(255,255,255,0.15)";
+          statusLabel.style.background = isUnlocked ? "rgba(0, 255, 102, 0.05)" : "none";
+        }
+        
+        // Highlight active selection
+        if (selectedTechId === techId) {
+          btn.style.borderColor = "#ff33ff";
+          btn.style.boxShadow = "0 0 10px rgba(255, 51, 255, 0.3)";
+          btn.style.background = "rgba(255, 51, 255, 0.05)";
+        } else {
+          btn.style.borderColor = isUnlocked ? "rgba(0, 255, 102, 0.2)" : "rgba(255, 255, 255, 0.1)";
+          btn.style.boxShadow = "none";
+          btn.style.background = "rgba(255, 255, 255, 0.01)";
+        }
+      }
+    });
+
+    // Update right details panel
+    const descTitle = document.getElementById('tech-desc-title');
+    const descBody = document.getElementById('tech-desc-body');
+    const costBox = document.getElementById('tech-cost-box');
+    const costList = document.getElementById('tech-cost-list');
+    const unlockBtn = document.getElementById('btn-unlock-tech');
+
+    if (!selectedTechId) {
+      if (descTitle) descTitle.textContent = "SELECT BRAIN NODE";
+      if (descBody) descBody.textContent = "Click on any Zodiac Brain Core on the left matrix to review its deep cognitive capabilities, operational upgrades, and materials required to unlock the node.";
+      if (costBox) costBox.style.display = 'none';
+      if (unlockBtn) {
+        unlockBtn.textContent = "CHOOSE COGNITIVE BRAIN";
+        unlockBtn.style.borderColor = "var(--color-text-dim)";
+        unlockBtn.style.color = "var(--color-text-dim)";
+        unlockBtn.disabled = true;
+        unlockBtn.style.cursor = 'not-allowed';
+      }
+    } else {
+      const tech = ZODIAC_TECHS[selectedTechId];
+      const isAlreadyUnlocked = unlockedList.includes(selectedTechId);
+
+      if (descTitle) descTitle.textContent = `${tech.symbol} ${tech.name.toUpperCase()}`;
+      if (descBody) descBody.textContent = `[${tech.title}]\n\n${tech.desc}`;
+
+      // Calculate cost string
+      if (costBox && costList) {
+        costBox.style.display = 'block';
+        costList.innerHTML = '';
+        
+        // Populate cost list
+        let canAfford = true;
+        const requirements = [];
+
+        if (tech.cost.quantumMatter) {
+          const current = Math.round(mothershipBase.inventory.quantumMatter);
+          const required = tech.cost.quantumMatter;
+          const met = current >= required;
+          if (!met) canAfford = false;
+          requirements.push(`<div style="color: ${met ? 'var(--color-green)' : 'var(--color-red)'}">• Quantum Matter: ${current} / ${required} QM</div>`);
+        }
+        if (tech.cost.exoticCores) {
+          const current = Math.round(baseInv.exoticCores || 0);
+          const required = tech.cost.exoticCores;
+          const met = current >= required;
+          if (!met) canAfford = false;
+          requirements.push(`<div style="color: ${met ? 'var(--color-green)' : 'var(--color-red)'}">• Exotic Cores: ${current} / ${required} Cores</div>`);
+        }
+        
+        // Check elements
+        const elementsToCheck = [
+          { key: 'earthElement', label: 'Earth Essence' },
+          { key: 'airElement', label: 'Air Essence' },
+          { key: 'waterElement', label: 'Water Essence' },
+          { key: 'metalElement', label: 'Metal Essence' },
+          { key: 'soilElement', label: 'Soil Essence' },
+          { key: 'symmetryCrystal', label: 'Symmetry Crystals' }
+        ];
+
+        elementsToCheck.forEach(el => {
+          if (tech.cost[el.key]) {
+            const current = Math.round(baseInv[el.key] || 0);
+            const required = tech.cost[el.key];
+            const met = current >= required;
+            if (!met) canAfford = false;
+            requirements.push(`<div style="color: ${met ? 'var(--color-green)' : 'var(--color-red)'}">• ${el.label}: ${current} / ${required}</div>`);
+          }
+        });
+
+        costList.innerHTML = requirements.join('');
+
+        if (unlockBtn) {
+          if (isAlreadyUnlocked) {
+            unlockBtn.textContent = "COGNITIVE NODE ONLINE";
+            unlockBtn.style.borderColor = "var(--color-green)";
+            unlockBtn.style.color = "var(--color-green)";
+            unlockBtn.style.boxShadow = "0 0 10px rgba(0, 255, 102, 0.2)";
+            unlockBtn.disabled = true;
+            unlockBtn.style.cursor = 'not-allowed';
+          } else if (canAfford) {
+            unlockBtn.textContent = "INITIATE BRAIN INTEGRATION";
+            unlockBtn.style.borderColor = "#ff33ff";
+            unlockBtn.style.color = "#ff33ff";
+            unlockBtn.style.boxShadow = "0 0 15px rgba(255, 51, 255, 0.4)";
+            unlockBtn.disabled = false;
+            unlockBtn.style.cursor = 'pointer';
+          } else {
+            unlockBtn.textContent = "INSUFFICIENT STOCKPILE";
+            unlockBtn.style.borderColor = "var(--color-red)";
+            unlockBtn.style.color = "var(--color-red)";
+            unlockBtn.style.boxShadow = "none";
+            unlockBtn.disabled = true;
+            unlockBtn.style.cursor = 'not-allowed';
+          }
+        }
+      }
+    }
+  }
+
+  // Bind tech modal togglers
+  const btnOpenTechTree = document.getElementById('btn-open-tech-tree');
+  const btnCloseTechTree = document.getElementById('btn-close-tech-tree');
+  const techTreeModal = document.getElementById('tech-tree-modal');
+
+  if (btnOpenTechTree && techTreeModal) {
+    btnOpenTechTree.addEventListener('click', () => {
+      ensureMothershipBase();
+      techTreeModal.style.display = 'flex';
+      selectedTechId = null;
+      updateTechTreeModal();
+      appendLog("🧠 SYSTEM: Cognitive Zodiac Matrix mainframe opened.");
+    });
+  }
+
+  if (btnCloseTechTree && techTreeModal) {
+    btnCloseTechTree.addEventListener('click', () => {
+      techTreeModal.style.display = 'none';
+      appendLog("🧠 SYSTEM: Zodiac Matrix mainframe offline.");
+    });
+  }
+
+  // Bind individual tech node buttons
+  Object.keys(ZODIAC_TECHS).forEach(techId => {
+    const btn = document.getElementById(`tech-${techId}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        selectedTechId = techId;
+        updateTechTreeModal();
+      });
+    }
+  });
+
+  // Bind unlock button
+  const btnUnlockTech = document.getElementById('btn-unlock-tech');
+  if (btnUnlockTech) {
+    btnUnlockTech.addEventListener('click', () => {
+      ensureMothershipBase();
+      if (!mothershipBase || !selectedTechId) return;
+
+      const tech = ZODIAC_TECHS[selectedTechId];
+      const baseInv = mothershipBase.inventory;
+      const unlockedList = mothershipBase.unlockedTech || [];
+
+      if (unlockedList.includes(selectedTechId)) return;
+
+      // Double check costs to deduct
+      let canAfford = true;
+      if (tech.cost.quantumMatter && mothershipBase.inventory.quantumMatter < tech.cost.quantumMatter) canAfford = false;
+      if (tech.cost.exoticCores && (baseInv.exoticCores || 0) < tech.cost.exoticCores) canAfford = false;
+      
+      const elementsKeys = ['earthElement', 'airElement', 'waterElement', 'metalElement', 'soilElement', 'symmetryCrystal'];
+      elementsKeys.forEach(k => {
+        if (tech.cost[k] && (baseInv[k] || 0) < tech.cost[k]) canAfford = false;
+      });
+
+      if (canAfford) {
+        // Deduct
+        if (tech.cost.quantumMatter) {
+          mothershipBase.inventory.quantumMatter -= tech.cost.quantumMatter;
+          sim.qm = mothershipBase.inventory.quantumMatter;
+        }
+        if (tech.cost.exoticCores) baseInv.exoticCores -= tech.cost.exoticCores;
+        
+        elementsKeys.forEach(k => {
+          if (tech.cost[k]) baseInv[k] -= tech.cost[k];
+        });
+
+        // Add to unlocked tech array
+        mothershipBase.unlockedTech.push(selectedTechId);
+        
+        // Spawn glorious celebration particles inside base rendering or log it
+        appendLog(`✨ COGNITIVE_BRAIN_UNLOCKED: Integrated Zodiac Core [${tech.name.toUpperCase()}] into central processor neural network! Upgraded: ${tech.title}`);
+        
+        updateTechTreeModal();
+        mothershipBase.updateUiDisplay();
+        if (window.saveGame) window.saveGame();
+      } else {
+        appendLog("❌ UPGRADE_FAILED: Stockpile validation failed.");
+      }
+    });
+  }
+
+  // Bind Cyber Brutalist Debug Panel Override Buttons
+  function ensureMothershipBase() {
+    if (!mothershipBase && sim) {
+      mothershipBase = new MothershipBase(canvas);
+      window.mothershipBase = mothershipBase;
+      window.saveGame = () => {
+        if (mothershipBase) mothershipBase.saveToStorage();
+      };
+      mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+      mothershipBase.loadFromStorage();
+    }
+  }
+
+  const devAddQm = document.getElementById('dev-add-qm');
+  if (devAddQm) {
+    devAddQm.addEventListener('click', () => {
+      ensureMothershipBase();
+      sim.qm += 5000;
+      if (mothershipBase) {
+        mothershipBase.inventory.quantumMatter += 5000;
+        mothershipBase.updateUiDisplay();
+        if (window.saveGame) window.saveGame();
+      }
+      appendLog("🚨 DEV_CHEAT: Granted +5,000 Quantum Matter stockpile.");
+    });
+  }
+
+  const devAddCores = document.getElementById('dev-add-cores');
+  if (devAddCores) {
+    devAddCores.addEventListener('click', () => {
+      ensureMothershipBase();
+      if (mothershipBase) {
+        mothershipBase.inventory.exoticCores += 50;
+        mothershipBase.updateUiDisplay();
+        if (window.saveGame) window.saveGame();
+      }
+      appendLog("🚨 DEV_CHEAT: Granted +50 Exotic Cores core components.");
+    });
+  }
+
+  const devAddTethers = document.getElementById('dev-add-tethers');
+  if (devAddTethers) {
+    devAddTethers.addEventListener('click', () => {
+      ensureMothershipBase();
+      if (mothershipBase) {
+        mothershipBase.inventory.zodiacTethers += 10;
+        mothershipBase.updateUiDisplay();
+        if (window.saveGame) window.saveGame();
+      }
+      appendLog("🚨 DEV_CHEAT: Granted +10 Zodiac Tethers portal items.");
+    });
+  }
+
+  const devAddElements = document.getElementById('dev-add-elements');
+  if (devAddElements) {
+    devAddElements.addEventListener('click', () => {
+      ensureMothershipBase();
+      if (mothershipBase) {
+        mothershipBase.inventory.earthElement = (mothershipBase.inventory.earthElement || 0) + 20;
+        mothershipBase.inventory.airElement = (mothershipBase.inventory.airElement || 0) + 20;
+        mothershipBase.inventory.waterElement = (mothershipBase.inventory.waterElement || 0) + 20;
+        mothershipBase.inventory.metalElement = (mothershipBase.inventory.metalElement || 0) + 20;
+        mothershipBase.inventory.soilElement = (mothershipBase.inventory.soilElement || 0) + 20;
+        mothershipBase.inventory.symmetryCrystal = (mothershipBase.inventory.symmetryCrystal || 0) + 20;
+        mothershipBase.updateUiDisplay();
+        if (window.saveGame) window.saveGame();
+      }
+      appendLog("🚨 DEV_CHEAT: Granted +20 of all basic Planetary Elemental Essences and Symmetry Crystals.");
+    });
+  }
+
+  const devUnlockTechs = document.getElementById('dev-unlock-techs');
+  if (devUnlockTechs) {
+    devUnlockTechs.addEventListener('click', () => {
+      ensureMothershipBase();
+      if (mothershipBase) {
+        mothershipBase.unlockedTech = [
+          'aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo',
+          'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces'
+        ];
+        mothershipBase.updateUiDisplay();
+        if (window.saveGame) window.saveGame();
+      }
+      appendLog("🚨 DEV_CHEAT: Unlocked all 12 Zodiac Brain tech tree nodes!");
+    });
+  }
+
+  const devUnlockSectors = document.getElementById('dev-unlock-sectors');
+  if (devUnlockSectors) {
+    devUnlockSectors.addEventListener('click', () => {
+      ensureMothershipBase();
+      if (mothershipBase) {
+        mothershipBase.unlockedSectors = [];
+        for (let x = 0; x < 12; x++) {
+          for (let y = 0; y < 12; y++) {
+            mothershipBase.unlockedSectors.push({ x, y });
+          }
+        }
+        mothershipBase.updateUiDisplay();
+        if (window.saveGame) window.saveGame();
+      }
+      appendLog("🚨 DEV_CHEAT: Unlocked entire 12x12 Mothership grid mainframe matrix!");
+    });
+  }
+
+  const devResetGame = document.getElementById('dev-reset-game');
+  if (devResetGame) {
+    let resetStep = 0;
+    devResetGame.addEventListener('click', () => {
+      if (resetStep === 0) {
+        devResetGame.textContent = "SURE? (STILL_WIPE_STORAGE)";
+        devResetGame.style.borderColor = "var(--color-amber)";
+        devResetGame.style.color = "var(--color-amber)";
+        resetStep = 1;
+      } else {
+        if (window.GameStorage) {
+          window.GameStorage.clear()
+            .then(() => {
+              appendLog("🚨 CRITICAL: Persistent database wiped! Restarting application state...");
+              window.location.reload();
+            })
+            .catch(() => {
+              window.location.reload();
+            });
+        } else {
+          window.location.reload();
+        }
+      }
     });
   }
 
@@ -680,7 +1146,21 @@ function initApp() {
           const demolishBtn = document.getElementById('tool-demolish');
           if (demolishBtn) demolishBtn.classList.remove('active');
           appendLog("MOTHERSHIP_BASE: Deselected active placer tool.");
+        } else {
+          isCameraDragging = true;
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          camStartX = mothershipBase.cameraX;
+          camStartY = mothershipBase.cameraY;
+          clickDistance = 0;
         }
+      } else if (e.button === 1) {
+        isCameraDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        camStartX = mothershipBase.cameraX;
+        camStartY = mothershipBase.cameraY;
+        clickDistance = 0;
       }
     } 
     else if (activeMode === 'conquest' && conquestBattle) {
@@ -736,6 +1216,15 @@ function initApp() {
         clickDistance += Math.abs(dx) + Math.abs(dy);
       }
     }
+    else if (activeMode === 'mothership' && mothershipBase) {
+      if (isCameraDragging) {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        mothershipBase.cameraX = camStartX + dx;
+        mothershipBase.cameraY = camStartY + dy;
+        clickDistance += Math.abs(dx) + Math.abs(dy);
+      }
+    }
   });
 
   canvas.addEventListener('mouseup', (e) => {
@@ -766,9 +1255,29 @@ function initApp() {
               const dy = worldPos.y - t.y;
               return Math.sqrt(dx*dx + dy*dy) < t.radius;
             });
-            if (clickedTear) {
-              appendLog(`🚀 VOID_TEAR_ENGAGED: Transitioning fleet inside spacetime rip. Drop target theme: [${clickedTear.themeId.toUpperCase()}].`);
-              launchConquest(clickedTear.themeId, clickedTear.isSmallGrind);
+             if (clickedTear) {
+              const carrier = sim.ships.find(s => s.type === 'carrier');
+              if (carrier) {
+                if (carrier.deployState === 'deployed' && carrier.dockedTearId === clickedTear.id) {
+                  appendLog(`🔮 VOID_GATEWAY: Commencing Conquest deployment. Drop target theme: [${clickedTear.themeId.toUpperCase()}].`);
+                  // Filter out the triggered tear
+                  sim.spaceTears = sim.spaceTears.filter(t => t.id !== clickedTear.id);
+                  // Reset carrier deploy state
+                  carrier.deployState = 'none';
+                  carrier.dockedTearId = null;
+                  carrier.deployProgress = 0;
+                  launchConquest(clickedTear.themeId, clickedTear.isSmallGrind);
+                } else if (carrier.deployState === 'deploying' && carrier.dockedTearId === clickedTear.id) {
+                  appendLog(`⚓ LOCK-IN: Flagship deployment in progress. Please wait for the tentacles to fully spread before launching the Conquest Drop.`);
+                } else {
+                  carrier.targetX = clickedTear.x;
+                  carrier.targetY = clickedTear.y;
+                  appendLog(`🚀 SPACETIME_TEAR: Directing flagship carrier to swim to center of spacetime tear [${clickedTear.themeId.toUpperCase()}].`);
+                }
+              } else {
+                appendLog(`🚀 VOID_TEAR_ENGAGED: Transitioning fleet inside spacetime rip. Drop target theme: [${clickedTear.themeId.toUpperCase()}].`);
+                launchConquest(clickedTear.themeId, clickedTear.isSmallGrind);
+              }
               sim.selectionStart = null;
               sim.selectionEnd = null;
               return;
@@ -860,6 +1369,11 @@ function initApp() {
         const worldPos = conquestBattle.screenToWorld(x, y);
         conquestBattle.orderMovement(worldPos.x, worldPos.y);
       } else if (e.button === 1 && isCameraDragging) {
+        isCameraDragging = false;
+      }
+    }
+    else if (activeMode === 'mothership') {
+      if (isCameraDragging) {
         isCameraDragging = false;
       }
     }
@@ -1023,18 +1537,39 @@ function updateRealtimeClock() {
 // Render selected unit decks status bars
 function updateSelectionDecks() {
   const selectedList = sim.ships.filter(s => s.selected);
-  const carrierSelected = selectedList.some(s => s.type === 'carrier');
+  const carrier = sim.ships.find(s => s.type === 'carrier');
+  const carrierIsDeployedOrDeploying = carrier && carrier.deployState && carrier.deployState !== 'none';
+  const carrierSelected = selectedList.some(s => s.type === 'carrier') || carrierIsDeployedOrDeploying;
+
+  // Toggle standard vs deployed panel elements
+  const standardCmds = document.getElementById('tactical-commands-standard');
+  const deployedCmds = document.getElementById('tactical-commands-deployed');
+  if (standardCmds && deployedCmds) {
+    if (carrierIsDeployedOrDeploying) {
+      standardCmds.style.display = 'none';
+      deployedCmds.style.display = 'grid';
+    } else {
+      standardCmds.style.display = 'grid';
+      deployedCmds.style.display = 'none';
+    }
+  }
   
   // Update overall overlay container visibility
   const shipyardPanel = document.getElementById('shipyard-hud-overlay');
   const commandPanel = document.getElementById('command-hud-overlay');
   const formationPanel = document.getElementById('formation-hud-overlay');
 
-  if (selectedList.length > 0) {
-    if (formationPanel) formationPanel.classList.add('active');
+  if (selectedList.length > 0 || carrierIsDeployedOrDeploying) {
+    if (formationPanel && selectedList.length > 0) formationPanel.classList.add('active');
     
     if (carrierSelected) {
-      if (shipyardPanel) shipyardPanel.classList.add('active');
+      if (shipyardPanel) {
+        if (carrierIsDeployedOrDeploying) {
+          shipyardPanel.classList.remove('active');
+        } else {
+          shipyardPanel.classList.add('active');
+        }
+      }
       if (commandPanel) commandPanel.classList.add('active');
     } else {
       if (shipyardPanel) shipyardPanel.classList.remove('active');
@@ -1347,6 +1882,33 @@ function tickGameLoop(timestamp) {
       // 3. Render Canvas
       sim.render();
 
+      // Check if flagship has arrived inside any spacetime tear
+      const carrier = sim.ships.find(s => s.type === 'carrier');
+      if (carrier && sim.spaceTears && sim.spaceTears.length > 0) {
+        sim.spaceTears.forEach(tear => {
+          const dx = carrier.x - tear.x;
+          const dy = carrier.y - tear.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 48) {
+            if (!carrier.deployCooldown || carrier.deployCooldown <= 0) {
+              if (!carrier.deployState || carrier.deployState === 'none') {
+                carrier.dockedTearId = tear.id;
+                carrier.deployState = 'deploying';
+                carrier.deployProgress = 0;
+                // Snap carrier to tear center
+                carrier.x = tear.x;
+                carrier.y = tear.y;
+                carrier.targetX = tear.x;
+                carrier.targetY = tear.y;
+                carrier.vx = 0;
+                carrier.vy = 0;
+                appendLog(`⚓ DEPLOYING: Flagship has locked in position and is deploying tentacles into the spacetime tear [${tear.themeId.toUpperCase()}]. (2s duration)`);
+              }
+            }
+          }
+        });
+      }
+
       // 4. Update HUD and sidebar details
       qmDisplay.textContent = Math.round(sim.qm);
       hudFleetCount.textContent = `${sim.ships.length} / 50`;
@@ -1413,27 +1975,7 @@ function tickGameLoop(timestamp) {
       mothershipBase.render();
 
       // Update Mothership stockpile numbers
-      const baseQmVal = document.getElementById('base-qm-val');
-      const exoticCoresVal = document.getElementById('exotic-cores-val');
-      const zodiacTethersVal = document.getElementById('zodiac-tethers-val');
-
-      const elemEarth = document.getElementById('elem-earth-val');
-      const elemAir = document.getElementById('elem-air-val');
-      const elemWater = document.getElementById('elem-water-val');
-      const elemMetal = document.getElementById('elem-metal-val');
-      const elemSoil = document.getElementById('elem-soil-val');
-      const elemSymmetry = document.getElementById('elem-symmetry-val');
-
-      if (baseQmVal) baseQmVal.textContent = Math.round(mothershipBase.inventory.quantumMatter);
-      if (exoticCoresVal) exoticCoresVal.textContent = Math.round(mothershipBase.inventory.exoticCores);
-      if (zodiacTethersVal) zodiacTethersVal.textContent = Math.round(mothershipBase.inventory.zodiacTethers);
-
-      if (elemEarth) elemEarth.textContent = Math.round(mothershipBase.inventory.earthElement || 0);
-      if (elemAir) elemAir.textContent = Math.round(mothershipBase.inventory.airElement || 0);
-      if (elemWater) elemWater.textContent = Math.round(mothershipBase.inventory.waterElement || 0);
-      if (elemMetal) elemMetal.textContent = Math.round(mothershipBase.inventory.metalElement || 0);
-      if (elemSoil) elemSoil.textContent = Math.round(mothershipBase.inventory.soilElement || 0);
-      if (elemSymmetry) elemSymmetry.textContent = Math.round(mothershipBase.inventory.symmetryCrystal || 0);
+      updateMothershipUiStockpile();
 
       // Keep simulation QM in sync with Mothership Base so we share resources!
       sim.qm = mothershipBase.inventory.quantumMatter;
@@ -1482,6 +2024,91 @@ function tickGameLoop(timestamp) {
 
       updateRealtimeClock();
     }
+  }
+}
+
+// Spacetime transition state object
+window.tearTransitionState = {
+  active: false,
+  progress: 0,
+  themeId: 'aquarius',
+  isSmallGrind: false
+};
+
+window.startSpacetimeTransition = function(themeId, isSmallGrind) {
+  window.tearTransitionState.active = true;
+  window.tearTransitionState.progress = 0;
+  window.tearTransitionState.themeId = themeId;
+  window.tearTransitionState.isSmallGrind = isSmallGrind;
+  appendLog(`🌌 TRANSITION: Flagship entering spacetime rift! Spacetime warping started...`);
+};
+
+// Canvas drawing animation helper for the spacetime tear transition
+function drawTearTransition(ctx, progress) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  // Render a dramatic portal vortex effect over the whole viewport
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+
+  // Draw expansion circle
+  const maxRadius = Math.sqrt(w*w + h*h) * 0.8;
+  const currentRadius = maxRadius * progress;
+
+  // Radiant glitch particles
+  const numRays = 24;
+  for (let i = 0; i < numRays; i++) {
+    const angle = (i / numRays) * Math.PI * 2 + progress * 8;
+    const len = currentRadius * (0.8 + Math.random() * 0.4);
+    const tx = cx + Math.cos(angle) * len;
+    const ty = cy + Math.sin(angle) * len;
+
+    // Glitchy lines spreading outwards
+    ctx.strokeStyle = `hsla(${(progress * 360 + i * 15) % 360}, 100%, 70%, ${1 - progress})`;
+    ctx.lineWidth = 1 + Math.random() * 4;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+  }
+
+  // Draw central space-tear ripple
+  const grad = ctx.createRadialGradient(cx, cy, currentRadius * 0.1, cx, cy, currentRadius);
+  grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
+  grad.addColorStop(0.3, 'rgba(255, 51, 255, 0.8)');
+  grad.addColorStop(0.6, 'rgba(0, 229, 255, 0.5)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, currentRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Add retro glitch block overlays as progress gets closer to 100%
+  if (progress > 0.5) {
+    const glitchIntensity = (progress - 0.5) * 2; // scales from 0 to 1
+    const numBlocks = Math.floor(glitchIntensity * 12);
+    for (let b = 0; b < numBlocks; b++) {
+      const bx = Math.random() * w;
+      const by = Math.random() * h;
+      const bw = (50 + Math.random() * 150) * glitchIntensity;
+      const bh = (10 + Math.random() * 40) * glitchIntensity;
+      
+      ctx.fillStyle = `rgba(${Math.random() > 0.5 ? '255, 0, 102' : '0, 255, 204'}, ${glitchIntensity * 0.35})`;
+      ctx.fillRect(bx, by, bw, bh);
+    }
+  }
+
+  ctx.restore();
+
+  // Full black-out transition ending
+  if (progress > 0.8) {
+    const blackAlpha = (progress - 0.8) / 0.2; // 0 to 1
+    ctx.fillStyle = `rgba(0, 0, 0, ${blackAlpha})`;
+    ctx.fillRect(0, 0, w, h);
   }
 }
 
