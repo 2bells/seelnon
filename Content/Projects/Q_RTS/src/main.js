@@ -944,22 +944,20 @@ function initApp() {
     let resetStep = 0;
     devResetGame.addEventListener('click', () => {
       if (resetStep === 0) {
-        devResetGame.textContent = "SURE? (STILL_WIPE_STORAGE)";
-        devResetGame.style.borderColor = "var(--color-amber)";
-        devResetGame.style.color = "var(--color-amber)";
+        devResetGame.textContent = "SURE?";
         resetStep = 1;
-      } else {
+        setTimeout(() => {
+          if (resetStep === 1) {
+             devResetGame.textContent = "RESET_ALL";
+             resetStep = 0;
+          }
+        }, 3000);
+      } else if (resetStep === 1) {
         if (window.GameStorage) {
           window.GameStorage.clear()
             .then(() => {
-              appendLog("🚨 CRITICAL: Persistent database wiped! Restarting application state...");
-              window.location.reload();
-            })
-            .catch(() => {
               window.location.reload();
             });
-        } else {
-          window.location.reload();
         }
       }
     });

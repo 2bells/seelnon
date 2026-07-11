@@ -725,38 +725,39 @@ export class MothershipBase {
       }
     });
 
-    // 3. Conveyor movement physics: move item particles along belt paths with backing up cascade
-    this.conveyorItems.forEach(item => {
-      const col = Math.floor(item.x / this.cellSize);
-      const row = Math.floor(item.y / this.cellSize);
-      const b = this.buildings.find(bg => bg.col === col && bg.row === row);
-      
-      if (b && b.type === 'belt') {
-        item.speed = 2.0;
-        item.spawnX = col * this.cellSize + this.cellSize / 2;
-        item.spawnY = row * this.cellSize + this.cellSize / 2;
-        item.spawnDir = b.direction || 'right';
-      } else {
-        const dx = item.x - (item.spawnX || item.x);
-        const dy = item.y - (item.spawnY || item.y);
-        const dist = Math.sqrt(dx * dx + dy * dy);
+    if (this.conveyorItems) {
+      this.conveyorItems.forEach(item => {
+        const col = Math.floor(item.x / this.cellSize);
+        const row = Math.floor(item.y / this.cellSize);
+        const b = this.buildings.find(bg => bg.col === col && bg.row === row);
         
-        let speedMultiplier = 1.0;
-        if (dist > 120) {
-          speedMultiplier = Math.max(0, 1 - (dist - 120) / 80);
+        if (b && b.type === 'belt') {
+          item.speed = 2.0;
+          item.spawnX = col * this.cellSize + this.cellSize / 2;
+          item.spawnY = row * this.cellSize + this.cellSize / 2;
+          item.spawnDir = b.direction || 'right';
+        } else {
+          const dx = item.x - (item.spawnX || item.x);
+          const dy = item.y - (item.spawnY || item.y);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          let speedMultiplier = 1.0;
+          if (dist > 120) {
+            speedMultiplier = Math.max(0, 1 - (dist - 120) / 80);
+          }
+          item.speed = 1.5 * speedMultiplier;
         }
-        item.speed = 1.5 * speedMultiplier;
-      }
 
-      // Check if item is on a belt
-      const isOnBelt = (b && b.type === 'belt');
+        // Check if item is on a belt
+        const isOnBelt = (b && b.type === 'belt');
 
-      if (isOnBelt) {
-        item.age = 0;
-      } else {
-        item.age++;
-      }
-    });
+        if (isOnBelt) {
+          item.age = 0;
+        } else {
+          item.age++;
+        }
+      });
+    }
 
     for (let i = 0; i < this.conveyorItems.length; i++) {
       const itemA = this.conveyorItems[i];

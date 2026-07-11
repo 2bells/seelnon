@@ -410,21 +410,8 @@ export class ConquestBattle {
 
       // Trigger visual warp splash in the conquest battle
       if (this.explosions) {
-        for (let i = 0; i < 15; i++) {
-          const pAngle = Math.random() * Math.PI * 2;
-          const pSpeed = 1 + Math.random() * 3;
-          this.explosions.push({
-            x: rx,
-            y: ry,
-            vx: Math.cos(pAngle) * pSpeed,
-            vy: Math.sin(pAngle) * pSpeed,
-            color: type === 'raider' ? '#00ff66' : type === 'tank' ? '#ffb300' : '#ff33ff',
-            radius: 2 + Math.random() * 3,
-            alpha: 1.0,
-            age: 0,
-            maxAge: 20 + Math.random() * 20
-          });
-        }
+        const explosionColor = type === 'raider' ? '#00ff66' : type === 'tank' ? '#ffb300' : '#ff33ff';
+        this.spawnParticleExplosion(rx, ry, explosionColor, 15);
       }
 
       // Sync and save
