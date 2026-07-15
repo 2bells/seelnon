@@ -10,7 +10,7 @@ Does it mean anything: probably not. I did my tests, so time to go to 3.0 dailie
 
 ## Esoterica
 
-Also a great episode:
+Also a great episode [title is a clickbait as usual. The guy is one of the top scholars of esoteric material in general: Hermetics, Kabbalah, Gnostics, Witches, Alchemy, etc]:
 
 ![video](https://www.youtube.com/watch?v=VOEp7L2hi9g)
 
