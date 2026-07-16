@@ -1,6 +1,6 @@
 # Himeko
 
-![img](https://static.wikia.nocookie.net/houkai-star-rail/images/5/5c/Character_Himeko_•_Nova_Game.png/revision/latest/scale-to-width/360?cb=20260715042750)
+![img](https://i.pinimg.com/736x/66/c1/36/66c136c69072e6b8ce1879defe73308a.jpg)
 
 Somehow was able to get her. One of the favorites, from the whole 'Lesson' thing from back in the day... Honkai 3rd... if you know you know.
 
