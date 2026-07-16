@@ -20,7 +20,7 @@ export const CONFIG = {
   // Player Starting State and Limits
   player: {
     startingQm: 250,         // Initial Quantum Matter
-    maxQm: 9999,             // Capacity cap of Quantum Matter
+    maxQm: 999999999,        // Capacity cap of Quantum Matter
     passiveQmTickRate: 25,   // Frame ticks (approx 1s) to regenerate resources
     passiveQmAmount: 1,      // Quantum Matter gained per interval
   },

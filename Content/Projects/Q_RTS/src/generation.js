@@ -278,18 +278,18 @@ export function getBiomeAt(worldX, worldY) {
 
 /**
  * Returns deterministic landmarks/structures spawned inside chunks.
- * Spawns cities and taverns with medieval/fantasy names.
+ * Spawns solar systems with beautiful celestial names.
  */
 const TAVERN_NAMES = [
-  "Warpfarer's Hearth", "The Drunken Comet", "Event Horizon Inn", 
-  "The Prancing Void-Beast", "The Golden Singularity", "Starlight Flagon",
-  "Nebula Rest", "Goddess Flow Grog", "Father's Breath Tavern"
+  "Warpfarer's Hearth System", "The Drunken Comet System", "Event Horizon Sol System", 
+  "The Void-Beast Star System", "The Golden Singularity System", "Starlight Sol System",
+  "Nebula Rest Star System", "Goddess Flow System", "Father's Breath System"
 ];
 
 const CITY_NAMES = [
-  "Aurelia Prime", "Chronos Citadel", "Shattered Haven", "Aethelgard",
-  "Voidspire Spires", "Solaria Keeps", "Krell Siphon Keep", "New Camelot",
-  "Iron-Vein Bastion", "Silverstream Citadel"
+  "Aurelia Prime Star System", "Chronos Citadel Sol System", "Shattered Haven System", "Aethelgard Star System",
+  "Voidspire System", "Solaria Keeps System", "Krell Siphon Star System", "New Camelot System",
+  "Iron-Vein Star System", "Silverstream System"
 ];
 
 export function getStructureInChunk(cx, cy) {
@@ -303,8 +303,8 @@ export function getStructureInChunk(cx, cy) {
       x: lx,
       y: ly,
       type: 'tavern',
-      name: "First Hearth Inn",
-      description: "A cozy local tavern offering strong grog and gossip for fleet pilots.",
+      name: "First Hearth System",
+      description: "A stable, harmonic solar system featuring a bright yellow star and rich orbital elements. Dock close to enter.",
       color: '#ffb300'
     };
   }
@@ -325,7 +325,7 @@ export function getStructureInChunk(cx, cy) {
         y: ly,
         type: 'tavern',
         name: TAVERN_NAMES[nameIdx],
-        description: "A rustic refuge frequented by astral mercenaries and gravity miners.",
+        description: "A solar system vibrant with cosmic harmonics and orbiting planetary bodies. Dock close to enter.",
         color: '#ff9100'
       };
     } else {
@@ -335,7 +335,7 @@ export function getStructureInChunk(cx, cy) {
         y: ly,
         type: 'city',
         name: CITY_NAMES[nameIdx],
-        description: "A fortified settlement constructed from skin-rock blocks and glowing runic pylons.",
+        description: "An ancient star system rich in dense core elements and orbital gravity lanes. Dock close to enter.",
         color: '#00e5ff'
       };
     }

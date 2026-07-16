@@ -75,6 +75,8 @@ export class ConquestBattle {
     this.fowCanvas.width = this.map.cols + 2;
     this.fowCanvas.height = this.map.rows + 2;
     this.fowContext = this.fowCanvas.getContext('2d');
+    this.gl = null;
+
     this.fowGrid = new Uint8Array(this.map.cols * this.map.rows);
 
     // High-performance Spatial Hashing Bucket Grid Setup
@@ -101,6 +103,23 @@ export class ConquestBattle {
       for (let c = 0; c < this.map.cols; c++) {
         const blocked = this.map.isBlocked(c, r);
         this.pathfinder.setBlocked(c, r, blocked);
+
+        const tileIdx = r * this.map.cols + c;
+        const tile = this.map.tiles[tileIdx];
+        let weight = 1.0;
+        if (tile && tile.meta && typeof tile.meta.speed === 'number') {
+          const speed = tile.meta.speed;
+          if (speed > 0) {
+            // Inverse proportion: faster terrain has lower weight/cost, prioritizing it!
+            weight = 1.0 / speed;
+            if (tile.type === 'mountain') {
+              weight = 15.0; // Extra heavy penalty to avoid mountains unless absolutely necessary
+            }
+          } else {
+            weight = 99.0;
+          }
+        }
+        this.pathfinder.setWeight(c, r, weight);
       }
     }
   }
@@ -112,6 +131,25 @@ export class ConquestBattle {
         this.fowGrid[i] = 1; // Unseen/Explored Fog
       }
     }
+  }
+
+  // Adjusts (x, y) to ensure it is not on water (void or shallow)
+  ensureLandPosition(x, y, fallbackX, fallbackY) {
+    let tile = this.map.getTileAt(x, y);
+    if (tile && tile.type !== 'void' && tile.type !== 'shallow') {
+      return { x, y };
+    }
+    const steps = 12;
+    for (let i = 1; i <= steps; i++) {
+      const ratio = i / steps;
+      const testX = x * (1 - ratio) + fallbackX * ratio;
+      const testY = y * (1 - ratio) + fallbackY * ratio;
+      const testTile = this.map.getTileAt(testX, testY);
+      if (testTile && testTile.type !== 'void' && testTile.type !== 'shallow') {
+        return { x: testX, y: testY };
+      }
+    }
+    return { x: fallbackX, y: fallbackY };
   }
 
   // Land massive flagship Carrier in the center of the map
@@ -142,12 +180,15 @@ export class ConquestBattle {
     const numGatherers = this.isSmallGrind ? 4 : 6;
     for (let i = 0; i < numGatherers; i++) {
       const angle = (i * Math.PI * 2) / numGatherers;
+      const rawX = halfX + Math.cos(angle) * (this.isSmallGrind ? 110 : 160);
+      const rawY = halfY + Math.sin(angle) * (this.isSmallGrind ? 110 : 160);
+      const pos = this.ensureLandPosition(rawX, rawY, halfX, halfY);
       this.playerUnits.push({
         id: `gatherer-${i}`,
         type: 'gatherer',
         name: `AM-Scarab ${i + 1}`,
-        x: halfX + Math.cos(angle) * (this.isSmallGrind ? 110 : 160),
-        y: halfY + Math.sin(angle) * (this.isSmallGrind ? 110 : 160),
+        x: pos.x,
+        y: pos.y,
         radius: 10,
         speed: 2.8,
         health: 250,
@@ -164,12 +205,15 @@ export class ConquestBattle {
     // Spawn Vanguard Raiders (Assault units)
     const numRaiders = this.isSmallGrind ? 5 : 12;
     for (let i = 0; i < numRaiders; i++) {
+      const rawX = halfX - 100 + (i % 4) * 40;
+      const rawY = halfY + 120 + Math.floor(i / 4) * 40;
+      const pos = this.ensureLandPosition(rawX, rawY, halfX, halfY);
       this.playerUnits.push({
         id: `raider-${i}`,
         type: 'raider',
         name: `FT-Raider ${i + 1}`,
-        x: halfX - 100 + (i % 4) * 40,
-        y: halfY + 120 + Math.floor(i / 4) * 40,
+        x: pos.x,
+        y: pos.y,
         radius: 9,
         speed: 3.5,
         health: 120,
@@ -186,12 +230,15 @@ export class ConquestBattle {
     // Spawn Heavy Tanks
     const numTanks = this.isSmallGrind ? 1 : 4;
     for (let i = 0; i < numTanks; i++) {
+      const rawX = halfX + 50 + (i % 2) * 60;
+      const rawY = halfY + 150 + Math.floor(i / 2) * 50;
+      const pos = this.ensureLandPosition(rawX, rawY, halfX, halfY);
       this.playerUnits.push({
         id: `tank-${i}`,
         type: 'tank',
         name: `DN-Goliath ${i + 1}`,
-        x: halfX + 50 + (i % 2) * 60,
-        y: halfY + 150 + Math.floor(i / 2) * 50,
+        x: pos.x,
+        y: pos.y,
         radius: 15,
         speed: 2.0,
         health: 450,
@@ -218,7 +265,7 @@ export class ConquestBattle {
         return;
       }
 
-      // Spawn static Command Citadel structure
+      // Spawn static Command Citadel structure (already guaranteed land from generator)
       this.enemyUnits.push({
         id: `camp-citadel-${index}`,
         type: 'citadel',
@@ -236,15 +283,18 @@ export class ConquestBattle {
         speed: 0
       });
 
-      // Spawn 2 flanking defensive turrets
+      // Spawn 2 flanking defensive turrets (adjusted to not be in water)
       for (let t = 0; t < 2; t++) {
         const angle = t * Math.PI + (index * 0.5);
+        const rawX = camp.x + Math.cos(angle) * 75;
+        const rawY = camp.y + Math.sin(angle) * 75;
+        const pos = this.ensureLandPosition(rawX, rawY, camp.x, camp.y);
         this.enemyUnits.push({
           id: `camp-turret-${index}-${t}`,
           type: 'turret',
           name: `Defensive Turret`,
-          x: camp.x + Math.cos(angle) * 75,
-          y: camp.y + Math.sin(angle) * 75,
+          x: pos.x,
+          y: pos.y,
           radius: 16,
           health: 800,
           maxHealth: 800,
@@ -256,15 +306,18 @@ export class ConquestBattle {
         });
       }
 
-      // Spawn 5 patrolling guards around the camp
+      // Spawn 5 patrolling guards around the camp (adjusted to not be in water)
       for (let g = 0; g < 5; g++) {
         const offsetAngle = (g * Math.PI * 2) / 5;
+        const rawX = camp.x + Math.cos(offsetAngle) * 110;
+        const rawY = camp.y + Math.sin(offsetAngle) * 110;
+        const pos = this.ensureLandPosition(rawX, rawY, camp.x, camp.y);
         this.enemyUnits.push({
           id: `camp-guard-${index}-${g}`,
           type: 'crawler',
           name: 'Void Crawler',
-          x: camp.x + Math.cos(offsetAngle) * 110,
-          y: camp.y + Math.sin(offsetAngle) * 110,
+          x: pos.x,
+          y: pos.y,
           radius: 10,
           speed: 2.2,
           health: 150,
@@ -329,7 +382,7 @@ export class ConquestBattle {
   }
 
   // Fast Line of Sight raycast (Bresenham)
-  hasLineOfSight(x1, y1, x2, y2) {
+  hasLineOfSight(x1, y1, x2, y2, ignoreMountains = false) {
     const c1 = Math.floor(x1 / this.map.cellSize);
     const r1 = Math.floor(y1 / this.map.cellSize);
     const c2 = Math.floor(x2 / this.map.cellSize);
@@ -348,6 +401,15 @@ export class ConquestBattle {
     let steps = 0;
     while (steps < maxSteps) {
       if (this.map.isBlocked(c, r)) return false;
+      
+      if (!ignoreMountains) {
+        const tileIdx = r * this.map.cols + c;
+        const tile = this.map.tiles[tileIdx];
+        if (tile && tile.type === 'mountain') {
+          return false;
+        }
+      }
+
       if (c === c2 && r === r2) break;
       const e2 = 2 * err;
       if (e2 > -dr) {
@@ -461,6 +523,56 @@ export class ConquestBattle {
     const selected = this.playerUnits.filter(u => u.selected);
     if (selected.length === 0) return;
 
+    // Check if we clicked on an active, visible enemy unit
+    let clickedEnemy = null;
+    let nearestEnemyDist = Infinity;
+    this.enemyUnits.forEach(e => {
+      if (this.isPositionInVision(e.x, e.y)) {
+        const dx = e.x - worldX;
+        const dy = e.y - worldY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        // Selection/Click hit target radius tolerance
+        if (d < Math.max(28, e.radius + 15) && d < nearestEnemyDist) {
+          nearestEnemyDist = d;
+          clickedEnemy = e;
+        }
+      }
+    });
+
+    if (clickedEnemy) {
+      let combatUnitCount = 0;
+      selected.forEach(u => {
+        if (u.type !== 'gatherer') {
+          u.target = clickedEnemy;
+          u.manualTarget = clickedEnemy;
+          u.playerMoving = false; // Override standard movement to focus attack
+
+          // Path directly or find path
+          if (this.hasLineOfSight(u.x, u.y, clickedEnemy.x, clickedEnemy.y, true)) {
+            u.path = [{ x: clickedEnemy.x, y: clickedEnemy.y }];
+          } else {
+            u.path = this.pathfinder.findPath(u.x, u.y, clickedEnemy.x, clickedEnemy.y);
+          }
+          combatUnitCount++;
+        }
+      });
+
+      if (combatUnitCount > 0) {
+        window.appendLog(`⚔️ TACTICAL TARGETING: Order to focus fire on [${clickedEnemy.name.toUpperCase()}] issued to ${combatUnitCount} combat squad units!`);
+      }
+
+      // Spawn a red target attack visual indicator
+      window.sim?.waypoints.push({
+        id: `conquest-wp-${Date.now()}`,
+        x: clickedEnemy.x,
+        y: clickedEnemy.y,
+        radius: 12,
+        alpha: 1.0,
+        color: '#ff3344'
+      });
+      return;
+    }
+
     let clickedOre = null;
     this.map.resources.forEach(res => {
       if (res.type === 'deposit') {
@@ -471,12 +583,13 @@ export class ConquestBattle {
     });
 
     selected.forEach((u, index) => {
+      u.playerMoving = true;
       if (u.type === 'gatherer' && clickedOre) {
         u.targetOre = clickedOre;
         u.miningState = 'moving_to_ore';
         
         // Raycast first to avoid A* pathfinding processing when clear!
-        if (this.hasLineOfSight(u.x, u.y, clickedOre.x, clickedOre.y)) {
+        if (this.hasLineOfSight(u.x, u.y, clickedOre.x, clickedOre.y, true)) {
           u.path = [{ x: clickedOre.x, y: clickedOre.y }];
         } else {
           u.path = this.pathfinder.findPath(u.x, u.y, clickedOre.x, clickedOre.y);
@@ -488,8 +601,9 @@ export class ConquestBattle {
         const tx = worldX + offsetX;
         const ty = worldY + offsetY;
         u.target = null;
+        u.manualTarget = null; // Clear manual target focus on new move command
 
-        if (this.hasLineOfSight(u.x, u.y, tx, ty)) {
+        if (this.hasLineOfSight(u.x, u.y, tx, ty, true)) {
           u.path = [{ x: tx, y: ty }];
         } else {
           u.path = this.pathfinder.findPath(u.x, u.y, tx, ty);
@@ -583,52 +697,245 @@ export class ConquestBattle {
     }
   }
 
+  initFowWebGL() {
+    const gl = this.gl;
+    
+    // Vertex Shader
+    const vsSource = `
+      attribute vec2 a_position;
+      varying vec2 v_texCoord;
+      void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+        v_texCoord = a_position * 0.5 + 0.5;
+        v_texCoord.y = 1.0 - v_texCoord.y; // Flip Y
+      }
+    `;
+
+    // Fragment Shader (SC2-style rolling, gaseous Fog of War)
+    const fsSource = `
+      precision mediump float;
+      varying vec2 v_texCoord;
+      
+      uniform sampler2D u_fowTexture;
+      uniform float u_time;
+      
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i + vec2(0.0,0.0)), hash(i + vec2(1.0,0.0)), u.x),
+                   mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), u.x), u.y);
+      }
+
+      float fbm(vec2 p) {
+        float value = 0.0;
+        float amplitude = 0.5;
+        float frequency = 1.0;
+        for (int i = 0; i < 3; i++) {
+          value += amplitude * noise(p * frequency);
+          frequency *= 2.0;
+          amplitude *= 0.5;
+        }
+        return value;
+      }
+
+      void main() {
+        // Displace coordinate with noise for dynamic organic borders
+        vec2 mistOffset1 = vec2(u_time * 0.025, u_time * 0.015);
+        vec2 mistOffset2 = vec2(-u_time * 0.018, u_time * 0.022);
+        
+        float n1 = fbm(v_texCoord * 12.0 + mistOffset1);
+        float n2 = fbm(v_texCoord * 24.0 + mistOffset2);
+        float dynamicNoise = mix(n1, n2, 0.5);
+        
+        // Warp coordinate slightly for organic boundaries
+        vec2 warpedCoord = v_texCoord + vec2(dynamicNoise * 0.012 - 0.006);
+        vec4 fowSample = texture2D(u_fowTexture, warpedCoord);
+        
+        float v = fowSample.r; // Raw FOW value: 0.0 (Unexplored), 0.5 (Explored/Unseen), 1.0 (Seen)
+        
+        // Define target opacities for the 3 distinct states
+        float alphaUnexplored = 0.98 + 0.02 * dynamicNoise; // Almost completely solid black
+        float alphaExplored = 0.50 + 0.05 * sin(u_time * 0.8 + dynamicNoise * 4.0); // Semi-transparent, terrain visible
+        float alphaVisible = 0.0; // Crystal clear
+        
+        // Smoothly interpolate between target opacities
+        // Transition from Unexplored (v = 0.0) to Explored (v = 0.5)
+        float t1 = smoothstep(0.12, 0.38, v); 
+        float smoke = mix(alphaUnexplored, alphaExplored, t1);
+        
+        // Transition from Explored (v = 0.5) to Visible (v = 1.0)
+        float t2 = smoothstep(0.62, 0.88, v);
+        smoke = mix(smoke, alphaVisible, t2);
+        
+        // Base color of the dark space mist
+        vec3 fogColor = vec3(0.002, 0.003, 0.006);
+        
+        // Add beautiful boundary glows to delineate borders
+        // 1. Vision border (where active vision fades to shroud)
+        float visionEdge = smoothstep(0.45, 0.72, v) * (1.0 - smoothstep(0.72, 0.92, v));
+        // 2. Explored boundary (where shroud meets unexplored deep black void)
+        float exploredEdge = smoothstep(0.05, 0.22, v) * (1.0 - smoothstep(0.22, 0.42, v));
+        
+        // Glowing colors
+        vec3 activeGlow = vec3(0.0, 0.12, 0.22) * visionEdge * (0.85 + 0.15 * dynamicNoise);
+        vec3 darkEdgeGlow = vec3(0.08, 0.02, 0.15) * exploredEdge * (0.75 + 0.25 * dynamicNoise);
+        
+        vec3 finalColor = fogColor + activeGlow + darkEdgeGlow;
+        
+        gl_FragColor = vec4(finalColor, smoke);
+      }
+    `;
+
+    this.fowProgram = this.createFowProgram(vsSource, fsSource);
+    gl.useProgram(this.fowProgram);
+
+    this.fowAttribs = {
+      position: gl.getAttribLocation(this.fowProgram, 'a_position')
+    };
+    this.fowUniforms = {
+      fowTexture: gl.getUniformLocation(this.fowProgram, 'u_fowTexture'),
+      time: gl.getUniformLocation(this.fowProgram, 'u_time')
+    };
+
+    // Create quad buffer
+    this.fowQuadBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.fowQuadBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1,
+       1, -1,
+      -1,  1,
+      -1,  1,
+       1, -1,
+       1,  1
+    ]), gl.STATIC_DRAW);
+
+    // Create texture
+    this.fowTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.fowTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  }
+
+  createFowProgram(vsSource, fsSource) {
+    const gl = this.gl;
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, vsSource);
+    gl.compileShader(vs);
+    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+      console.error('FOW VS compile error:', gl.getShaderInfoLog(vs));
+    }
+
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, fsSource);
+    gl.compileShader(fs);
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+      console.error('FOW FS compile error:', gl.getShaderInfoLog(fs));
+    }
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    return program;
+  }
+
   updateFowCanvas() {
     const cols = this.map.cols;
     const rows = this.map.rows;
-    const fctx = this.fowContext;
     
-    const imgData = fctx.createImageData(cols + 2, rows + 2);
-    const data = imgData.data;
-
-    // Fill entirely with pitch black undiscovered state by default (Stage 0)
-    for (let i = 0; i < data.length; i += 4) {
-      data[i] = 1;     // Red
-      data[i + 1] = 2; // Green
-      data[i + 2] = 4; // Blue
-      data[i + 3] = 255; // Alpha
-    }
-
-    // Overlay inside cells matching fowGrid
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const gridIdx = r * cols + c;
-        const state = this.fowGrid[gridIdx];
-        const destIdx = ((r + 1) * (cols + 2) + (c + 1)) * 4;
-
-        if (state === 0) {
-          // Stage 0: Undiscovered - pitch black
-          data[destIdx] = 1;
-          data[destIdx + 1] = 2;
-          data[destIdx + 2] = 4;
-          data[destIdx + 3] = 255;
-        } else if (state === 1) {
-          // Stage 1: Explored but Unseen (Shadowed Fog of War)
-          data[destIdx] = 1;
-          data[destIdx + 1] = 2;
-          data[destIdx + 2] = 4;
-          data[destIdx + 3] = 195; // 76% Alpha
-        } else {
-          // Stage 2: Currently Seen - crystal transparent
-          data[destIdx] = 0;
-          data[destIdx + 1] = 0;
-          data[destIdx + 2] = 0;
-          data[destIdx + 3] = 0;
+    if (this.gl) {
+      const gl = this.gl;
+      const texWidth = cols + 2;
+      const texHeight = rows + 2;
+      
+      const texData = new Uint8Array(texWidth * texHeight);
+      texData.fill(0);
+      
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const gridIdx = r * cols + c;
+          const state = this.fowGrid[gridIdx];
+          const destIdx = (r + 1) * texWidth + (c + 1);
+          
+          if (state === 0) {
+            texData[destIdx] = 0; // Undiscovered
+          } else if (state === 1) {
+            texData[destIdx] = 128; // Explored but unseen
+          } else {
+            texData[destIdx] = 255; // Currently seen
+          }
         }
       }
-    }
+      
+      // Render WebGL Fog
+      gl.viewport(0, 0, this.fowCanvas.width, this.fowCanvas.height);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      
+      gl.useProgram(this.fowProgram);
+      
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.fowTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, texWidth, texHeight, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, texData);
+      gl.uniform1i(this.fowUniforms.fowTexture, 0);
+      gl.uniform1f(this.fowUniforms.time, this.time);
+      
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.fowQuadBuffer);
+      gl.enableVertexAttribArray(this.fowAttribs.position);
+      gl.vertexAttribPointer(this.fowAttribs.position, 2, gl.FLOAT, false, 0, 0);
+      
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    } else {
+      const fctx = this.fowContext;
+      const imgData = fctx.createImageData(cols + 2, rows + 2);
+      const data = imgData.data;
 
-    fctx.putImageData(imgData, 0, 0);
+      // Fill entirely with pitch black undiscovered state by default (Stage 0)
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = 1;     // Red
+        data[i + 1] = 2; // Green
+        data[i + 2] = 4; // Blue
+        data[i + 3] = 255; // Alpha
+      }
+
+      // Overlay inside cells matching fowGrid
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const gridIdx = r * cols + c;
+          const state = this.fowGrid[gridIdx];
+          const destIdx = ((r + 1) * (cols + 2) + (c + 1)) * 4;
+
+          if (state === 0) {
+            // Stage 0: Undiscovered - pitch black
+            data[destIdx] = 1;
+            data[destIdx + 1] = 2;
+            data[destIdx + 2] = 4;
+            data[destIdx + 3] = 255;
+          } else if (state === 1) {
+            // Stage 1: Explored but Unseen (Shadowed Fog of War)
+            data[destIdx] = 1;
+            data[destIdx + 1] = 2;
+            data[destIdx + 2] = 4;
+            data[destIdx + 3] = 130; // ~51% Alpha (clearly semi-transparent)
+          } else {
+            // Stage 2: Currently Seen - crystal transparent
+            data[destIdx] = 0;
+            data[destIdx + 1] = 0;
+            data[destIdx + 2] = 0;
+            data[destIdx + 3] = 0;
+          }
+        }
+      }
+
+      fctx.putImageData(imgData, 0, 0);
+    }
   }
 
   isPositionInVision(x, y) {
@@ -636,6 +943,13 @@ export class ConquestBattle {
     const row = Math.floor(y / this.map.cellSize);
     if (col < 0 || col >= this.map.cols || row < 0 || row >= this.map.rows) return false;
     return this.fowGrid[row * this.map.cols + col] === 2;
+  }
+
+  isPositionExplored(x, y) {
+    const col = Math.floor(x / this.map.cellSize);
+    const row = Math.floor(y / this.map.cellSize);
+    if (col < 0 || col >= this.map.cols || row < 0 || row >= this.map.rows) return false;
+    return this.fowGrid[row * this.map.cols + col] > 0;
   }
 
   // Update Core loop
@@ -908,7 +1222,10 @@ export class ConquestBattle {
 
   // Move directly or step-wise along path nodes
   moveAlongPath(u) {
-    if (!u.path || u.path.length === 0) return;
+    if (!u.path || u.path.length === 0) {
+      u.playerMoving = false;
+      return;
+    }
 
     const targetNode = u.path[0];
     const dx = targetNode.x - u.x;
@@ -917,10 +1234,19 @@ export class ConquestBattle {
 
     if (d < 14) {
       u.path.shift();
+      if (!u.path || u.path.length === 0) {
+        u.playerMoving = false;
+      }
     } else {
       u.angle = Math.atan2(dy, dx);
-      const nextX = u.x + Math.cos(u.angle) * u.speed;
-      const nextY = u.y + Math.sin(u.angle) * u.speed;
+      
+      // Look up speed modifier of the current terrain tile
+      const tile = this.map.getTileAt(u.x, u.y);
+      const speedMod = (tile && tile.meta && typeof tile.meta.speed === 'number') ? tile.meta.speed : 1.0;
+      const actualSpeed = u.speed * speedMod;
+
+      const nextX = u.x + Math.cos(u.angle) * actualSpeed;
+      const nextY = u.y + Math.sin(u.angle) * actualSpeed;
 
       // Obstacle boundary collision checks
       const nextC = Math.floor(nextX / this.map.cellSize);
@@ -1025,6 +1351,21 @@ export class ConquestBattle {
             gotSymmetry = true;
           }
 
+          // Sync immediately to the mothership base vault!
+          if (window.mothershipBase) {
+            const inv = window.mothershipBase.inventory;
+            const elementKey = choice + 'Element';
+            inv[elementKey] = (inv[elementKey] || 0) + 1;
+            if (gotSymmetry) {
+              inv.symmetryCrystal = (inv.symmetryCrystal || 0) + 1;
+            }
+            window.mothershipBase.updateUiDisplay();
+            if (window.updateMothershipUiStockpile) {
+              window.updateMothershipUiStockpile();
+            }
+            window.mothershipBase.saveToStorage();
+          }
+
           const msg = gotSymmetry
             ? `✨ SECURED CRYSTAL: Harvester refined rare [SYMMETRY CRYSTAL] (+1 ${choice.toUpperCase()}).`
             : `⛏️ SECURED ELEMENT: Harvester refined surface element: (+1 ${choice.toUpperCase()}).`;
@@ -1044,28 +1385,43 @@ export class ConquestBattle {
     if (u.target) {
       if (u.target.health <= 0) {
         u.target = null;
+        u.manualTarget = null;
       } else {
         const dx = u.target.x - u.x;
         const dy = u.target.y - u.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const inVision = this.isTargetScanned(u, u.target);
 
-        if (dist > u.weaponRange * 1.55 || !inVision) {
+        let shouldClearTarget = false;
+        if (!inVision) {
+          shouldClearTarget = true;
+        } else if (u.target !== u.manualTarget && dist > u.weaponRange * 1.55) {
+          shouldClearTarget = true;
+        }
+
+        if (shouldClearTarget) {
           u.target = null;
+          u.manualTarget = null;
         } else {
           u.angle = Math.atan2(dy, dx);
 
           if (dist <= u.weaponRange) {
-            u.path = [];
+            if (!u.playerMoving) {
+              u.path = [];
+            }
             if (u.weaponCooldown === 0) {
               u.weaponCooldown = u.type === 'tank' ? 75 : 32;
               this.fireWeapon(u, u.target);
             }
-          } else if (!u.path || u.path.length === 0) {
-            if (this.hasLineOfSight(u.x, u.y, u.target.x, u.target.y)) {
-              u.path = [{ x: u.target.x, y: u.target.y }];
-            } else {
-              u.path = this.pathfinder.findPath(u.x, u.y, u.target.x, u.target.y);
+          } else {
+            // For manually targeted enemies, periodically refresh the path to chase them down
+            const needNewPath = !u.path || u.path.length === 0 || (u.target === u.manualTarget && Math.random() < 0.03);
+            if (needNewPath) {
+              if (this.hasLineOfSight(u.x, u.y, u.target.x, u.target.y)) {
+                u.path = [{ x: u.target.x, y: u.target.y }];
+              } else {
+                u.path = this.pathfinder.findPath(u.x, u.y, u.target.x, u.target.y);
+              }
             }
           }
         }
@@ -1161,8 +1517,22 @@ export class ConquestBattle {
   }
 
   render() {
-    this.ctx.fillStyle = '#010204';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    const hasWebGL = !!(window.sim && window.sim.webglRenderer);
+
+    if (hasWebGL) {
+      const wgl = window.sim.webglRenderer;
+      if (!this.webglInitialized) {
+        wgl.setConquestMap(this.map.width, this.map.height, this.map.mapCanvas);
+        this.webglInitialized = true;
+      }
+      wgl.renderConquest(this);
+      
+      // Clear 2D canvas completely so WebGL displays underneath
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    } else {
+      this.ctx.fillStyle = '#010204';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
 
     const w = this.canvas.width;
     const h = this.canvas.height;
@@ -1173,76 +1543,80 @@ export class ConquestBattle {
     this.ctx.scale(zoom, zoom);
     this.ctx.translate(-this.camera.x - w/2, -this.camera.y - h/2);
 
-    // Render subtle decorative stars under map grid
-    this.ctx.strokeStyle = 'rgba(0, 229, 255, 0.015)';
-    this.ctx.lineWidth = 1;
-    const gStep = 100;
-    const sX = Math.floor((this.camera.x - w) / gStep) * gStep;
-    const eX = Math.ceil((this.camera.x + w * 2) / gStep) * gStep;
-    const sY = Math.floor((this.camera.y - h) / gStep) * gStep;
-    const eY = Math.ceil((this.camera.y + h * 2) / gStep) * gStep;
-    for (let x = sX; x <= eX; x += gStep) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(x, sY);
-      this.ctx.lineTo(x, eY);
-      this.ctx.stroke();
-    }
-    for (let y = sY; y <= eY; y += gStep) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(sX, y);
-      this.ctx.lineTo(eX, y);
-      this.ctx.stroke();
-    }
-
-    // 1. Draw cached map background instantly in 1 draw call! (No performance overhead)
-    this.ctx.imageSmoothingEnabled = false; // keeps map pixel art beautifully sharp
-    this.ctx.drawImage(this.map.mapCanvas, 0, 0);
-
-    const isLowLOD = zoom < 0.45; // Level of Detail Optimization Threshold
-
-    // 2. Draw active mineral veins (Only if inside active vision stage)
-    this.map.resources.forEach(res => {
-      if (res.type === 'deposit') {
-        if (res.amount <= 0) return;
-        if (!this.isPositionInVision(res.x, res.y)) return;
-
-        this.ctx.fillStyle = res.color;
-        this.ctx.strokeStyle = '#ffffff';
-        this.ctx.lineWidth = 1;
+    if (!hasWebGL) {
+      // Render subtle decorative stars under map grid (only if WebGL is inactive)
+      this.ctx.strokeStyle = 'rgba(0, 229, 255, 0.015)';
+      this.ctx.lineWidth = 1;
+      const gStep = 100;
+      const sX = Math.floor((this.camera.x - w) / gStep) * gStep;
+      const eX = Math.ceil((this.camera.x + w * 2) / gStep) * gStep;
+      const sY = Math.floor((this.camera.y - h) / gStep) * gStep;
+      const eY = Math.ceil((this.camera.y + h * 2) / gStep) * gStep;
+      for (let x = sX; x <= eX; x += gStep) {
         this.ctx.beginPath();
-        this.ctx.arc(res.x, res.y, isLowLOD ? 5 : 8, 0, Math.PI * 2);
-        this.ctx.fill();
+        this.ctx.moveTo(x, sY);
+        this.ctx.lineTo(x, eY);
         this.ctx.stroke();
       }
-    });
+      for (let y = sY; y <= eY; y += gStep) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(sX, y);
+        this.ctx.lineTo(eX, y);
+        this.ctx.stroke();
+      }
 
-    // 3. Draw flagship mothership
+      // 1. Draw cached map background instantly in 1 draw call! (No performance overhead)
+      this.ctx.imageSmoothingEnabled = false; // keeps map pixel art beautifully sharp
+      this.ctx.drawImage(this.map.mapCanvas, 0, 0);
+    }
+
+    const isLowLOD = zoom < 0.45; // Level of Detail Optimization Threshold
     const ms = this.mothership;
-    this.ctx.save();
-    this.ctx.translate(ms.x, ms.y);
-    this.ctx.rotate(this.time * 0.04);
 
-    this.ctx.strokeStyle = '#00e5ff';
-    this.ctx.lineWidth = isLowLOD ? 2 : 4;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, ms.radius, 0, Math.PI * 2);
-    this.ctx.stroke();
+    if (!hasWebGL) {
+      // 2. Draw active mineral veins (Only if inside active vision stage)
+      this.map.resources.forEach(res => {
+        if (res.type === 'deposit') {
+          if (res.amount <= 0) return;
+          if (!this.isPositionInVision(res.x, res.y)) return;
 
-    this.ctx.strokeStyle = 'rgba(0, 229, 255, 0.25)';
-    this.ctx.lineWidth = isLowLOD ? 8 : 18;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, ms.radius - 12, 0, Math.PI * 2);
-    this.ctx.stroke();
+          this.ctx.fillStyle = res.color;
+          this.ctx.strokeStyle = '#ffffff';
+          this.ctx.lineWidth = 1;
+          this.ctx.beginPath();
+          this.ctx.arc(res.x, res.y, isLowLOD ? 5 : 8, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.stroke();
+        }
+      });
 
-    this.ctx.fillStyle = '#0d1821';
-    this.ctx.strokeStyle = '#ffffff';
-    this.ctx.lineWidth = 2.5;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, ms.radius - 22, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.stroke();
+      // 3. Draw flagship mothership
+      this.ctx.save();
+      this.ctx.translate(ms.x, ms.y);
+      this.ctx.rotate(this.time * 0.04);
 
-    this.ctx.restore();
+      this.ctx.strokeStyle = '#00e5ff';
+      this.ctx.lineWidth = isLowLOD ? 2 : 4;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, ms.radius, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      this.ctx.strokeStyle = 'rgba(0, 229, 255, 0.25)';
+      this.ctx.lineWidth = isLowLOD ? 8 : 18;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, ms.radius - 12, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      this.ctx.fillStyle = '#0d1821';
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 2.5;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, ms.radius - 22, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      this.ctx.restore();
+    }
 
     // Health / Shield indicators
     if (ms.shield > 0) {
@@ -1275,55 +1649,111 @@ export class ConquestBattle {
 
       // Selection ring
       if (u.selected) {
-        this.ctx.strokeStyle = '#00ff66';
-        this.ctx.lineWidth = 1;
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.85)';
+        this.ctx.lineWidth = 1.2;
+        this.ctx.shadowColor = '#00ff66';
+        this.ctx.shadowBlur = 6;
+        this.ctx.setLineDash([3, 3]);
         this.ctx.beginPath();
         this.ctx.arc(0, 0, u.radius * 1.5, 0, Math.PI * 2);
         this.ctx.stroke();
+        this.ctx.restore();
       }
 
       // Render LOD: Low zoom = draw fast minimal dots
-      if (isLowLOD) {
-        this.ctx.fillStyle = u.type === 'gatherer' ? '#ffaa00' : '#00ff66';
-        this.ctx.fillRect(-3, -3, 6, 6);
-      } else {
-        // Detailed vector shape
-        if (u.type === 'gatherer') {
-          this.ctx.fillStyle = u.cargo > 0 ? '#ffaa00' : '#00ffff';
-          this.ctx.strokeStyle = '#ffffff';
-          this.ctx.lineWidth = 1;
-          this.ctx.beginPath();
-          this.ctx.moveTo(u.radius, 0);
-          this.ctx.lineTo(-u.radius, -u.radius * 0.8);
-          this.ctx.lineTo(-u.radius * 0.5, 0);
-          this.ctx.lineTo(-u.radius, u.radius * 0.8);
-          this.ctx.closePath();
-          this.ctx.fill();
-          this.ctx.stroke();
-        } else if (u.type === 'raider') {
-          this.ctx.fillStyle = '#0d324d';
-          this.ctx.strokeStyle = '#00ff66';
-          this.ctx.lineWidth = 1.2;
-          this.ctx.beginPath();
-          this.ctx.moveTo(u.radius, 0);
-          this.ctx.lineTo(-u.radius, -u.radius * 0.75);
-          this.ctx.lineTo(-u.radius, u.radius * 0.75);
-          this.ctx.closePath();
-          this.ctx.fill();
-          this.ctx.stroke();
-        } else if (u.type === 'tank') {
-          this.ctx.fillStyle = '#223843';
-          this.ctx.strokeStyle = '#00ff66';
-          this.ctx.lineWidth = 1.8;
-          this.ctx.fillRect(-u.radius, -u.radius * 0.75, u.radius * 2, u.radius * 1.5);
-          this.ctx.strokeRect(-u.radius, -u.radius * 0.75, u.radius * 2, u.radius * 1.5);
+      if (!hasWebGL) {
+        if (isLowLOD) {
+          this.ctx.fillStyle = u.type === 'gatherer' ? '#ffaa00' : u.type === 'gunship' ? '#ff33ff' : '#00ff66';
+          this.ctx.fillRect(-3, -3, 6, 6);
+        } else {
+          // Detailed vector shape with neon glow
+          this.ctx.save();
+          if (u.type === 'gatherer') {
+            this.ctx.fillStyle = '#02121c';
+            this.ctx.strokeStyle = u.cargo > 0 ? '#ffaa00' : '#00ffff';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.shadowColor = u.cargo > 0 ? '#ffaa00' : '#00ffff';
+            this.ctx.shadowBlur = 5;
 
-          this.ctx.strokeStyle = '#ffffff';
-          this.ctx.lineWidth = 3;
-          this.ctx.beginPath();
-          this.ctx.moveTo(0, 0);
-          this.ctx.lineTo(u.radius * 1.4, 0);
-          this.ctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.moveTo(u.radius, 0);
+            this.ctx.lineTo(u.radius * 0.5, -u.radius * 0.6);
+            this.ctx.lineTo(-u.radius * 0.6, -u.radius * 0.6);
+            this.ctx.lineTo(-u.radius, 0);
+            this.ctx.lineTo(-u.radius * 0.6, u.radius * 0.6);
+            this.ctx.lineTo(u.radius * 0.5, u.radius * 0.6);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Center core line
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 1.0;
+            this.ctx.beginPath();
+            this.ctx.moveTo(-u.radius * 0.4, 0);
+            this.ctx.lineTo(u.radius * 0.4, 0);
+            this.ctx.stroke();
+          } else if (u.type === 'raider') {
+            this.ctx.fillStyle = '#011508';
+            this.ctx.strokeStyle = '#00ff66';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.shadowColor = '#00ff66';
+            this.ctx.shadowBlur = 5;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(u.radius * 1.2, 0);
+            this.ctx.lineTo(-u.radius * 0.8, -u.radius * 0.8);
+            this.ctx.lineTo(-u.radius * 0.4, 0);
+            this.ctx.lineTo(-u.radius * 0.8, u.radius * 0.8);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+          } else if (u.type === 'tank') {
+            this.ctx.fillStyle = '#221500';
+            this.ctx.strokeStyle = '#ffb300';
+            this.ctx.lineWidth = 1.8;
+            this.ctx.shadowColor = '#ffb300';
+            this.ctx.shadowBlur = 6;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(u.radius * 1.2, 0);
+            this.ctx.lineTo(u.radius * 0.4, -u.radius);
+            this.ctx.lineTo(-u.radius * 0.8, -u.radius * 0.8);
+            this.ctx.lineTo(-u.radius, 0);
+            this.ctx.lineTo(-u.radius * 0.8, u.radius * 0.8);
+            this.ctx.lineTo(u.radius * 0.4, u.radius);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 2.0;
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, -u.radius * 0.3);
+            this.ctx.lineTo(u.radius * 1.5, -u.radius * 0.3);
+            this.ctx.moveTo(0, u.radius * 0.3);
+            this.ctx.lineTo(u.radius * 1.5, u.radius * 0.3);
+            this.ctx.stroke();
+          } else if (u.type === 'gunship') {
+            this.ctx.fillStyle = '#12011a';
+            this.ctx.strokeStyle = '#ff33ff';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.shadowColor = '#ff33ff';
+            this.ctx.shadowBlur = 5;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(u.radius, 0);
+            this.ctx.lineTo(0, -u.radius * 0.8);
+            this.ctx.lineTo(-u.radius * 0.8, -u.radius * 0.4);
+            this.ctx.lineTo(-u.radius * 0.4, 0);
+            this.ctx.lineTo(-u.radius * 0.8, u.radius * 0.4);
+            this.ctx.lineTo(0, u.radius * 0.8);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+          }
+          this.ctx.restore();
         }
       }
 
@@ -1349,10 +1779,11 @@ export class ConquestBattle {
 
       const inVision = this.isPositionInVision(e.x, e.y);
       const isBase = e.type === 'citadel' || e.type === 'turret';
+      const isExplored = this.isPositionExplored(e.x, e.y);
 
       if (!inVision) {
-        if (isBase) {
-          // Unexplored/unseen bases drawn as static red holographic markers
+        if (isBase && isExplored) {
+          // Unseen but explored bases drawn as static red holographic markers
           this.ctx.save();
           this.ctx.translate(e.x, e.y);
           this.ctx.rotate(e.angle);
@@ -1362,12 +1793,16 @@ export class ConquestBattle {
           this.ctx.fillStyle = 'rgba(255, 51, 68, 0.04)';
 
           if (e.type === 'citadel') {
+            const segments = 5;
             this.ctx.beginPath();
-            this.ctx.moveTo(e.radius, 0);
-            this.ctx.lineTo(e.radius * 0.3, -e.radius);
-            this.ctx.lineTo(-e.radius * 0.8, -e.radius * 0.5);
-            this.ctx.lineTo(-e.radius * 0.8, e.radius * 0.5);
-            this.ctx.lineTo(e.radius * 0.3, e.radius);
+            for (let i = 0; i < segments * 2; i++) {
+              const r_val = (i % 2 === 0) ? e.radius : e.radius * 0.55;
+              const angle = (i * Math.PI) / segments;
+              const x = Math.cos(angle) * r_val;
+              const y = Math.sin(angle) * r_val;
+              if (i === 0) this.ctx.moveTo(x, y);
+              else this.ctx.lineTo(x, y);
+            }
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
@@ -1376,8 +1811,17 @@ export class ConquestBattle {
             this.ctx.font = '10px var(--font-mono)';
             this.ctx.fillText("⚠️ COGNITIVE NODE", -38, -e.radius - 8);
           } else if (e.type === 'turret') {
-            this.ctx.strokeRect(-e.radius, -e.radius, e.radius*2, e.radius*2);
-            this.ctx.fillRect(-e.radius, -e.radius, e.radius*2, e.radius*2);
+            this.ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+              const angle = (i * Math.PI) / 4;
+              const x = Math.cos(angle) * e.radius;
+              const y = Math.sin(angle) * e.radius;
+              if (i === 0) this.ctx.moveTo(x, y);
+              else this.ctx.lineTo(x, y);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
           }
           this.ctx.restore();
         }
@@ -1388,65 +1832,117 @@ export class ConquestBattle {
       this.ctx.translate(e.x, e.y);
       this.ctx.rotate(e.angle);
 
-      if (isLowLOD) {
-        this.ctx.fillStyle = '#ff3344';
-        if (e.type === 'citadel') {
-          this.ctx.fillRect(-15, -15, 30, 30);
-        } else if (e.type === 'turret') {
-          this.ctx.fillRect(-8, -8, 16, 16);
-        } else {
-          this.ctx.fillRect(-3, -3, 6, 6);
-        }
-      } else {
-        if (e.type === 'citadel') {
-          this.ctx.fillStyle = '#1a0006';
-          this.ctx.strokeStyle = '#ff3344';
-          this.ctx.lineWidth = 2.5;
-
-          this.ctx.beginPath();
-          this.ctx.moveTo(e.radius, 0);
-          this.ctx.lineTo(e.radius * 0.3, -e.radius);
-          this.ctx.lineTo(-e.radius * 0.8, -e.radius * 0.5);
-          this.ctx.lineTo(-e.radius * 0.8, e.radius * 0.5);
-          this.ctx.lineTo(e.radius * 0.3, e.radius);
-          this.ctx.closePath();
-          this.ctx.fill();
-          this.ctx.stroke();
-
-          // High visibility red glowing cores
-          this.ctx.fillStyle = '#ff3344';
-          this.ctx.beginPath();
-          this.ctx.arc(0, 0, e.radius * 0.35, 0, Math.PI * 2);
-          this.ctx.fill();
-
+      if (hasWebGL) {
+        if (e.type === 'citadel' && !isLowLOD) {
+          this.ctx.save();
+          this.ctx.translate(e.x, e.y);
           this.ctx.fillStyle = '#ff3344';
           this.ctx.font = 'bold 11px var(--font-mono)';
           this.ctx.fillText("⚠️ COGNITIVE NODE", -44, -e.radius - 12);
-        } 
-        else if (e.type === 'turret') {
-          this.ctx.fillStyle = '#2b050d';
-          this.ctx.strokeStyle = '#ff3344';
-          this.ctx.lineWidth = 1.8;
-          this.ctx.fillRect(-e.radius, -e.radius, e.radius*2, e.radius*2);
-          this.ctx.strokeRect(-e.radius, -e.radius, e.radius*2, e.radius*2);
-
+          this.ctx.restore();
+        }
+      } else {
+        if (isLowLOD) {
           this.ctx.fillStyle = '#ff3344';
-          this.ctx.beginPath();
-          this.ctx.arc(0, 0, 6, 0, Math.PI * 2);
-          this.ctx.fill();
-        } 
-        else if (e.type === 'crawler') {
-          this.ctx.fillStyle = '#1c0113';
-          this.ctx.strokeStyle = '#ff3344';
-          this.ctx.lineWidth = 1.0;
-          this.ctx.beginPath();
-          this.ctx.moveTo(e.radius, 0);
-          this.ctx.lineTo(-e.radius, -e.radius * 0.6);
-          this.ctx.lineTo(-e.radius * 0.5, 0);
-          this.ctx.lineTo(-e.radius, e.radius * 0.6);
-          this.ctx.closePath();
-          this.ctx.fill();
-          this.ctx.stroke();
+          if (e.type === 'citadel') {
+            this.ctx.fillRect(-15, -15, 30, 30);
+          } else if (e.type === 'turret') {
+            this.ctx.fillRect(-8, -8, 16, 16);
+          } else {
+            this.ctx.fillRect(-3, -3, 6, 6);
+          }
+        } else {
+          if (e.type === 'citadel') {
+            this.ctx.fillStyle = '#100003';
+            this.ctx.strokeStyle = '#ff3344';
+            this.ctx.lineWidth = 2.5;
+            this.ctx.shadowColor = '#ff3344';
+            this.ctx.shadowBlur = 10;
+
+            const segments = 5;
+            this.ctx.beginPath();
+            for (let i = 0; i < segments * 2; i++) {
+              const r_val = (i % 2 === 0) ? e.radius : e.radius * 0.55;
+              const angle = (i * Math.PI) / segments;
+              const x = Math.cos(angle) * r_val;
+              const y = Math.sin(angle) * r_val;
+              if (i === 0) this.ctx.moveTo(x, y);
+              else this.ctx.lineTo(x, y);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Outer spinning accent ring
+            this.ctx.strokeStyle = 'rgba(255, 51, 68, 0.4)';
+            this.ctx.lineWidth = 1.0;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, e.radius * 1.25, 0, Math.PI * 2);
+            this.ctx.stroke();
+
+            // High visibility red glowing cores
+            this.ctx.fillStyle = '#ff3344';
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, e.radius * 0.3, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            this.ctx.fillStyle = '#ff3344';
+            this.ctx.font = 'bold 11px var(--font-mono)';
+            this.ctx.fillText("⚠️ COGNITIVE NODE", -44, -e.radius - 12);
+          } 
+          else if (e.type === 'turret') {
+            this.ctx.fillStyle = '#200005';
+            this.ctx.strokeStyle = '#ff3344';
+            this.ctx.lineWidth = 2.0;
+            this.ctx.shadowColor = '#ff3344';
+            this.ctx.shadowBlur = 6;
+
+            this.ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+              const angle = (i * Math.PI) / 4;
+              const x = Math.cos(angle) * e.radius;
+              const y = Math.sin(angle) * e.radius;
+              if (i === 0) this.ctx.moveTo(x, y);
+              else this.ctx.lineTo(x, y);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Dual heavy turret barrels
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 3.0;
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, 0);
+            this.ctx.lineTo(e.radius * 1.4, 0);
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = '#ff3344';
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+            this.ctx.fill();
+          } 
+          else if (e.type === 'crawler') {
+            this.ctx.fillStyle = '#1a0006';
+            this.ctx.strokeStyle = '#ff3344';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.shadowColor = '#ff3344';
+            this.ctx.shadowBlur = 5;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(e.radius * 1.2, 0);
+            this.ctx.lineTo(-e.radius * 0.6, -e.radius * 0.7);
+            this.ctx.lineTo(-e.radius * 0.3, 0);
+            this.ctx.lineTo(-e.radius * 0.6, e.radius * 0.7);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = '#ff3344';
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+            this.ctx.fill();
+          }
         }
       }
 
@@ -1463,28 +1959,32 @@ export class ConquestBattle {
     });
 
     // 6. Draw active projectiles
-    this.projectiles.forEach(p => {
-      if (!this.isPositionInVision(p.x, p.y)) return;
-      this.ctx.fillStyle = p.color;
-      this.ctx.beginPath();
-      this.ctx.arc(p.x, p.y, p.isPlayer ? 2.5 : 3.5, 0, Math.PI * 2);
-      this.ctx.fill();
-    });
+    if (!hasWebGL) {
+      this.projectiles.forEach(p => {
+        if (!this.isPositionInVision(p.x, p.y)) return;
+        this.ctx.fillStyle = p.color;
+        this.ctx.beginPath();
+        this.ctx.arc(p.x, p.y, p.isPlayer ? 2.5 : 3.5, 0, Math.PI * 2);
+        this.ctx.fill();
+      });
+    }
 
     // 7. Draw explosions
-    this.explosions.forEach(exp => {
-      this.ctx.fillStyle = exp.color;
-      exp.particles.forEach(p => {
-        if (!this.isPositionInVision(p.x, p.y)) return;
-        this.ctx.globalAlpha = p.alpha;
-        this.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    if (!hasWebGL) {
+      this.explosions.forEach(exp => {
+        this.ctx.fillStyle = exp.color;
+        exp.particles.forEach(p => {
+          if (!this.isPositionInVision(p.x, p.y)) return;
+          this.ctx.globalAlpha = p.alpha;
+          this.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+        });
+        this.ctx.globalAlpha = 1.0;
       });
-      this.ctx.globalAlpha = 1.0;
-    });
+    }
 
     // 8. Draw Fog of War Overlay scaled up (Sharp pixelated alpha gradient interpolation planted on the map with border padding)
     this.ctx.save();
-    this.ctx.imageSmoothingEnabled = false; // Makes Fog of War pixelated and sharp!
+    this.ctx.imageSmoothingEnabled = !!this.gl; // Makes WebGL Fog of War smooth!
     this.ctx.drawImage(
       this.fowCanvas, 
       -this.map.cellSize, 

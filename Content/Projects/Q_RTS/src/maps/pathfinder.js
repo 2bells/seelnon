@@ -10,6 +10,7 @@ export class Pathfinder {
     this.cols = Math.floor(width / cellSize);
     this.rows = Math.floor(height / cellSize);
     this.grid = new Uint8Array(this.cols * this.rows); // 0 = walkable, 1 = blocked
+    this.weights = new Float32Array(this.cols * this.rows).fill(1.0); // 1.0 = standard plains
   }
 
   setGridSize(width, height, cellSize) {
@@ -19,11 +20,18 @@ export class Pathfinder {
     this.cols = Math.floor(width / cellSize);
     this.rows = Math.floor(height / cellSize);
     this.grid = new Uint8Array(this.cols * this.rows);
+    this.weights = new Float32Array(this.cols * this.rows).fill(1.0);
   }
 
   setBlocked(col, row, blocked) {
     if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
       this.grid[row * this.cols + col] = blocked ? 1 : 0;
+    }
+  }
+
+  setWeight(col, row, weight) {
+    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+      this.weights[row * this.cols + col] = weight;
     }
   }
 
@@ -145,7 +153,8 @@ export class Pathfinder {
             }
           }
 
-          const moveCost = (dc !== 0 && dr !== 0) ? 1.414 : 1.0;
+          const tileWeight = this.weights ? this.weights[neighborIndex] : 1.0;
+          const moveCost = ((dc !== 0 && dr !== 0) ? 1.414 : 1.0) * tileWeight;
           const tentativeG = gScore[current.index] + moveCost;
 
           if (tentativeG < gScore[neighborIndex]) {

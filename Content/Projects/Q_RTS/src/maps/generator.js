@@ -12,10 +12,10 @@ export const THEME_PRESETS = {
     name: 'Elven Fjord of Folds',
     terrain: {
       void: { id: 'water', name: 'Mystic Ocean', color: '#002b3d', blocked: true, speed: 0.0 },
-      shallow: { id: 'river', name: 'Mana Stream', color: '#008ba3', blocked: false, speed: 0.75 },
+      shallow: { id: 'river', name: 'Aether Leyline', color: '#00ffc8', blocked: false, speed: 1.5 },
       plain: { id: 'grass', name: 'Emerald Plain', color: '#133e23', blocked: false, speed: 1.0 },
       forest: { id: 'forest', name: 'Ancient Woods', color: '#092111', blocked: false, speed: 0.5 },
-      mountain: { id: 'cliff', name: 'Runic Peaks', color: '#2a3b3a', blocked: true, speed: 0.0 }
+      mountain: { id: 'cliff', name: 'Runic Peaks', color: '#2a3b3a', blocked: false, speed: 0.25 }
     },
     resources: {
       deposit: { name: 'Exotic Mana Well', color: '#a020f0', valueType: 'mana' },
@@ -27,10 +27,10 @@ export const THEME_PRESETS = {
     name: 'Metatronic Processing Grid',
     terrain: {
       void: { id: 'plasma', name: 'Abyssal Plasma', color: '#0d021a', blocked: true, speed: 0.0 },
-      shallow: { id: 'conduit', name: 'Laser Circuit', color: '#a300cc', blocked: false, speed: 1.2 },
+      shallow: { id: 'conduit', name: 'Hyper Conduit', color: '#ff0099', blocked: false, speed: 1.5 },
       plain: { id: 'metal', name: 'Chassis Deck', color: '#1f242d', blocked: false, speed: 1.0 },
       forest: { id: 'silicon', name: 'Silicon Pillars', color: '#0f1115', blocked: false, speed: 0.4 },
-      mountain: { id: 'machinery', name: 'Core Reactors', color: '#3d4454', blocked: true, speed: 0.0 }
+      mountain: { id: 'machinery', name: 'Core Reactors', color: '#3d4454', blocked: false, speed: 0.25 }
     },
     resources: {
       deposit: { name: 'Zero-Point Crates', color: '#00ffff', valueType: 'crystal' },
@@ -42,10 +42,10 @@ export const THEME_PRESETS = {
     name: 'Verdant Highland Foothills',
     terrain: {
       void: { id: 'sea', name: 'Deep Sea Bay', color: '#001a33', blocked: true, speed: 0.0 },
-      shallow: { id: 'swamp', name: 'Silt Creek', color: '#4d5c41', blocked: false, speed: 0.6 },
+      shallow: { id: 'swamp', name: 'Assault Runway', color: '#383c4a', blocked: false, speed: 1.5 },
       plain: { id: 'dirt', name: 'Highland Field', color: '#544634', blocked: false, speed: 1.0 },
       forest: { id: 'woods', name: 'Pine Forest', color: '#1a2b18', blocked: false, speed: 0.55 },
-      mountain: { id: 'rock', name: 'Granite Ridges', color: '#444444', blocked: true, speed: 0.0 }
+      mountain: { id: 'rock', name: 'Granite Ridges', color: '#444444', blocked: false, speed: 0.25 }
     },
     resources: {
       deposit: { name: 'Raw Hematite Slag', color: '#ffaa00', valueType: 'ore' },
@@ -72,6 +72,71 @@ export class ProceduralMap {
     this.generate();
   }
 
+  generateFastTerrainPatch(centerCol, centerRow) {
+    const cols = this.cols;
+    const rows = this.rows;
+    // Radius of the patch, e.g. 2 to 4 cells
+    const radius = 2 + Math.floor(Math.random() * 3);
+    
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        const testC = centerCol + dc;
+        const testR = centerRow + dr;
+        
+        if (testC >= 1 && testC < cols - 1 && testR >= 1 && testR < rows - 1) {
+          const dist = Math.sqrt(dc * dc + dr * dr);
+          // Add some randomness to create unique, organic shapes
+          const threshold = radius * (0.6 + Math.random() * 0.55);
+          
+          if (dist <= threshold) {
+            const idx = testR * cols + testC;
+            const tile = this.tiles[idx];
+            // Don't overwrite void if it is already void
+            if (tile && tile.type !== 'void') {
+              tile.type = 'shallow'; // 'shallow' is our high-speed fast terrain!
+              tile.meta = this.theme.terrain.shallow;
+              this.blockedMatrix[idx] = 0; // Ensure it is unblocked!
+            }
+          }
+        }
+      }
+    }
+  }
+
+  generateBaseTerrainPatch(centerCol, centerRow) {
+    const cols = this.cols;
+    const rows = this.rows;
+    // Radius of the plateau (e.g. 3 cells ensures flat plains for buildings and guards, radius 4 for fast speedway)
+    const radius = 3;
+    
+    for (let dr = -radius - 1; dr <= radius + 1; dr++) {
+      for (let dc = -radius - 1; dc <= radius + 1; dc++) {
+        const tc = centerCol + dc;
+        const tr = centerRow + dr;
+        
+        if (tc >= 1 && tc < cols - 1 && tr >= 1 && tr < rows - 1) {
+          const dist = Math.sqrt(dc * dc + dr * dr);
+          const idx = tr * cols + tc;
+          const tile = this.tiles[idx];
+          
+          if (tile) {
+            if (dist <= radius) {
+              // Flat plains base terrain for structural layout
+              tile.type = 'plain';
+              tile.meta = this.theme.terrain.plain;
+              this.blockedMatrix[idx] = 0; // unblocked
+            } else if (dist <= radius + 1.2 && tile.type !== 'void') {
+              // High-speed perimeter conduits/runways around the base
+              tile.type = 'shallow';
+              tile.meta = this.theme.terrain.shallow;
+              this.blockedMatrix[idx] = 0; // unblocked
+            }
+          }
+        }
+      }
+    }
+  }
+
   generate() {
     this.tiles = [];
     this.resources = [];
@@ -81,7 +146,8 @@ export class ProceduralMap {
     const midC = Math.floor(cols / 2);
     const midR = Math.floor(rows / 2);
 
-    // Phase 1: Procedural Generation using Trigonometric Cellular Fields
+    // Phase 1: Procedural Generation using Trigonometric Cellular Fields with beautiful radial island constraints
+    const maxRadius = Math.min(midC, midR) * 0.95;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const dc = c - midC;
@@ -94,34 +160,27 @@ export class ProceduralMap {
           // Keep start zone pristine for Mothership landing
           tileType = 'plain';
         } else {
-          let noise = Math.sin(c * 0.22) + Math.cos(r * 0.22) + Math.sin((c + r) * 0.09);
-          const borderCoords = midC * 0.72;
+          // Beautiful continuous terrain noise
+          let noise = Math.sin(c * 0.2) + Math.cos(r * 0.2) + Math.sin((c + r) * 0.08);
+          
+          // Normalized distance from center (0 to 1+)
+          const d = distToCenter / maxRadius;
 
-          if (distToCenter > borderCoords) {
-            // Push towards boundaries with organic fade out
-            const excess = distToCenter - borderCoords;
-            noise -= excess * 0.5;
+          // Strong radial bias: pushes central areas to land, and fades smoothly to water at edges
+          const bias = 1.6 * (1.0 - Math.pow(Math.min(d, 1.5), 1.8)) - 0.22;
+          noise += bias;
 
-            if (noise < -1.1) {
-              tileType = 'void';
-            } else if (noise < -0.6) {
-              tileType = 'shallow';
-            } else {
-              tileType = 'plain';
-            }
+          // Biome Distributions based on biased noise
+          if (noise < -0.9) {
+            tileType = 'void';
+          } else if (noise < -0.4) {
+            tileType = 'shallow';
+          } else if (noise > 1.3) {
+            tileType = 'mountain';
+          } else if (noise > 0.65) {
+            tileType = 'forest';
           } else {
-            // Standard Biome Distributions
-            if (noise < -1.2) {
-              tileType = 'void';
-            } else if (noise < -0.7) {
-              tileType = 'shallow';
-            } else if (noise > 1.25) {
-              tileType = 'mountain';
-            } else if (noise > 0.65) {
-              tileType = 'forest';
-            } else {
-              tileType = 'plain';
-            }
+            tileType = 'plain';
           }
         }
 
@@ -202,71 +261,182 @@ export class ProceduralMap {
             amount: 600 + Math.floor(Math.random() * 900),
             valueType: this.theme.resources.deposit.valueType
           });
-        } else if (tile.type === 'mountain' && Math.random() < 0.015) {
-          this.resources.push({
-            id: `camp-${c}-${r}`,
-            x: c * this.cellSize + this.cellSize / 2,
-            y: r * this.cellSize + this.cellSize / 2,
-            type: 'camp',
-            name: this.theme.resources.camp.name,
-            color: this.theme.resources.camp.color,
-            health: 2000,
-            maxHealth: 2000,
-            cleared: false,
-            guardsSpawned: false
-          });
         }
       }
     }
 
-    // Guarantee at least 3 enemy camps are created
-    const camps = this.resources.filter(r => r.type === 'camp');
-    if (camps.length < 3) {
-      const angles = [0, Math.PI * 0.66, Math.PI * 1.33];
-      const forceDist = Math.floor(midC * 0.72);
-      angles.forEach((angle, i) => {
-        const tc = Math.floor(midC + Math.cos(angle) * forceDist);
-        const tr = Math.floor(midR + Math.sin(angle) * forceDist);
-        if (tc >= 0 && tc < cols && tr >= 0 && tr < rows) {
-          const idx = tr * cols + tc;
-          this.tiles[idx].type = 'mountain';
-          this.tiles[idx].meta = this.theme.terrain.mountain;
-          this.blockedMatrix[idx] = 1;
-          this.resources.push({
-            id: `force-camp-${i}`,
-            x: tc * this.cellSize + this.cellSize / 2,
-            y: tr * this.cellSize + this.cellSize / 2,
-            type: 'camp',
-            name: this.theme.resources.camp.name,
-            color: this.theme.resources.camp.color,
-            health: 2000,
-            maxHealth: 2000,
-            cleared: false,
-            guardsSpawned: false
-          });
+    // Place exactly 3 strategically spaced, guaranteed enemy camps with custom base terrain plateaus
+    const basePositions = [];
+    const angles = [
+      0 + (Math.random() - 0.5) * 0.25,
+      Math.PI * 0.66 + (Math.random() - 0.5) * 0.25,
+      Math.PI * 1.33 + (Math.random() - 0.5) * 0.25
+    ];
+    
+    const minCampDistFromCenter = isSmall ? 6 : 9;
+    const minInterCampDist = isSmall ? 6 : 9;
+    const targetDist = Math.floor(midC * 0.68); // Outer ring of the main island
+    
+    angles.forEach((angle, i) => {
+      let tc = Math.floor(midC + Math.cos(angle) * targetDist);
+      let tr = Math.floor(midR + Math.sin(angle) * targetDist);
+      
+      // Spiral search for the best tile
+      let found = false;
+      let searchRadius = 0;
+      const maxSearch = Math.max(cols, rows);
+      
+      while (!found && searchRadius < maxSearch) {
+        for (let dr = -searchRadius; dr <= searchRadius && !found; dr++) {
+          for (let dc = -searchRadius; dc <= searchRadius && !found; dc++) {
+            if (Math.abs(dr) !== searchRadius && Math.abs(dc) !== searchRadius && searchRadius > 0) continue;
+            
+            const testC = tc + dc;
+            const testR = tr + dr;
+            
+            if (testC >= 3 && testC < cols - 3 && testR >= 3 && testR < rows - 3) {
+              const dcCenter = testC - midC;
+              const drCenter = testR - midR;
+              const distToCenter = Math.sqrt(dcCenter * dcCenter + drCenter * drCenter);
+              
+              // 1. Must be far enough from center player zone
+              if (distToCenter < minCampDistFromCenter) continue;
+              
+              // 2. Must be far enough from already placed camps
+              let tooClose = false;
+              for (const pos of basePositions) {
+                const dcCamp = testC - pos.c;
+                const drCamp = testR - pos.r;
+                const distToCamp = Math.sqrt(dcCamp * dcCamp + drCamp * drCamp);
+                if (distToCamp < minInterCampDist) {
+                  tooClose = true;
+                  break;
+                }
+              }
+              if (tooClose) continue;
+              
+              // 3. Prefer land tiles (not void)
+              const idx = testR * cols + testC;
+              const tile = this.tiles[idx];
+              if (tile && tile.type !== 'void') {
+                tc = testC;
+                tr = testR;
+                found = true;
+              }
+            }
+          }
         }
+        searchRadius++;
+      }
+      
+      // If we completely failed to find any non-void tile (highly unusual), boundary cap fallback
+      if (!found) {
+        tc = Math.max(3, Math.min(cols - 4, tc));
+        tr = Math.max(3, Math.min(rows - 4, tr));
+      }
+      
+      // Save position for spacing checks
+      basePositions.push({ c: tc, r: tr });
+      
+      // Force generate a beautiful, clean base terrain plateau around this camp
+      this.generateBaseTerrainPatch(tc, tr);
+      
+      // Push the camp resource
+      this.resources.push({
+        id: `camp-${tc}-${tr}`,
+        x: tc * this.cellSize + this.cellSize / 2,
+        y: tr * this.cellSize + this.cellSize / 2,
+        type: 'camp',
+        name: this.theme.resources.camp.name,
+        color: this.theme.resources.camp.color,
+        health: 2000,
+        maxHealth: 2000,
+        cleared: false,
+        guardsSpawned: false
       });
-    }
+    });
 
-    // Phase 4: Cache Map Terrain on off-screen Canvas
+    // Phase 4: Cache Map Terrain on off-screen Canvas as irregular polygonal/crystalline shards
     this.mapCanvas = document.createElement('canvas');
     this.mapCanvas.width = cols * this.cellSize;
     this.mapCanvas.height = rows * this.cellSize;
     const mctx = this.mapCanvas.getContext('2d');
 
-    // Paint all terrain tiles once
+    // 1. Generate irregular crystalline vertex grid with beautiful, smooth jittering (0.18 instead of 0.35)
+    const vertices = [];
+    for (let r = 0; r <= rows; r++) {
+      vertices[r] = [];
+      for (let c = 0; c <= cols; c++) {
+        let x = c * this.cellSize;
+        let y = r * this.cellSize;
+        // Jitter interior vertices to generate angular, crystalline polygonal terrain facets gently
+        if (c > 0 && c < cols && r > 0 && r < rows) {
+          x += (Math.sin(c * 1.5 + r * 2.3) * 0.18) * this.cellSize;
+          y += (Math.cos(c * 2.1 + r * 1.1) * 0.18) * this.cellSize;
+        }
+        vertices[r][c] = { x, y };
+      }
+    }
+
+    // 2. Render triangular terrain facets onto cached canvas plate
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
+        const v_topL = vertices[r][c];
+        const v_topR = vertices[r][c + 1];
+        const v_botL = vertices[r + 1][c];
+        const v_botR = vertices[r + 1][c + 1];
+
+        // Alternate triangulation slash to make crystalline facets organic and high-contrast
+        const splitSlash = (c + r) % 2 === 0;
+
         const idx = r * cols + c;
         const tile = this.tiles[idx];
-        mctx.fillStyle = tile.meta.color;
-        mctx.fillRect(c * this.cellSize, r * this.cellSize, this.cellSize + 0.5, this.cellSize + 0.5);
+        const color = tile.meta.color;
 
-        // Faint architectural grids on top of plains/metal chassis to keep it brutalist
-        if (tile.type === 'plain' || tile.type === 'shallow') {
-          mctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
-          mctx.lineWidth = 0.5;
-          mctx.strokeRect(c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize);
+        mctx.lineWidth = 1.0;
+
+        if (splitSlash) {
+          // Facet A
+          mctx.fillStyle = color;
+          mctx.beginPath();
+          mctx.moveTo(v_topL.x, v_topL.y);
+          mctx.lineTo(v_topR.x, v_topR.y);
+          mctx.lineTo(v_botR.x, v_botR.y);
+          mctx.closePath();
+          mctx.fill();
+
+          mctx.strokeStyle = color;
+          mctx.stroke();
+
+          // Facet B
+          mctx.beginPath();
+          mctx.moveTo(v_topL.x, v_topL.y);
+          mctx.lineTo(v_botL.x, v_botL.y);
+          mctx.lineTo(v_botR.x, v_botR.y);
+          mctx.closePath();
+          mctx.fill();
+          mctx.stroke();
+        } else {
+          // Facet A
+          mctx.fillStyle = color;
+          mctx.beginPath();
+          mctx.moveTo(v_topL.x, v_topL.y);
+          mctx.lineTo(v_topR.x, v_topR.y);
+          mctx.lineTo(v_botL.x, v_botL.y);
+          mctx.closePath();
+          mctx.fill();
+
+          mctx.strokeStyle = color;
+          mctx.stroke();
+
+          // Facet B
+          mctx.beginPath();
+          mctx.moveTo(v_topR.x, v_topR.y);
+          mctx.lineTo(v_botL.x, v_botL.y);
+          mctx.lineTo(v_botR.x, v_botR.y);
+          mctx.closePath();
+          mctx.fill();
+          mctx.stroke();
         }
       }
     }

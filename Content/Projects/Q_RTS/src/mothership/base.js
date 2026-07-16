@@ -16,6 +16,7 @@ export class MothershipBase {
     // Camera Pan offsets (relative to center of screen)
     this.cameraX = -240; 
     this.cameraY = -120;
+    this.zoom = 1.0;
     
     // Expandable Grid Sectors (each sector is 12x12 cells)
     // Starting with center sector (0,0) and the right side sector (1,0) unlocked for prebuilt pipeline.
@@ -52,9 +53,15 @@ export class MothershipBase {
     // Unlocked Zodiac Tech Brain Nodes
     this.unlockedTech = [];
 
+    // Production history tracking (sliding window of last 60 seconds)
+    this.productionHistory = [];
+
     // Selected building for placement
     this.selectedTool = null; // 'extractor', 'belt', 'synthesizer', 'storage', 'assembler', 'deployer', 'demolish'
     this.placementDirection = 'right';
+
+    // Factory Power Toggle State
+    this.factoryActive = true;
 
     // Tick counter
     this.tickCount = 0;
@@ -68,12 +75,39 @@ export class MothershipBase {
       buildings: this.buildings,
       inventory: this.inventory,
       standingArmy: this.standingArmy,
-      unlockedTech: this.unlockedTech
+      unlockedTech: this.unlockedTech,
+      factoryActive: this.factoryActive !== undefined ? this.factoryActive : true
     };
     if (window.GameStorage) {
       window.GameStorage.save('mothership_base_state', data)
         .catch(err => console.error("Failed to save state to IndexedDB:", err));
     }
+  }
+
+  // Adds a production event for real-time PPM tracking
+  addProductionStat(type, amount) {
+    if (!this.productionHistory) this.productionHistory = [];
+    this.productionHistory.push({
+      time: Date.now(),
+      type: type,
+      amount: amount
+    });
+  }
+
+  // Returns total amount produced in the last 60 seconds
+  getProductionPerMinute(type) {
+    if (!this.productionHistory) return 0;
+    const now = Date.now();
+    // Keep window within last 60,000 milliseconds (60 seconds)
+    this.productionHistory = this.productionHistory.filter(evt => now - evt.time < 60000);
+    
+    let sum = 0;
+    this.productionHistory.forEach(evt => {
+      if (evt.type === type) {
+        sum += evt.amount;
+      }
+    });
+    return sum;
   }
 
   loadFromStorage() {
@@ -86,12 +120,16 @@ export class MothershipBase {
             if (data.inventory) this.inventory = data.inventory;
             if (data.standingArmy) this.standingArmy = data.standingArmy;
             if (data.unlockedTech) this.unlockedTech = data.unlockedTech;
+            this.factoryActive = data.factoryActive !== undefined ? data.factoryActive : true;
             
             // Clear transient states
             this.conveyorItems = [];
             this.particles = [];
             
             this.updateUiDisplay();
+            if (window.updateMothershipUiStockpile) {
+              window.updateMothershipUiStockpile();
+            }
             return true;
           }
           return false;
@@ -161,12 +199,14 @@ export class MothershipBase {
     this.buildings.push({
       id: 'synth-1',
       type: 'synthesizer',
+      subType: 'matter',
       col: 4, row: 3,
       name: 'Transmuter Core',
       inputBuffer: 0,
       requiredInput: 5,
       cooldown: 0,
       maxCooldown: 90,
+      transmuteTarget: 'zodiac_core',
       direction: 'down'
     });
 
@@ -201,12 +241,15 @@ export class MothershipBase {
     });
 
     // --- VEHICLE ASSEMBLY FACILITY ---
-    // Assembler 1
+    // Factory 1
     this.buildings.push({
-      id: 'assembler-1',
-      type: 'assembler',
-      col: 8, row: 4,
-      recipe: 'raider',
+      id: 'factory-1',
+      type: 'factory',
+      col: 8, row: 3,
+      recipe: 'unit_raider',
+      hullBuffer: 0,
+      movementBuffer: 0,
+      gunBuffer: 0,
       inputBuffer: 0,
       cooldown: 0,
       maxCooldown: 120,
@@ -273,12 +316,14 @@ export class MothershipBase {
     this.buildings.push({
       id: 'synth-2',
       type: 'synthesizer',
+      subType: 'elements',
       col: 16, row: 4,
       name: 'Aux Transmuter',
       inputBuffer: 0,
-      requiredInput: 5,
+      requiredInput: 3,
       cooldown: 0,
       maxCooldown: 90,
+      transmuteTarget: 'terrestrial_earth',
       direction: 'right'
     });
     // Belt E5
@@ -327,6 +372,16 @@ export class MothershipBase {
     return (col === 5 || col === 6) && (row === 5 || row === 6);
   }
 
+  // Find building covering cell, taking 2x2 footprint of factory into account
+  getBuildingAtCell(col, row) {
+    return this.buildings.find(b => {
+      if (b.type === 'factory') {
+        return col >= b.col && col <= b.col + 1 && row >= b.row && row <= b.row + 1;
+      }
+      return b.col === col && b.row === row;
+    });
+  }
+
   // Handle keyboard rotation key 'R'
   handleRotateKey() {
     const now = Date.now();
@@ -346,7 +401,7 @@ export class MothershipBase {
       const col = Math.floor(worldPos.x / this.cellSize);
       const row = Math.floor(worldPos.y / this.cellSize);
       
-      const b = this.buildings.find(b => b.col === col && b.row === row);
+      const b = this.getBuildingAtCell(col, row);
       if (b) {
         if (this.isCentralPortalCell(col, row)) return;
         const idx = dirs.indexOf(b.direction || 'right');
@@ -357,13 +412,13 @@ export class MothershipBase {
     }
   }
 
-  // Map screen mouse position back to world factory coordinates, taking camera panning offsets into account
+  // Map screen mouse position back to world factory coordinates, taking camera panning and zoom offsets into account
   screenToWorld(screenX, screenY) {
-    const originX = this.canvas.width / 2 + this.cameraX;
-    const originY = this.canvas.height / 2 + this.cameraY;
+    const originX = this.canvas.width / 2;
+    const originY = this.canvas.height / 2;
     return {
-      x: screenX - originX,
-      y: screenY - originY
+      x: (screenX - originX) / this.zoom - this.cameraX,
+      y: (screenY - originY) / this.zoom - this.cameraY
     };
   }
 
@@ -375,14 +430,21 @@ export class MothershipBase {
     
     if (!this.isCellUnlocked(col, row)) return;
 
-    const b = this.buildings.find(b => b.col === col && b.row === row);
+    const b = this.getBuildingAtCell(col, row);
     if (b) {
       if (b.type === 'assembler') {
-        const recipes = ['raider', 'tank', 'gunship'];
-        const currentIdx = recipes.indexOf(b.recipe || 'raider');
+        const recipes = ['part_hull', 'part_movement', 'part_gun'];
+        const currentIdx = recipes.indexOf(b.recipe || 'part_hull');
         b.recipe = recipes[(currentIdx + 1) % 3];
         b.cooldown = 0;
         window.appendLog(`🛠️ ASSEMBLER: Changed recipe at [${col}, ${row}] to build [${b.recipe.toUpperCase()}].`);
+        if (window.saveGame) window.saveGame();
+      } else if (b.type === 'factory') {
+        const recipes = ['unit_raider', 'unit_tank', 'unit_gunship'];
+        const currentIdx = recipes.indexOf(b.recipe || 'unit_raider');
+        b.recipe = recipes[(currentIdx + 1) % 3];
+        b.cooldown = 0;
+        window.appendLog(`🏭 FACTORY: Changed recipe at [${col}, ${row}] to build [${b.recipe.toUpperCase()}].`);
         if (window.saveGame) window.saveGame();
       } else if (b.type === 'deployer') {
         b.active = !b.active;
@@ -440,30 +502,59 @@ export class MothershipBase {
 
     // 2. If a tool is selected, try to place/remove it
     if (this.selectedTool) {
-      const existingIdx = this.buildings.findIndex(b => b.col === col && b.row === row);
-      
       if (this.selectedTool === 'demolish') {
-        if (existingIdx !== -1) {
-          const removed = this.buildings.splice(existingIdx, 1)[0];
-          
-          // Libra tech: Symmetry Matrix refunds full cost, otherwise 15 QM refund
-          const hasLibra = this.unlockedTech.includes('libra');
-          const refund = hasLibra ? (removed.type === 'extractor' ? 60 : removed.type === 'belt' ? 15 : removed.type === 'synthesizer' ? 120 : removed.type === 'storage' ? 80 : removed.type === 'assembler' ? 150 : 100) : 15;
-          
-          this.inventory.quantumMatter += refund;
-          window.appendLog(`🚜 FACTORY: Demolished ${removed.type.toUpperCase()} at [${col}, ${row}]. Refunded ${refund} QM.`);
-          if (window.saveGame) window.saveGame();
+        const bToRemove = this.getBuildingAtCell(col, row);
+        if (bToRemove) {
+          const existingIdx = this.buildings.indexOf(bToRemove);
+          if (existingIdx !== -1) {
+            const removed = this.buildings.splice(existingIdx, 1)[0];
+            
+            // Libra tech: Symmetry Matrix refunds full cost, otherwise 15 QM refund
+            const hasLibra = this.unlockedTech.includes('libra');
+            const refund = hasLibra ? (removed.type === 'extractor' ? 60 : removed.type === 'extractor_element' ? 80 : removed.type === 'belt' ? 15 : removed.type === 'synthesizer' ? 120 : removed.type === 'storage' ? 80 : removed.type === 'assembler' ? 150 : 100) : 15;
+            
+            this.inventory.quantumMatter += refund;
+            window.appendLog(`🚜 FACTORY: Demolished ${removed.type.toUpperCase()} at [${removed.col}, ${removed.row}]. Refunded ${refund} QM.`);
+            if (window.saveGame) window.saveGame();
+            this.updateUiDisplay();
+          }
         }
         return;
       }
 
-      if (existingIdx !== -1) {
-        window.appendLog("⚠️ GRID_BLOCKED: Cell already occupied by another facility.");
-        return;
+      // Overlap and footprint check
+      if (this.selectedTool === 'assembler') {
+        // 2x2 checks
+        for (let dc = 0; dc <= 1; dc++) {
+          for (let dr = 0; dr <= 1; dr++) {
+            const tc = col + dc;
+            const tr = row + dr;
+            if (!this.isCellUnlocked(tc, tr)) {
+              window.appendLog("⚠️ GRID_BLOCKED: All assembler footprint cells must be inside unlocked grid sectors.");
+              return;
+            }
+            if (this.isCentralPortalCell(tc, tr)) {
+              window.appendLog("🛡️ MAIN_GATE_PROTECTED: Footprint overlaps with protected central portal.");
+              return;
+            }
+            const existing = this.getBuildingAtCell(tc, tr);
+            if (existing) {
+              window.appendLog("⚠️ GRID_BLOCKED: Part of assembler footprint is already occupied.");
+              return;
+            }
+          }
+        }
+      } else {
+        // 1x1 checks
+        const existing = this.getBuildingAtCell(col, row);
+        if (existing) {
+          window.appendLog("⚠️ GRID_BLOCKED: Cell already occupied by another facility.");
+          return;
+        }
       }
 
       // Spend QM to build
-      const costs = { extractor: 60, belt: 15, synthesizer: 120, storage: 80, assembler: 150, deployer: 100 };
+      const costs = { extractor: 60, extractor_element: 80, belt: 15, synthesizer_matter: 120, synthesizer_elements: 120, synthesizer_zodiac: 120, storage: 80, assembler: 100, factory: 150, deployer: 100 };
       let cost = costs[this.selectedTool] || 0;
 
       // Taurus tech: Half cost for conveyor belts
@@ -489,19 +580,48 @@ export class MothershipBase {
 
       if (this.selectedTool === 'extractor') {
         bData.cooldown = 0;
+        bData.resourceType = 'quantum_matter';
         // Leo tech: Extractor Drills operate +50% faster (shorter cooldown)
         const hasLeo = this.unlockedTech.includes('leo');
         bData.maxCooldown = hasLeo ? 26 : 40;
-      } else if (this.selectedTool === 'synthesizer') {
+      } else if (this.selectedTool === 'extractor_element') {
+        bData.cooldown = 0;
+        bData.resourceType = 'earth';
+        // Leo tech: Extractor Drills operate +50% faster (shorter cooldown)
+        const hasLeo = this.unlockedTech.includes('leo');
+        bData.maxCooldown = hasLeo ? 26 : 40;
+      } else if (this.selectedTool.startsWith('synthesizer_')) {
+        const sub = this.selectedTool.replace('synthesizer_', '');
+        bData.type = 'synthesizer';
+        bData.subType = sub;
         bData.inputBuffer = 0;
-        bData.requiredInput = 5;
         bData.cooldown = 0;
         bData.maxCooldown = 90;
+
+        if (sub === 'matter') {
+          bData.transmuteTarget = 'exotic_core';
+          bData.requiredInput = 3;
+        } else if (sub === 'elements') {
+          bData.transmuteTarget = 'terrestrial_earth';
+          bData.requiredInput = 3;
+        } else { // zodiac
+          bData.transmuteTarget = 'terrestrial_symmetry';
+          bData.requiredInput = 3;
+        }
       } else if (this.selectedTool === 'assembler') {
-        bData.recipe = 'raider';
+        bData.recipe = 'part_hull';
         bData.inputBuffer = 0;
         bData.cooldown = 0;
-        // Aquarius tech: Decreases assembler cooldowns by 40%
+        // Aquarius tech: Decreases assembler/factory cooldowns by 40%
+        const hasAquarius = this.unlockedTech.includes('aquarius');
+        bData.maxCooldown = hasAquarius ? 72 : 120;
+      } else if (this.selectedTool === 'factory') {
+        bData.recipe = 'unit_raider';
+        bData.hullBuffer = 0;
+        bData.movementBuffer = 0;
+        bData.gunBuffer = 0;
+        bData.cooldown = 0;
+        // Aquarius tech: Decreases assembler/factory cooldowns by 40%
         const hasAquarius = this.unlockedTech.includes('aquarius');
         bData.maxCooldown = hasAquarius ? 72 : 120;
       } else if (this.selectedTool === 'deployer') {
@@ -515,34 +635,171 @@ export class MothershipBase {
       this.updateUiDisplay();
     } else {
       // Normal click interactions
-      const b = this.buildings.find(b => b.col === col && b.row === row);
+      const b = this.getBuildingAtCell(col, row);
       if (b) {
         if (isShiftKey) {
           if (b.type === 'assembler') {
-            const recipes = ['raider', 'tank', 'gunship'];
-            const currentIdx = recipes.indexOf(b.recipe || 'raider');
+            const recipes = ['part_hull', 'part_movement', 'part_gun'];
+            const currentIdx = recipes.indexOf(b.recipe || 'part_hull');
             b.recipe = recipes[(currentIdx + 1) % 3];
             b.cooldown = 0;
-            window.appendLog(`🛠️ ASSEMBLER: Changed recipe at [${col}, ${row}] to build [${b.recipe.toUpperCase()}].`);
+            window.appendLog(`🛠️ ASSEMBLER: Changed recipe at [${b.col}, ${b.row}] to build [${b.recipe.toUpperCase()}].`);
+          } else if (b.type === 'factory') {
+            const recipes = ['unit_raider', 'unit_tank', 'unit_gunship'];
+            const currentIdx = recipes.indexOf(b.recipe || 'unit_raider');
+            b.recipe = recipes[(currentIdx + 1) % 3];
+            b.cooldown = 0;
+            window.appendLog(`🏭 FACTORY: Changed recipe at [${b.col}, ${b.row}] to build [${b.recipe.toUpperCase()}].`);
           } else if (b.type === 'deployer') {
             b.active = !b.active;
-            window.appendLog(`🚚 DEPLOY_GATE: Gate at [${col}, ${row}] toggled [${b.active ? 'OPEN (DEPLOY)' : 'CLOSED (HOLD)'}].`);
+            window.appendLog(`🚚 DEPLOY_GATE: Gate at [${b.col}, ${b.row}] toggled [${b.active ? 'OPEN (DEPLOY)' : 'CLOSED (HOLD)'}].`);
           } else {
             const dirs = ['right', 'down', 'left', 'up'];
             const nextDirIdx = (dirs.indexOf(b.direction || 'right') + 1) % 4;
             b.direction = dirs[nextDirIdx];
-            window.appendLog(`🔄 ROTATED: ${b.type.toUpperCase()} at [${col}, ${row}] facing [${b.direction.toUpperCase()}].`);
+            window.appendLog(`🔄 ROTATED: ${b.type.toUpperCase()} at [${b.col}, ${b.row}] facing [${b.direction.toUpperCase()}].`);
           }
         } else {
           // Normal click cycles orientation
           const dirs = ['right', 'down', 'left', 'up'];
           const nextDirIdx = (dirs.indexOf(b.direction || 'right') + 1) % 4;
           b.direction = dirs[nextDirIdx];
-          window.appendLog(`🔄 ROTATED: ${b.type.toUpperCase()} at [${col}, ${row}] facing [${b.direction.toUpperCase()}].`);
+          window.appendLog(`🔄 ROTATED: ${b.type.toUpperCase()} at [${b.col}, ${b.row}] facing [${b.direction.toUpperCase()}].`);
         }
         if (window.saveGame) window.saveGame();
       }
     }
+  }
+
+  handleRightClick(x, y) {
+    const worldPos = this.screenToWorld ? this.screenToWorld(x, y) : { x: x + (this.cameraX || 0), y: y + (this.cameraY || 0) };
+    const col = Math.floor(worldPos.x / this.cellSize);
+    const row = Math.floor(worldPos.y / this.cellSize);
+    const b = this.getBuildingAtCell(col, row);
+    if (!b) return false;
+
+    // Cycle types based on building type!
+    if (b.type === 'extractor') {
+      const types = ['quantum_matter', 'exotic_core', 'zodiac_tether'];
+      const current = b.resourceType || 'quantum_matter';
+      const nextIndex = (types.indexOf(current) + 1) % types.length;
+      b.resourceType = types[nextIndex];
+      // Leo tech: Extractor Drills operate +50% faster (shorter cooldown)
+      const hasLeo = this.unlockedTech.includes('leo');
+      b.maxCooldown = hasLeo ? 26 : 40;
+      b.cooldown = 0;
+      window.appendLog(`🌀 EXTRACTOR [${col}, ${row}]: Reconfigured drill-head to extract [${b.resourceType.toUpperCase().replace('_', ' ')}].`);
+      if (window.saveGame) window.saveGame();
+      this.updateUiDisplay();
+      return true;
+    }
+    else if (b.type === 'extractor_element') {
+      const types = ['earth', 'air', 'water', 'metal', 'soil'];
+      const current = b.resourceType || 'earth';
+      const nextIndex = (types.indexOf(current) + 1) % types.length;
+      b.resourceType = types[nextIndex];
+      // Leo tech: Extractor Drills operate +50% faster (shorter cooldown)
+      const hasLeo = this.unlockedTech.includes('leo');
+      b.maxCooldown = hasLeo ? 26 : 40;
+      b.cooldown = 0;
+      window.appendLog(`🌍 E-EXTRACTOR [${col}, ${row}]: Reconfigured elemental core focus to extract [${b.resourceType.toUpperCase()}].`);
+      if (window.saveGame) window.saveGame();
+      this.updateUiDisplay();
+      return true;
+    }
+    else if (b.type === 'synthesizer') {
+      const sub = b.subType || 'matter';
+      let targets = [];
+      if (sub === 'matter') {
+        targets = ['exotic_core', 'zodiac_tether', 'zodiac_core'];
+      } else if (sub === 'elements') {
+        targets = [
+          'terrestrial_earth',
+          'terrestrial_air',
+          'terrestrial_water',
+          'terrestrial_metal',
+          'terrestrial_soil'
+        ];
+      } else { // sub === 'zodiac'
+        targets = [
+          'terrestrial_symmetry',
+          'zodiac_core',
+          'zodiac_tether'
+        ];
+      }
+
+      const current = b.transmuteTarget || targets[0];
+      const nextIndex = (targets.indexOf(current) + 1) % targets.length;
+      b.transmuteTarget = targets[nextIndex];
+      // Reset inputBuffer and cooldown
+      b.inputBuffer = 0;
+      b.cooldown = 0;
+      
+      // Determine required inputs for recipe
+      if (b.transmuteTarget.startsWith('terrestrial_')) {
+        b.requiredInput = 3;
+      } else if (b.transmuteTarget === 'exotic_core') {
+        b.requiredInput = 3;
+      } else if (b.transmuteTarget === 'zodiac_core') {
+        b.requiredInput = 5;
+      } else if (b.transmuteTarget === 'zodiac_tether') {
+        b.requiredInput = 10;
+      }
+
+      window.appendLog(`⚛️ TRANSMUTER [${col}, ${row}] (${sub.toUpperCase()}): Reconfigured output focus to [${b.transmuteTarget.toUpperCase().replace('TERRESTRIAL_', '').replace('ZODIAC_', '')}].`);
+      if (window.saveGame) window.saveGame();
+      this.updateUiDisplay();
+      return true;
+    }
+    else if (b.type === 'assembler') {
+      // Cycle assembler recipe
+      const recipes = [
+        'part_hull',
+        'part_movement',
+        'part_gun'
+      ];
+      const current = b.recipe || 'part_hull';
+      const nextIndex = (recipes.indexOf(current) + 1) % recipes.length;
+      b.recipe = recipes[nextIndex];
+      // Reset assembler counters to prevent carrying over half-finished items
+      b.inputBuffer = 0;
+      b.cooldown = 0;
+      
+      // Aquarius tech: Decreases assembler cooldowns by 40%
+      const hasAquarius = this.unlockedTech.includes('aquarius');
+      b.maxCooldown = hasAquarius ? 72 : 120;
+
+      window.appendLog(`🛠️ ASSEMBLER [${col}, ${row}]: Reconfigured blueprint to produce [${b.recipe.toUpperCase().replace('PART_', 'PART: ')}].`);
+      if (window.saveGame) window.saveGame();
+      this.updateUiDisplay();
+      return true;
+    }
+    else if (b.type === 'factory') {
+      // Cycle factory recipe
+      const recipes = [
+        'unit_raider',
+        'unit_tank',
+        'unit_gunship'
+      ];
+      const current = b.recipe || 'unit_raider';
+      const nextIndex = (recipes.indexOf(current) + 1) % recipes.length;
+      b.recipe = recipes[nextIndex];
+      // Reset factory counters
+      b.hullBuffer = 0;
+      b.movementBuffer = 0;
+      b.gunBuffer = 0;
+      b.cooldown = 0;
+      
+      // Aquarius tech: Decreases factory cooldowns by 40%
+      const hasAquarius = this.unlockedTech.includes('aquarius');
+      b.maxCooldown = hasAquarius ? 72 : 120;
+
+      window.appendLog(`🏭 FACTORY [${col}, ${row}]: Reconfigured blueprint to produce [${b.recipe.toUpperCase().replace('UNIT_', 'UNIT: ')}].`);
+      if (window.saveGame) window.saveGame();
+      this.updateUiDisplay();
+      return true;
+    }
+    return false;
   }
 
   // Spawns neat localized splash debris particles
@@ -585,8 +842,30 @@ export class MothershipBase {
   tick() {
     this.tickCount++;
 
+    const isBackground = window.activeMode && window.activeMode !== 'mothership';
+    
+    // Periodic background production notifications to keep player updated (every 30 seconds / 1800 ticks)
+    if (isBackground && this.tickCount % 1800 === 0) {
+      const qmPpm = this.getProductionPerMinute('quantumMatter');
+      const corePpm = this.getProductionPerMinute('exoticCores');
+      const raiderPpm = this.getProductionPerMinute('raider');
+      const tankPpm = this.getProductionPerMinute('tank');
+      const gunshipPpm = this.getProductionPerMinute('gunship');
+      
+      const parts = [];
+      if (qmPpm > 0) parts.push(`+${qmPpm} QM`);
+      if (corePpm > 0) parts.push(`+${corePpm} Cores`);
+      if (raiderPpm > 0) parts.push(`+${raiderPpm} Raiders`);
+      if (tankPpm > 0) parts.push(`+${tankPpm} Tanks`);
+      if (gunshipPpm > 0) parts.push(`+${gunshipPpm} Gunships`);
+      
+      if (parts.length > 0) {
+        window.appendLog(`🛰️ FACTORY_RECON: Mothership background processing line active: [${parts.join(', ')} / min].`);
+      }
+    }
+
     // Camera scrolling via WASD
-    if (window.keysPressed) {
+    if (window.keysPressed && window.activeMode === 'mothership') {
       const scrollSpeed = 8;
       if (window.keysPressed['w'] || window.keysPressed['arrowup']) this.cameraY += scrollSpeed;
       if (window.keysPressed['s'] || window.keysPressed['arrowdown']) this.cameraY -= scrollSpeed;
@@ -595,13 +874,18 @@ export class MothershipBase {
     }
 
     // Capricorn tech: Passively generates 10 QM/sec inside base
-    if (this.unlockedTech.includes('capricorn') && this.tickCount % 60 === 0) {
+    if (this.unlockedTech.includes('capricorn') && this.tickCount % 60 === 0 && this.factoryActive !== false) {
       this.inventory.quantumMatter += 10;
+      this.addProductionStat('quantumMatter', 10);
     }
 
     // 1. Process Extractor Drills
     this.buildings.forEach(b => {
       if (b.type === 'extractor') {
+        if (this.factoryActive === false) {
+          b.cooldown = 0;
+          return;
+        }
         b.cooldown++;
         if (b.cooldown >= b.maxCooldown) {
           const spawnX = b.col * this.cellSize + this.cellSize / 2;
@@ -614,24 +898,143 @@ export class MothershipBase {
             return (dx * dx + dy * dy) < 480; // within ~22px radius
           });
 
-          if (isBlocked || this.conveyorItems.length >= 300) {
-            b.cooldown = b.maxCooldown; // Pause / wait until the spot is clear
+          const resType = b.resourceType || 'quantum_matter';
+          let costPerItem = 10;
+          let spawnItemType = 'raw_matter';
+          let spawnColor = '#00ffff';
+
+          if (resType === 'exotic_core') {
+            costPerItem = 40;
+            spawnItemType = 'exotic_core';
+            spawnColor = '#ff33ff';
+          } else if (resType === 'zodiac_tether') {
+            costPerItem = 100;
+            spawnItemType = 'zodiac_tether';
+            spawnColor = '#ffb300';
+          }
+
+          // Gemini tech: extracts two items per cycle instead of one (each costing costPerItem QM)
+          const hasGemini = this.unlockedTech.includes('gemini');
+          const itemsToExtract = hasGemini ? 2 : 1;
+          
+          let actualExtractCount = 0;
+          for (let i = 0; i < itemsToExtract; i++) {
+            if (this.inventory.quantumMatter >= costPerItem && this.conveyorItems.length < 300) {
+              actualExtractCount++;
+            }
+          }
+
+          if (isBlocked || actualExtractCount === 0) {
+            b.cooldown = b.maxCooldown; // Pause / wait until the spot is clear or we have enough QM
           } else {
             b.cooldown = 0;
-            this.conveyorItems.push({
-              id: `item-${Date.now()}-${Math.random()}`,
-              x: spawnX,
-              y: spawnY,
-              spawnX: spawnX,
-              spawnY: spawnY,
-              spawnDir: b.direction || 'right',
-              targetCol: b.col,
-              targetRow: b.row,
-              itemType: 'raw_matter',
-              progress: 0,
-              color: '#00ffff',
-              age: 0
-            });
+            const totalCost = actualExtractCount * costPerItem;
+            this.inventory.quantumMatter -= totalCost;
+            this.addProductionStat('quantumMatter', -totalCost);
+
+            for (let i = 0; i < actualExtractCount; i++) {
+              const offsetAngle = (i * Math.PI) / 2;
+              const spawnOffsetX = actualExtractCount > 1 ? Math.cos(offsetAngle) * 4 : 0;
+              const spawnOffsetY = actualExtractCount > 1 ? Math.sin(offsetAngle) * 4 : 0;
+
+              this.conveyorItems.push({
+                id: `item-${Date.now()}-${Math.random()}`,
+                x: spawnX + spawnOffsetX,
+                y: spawnY + spawnOffsetY,
+                spawnX: spawnX,
+                spawnY: spawnY,
+                spawnDir: b.direction || 'right',
+                targetCol: b.col,
+                targetRow: b.row,
+                itemType: spawnItemType,
+                progress: 0,
+                color: spawnColor,
+                age: 0
+              });
+            }
+
+            // Sync simulation QM
+            if (window.sim) {
+              window.sim.qm = this.inventory.quantumMatter;
+            }
+          }
+        }
+      }
+    });
+
+    // 1b. Process Elemental Extractor Drills (E-Extractor)
+    this.buildings.forEach(b => {
+      if (b.type === 'extractor_element') {
+        if (this.factoryActive === false) {
+          b.cooldown = 0;
+          return;
+        }
+        b.cooldown++;
+        if (b.cooldown >= b.maxCooldown) {
+          const spawnX = b.col * this.cellSize + this.cellSize / 2;
+          const spawnY = b.row * this.cellSize + this.cellSize / 2;
+          
+          // Check if block center is occupied
+          const isBlocked = this.conveyorItems.some(item => {
+            const dx = item.x - spawnX;
+            const dy = item.y - spawnY;
+            return (dx * dx + dy * dy) < 480;
+          });
+
+          const resType = b.resourceType || 'earth';
+          const costPerItem = 30;
+          const spawnItemType = `item_${resType}`;
+          const colors = {
+            earth: '#c2b09e',
+            air: '#b3e5fc',
+            water: '#42a5f5',
+            metal: '#cfd8dc',
+            soil: '#8d6e63'
+          };
+          const spawnColor = colors[resType] || '#ffffff';
+
+          const hasGemini = this.unlockedTech.includes('gemini');
+          const itemsToExtract = hasGemini ? 2 : 1;
+          
+          let actualExtractCount = 0;
+          for (let i = 0; i < itemsToExtract; i++) {
+            if (this.inventory.quantumMatter >= costPerItem && this.conveyorItems.length < 300) {
+              actualExtractCount++;
+            }
+          }
+
+          if (isBlocked || actualExtractCount === 0) {
+            b.cooldown = b.maxCooldown;
+          } else {
+            b.cooldown = 0;
+            const totalCost = actualExtractCount * costPerItem;
+            this.inventory.quantumMatter -= totalCost;
+            this.addProductionStat('quantumMatter', -totalCost);
+
+            for (let i = 0; i < actualExtractCount; i++) {
+              const offsetAngle = (i * Math.PI) / 2;
+              const spawnOffsetX = actualExtractCount > 1 ? Math.cos(offsetAngle) * 4 : 0;
+              const spawnOffsetY = actualExtractCount > 1 ? Math.sin(offsetAngle) * 4 : 0;
+
+              this.conveyorItems.push({
+                id: `item-${Date.now()}-${Math.random()}`,
+                x: spawnX + spawnOffsetX,
+                y: spawnY + spawnOffsetY,
+                spawnX: spawnX,
+                spawnY: spawnY,
+                spawnDir: b.direction || 'right',
+                targetCol: b.col,
+                targetRow: b.row,
+                itemType: spawnItemType,
+                progress: 0,
+                color: spawnColor,
+                age: 0
+              });
+            }
+
+            if (window.sim) {
+              window.sim.qm = this.inventory.quantumMatter;
+            }
           }
         }
       }
@@ -640,6 +1043,20 @@ export class MothershipBase {
     // 2. Process Transmuters & Vehicle Assemblers
     this.buildings.forEach(b => {
       if (b.type === 'synthesizer') {
+        if (this.factoryActive === false) {
+          b.cooldown = 0;
+          return;
+        }
+        
+        const target = b.transmuteTarget || 'zodiac_core';
+        let required = 5;
+        if (target.startsWith('terrestrial_')) {
+          required = 3;
+        } else if (target === 'zodiac_tether') {
+          required = 10;
+        }
+        b.requiredInput = required;
+
         if (b.inputBuffer >= b.requiredInput) {
           b.cooldown++;
           if (b.cooldown >= b.maxCooldown) {
@@ -658,13 +1075,35 @@ export class MothershipBase {
               b.cooldown = 0;
               b.inputBuffer -= b.requiredInput;
               
-              // Gemini tech: 25% chance to output a double core!
+              // Gemini tech: 25% chance to output double core/element
               const doubleChance = this.unlockedTech.includes('gemini') && Math.random() < 0.25;
               const outputCount = doubleChance ? 2 : 1;
 
+              let outType = 'exotic_core';
+              let outColor = '#ff33ff';
+
+              if (target === 'zodiac_tether') {
+                outType = 'zodiac_tether';
+                outColor = '#ffb300';
+              } else if (target.startsWith('terrestrial_')) {
+                // Map target name to item type
+                const suffix = target.replace('terrestrial_', '');
+                outType = `item_${suffix}`;
+                
+                const colors = {
+                  earth: '#c2b09e',
+                  air: '#b3e5fc',
+                  water: '#42a5f5',
+                  metal: '#cfd8dc',
+                  soil: '#8d6e63',
+                  symmetry: '#00e5ff'
+                };
+                outColor = colors[suffix] || '#ffffff';
+              }
+
               for (let c = 0; c < outputCount; c++) {
                 this.conveyorItems.push({
-                  id: `core-${Date.now()}-${Math.random()}`,
+                  id: `transmuted-${Date.now()}-${Math.random()}`,
                   x: spawnX,
                   y: spawnY,
                   spawnX: spawnX,
@@ -672,24 +1111,64 @@ export class MothershipBase {
                   spawnDir: b.direction || 'right',
                   targetCol: b.col,
                   targetRow: b.row,
-                  itemType: 'exotic_core',
+                  itemType: outType,
                   progress: 0,
-                  color: '#ff33ff',
+                  color: outColor,
                   age: 0
                 });
               }
-              this.inventory.exoticCores += outputCount;
-              window.appendLog(`⚛️ PROCESSOR: Synthesized ${outputCount} [EXOTIC_CORE] from raw matter matrices.`);
+
+              if (outType === 'exotic_core') {
+                this.inventory.exoticCores += outputCount;
+                this.addProductionStat('exoticCores', outputCount);
+              } else if (outType === 'zodiac_tether') {
+                this.inventory.zodiacTethers += outputCount;
+                this.addProductionStat('zodiacTethers', outputCount);
+              } else {
+                // terrestrial elements
+                const nameKey = target.replace('terrestrial_', '') + 'Element';
+                // (soil goes to soilElement, metal goes to metalElement, symmetry goes to symmetryCrystal)
+                const realKey = nameKey === 'symmetryElement' ? 'symmetryCrystal' : nameKey;
+                if (this.inventory[realKey] !== undefined) {
+                  this.inventory[realKey] += outputCount;
+                  this.addProductionStat(realKey, outputCount);
+                }
+              }
+
+              window.appendLog(`⚛️ PROCESSOR: Transmuted ${outputCount} [${outType.toUpperCase()}] from raw matter matrices.`);
+              this.updateUiDisplay();
             }
           }
         }
       } else if (b.type === 'assembler') {
-        const required = b.recipe === 'raider' ? 1 : b.recipe === 'tank' ? 2 : 3;
-        if (b.inputBuffer >= required) {
+        if (this.factoryActive === false) {
+          b.cooldown = 0;
+          return;
+        }
+
+        const recipe = b.recipe || 'part_hull';
+        const canProduce = (b.inputBuffer >= 4);
+
+        if (canProduce) {
           b.cooldown++;
           if (b.cooldown >= b.maxCooldown) {
-            const spawnX = b.col * this.cellSize + this.cellSize / 2;
-            const spawnY = b.row * this.cellSize + this.cellSize / 2;
+            let spawnCol = b.col;
+            let spawnRow = b.row;
+            if (b.direction === 'right') {
+              spawnCol = b.col + 1;
+              spawnRow = b.row;
+            } else if (b.direction === 'left') {
+              spawnCol = b.col - 1;
+              spawnRow = b.row;
+            } else if (b.direction === 'down') {
+              spawnRow = b.row + 1;
+              spawnCol = b.col;
+            } else if (b.direction === 'up') {
+              spawnRow = b.row - 1;
+              spawnCol = b.col;
+            }
+            const spawnX = spawnCol * this.cellSize + this.cellSize / 2;
+            const spawnY = spawnRow * this.cellSize + this.cellSize / 2;
             
             const isBlocked = this.conveyorItems.some(item => {
               const dx = item.x - spawnX;
@@ -701,9 +1180,11 @@ export class MothershipBase {
               b.cooldown = b.maxCooldown; // wait
             } else {
               b.cooldown = 0;
-              b.inputBuffer -= required;
+              b.inputBuffer -= 4;
 
-              const itemType = `assembled_${b.recipe}`;
+              const spawnItemType = recipe; // 'part_hull', 'part_movement', 'part_gun'
+              const spawnColor = recipe === 'part_hull' ? '#cfd8dc' : recipe === 'part_movement' ? '#b3e5fc' : '#ff3344';
+
               this.conveyorItems.push({
                 id: `assembled-${Date.now()}-${Math.random()}`,
                 x: spawnX,
@@ -711,14 +1192,114 @@ export class MothershipBase {
                 spawnX: spawnX,
                 spawnY: spawnY,
                 spawnDir: b.direction || 'right',
-                targetCol: b.col,
-                targetRow: b.row,
-                itemType: itemType,
+                targetCol: spawnCol,
+                targetRow: spawnRow,
+                itemType: spawnItemType,
                 progress: 0,
-                color: '#00ff66',
+                color: spawnColor,
                 age: 0
               });
-              window.appendLog(`📦 ASSEMBLER: Completed assembly of vehicle chassis: [${itemType.toUpperCase()}]. Routing to belt.`);
+              window.appendLog(`📦 ASSEMBLER: Completed assembly: [${spawnItemType.toUpperCase().replace('PART_', 'PART: ')}]. Routing to belt.`);
+            }
+          }
+        }
+      } else if (b.type === 'factory') {
+        if (this.factoryActive === false) {
+          b.cooldown = 0;
+          return;
+        }
+
+        const recipe = b.recipe || 'unit_raider';
+        const normRecipe = recipe.replace('unit_', '');
+
+        let requiredPartHull = 0;
+        let requiredPartMovement = 0;
+        let requiredPartGun = 0;
+
+        if (normRecipe === 'raider' || recipe === 'raider') {
+          requiredPartHull = 1; requiredPartMovement = 1; requiredPartGun = 1;
+        } else if (normRecipe === 'tank' || recipe === 'tank') {
+          requiredPartHull = 2; requiredPartMovement = 1; requiredPartGun = 2;
+        } else if (normRecipe === 'gunship' || recipe === 'gunship') {
+          requiredPartHull = 2; requiredPartMovement = 2; requiredPartGun = 2;
+        }
+
+        const canProduce = (b.hullBuffer >= requiredPartHull && b.movementBuffer >= requiredPartMovement && b.gunBuffer >= requiredPartGun);
+
+        if (canProduce) {
+          b.cooldown++;
+          if (b.cooldown >= b.maxCooldown) {
+            let spawnCol = b.col;
+            let spawnRow = b.row;
+            if (b.direction === 'right') {
+              spawnCol = b.col + 2;
+              const beltB = this.getBuildingAtCell(b.col + 2, b.row + 1);
+              if (beltB && beltB.type === 'belt') {
+                spawnRow = b.row + 1;
+              } else {
+                spawnRow = b.row;
+              }
+            } else if (b.direction === 'left') {
+              spawnCol = b.col - 1;
+              const beltB = this.getBuildingAtCell(b.col - 1, b.row + 1);
+              if (beltB && beltB.type === 'belt') {
+                spawnRow = b.row + 1;
+              } else {
+                spawnRow = b.row;
+              }
+            } else if (b.direction === 'down') {
+              spawnRow = b.row + 2;
+              const beltB = this.getBuildingAtCell(b.col + 1, b.row + 2);
+              if (beltB && beltB.type === 'belt') {
+                spawnCol = b.col + 1;
+              } else {
+                spawnCol = b.col;
+              }
+            } else if (b.direction === 'up') {
+              spawnRow = b.row - 1;
+              const beltB = this.getBuildingAtCell(b.col + 1, b.row - 1);
+              if (beltB && beltB.type === 'belt') {
+                spawnCol = b.col + 1;
+              } else {
+                spawnCol = b.col;
+              }
+            }
+            const spawnX = spawnCol * this.cellSize + this.cellSize / 2;
+            const spawnY = spawnRow * this.cellSize + this.cellSize / 2;
+            
+            const isBlocked = this.conveyorItems.some(item => {
+              const dx = item.x - spawnX;
+              const dy = item.y - spawnY;
+              return (dx * dx + dy * dy) < 480;
+            });
+
+            if (isBlocked || this.conveyorItems.length >= 300) {
+              b.cooldown = b.maxCooldown; // wait
+            } else {
+              b.cooldown = 0;
+              b.hullBuffer -= requiredPartHull;
+              b.movementBuffer -= requiredPartMovement;
+              b.gunBuffer -= requiredPartGun;
+
+              const pureRecipe = recipe.replace('unit_', '');
+              const spawnItemType = `assembled_${pureRecipe}`;
+              const spawnColor = '#00ff66';
+
+              this.conveyorItems.push({
+                id: `assembled-${Date.now()}-${Math.random()}`,
+                x: spawnX,
+                y: spawnY,
+                spawnX: spawnX,
+                spawnY: spawnY,
+                spawnDir: b.direction || 'right',
+                targetCol: spawnCol,
+                targetRow: spawnRow,
+                itemType: spawnItemType,
+                progress: 0,
+                color: spawnColor,
+                age: 0
+              });
+              window.appendLog(`🏭 FACTORY: Completed assembly: [${spawnItemType.toUpperCase()}]. Routing to belt.`);
             }
           }
         }
@@ -729,7 +1310,7 @@ export class MothershipBase {
       this.conveyorItems.forEach(item => {
         const col = Math.floor(item.x / this.cellSize);
         const row = Math.floor(item.y / this.cellSize);
-        const b = this.buildings.find(bg => bg.col === col && bg.row === row);
+        const b = this.getBuildingAtCell(col, row);
         
         if (b && b.type === 'belt') {
           item.speed = 2.0;
@@ -763,7 +1344,7 @@ export class MothershipBase {
       const itemA = this.conveyorItems[i];
       const colA = Math.floor(itemA.x / this.cellSize);
       const rowA = Math.floor(itemA.y / this.cellSize);
-      const bA = this.buildings.find(b => b.col === colA && b.row === rowA);
+      const bA = this.getBuildingAtCell(colA, rowA);
       
       const currentDir = (bA && bA.type === 'belt') ? bA.direction : (itemA.spawnDir || 'right');
 
@@ -799,7 +1380,7 @@ export class MothershipBase {
     this.conveyorItems.forEach(item => {
       const col = Math.floor(item.x / this.cellSize);
       const row = Math.floor(item.y / this.cellSize);
-      const b = this.buildings.find(bg => bg.col === col && bg.row === row);
+      const b = this.getBuildingAtCell(col, row);
       const speed = item.speed !== undefined ? item.speed : 1.5;
 
       if (speed > 0) {
@@ -816,55 +1397,117 @@ export class MothershipBase {
       const col = Math.floor(item.x / this.cellSize);
       const row = Math.floor(item.y / this.cellSize);
 
-      if (item.age > 300) {
+      if (item.age > 100) {
         this.spawnExplosion(item.x, item.y, '#ff3344', 5);
         window.appendLog("🧹 MAINTENANCE: Cleared stray production material.");
         return false;
       }
 
+      const storeItem = (type, isSilo) => {
+        const typeLabel = isSilo ? "STORAGE_SILO" : "PORTAL_CORE";
+        if (type === 'assembled_raider') {
+          this.standingArmy.raider++;
+          this.addProductionStat('raider', 1);
+          window.appendLog(`🛸 ${typeLabel}: Vanguard Raider warped into Standing reserves!`);
+        } else if (type === 'assembled_tank') {
+          this.standingArmy.tank++;
+          this.addProductionStat('tank', 1);
+          window.appendLog(`🛸 ${typeLabel}: Goliath Heavy Tank warped into Standing reserves!`);
+        } else if (type === 'assembled_gunship') {
+          this.standingArmy.gunship++;
+          this.addProductionStat('gunship', 1);
+          window.appendLog(`🛸 ${typeLabel}: Reaver Gunship warped into Standing reserves!`);
+        } else if (type === 'exotic_core') {
+          this.inventory.exoticCores++;
+          this.addProductionStat('exoticCores', 1);
+          window.appendLog(`⚜️ ${typeLabel}: Transferred raw Exotic Core to storage vaults.`);
+        } else if (type === 'zodiac_tether') {
+          this.inventory.zodiacTethers++;
+          this.addProductionStat('zodiacTethers', 1);
+          window.appendLog(`⚜️ ${typeLabel}: Transferred high frequency Zodiac Tether to mainframe launcher.`);
+        } else if (type.startsWith('item_')) {
+          const suffix = type.replace('item_', '');
+          const nameKey = suffix + 'Element';
+          const realKey = nameKey === 'symmetryElement' ? 'symmetryCrystal' : nameKey;
+          if (this.inventory[realKey] !== undefined) {
+            this.inventory[realKey]++;
+            this.addProductionStat(realKey, 1);
+            window.appendLog(`💎 ${typeLabel}: Secured transmuted element [${suffix.toUpperCase()}] inside storage banks.`);
+          }
+        } else {
+          // parts or raw matter
+          const refund = type.startsWith('part_') ? 15 : 10;
+          this.inventory.quantumMatter += refund;
+          this.addProductionStat('quantumMatter', refund);
+          window.appendLog(`🧹 ${typeLabel}: Recycled stray production material [${type.toUpperCase()}] for +${refund} QM.`);
+        }
+      };
+
       // Check if item hit the permanent central Spacetime Gate (cols 5-6, rows 5-6)
       if (this.isCentralPortalCell(col, row)) {
         this.spawnExplosion(item.x, item.y, item.color, 15);
-        if (item.itemType === 'assembled_raider') {
-          this.standingArmy.raider++;
-          window.appendLog("🛸 STANDING_ARMY: Vanguard Raider warped into Standing reserves!");
-        } else if (item.itemType === 'assembled_tank') {
-          this.standingArmy.tank++;
-          window.appendLog("🛸 STANDING_ARMY: Goliath Heavy Tank warped into Standing reserves!");
-        } else if (item.itemType === 'assembled_gunship') {
-          this.standingArmy.gunship++;
-          window.appendLog("🛸 STANDING_ARMY: Reaver Gunship warped into Standing reserves!");
-        } else if (item.itemType === 'exotic_core') {
-          this.inventory.exoticCores++;
-          window.appendLog("⚜️ INVENTORY: Transferred raw Exotic Core to storage mainframe vaults.");
-        } else {
-          this.inventory.quantumMatter += 15; // minor credits
-        }
-        
+        storeItem(item.itemType, false);
         this.updateUiDisplay();
         if (window.saveGame) window.saveGame();
         return false;
       }
 
-      const target = this.buildings.find(b => b.col === col && b.row === row);
+      const target = this.getBuildingAtCell(col, row);
       if (target) {
         if (target.type === 'storage') {
-          if (item.itemType === 'raw_matter') {
-            this.inventory.quantumMatter += 10;
-          } else if (item.itemType === 'exotic_core') {
-            this.inventory.quantumMatter += 40;
-          } else if (item.itemType.startsWith('assembled_')) {
-            this.inventory.quantumMatter += 100;
-          }
+          this.spawnExplosion(item.x, item.y, item.color, 10);
+          storeItem(item.itemType, true);
+          this.updateUiDisplay();
+          if (window.saveGame) window.saveGame();
           return false; // delete item
         } else if (target.type === 'synthesizer' && item.itemType === 'raw_matter') {
           target.inputBuffer++;
           return false; 
-        } else if (target.type === 'assembler' && item.itemType === 'exotic_core') {
-          const required = target.recipe === 'raider' ? 1 : target.recipe === 'tank' ? 2 : 3;
-          if (target.inputBuffer < required) {
-            target.inputBuffer++;
-            return false; 
+        } else if (target.type === 'assembler') {
+          const recipe = target.recipe || 'part_hull';
+
+          // Part assemblers accept raw matter (+1) or corresponding terrestrial element (+4)
+          if (item.itemType === 'raw_matter') {
+            if (target.inputBuffer < 4) {
+              target.inputBuffer++;
+              return false;
+            }
+          } else if (item.itemType.startsWith('item_')) {
+            // Check if matching element for part
+            const elementSuffix = item.itemType.replace('item_', '');
+            let isMatch = false;
+            if (recipe === 'part_hull' && elementSuffix === 'metal') isMatch = true;
+            else if (recipe === 'part_movement' && elementSuffix === 'air') isMatch = true;
+            else if (recipe === 'part_gun' && elementSuffix === 'symmetry') isMatch = true;
+
+            if (isMatch && target.inputBuffer < 4) {
+              target.inputBuffer = Math.min(4, target.inputBuffer + 4);
+              return false;
+            }
+          }
+        } else if (target.type === 'factory') {
+          const recipe = target.recipe || 'unit_raider';
+          const normRecipe = recipe.replace('unit_', '');
+
+          // Unit factories accept 'part_hull', 'part_movement', 'part_gun'
+          if (item.itemType === 'part_hull') {
+            const maxHull = (normRecipe === 'raider' || recipe === 'raider') ? 1 : 2;
+            if ((target.hullBuffer || 0) < maxHull) {
+              target.hullBuffer = (target.hullBuffer || 0) + 1;
+              return false;
+            }
+          } else if (item.itemType === 'part_movement') {
+            const maxMove = (normRecipe === 'gunship' || recipe === 'gunship') ? 2 : 1;
+            if ((target.movementBuffer || 0) < maxMove) {
+              target.movementBuffer = (target.movementBuffer || 0) + 1;
+              return false;
+            }
+          } else if (item.itemType === 'part_gun') {
+            const maxGun = (normRecipe === 'raider' || recipe === 'raider') ? 1 : 2;
+            if ((target.gunBuffer || 0) < maxGun) {
+              target.gunBuffer = (target.gunBuffer || 0) + 1;
+              return false;
+            }
           }
         } else if (target.type === 'deployer' && item.itemType.startsWith('assembled_')) {
           if (target.active) {
@@ -872,6 +1515,7 @@ export class MothershipBase {
             const vehicleType = item.itemType.replace('assembled_', '');
             this.spawnExplosion(item.x, item.y, '#00ff66', 15);
             this.standingArmy[vehicleType]++;
+            this.addProductionStat(vehicleType, 1);
             window.appendLog(`🛸 STANDING_ARMY: Assembled ${vehicleType.toUpperCase()} stored via Deploy Gate!`);
             
             this.updateUiDisplay();
@@ -900,7 +1544,7 @@ export class MothershipBase {
     // Passive tether fabrication logic
     // Pisces tech: Direct fabrication of Zodiac Tethers costs only 3 Exotic Cores
     const costTethers = this.unlockedTech.includes('pisces') ? 3 : 4;
-    if (this.tickCount % 600 === 0 && this.inventory.exoticCores >= costTethers) {
+    if (this.tickCount % 600 === 0 && this.inventory.exoticCores >= costTethers && this.factoryActive !== false) {
       this.inventory.exoticCores -= costTethers;
       this.inventory.zodiacTethers++;
       window.appendLog("⚜️ TETHER_MATRIX: High frequency tethers assembled inside main assembly launcher bay.");
@@ -911,12 +1555,12 @@ export class MothershipBase {
 
   // Draw homebase interior grid map
   render() {
-    this.ctx.fillStyle = '#030306';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.ctx.save();
-    // Center of screen panning
-    this.ctx.translate(this.canvas.width / 2 + this.cameraX, this.canvas.height / 2 + this.cameraY);
+    // Center of screen panning + zoom
+    this.ctx.scale(this.zoom, this.zoom);
+    this.ctx.translate(this.canvas.width / (2 * this.zoom) + this.cameraX, this.canvas.height / (2 * this.zoom) + this.cameraY);
 
     // 1. Draw unlocked grid sectors & their cells
     const cameraGridX = Math.floor((-this.cameraX - this.canvas.width/2) / this.cellSize);
@@ -1033,14 +1677,26 @@ export class MothershipBase {
     this.buildings.forEach(b => {
       const bx = b.col * this.cellSize;
       const by = b.row * this.cellSize;
-      const size = this.cellSize;
+      const size = b.type === 'factory' ? this.cellSize * 2 : this.cellSize;
 
       this.ctx.save();
       
       if (b.type === 'extractor') {
-        this.ctx.fillStyle = '#112233';
-        this.ctx.strokeStyle = '#00ffff';
-        this.ctx.lineWidth = 1.5;
+        const resType = b.resourceType || 'quantum_matter';
+        let outlineColor = '#00ffff';
+        let label = 'QM';
+
+        if (resType === 'exotic_core') {
+          outlineColor = '#ff33ff';
+          label = 'EXOTIC';
+        } else if (resType === 'zodiac_tether') {
+          outlineColor = '#ffb300';
+          label = 'ZODIAC';
+        }
+
+        this.ctx.fillStyle = '#0f172a';
+        this.ctx.strokeStyle = outlineColor;
+        this.ctx.lineWidth = 1.8;
         this.ctx.fillRect(bx + 4, by + 4, size - 8, size - 8);
         this.ctx.strokeRect(bx + 4, by + 4, size - 8, size - 8);
 
@@ -1057,7 +1713,61 @@ export class MothershipBase {
         this.ctx.moveTo(-6, -6); this.ctx.lineTo(6, 6);
         this.ctx.moveTo(6, -6); this.ctx.lineTo(-6, 6);
         this.ctx.stroke();
+
+        this.ctx.restore();
+        this.ctx.save();
+
+        this.ctx.fillStyle = outlineColor;
+        this.ctx.font = 'bold 6.5px var(--font-mono)';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(label, bx + size/2, by + size - 7);
       } 
+      else if (b.type === 'extractor_element') {
+        const resType = b.resourceType || 'earth';
+        const colors = {
+          earth: '#c2b09e',
+          air: '#b3e5fc',
+          water: '#42a5f5',
+          metal: '#cfd8dc',
+          soil: '#8d6e63'
+        };
+        const outlineColor = colors[resType] || '#ffffff';
+        const label = resType.toUpperCase();
+
+        this.ctx.fillStyle = '#0a1c1a'; // Elemental dark green/teal background
+        this.ctx.strokeStyle = outlineColor;
+        this.ctx.lineWidth = 1.8;
+        this.ctx.fillRect(bx + 4, by + 4, size - 8, size - 8);
+        this.ctx.strokeRect(bx + 4, by + 4, size - 8, size - 8);
+
+        // Draw rotating element crystalline glyph in the center
+        this.ctx.translate(bx + size/2, by + size/2);
+        let rotation = 0;
+        if (b.direction === 'down') rotation = Math.PI / 2;
+        else if (b.direction === 'left') rotation = Math.PI;
+        else if (b.direction === 'up') rotation = -Math.PI / 2;
+
+        this.ctx.rotate(rotation + this.tickCount * 0.1);
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 1.0;
+        // Draw elegant diamond glyph
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -6);
+        this.ctx.lineTo(4, 0);
+        this.ctx.lineTo(0, 6);
+        this.ctx.lineTo(-4, 0);
+        this.ctx.closePath();
+        this.ctx.stroke();
+
+        this.ctx.restore();
+        this.ctx.save();
+
+        this.ctx.fillStyle = outlineColor;
+        this.ctx.font = 'bold 6.5px var(--font-mono)';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('E-EXT', bx + size/2, by + 12);
+        this.ctx.fillText(label, bx + size/2, by + size - 7);
+      }
       else if (b.type === 'belt') {
         this.ctx.fillStyle = '#15151c';
         this.ctx.strokeStyle = 'rgba(255,255,255,0.08)';
@@ -1102,23 +1812,64 @@ export class MothershipBase {
         this.ctx.stroke();
       } 
       else if (b.type === 'synthesizer') {
-        this.ctx.fillStyle = '#221133';
-        this.ctx.strokeStyle = '#ff33ff';
+        const sub = b.subType || 'matter';
+        const target = b.transmuteTarget || 'zodiac_core';
+        let accentColor = '#ff33ff';
+        let label = 'CORE';
+
+        if (target === 'zodiac_tether') {
+          accentColor = '#ffb300';
+          label = 'TETHER';
+        } else if (target === 'exotic_core') {
+          accentColor = '#ff33ff';
+          label = 'EXOTIC';
+        } else if (target === 'zodiac_core') {
+          accentColor = '#e040fb';
+          label = 'ZODIAC';
+        } else if (target.startsWith('terrestrial_')) {
+          label = target.replace('terrestrial_', '').toUpperCase();
+          const colors = {
+            earth: '#c2b09e',
+            air: '#b3e5fc',
+            water: '#42a5f5',
+            metal: '#cfd8dc',
+            soil: '#8d6e63',
+            symmetry: '#00e5ff'
+          };
+          accentColor = colors[target.replace('terrestrial_', '')] || '#ffffff';
+        }
+
+        this.ctx.fillStyle = '#1e112a';
+        this.ctx.strokeStyle = accentColor;
         this.ctx.lineWidth = 1.8;
         this.ctx.fillRect(bx + 3, by + 3, size - 6, size - 6);
         this.ctx.strokeRect(bx + 3, by + 3, size - 6, size - 6);
 
         // Pulsing plasma chamber
-        this.ctx.fillStyle = `rgba(255, 51, 255, ${0.15 + 0.1 * Math.sin(this.tickCount * 0.08)})`;
+        const pulse = 0.15 + 0.1 * Math.sin(this.tickCount * 0.08);
+        this.ctx.fillStyle = accentColor;
+        this.ctx.globalAlpha = pulse;
         this.ctx.beginPath();
         this.ctx.arc(bx + size/2, by + size/2, 9, 0, Math.PI * 2);
         this.ctx.fill();
+        this.ctx.globalAlpha = 1.0;
         
-        if (b.inputBuffer > 0) {
-          this.ctx.fillStyle = '#ff33ff';
-          this.ctx.font = '6px var(--font-mono)';
-          this.ctx.fillText(`${b.inputBuffer}/${b.requiredInput}`, bx + 6, by + size - 5);
-        }
+        // Output type text
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 6.5px var(--font-mono)';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(label, bx + size/2, by + 12);
+
+        // SubType label
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        this.ctx.font = '5px var(--font-mono)';
+        this.ctx.fillText(sub.toUpperCase(), bx + size/2, by + 19);
+
+        // Buffer text
+        const req = b.requiredInput || 5;
+        this.ctx.fillStyle = accentColor;
+        this.ctx.font = 'bold 5.5px var(--font-mono)';
+        this.ctx.fillText(`Matter:${b.inputBuffer || 0}/${req}`, bx + size/2, by + size - 6);
       } 
       else if (b.type === 'storage') {
         this.ctx.fillStyle = '#1c1c1c';
@@ -1133,59 +1884,179 @@ export class MothershipBase {
         this.ctx.fill();
       }
       else if (b.type === 'assembler') {
-        this.ctx.fillStyle = '#1e2430';
-        this.ctx.strokeStyle = '#00ff66';
+        const recipe = b.recipe || 'part_hull';
+
+        this.ctx.fillStyle = '#0b0f19';
+        this.ctx.strokeStyle = '#94a3b8';
         this.ctx.lineWidth = 1.8;
         this.ctx.fillRect(bx + 3, by + 3, size - 6, size - 6);
         this.ctx.strokeRect(bx + 3, by + 3, size - 6, size - 6);
 
-        // Robotic laser arms
-        this.ctx.strokeStyle = '#ffffff';
+        // Robotic laser arms in corners
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         this.ctx.lineWidth = 1.0;
         this.ctx.beginPath();
-        this.ctx.moveTo(bx + 6, by + 6);
-        this.ctx.lineTo(bx + 14, by + 14);
-        this.ctx.moveTo(bx + size - 6, by + 6);
-        this.ctx.lineTo(bx + size - 14, by + 14);
+        this.ctx.moveTo(bx + 5, by + 5);
+        this.ctx.lineTo(bx + 9, by + 9);
+        this.ctx.moveTo(bx + size - 5, by + 5);
+        this.ctx.lineTo(bx + size - 9, by + 9);
+        this.ctx.moveTo(bx + 5, by + size - 5);
+        this.ctx.lineTo(bx + 9, by + size - 9);
+        this.ctx.moveTo(bx + size - 5, by + size - 5);
+        this.ctx.lineTo(bx + size - 9, by + size - 9);
         this.ctx.stroke();
 
-        // Holographic unit projection bouncing slightly
-        const hoverOffset = Math.sin(this.tickCount * 0.12) * 2;
-        this.ctx.fillStyle = 'rgba(0, 255, 102, 0.45)';
-        this.ctx.font = 'bold 8px var(--font-mono)';
-        this.ctx.textAlign = 'center';
-        
-        let holoSymbol = '▲';
-        if (b.recipe === 'tank') holoSymbol = '⬢';
-        if (b.recipe === 'gunship') holoSymbol = '❖';
+        this.ctx.save();
+        this.ctx.translate(bx + size/2, by + size/2);
 
-        this.ctx.fillText(holoSymbol, bx + size/2, by + size/2 + 3 + hoverOffset);
+        // Drawing custom parts blueprints
+        const rotAngle = this.tickCount * 0.015;
+        this.ctx.rotate(rotAngle);
+        if (recipe === 'part_hull') {
+          // Draw hexagonal armor shield plate
+          this.ctx.strokeStyle = '#cfd8dc';
+          this.ctx.fillStyle = 'rgba(207, 216, 220, 0.2)';
+          this.ctx.lineWidth = 1.2;
+          this.ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI) / 3;
+            const px = Math.cos(angle) * 6.5;
+            const py = Math.sin(angle) * 6.5;
+            if (i === 0) this.ctx.moveTo(px, py);
+            else this.ctx.lineTo(px, py);
+          }
+          this.ctx.closePath();
+          this.ctx.fill();
+          this.ctx.stroke();
+        } else if (recipe === 'part_movement') {
+          // Draw rocket thruster jet chevron
+          this.ctx.strokeStyle = '#b3e5fc';
+          this.ctx.fillStyle = 'rgba(179, 229, 252, 0.2)';
+          this.ctx.lineWidth = 1.2;
+          this.ctx.beginPath();
+          this.ctx.moveTo(-5.5, 5.5);
+          this.ctx.lineTo(0, -7);
+          this.ctx.lineTo(5.5, 5.5);
+          this.ctx.lineTo(0, 1.5);
+          this.ctx.closePath();
+          this.ctx.fill();
+          this.ctx.stroke();
+        } else if (recipe === 'part_gun') {
+          // Draw crossed blaster lines
+          this.ctx.strokeStyle = '#ff3344';
+          this.ctx.lineWidth = 1.6;
+          this.ctx.beginPath();
+          this.ctx.moveTo(-5.5, -5.5); this.ctx.lineTo(5.5, 5.5);
+          this.ctx.moveTo(5.5, -5.5); this.ctx.lineTo(-5.5, 5.5);
+          this.ctx.stroke();
+        }
+
+        this.ctx.restore();
 
         // Progress build cooldown indicator ring
-        if (b.inputBuffer > 0) {
-          this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.2)';
-          this.ctx.lineWidth = 2.0;
+        const radius = 7;
+        const cooldownActive = (b.inputBuffer >= 4);
+        if (cooldownActive) {
+          this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.15)';
+          this.ctx.lineWidth = 1.5;
           this.ctx.beginPath();
-          this.ctx.arc(bx + size/2, by + size/2, 11, 0, Math.PI * 2);
+          this.ctx.arc(bx + size/2, by + size/2, radius + 5, 0, Math.PI * 2);
+          this.ctx.stroke();
+
+          const angleEnd = (b.cooldown / b.maxCooldown) * Math.PI * 2;
+          this.ctx.strokeStyle = '#94a3b8';
+          this.ctx.lineWidth = 1.5;
+          this.ctx.beginPath();
+          this.ctx.arc(bx + size/2, by + size/2, radius + 5, -Math.PI / 2, -Math.PI / 2 + angleEnd);
+          this.ctx.stroke();
+        }
+
+        // Texts
+        this.ctx.fillStyle = '#cfd8dc';
+        this.ctx.font = 'bold 5px var(--font-mono)';
+        this.ctx.textAlign = 'center';
+        
+        let displayRecipe = recipe.toUpperCase().replace('PART_', 'PART: ');
+        this.ctx.fillText(displayRecipe, bx + size/2, by + size - 4);
+
+        this.ctx.font = '4.5px var(--font-mono)';
+        this.ctx.fillStyle = '#a1a1aa';
+        this.ctx.fillText(`Matter:${b.inputBuffer || 0}/4`, bx + size/2, by + 8);
+      }
+      else if (b.type === 'factory') {
+        const recipe = b.recipe || 'unit_raider';
+
+        this.ctx.fillStyle = '#070a13';
+        this.ctx.strokeStyle = '#00ff66';
+        this.ctx.lineWidth = 2.0;
+        this.ctx.fillRect(bx + 3, by + 3, size - 6, size - 6);
+        this.ctx.strokeRect(bx + 3, by + 3, size - 6, size - 6);
+
+        // Robotic laser arms in corners of 2x2
+        this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.25)';
+        this.ctx.lineWidth = 1.2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(bx + 8, by + 8);
+        this.ctx.lineTo(bx + 20, by + 20);
+        this.ctx.moveTo(bx + size - 8, by + 8);
+        this.ctx.lineTo(bx + size - 20, by + 20);
+        this.ctx.moveTo(bx + 8, by + size - 8);
+        this.ctx.lineTo(bx + size - 20, by + size - 20);
+        this.ctx.moveTo(bx + size - 8, by + size - 8);
+        this.ctx.lineTo(bx + size - 20, by + size - 20);
+        this.ctx.stroke();
+
+        // Pulsing power core circle in the middle
+        const pulseCore = 6 + 1.5 * Math.sin(this.tickCount * 0.1);
+        this.ctx.fillStyle = 'rgba(0, 255, 102, 0.1)';
+        this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.35)';
+        this.ctx.lineWidth = 1.0;
+        this.ctx.beginPath();
+        this.ctx.arc(bx + size/2, by + size/2, pulseCore, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        this.ctx.save();
+        this.ctx.translate(bx + size/2, by + size/2);
+
+        // Holographic vehicle projection floating and rotating slowly!
+        const hoverOffset = Math.sin(this.tickCount * 0.08) * 2;
+        const rotateAngle = this.tickCount * 0.02;
+        const radius = recipe.includes('tank') ? 14 : recipe.includes('gunship') ? 12 : 10;
+        this.drawUnitArt(recipe.replace('unit_', ''), 0, hoverOffset, radius, rotateAngle, 0.7);
+
+        this.ctx.restore();
+
+        // Progress build cooldown indicator ring
+        const cooldownActive = (b.hullBuffer > 0 || b.movementBuffer > 0 || b.gunBuffer > 0);
+        if (cooldownActive) {
+          this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.15)';
+          this.ctx.lineWidth = 1.8;
+          this.ctx.beginPath();
+          this.ctx.arc(bx + size/2, by + size/2, radius + 8, 0, Math.PI * 2);
           this.ctx.stroke();
 
           const angleEnd = (b.cooldown / b.maxCooldown) * Math.PI * 2;
           this.ctx.strokeStyle = '#00ff66';
-          this.ctx.lineWidth = 2.0;
+          this.ctx.lineWidth = 1.8;
           this.ctx.beginPath();
-          this.ctx.arc(bx + size/2, by + size/2, 11, -Math.PI / 2, -Math.PI / 2 + angleEnd);
+          this.ctx.arc(bx + size/2, by + size/2, radius + 8, -Math.PI / 2, -Math.PI / 2 + angleEnd);
           this.ctx.stroke();
         }
 
+        // Texts
         this.ctx.fillStyle = '#00ff66';
-        this.ctx.font = '5.5px var(--font-mono)';
+        this.ctx.font = 'bold 7.5px var(--font-mono)';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(b.recipe.toUpperCase(), bx + size/2, by + size - 5);
+        
+        let displayRecipe = recipe.toUpperCase();
+        if (displayRecipe.startsWith('UNIT_')) displayRecipe = displayRecipe.replace('UNIT_', 'UNIT: ');
+        else displayRecipe = `UNIT: ${displayRecipe}`;
+        this.ctx.fillText(displayRecipe, bx + size/2, by + size - 8);
 
-        const required = b.recipe === 'raider' ? 1 : b.recipe === 'tank' ? 2 : 3;
-        this.ctx.fillStyle = '#ff33ff';
-        this.ctx.font = '5px var(--font-mono)';
-        this.ctx.fillText(`Cores:${b.inputBuffer}/${required}`, bx + size/2, by + 11);
+        this.ctx.font = '6.5px var(--font-mono)';
+        this.ctx.fillStyle = '#67e8f9';
+        this.ctx.fillText(`H:${b.hullBuffer||0} E:${b.movementBuffer||0} W:${b.gunBuffer||0}`, bx + size/2, by + 14);
       }
       else if (b.type === 'deployer') {
         this.ctx.fillStyle = '#22252a';
@@ -1211,8 +2082,8 @@ export class MothershipBase {
         this.ctx.fillText(b.active ? 'DEPLOYING' : 'HOLDING', bx + size/2, by + size - 6);
       }
 
-      if (['synthesizer', 'assembler', 'deployer'].includes(b.type)) {
-        this.drawDirectionArrow(bx, by, b.direction || 'right', 'rgba(255, 255, 255, 0.45)');
+      if (['synthesizer', 'assembler', 'factory', 'deployer', 'extractor', 'extractor_element'].includes(b.type)) {
+        this.drawDirectionArrow(bx, by, b.direction || 'right', 'rgba(255, 255, 255, 0.45)', size);
       }
 
       this.ctx.restore();
@@ -1223,37 +2094,18 @@ export class MothershipBase {
       this.ctx.save();
       
       if (item.itemType.startsWith('assembled_')) {
-        this.ctx.fillStyle = '#00ff66';
-        this.ctx.shadowBlur = 8;
-        this.ctx.shadowColor = '#00ff66';
-        this.ctx.translate(item.x, item.y);
+        const type = item.itemType.replace('assembled_', '');
+        const col = Math.floor(item.x / this.cellSize);
+        const row = Math.floor(item.y / this.cellSize);
+        const b = this.getBuildingAtCell(col, row);
+        const dir = (b && b.type === 'belt') ? b.direction : (item.spawnDir || 'right');
         
-        if (item.itemType === 'assembled_raider') {
-          this.ctx.beginPath();
-          this.ctx.moveTo(4, 0);
-          this.ctx.lineTo(-4, -3);
-          this.ctx.lineTo(-2, 0);
-          this.ctx.lineTo(-4, 3);
-          this.ctx.closePath();
-          this.ctx.fill();
-        } else if (item.itemType === 'assembled_tank') {
-          this.ctx.fillRect(-4, -4, 8, 8);
-          this.ctx.fillStyle = '#ffffff';
-          this.ctx.fillRect(0, -1, 5, 2); // mini gun barrel
-        } else {
-          // Quad-wing gunship star shape
-          this.ctx.beginPath();
-          this.ctx.moveTo(0, -5);
-          this.ctx.lineTo(2, -2);
-          this.ctx.lineTo(5, 0);
-          this.ctx.lineTo(2, 2);
-          this.ctx.lineTo(0, 5);
-          this.ctx.lineTo(-2, 2);
-          this.ctx.lineTo(-5, 0);
-          this.ctx.lineTo(-2, -2);
-          this.ctx.closePath();
-          this.ctx.fill();
-        }
+        let angle = 0;
+        if (dir === 'down') angle = Math.PI / 2;
+        else if (dir === 'left') angle = Math.PI;
+        else if (dir === 'up') angle = -Math.PI / 2;
+
+        this.drawUnitArt(type, item.x, item.y, 4.5, angle, 1.0);
       } else {
         this.ctx.fillStyle = item.color;
         this.ctx.shadowBlur = 6;
@@ -1284,14 +2136,33 @@ export class MothershipBase {
       
       const bx = mouseCol * this.cellSize;
       const by = mouseRow * this.cellSize;
-      const size = this.cellSize;
+      const size = this.selectedTool === 'factory' ? 2 * this.cellSize : this.cellSize;
       const pDir = this.placementDirection || 'right';
+
+      let isValid = true;
+      if (this.selectedTool === 'demolish') {
+        isValid = !!this.getBuildingAtCell(mouseCol, mouseRow);
+      } else if (this.selectedTool === 'factory') {
+        for (let dc = 0; dc < 2; dc++) {
+          for (let dr = 0; dr < 2; dr++) {
+            const c = mouseCol + dc;
+            const r = mouseRow + dr;
+            if (!this.isCellUnlocked(c, r) || this.isCentralPortalCell(c, r) || this.getBuildingAtCell(c, r)) {
+              isValid = false;
+            }
+          }
+        }
+      } else {
+        isValid = this.isCellUnlocked(mouseCol, mouseRow) && 
+                  !this.isCentralPortalCell(mouseCol, mouseRow) && 
+                  !this.getBuildingAtCell(mouseCol, mouseRow);
+      }
 
       if (this.isCellUnlocked(mouseCol, mouseRow)) {
         this.ctx.save();
         this.ctx.globalAlpha = 0.55;
 
-        if (this.isCentralPortalCell(mouseCol, mouseRow)) {
+        if (this.isCentralPortalCell(mouseCol, mouseRow) && this.selectedTool !== 'demolish') {
           // Block preview drawing inside central portal
           this.ctx.strokeStyle = '#ff3344';
           this.ctx.lineWidth = 2.0;
@@ -1314,13 +2185,18 @@ export class MothershipBase {
             this.ctx.strokeRect(bx + 2, by + 2, size - 4, size - 4);
             this.drawDirectionArrow(bx, by, pDir, '#00ffff');
           } 
-          else if (this.selectedTool === 'synthesizer') {
-            this.ctx.fillStyle = '#221133';
-            this.ctx.strokeStyle = '#ff33ff';
+          else if (this.selectedTool && this.selectedTool.startsWith('synthesizer_')) {
+            const sub = this.selectedTool.replace('synthesizer_', '');
+            let previewColor = '#ff33ff';
+            if (sub === 'elements') previewColor = '#42a5f5';
+            else if (sub === 'zodiac') previewColor = '#ffb300';
+
+            this.ctx.fillStyle = '#1e112a';
+            this.ctx.strokeStyle = previewColor;
             this.ctx.lineWidth = 1.8;
             this.ctx.fillRect(bx + 3, by + 3, size - 6, size - 6);
             this.ctx.strokeRect(bx + 3, by + 3, size - 6, size - 6);
-            this.drawDirectionArrow(bx, by, pDir, '#ff33ff');
+            this.drawDirectionArrow(bx, by, pDir, previewColor);
           } 
           else if (this.selectedTool === 'storage') {
             this.ctx.fillStyle = '#1c1c1c';
@@ -1331,11 +2207,36 @@ export class MothershipBase {
           }
           else if (this.selectedTool === 'assembler') {
             this.ctx.fillStyle = '#1e2430';
+            this.ctx.strokeStyle = '#94a3b8';
+            this.ctx.lineWidth = 1.8;
+            this.ctx.fillRect(bx + 3, by + 3, size - 6, size - 6);
+            this.ctx.strokeRect(bx + 3, by + 3, size - 6, size - 6);
+            this.drawDirectionArrow(bx, by, pDir, '#94a3b8', size);
+
+            // Draw a tiny rotating hex/armor plate in the preview
+            this.ctx.save();
+            this.ctx.translate(bx + size/2, by + size/2);
+            this.ctx.rotate(this.tickCount * 0.02);
+            this.ctx.strokeStyle = '#cfd8dc';
+            this.ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const angle = (i * Math.PI) / 3;
+              this.ctx.lineTo(Math.cos(angle) * 6, Math.sin(angle) * 6);
+            }
+            this.ctx.closePath();
+            this.ctx.stroke();
+            this.ctx.restore();
+          }
+          else if (this.selectedTool === 'factory') {
+            this.ctx.fillStyle = '#0f172a';
             this.ctx.strokeStyle = '#00ff66';
             this.ctx.lineWidth = 1.8;
             this.ctx.fillRect(bx + 3, by + 3, size - 6, size - 6);
             this.ctx.strokeRect(bx + 3, by + 3, size - 6, size - 6);
-            this.drawDirectionArrow(bx, by, pDir, '#00ff66');
+            this.drawDirectionArrow(bx, by, pDir, '#00ff66', size);
+
+            // Floating raider hologram in the unit factory preview
+            this.drawUnitArt('raider', bx + size/2, by + size/2, 10, this.tickCount * 0.02, 0.4);
           }
           else if (this.selectedTool === 'deployer') {
             this.ctx.fillStyle = '#22252a';
@@ -1351,8 +2252,8 @@ export class MothershipBase {
           }
           this.ctx.restore();
 
-          // Green highlight frame indicating valid build location
-          this.ctx.strokeStyle = this.selectedTool === 'demolish' ? '#ff3344' : '#00ffff';
+          // Highlight frame indicating build location validity
+          this.ctx.strokeStyle = isValid ? '#00ffff' : '#ff3344';
           this.ctx.lineWidth = 1.5;
           this.ctx.strokeRect(bx, by, size, size);
         }
@@ -1382,19 +2283,30 @@ export class MothershipBase {
     this.ctx.restore();
   }
 
-  // Draw small arrows indicating oriented building outputs
-  drawDirectionArrow(bx, by, dir, color) {
+  // Draw small arrows indicating oriented building outputs, with support for custom sizes
+  drawDirectionArrow(bx, by, dir, color, customSize) {
     this.ctx.save();
     this.ctx.strokeStyle = color;
     this.ctx.fillStyle = color;
     this.ctx.lineWidth = 1.5;
     
-    this.ctx.translate(bx + this.cellSize / 2, by + this.cellSize / 2);
+    const s = customSize || this.cellSize;
+    this.ctx.translate(bx + s / 2, by + s / 2);
     
-    if (dir === 'right') this.ctx.rotate(0);
-    else if (dir === 'down') this.ctx.rotate(Math.PI / 2);
-    else if (dir === 'left') this.ctx.rotate(Math.PI);
-    else if (dir === 'up') this.ctx.rotate(-Math.PI / 2);
+    const arrowOffset = s > this.cellSize ? (s / 2 - 12) : 0;
+    if (dir === 'right') {
+      this.ctx.rotate(0);
+      this.ctx.translate(arrowOffset, 0);
+    } else if (dir === 'down') {
+      this.ctx.rotate(Math.PI / 2);
+      this.ctx.translate(arrowOffset, 0);
+    } else if (dir === 'left') {
+      this.ctx.rotate(Math.PI);
+      this.ctx.translate(arrowOffset, 0);
+    } else if (dir === 'up') {
+      this.ctx.rotate(-Math.PI / 2);
+      this.ctx.translate(arrowOffset, 0);
+    }
     
     this.ctx.beginPath();
     this.ctx.moveTo(-10, 0);
@@ -1404,6 +2316,76 @@ export class MothershipBase {
     this.ctx.lineTo(5, 3);
     this.ctx.stroke();
     
+    this.ctx.restore();
+  }
+
+  // Draw high-fidelity vector unit art that is 1-to-1 matching with the battle of Conquest field
+  drawUnitArt(type, x, y, radius, angle, alpha = 1.0) {
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    this.ctx.rotate(angle);
+    this.ctx.globalAlpha = alpha;
+
+    if (type === 'raider') {
+      this.ctx.fillStyle = '#011508';
+      this.ctx.strokeStyle = '#00ff66';
+      this.ctx.lineWidth = 1.8;
+      this.ctx.shadowColor = '#00ff66';
+      this.ctx.shadowBlur = 6;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(radius * 1.2, 0);
+      this.ctx.lineTo(-radius * 0.8, -radius * 0.8);
+      this.ctx.lineTo(-radius * 0.4, 0);
+      this.ctx.lineTo(-radius * 0.8, radius * 0.8);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+    } else if (type === 'tank') {
+      this.ctx.fillStyle = '#221500';
+      this.ctx.strokeStyle = '#ffb300';
+      this.ctx.lineWidth = 2.0;
+      this.ctx.shadowColor = '#ffb300';
+      this.ctx.shadowBlur = 7;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(radius * 1.2, 0);
+      this.ctx.lineTo(radius * 0.4, -radius);
+      this.ctx.lineTo(-radius * 0.8, -radius * 0.8);
+      this.ctx.lineTo(-radius, 0);
+      this.ctx.lineTo(-radius * 0.8, radius * 0.8);
+      this.ctx.lineTo(radius * 0.4, radius);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 2.2;
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, -radius * 0.3);
+      this.ctx.lineTo(radius * 1.5, -radius * 0.3);
+      this.ctx.moveTo(0, radius * 0.3);
+      this.ctx.lineTo(radius * 1.5, radius * 0.3);
+      this.ctx.stroke();
+    } else if (type === 'gunship') {
+      this.ctx.fillStyle = '#12011a';
+      this.ctx.strokeStyle = '#ff33ff';
+      this.ctx.lineWidth = 1.8;
+      this.ctx.shadowColor = '#ff33ff';
+      this.ctx.shadowBlur = 6;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(radius, 0);
+      this.ctx.lineTo(0, -radius * 0.8);
+      this.ctx.lineTo(-radius * 0.8, -radius * 0.4);
+      this.ctx.lineTo(-radius * 0.4, 0);
+      this.ctx.lineTo(-radius * 0.8, radius * 0.4);
+      this.ctx.lineTo(0, radius * 0.8);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+    }
+
     this.ctx.restore();
   }
 }

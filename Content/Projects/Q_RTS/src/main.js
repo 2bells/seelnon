@@ -2,6 +2,8 @@ import { Simulation } from './simulation.js';
 import { MothershipBase } from './mothership/base.js';
 import { ConquestBattle } from './maps/conquest.js';
 import { GameStorage } from './storage.js';
+import { getStructureAt, getStructureInChunk } from './generation.js';
+import { SolarSystem } from './planets/solar_system.js';
 
 // DOM Elements
 const canvas = document.getElementById('sim-canvas');
@@ -14,6 +16,7 @@ const btnHyperjump = document.getElementById('btn-hyperjump');
 const btnSpawnEnemy = document.getElementById('btn-spawn-enemy');
 const btnTriggerStorm = document.getElementById('btn-trigger-storm');
 const btnHealSpacetime = document.getElementById('btn-heal-spacetime');
+const btnTacticalEnterSystem = document.getElementById('btn-tactical-enter-system');
 const btnToggleDeployTool = document.getElementById('btn-toggle-deploy-tool');
 const selectionDeck = document.getElementById('selection-deck');
 const radarCanvas = document.getElementById('radar-canvas');
@@ -27,9 +30,11 @@ const sectorThreatLabel = document.getElementById('sector-threat');
 
 // Core Simulation Instance
 let sim = null;
-let activeMode = 'cosmic'; // 'cosmic', 'mothership', 'conquest'
+let activeMode = 'cosmic'; // 'cosmic', 'mothership', 'conquest', 'solarsystem'
 let mothershipBase = null; // instance of MothershipBase
 let conquestBattle = null; // instance of ConquestBattle
+let currentSolarSystem = null; // instance of SolarSystem
+let selectedTavern = null; // Active clicked tavern landmark
 
 // Game State tracking
 const keysPressed = {};
@@ -65,6 +70,8 @@ function initApp() {
   window.appInitializedReal = true;
   window.keysPressed = keysPressed;
   window.GameStorage = GameStorage;
+  window.activeMode = activeMode;
+  window.currentSolarSystem = currentSolarSystem;
 
   if (!canvas) return;
 
@@ -75,7 +82,16 @@ function initApp() {
 
   // Spin up Simulation class
   sim = new Simulation(canvas);
+  window.sim = sim;
   sim.mousePos = mousePos;
+
+  // Pre-load mothership base layout and synchronize resources from the start
+  ensureMothershipBase().then(() => {
+    if (mothershipBase) {
+      sim.qm = mothershipBase.inventory.quantumMatter || 0;
+      updateMothershipUiStockpile();
+    }
+  });
 
   // Resize listener
   window.addEventListener('resize', () => {
@@ -86,27 +102,48 @@ function initApp() {
 
   // Bind shipyard blueprints buttons
   buildFighter.addEventListener('click', () => {
+    const carrier = sim.ships.find(s => s.type === 'carrier');
+    if (!carrier) {
+      appendLog("<span class='text-red'>BLUEPRINT_REJECTED: FLAGSHIP CARRIER NOT FOUND IN SECTOR.</span>");
+      return;
+    }
     if (sim.qm >= 50) {
       sim.qm -= 50;
-      sim.spawnShip('fighter', -100 + Math.random() * 50, -50 + Math.random() * 100);
+      if (!carrier.productionQueue) carrier.productionQueue = [];
+      carrier.productionQueue.push('fighter');
+      appendLog("🏭 QUEUED: Added FIGHTER manufacture sequence to flagship carrier grid.");
     } else {
       appendLog("<span class='text-red'>BLUEPRINT_REJECTED: INSUFFICIENT QM FOR FT-FIGHTER (50 QM REQUIRED).</span>");
     }
   });
 
   buildCruiser.addEventListener('click', () => {
+    const carrier = sim.ships.find(s => s.type === 'carrier');
+    if (!carrier) {
+      appendLog("<span class='text-red'>BLUEPRINT_REJECTED: FLAGSHIP CARRIER NOT FOUND IN SECTOR.</span>");
+      return;
+    }
     if (sim.qm >= 150) {
       sim.qm -= 150;
-      sim.spawnShip('cruiser', -120 + Math.random() * 60, -60 + Math.random() * 120);
+      if (!carrier.productionQueue) carrier.productionQueue = [];
+      carrier.productionQueue.push('cruiser');
+      appendLog("🏭 QUEUED: Added CRUISER manufacture sequence to flagship carrier grid.");
     } else {
       appendLog("<span class='text-red'>BLUEPRINT_REJECTED: INSUFFICIENT QM FOR CR-CRUISER (150 QM REQUIRED).</span>");
     }
   });
 
   buildDreadnought.addEventListener('click', () => {
+    const carrier = sim.ships.find(s => s.type === 'carrier');
+    if (!carrier) {
+      appendLog("<span class='text-red'>BLUEPRINT_REJECTED: FLAGSHIP CARRIER NOT FOUND IN SECTOR.</span>");
+      return;
+    }
     if (sim.qm >= 450) {
       sim.qm -= 450;
-      sim.spawnShip('dreadnought', -150 + Math.random() * 80, -80 + Math.random() * 160);
+      if (!carrier.productionQueue) carrier.productionQueue = [];
+      carrier.productionQueue.push('dreadnought');
+      appendLog("🏭 QUEUED: Added DREADNOUGHT manufacture sequence to flagship carrier grid.");
     } else {
       appendLog("<span class='text-red'>BLUEPRINT_REJECTED: INSUFFICIENT QM FOR DN-DREADNOUGHT (450 QM REQUIRED).</span>");
     }
@@ -132,6 +169,26 @@ function initApp() {
   if (btnHealSpacetime) {
     btnHealSpacetime.addEventListener('click', () => {
        sim.triggerSpacetimeHealPulse();
+    });
+  }
+
+  if (btnTacticalEnterSystem) {
+    btnTacticalEnterSystem.addEventListener('click', () => {
+      const carrier = sim.ships.find(s => s.type === 'carrier');
+      const nearby = getNearbySystem(carrier);
+      if (nearby) {
+        selectedTavern = nearby.struct;
+        sim.discoveredSolarSystems = sim.discoveredSolarSystems || {};
+        const ssKey = `${selectedTavern.x},${selectedTavern.y}`;
+        let solSystem = sim.discoveredSolarSystems[ssKey];
+        if (!solSystem) {
+          solSystem = new SolarSystem(canvas, selectedTavern.x, selectedTavern.y, selectedTavern, sim.getRegionAt(selectedTavern.x, selectedTavern.y));
+          sim.discoveredSolarSystems[ssKey] = solSystem;
+        }
+        currentSolarSystem = solSystem;
+        appendLog(`🚀 DOCKING: Successfully docked flagship inside orbital pathways of ${selectedTavern.name.toUpperCase()}! Harmonization deck online.`);
+        switchMode('solarsystem');
+      }
     });
   }
 
@@ -174,22 +231,96 @@ function initApp() {
   // Deployed flagship panel bindings
   const btnDeployedLaunch = document.getElementById('btn-deployed-launch');
   const btnDeployedUndeploy = document.getElementById('btn-deployed-undeploy');
+  const btnDeployedFinalize = document.getElementById('btn-deployed-finalize');
 
   if (btnDeployedLaunch) {
     btnDeployedLaunch.addEventListener('click', () => {
       const carrier = sim.ships.find(s => s.type === 'carrier');
       if (carrier && carrier.deployState === 'deployed' && carrier.dockedTearId) {
-        const tear = sim.spaceTears.find(t => t.id === carrier.dockedTearId);
+        const activeTearId = sim.activeTearId || carrier.dockedTearId;
+        const tear = sim.spaceTears.find(t => t.id === activeTearId);
         if (tear) {
-          appendLog(`🔮 VOID_GATEWAY: Commencing Conquest deployment. Drop target theme: [${tear.themeId.toUpperCase()}].`);
-          // Filter out the triggered tear
-          sim.spaceTears = sim.spaceTears.filter(t => t.id !== tear.id);
-          // Reset carrier deploy state
-          carrier.deployState = 'none';
-          carrier.dockedTearId = null;
-          carrier.deployProgress = 0;
-          launchConquest(tear.themeId, tear.isSmallGrind);
+          if (!sim.activeTearId) {
+            appendLog(`🔮 VOID_GATEWAY: Commencing Conquest deployment. Drop target theme: [${tear.themeId.toUpperCase()}].`);
+            sim.activeTearId = tear.id;
+            launchConquest(tear.themeId, tear.isSmallGrind);
+          } else {
+            appendLog(`🔮 VOID_GATEWAY: Re-entering active Conquest field [${tear.themeId.toUpperCase()}].`);
+            switchMode('conquest');
+          }
         }
+      }
+    });
+  }
+
+  if (btnDeployedFinalize) {
+    btnDeployedFinalize.addEventListener('click', () => {
+      const carrier = sim.ships.find(s => s.type === 'carrier');
+      if (carrier && sim.activeTearId && conquestBattle && conquestBattle.conquestWon) {
+        // Calculate units remaining on the conquest field to transmute to quantum energy!
+        let extraQm = 0;
+        let unitsTransmuted = 0;
+        if (conquestBattle.allies) {
+          conquestBattle.allies.forEach(u => {
+            if (u.type === 'raider') { extraQm += 50; unitsTransmuted++; }
+            else if (u.type === 'tank') { extraQm += 150; unitsTransmuted++; }
+            else if (u.type === 'gunship') { extraQm += 250; unitsTransmuted++; }
+          });
+        }
+
+        // Grant substantial rewards
+        const baseRewardQm = 1000;
+        const totalQmGained = baseRewardQm + extraQm;
+        sim.qm = Math.min(sim.maxQm, sim.qm + totalQmGained);
+        
+        const battleGathered = { ...conquestBattle.gatheredElements };
+
+        ensureMothershipBase().then(() => {
+          if (mothershipBase) {
+            mothershipBase.inventory.exoticCores += 10;
+            mothershipBase.inventory.zodiacTethers += 5;
+            mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+
+            // Transfer harvested surface elements
+            mothershipBase.inventory.earthElement = (mothershipBase.inventory.earthElement || 0) + (battleGathered.earth || 0);
+            mothershipBase.inventory.airElement = (mothershipBase.inventory.airElement || 0) + (battleGathered.air || 0);
+            mothershipBase.inventory.waterElement = (mothershipBase.inventory.waterElement || 0) + (battleGathered.water || 0);
+            mothershipBase.inventory.metalElement = (mothershipBase.inventory.metalElement || 0) + (battleGathered.metal || 0);
+            mothershipBase.inventory.soilElement = (mothershipBase.inventory.soilElement || 0) + (battleGathered.soil || 0);
+            mothershipBase.inventory.symmetryCrystal = (mothershipBase.inventory.symmetryCrystal || 0) + (battleGathered.symmetry || 0);
+
+            mothershipBase.updateUiDisplay();
+            mothershipBase.saveToStorage();
+          }
+
+          appendLog(`🏆 CLAIMED REWARDS: Transmuted and claimed drop cargo! +${baseRewardQm} QM, +10 Exotic Cores, +5 Zodiac Tethers.`);
+          if (battleGathered && (battleGathered.earth || battleGathered.air || battleGathered.water || battleGathered.metal || battleGathered.soil || battleGathered.symmetry)) {
+            appendLog(`⛏️ SECURED CARGO: Earth Essence: +${battleGathered.earth || 0}, Air: +${battleGathered.air || 0}, Water: +${battleGathered.water || 0}, Metal: +${battleGathered.metal || 0}, Soil: +${battleGathered.soil || 0}, Symmetry Crystals: +${battleGathered.symmetry || 0}.`);
+          }
+          if (unitsTransmuted > 0) {
+            appendLog(`⚡ QUANTUM_TRANSMUTATION: Transmuted ${unitsTransmuted} planetary units left on the battlefield into +${extraQm} extra pure QM!`);
+          }
+
+          // Clear any nearby enemies and close vortices in simulation
+          sim.enemies = [];
+          sim.vortices = [];
+
+          // Heal the completed Spacetime Tear (closes void portal and spawns element/crystal debris remnants)
+          sim.healSpacetimeTear(sim.activeTearId);
+          sim.activeTearId = null;
+          conquestBattle = null; // Wipe the conquest battle!
+
+          // Hide the conquest tab!
+          const tabConquestBtn = document.getElementById('tab-conquest');
+          if (tabConquestBtn) tabConquestBtn.style.display = 'none';
+
+          // Undock/undeploy carrier
+          carrier.deployState = 'undeploying';
+          appendLog(`⚓ UN-DOCKING: Conquest completed. Flagship has initiated un-docking procedures.`);
+          
+          updateSelectionDecks();
+          updateMothershipUiStockpile();
+        });
       }
     });
   }
@@ -198,8 +329,16 @@ function initApp() {
     btnDeployedUndeploy.addEventListener('click', () => {
       const carrier = sim.ships.find(s => s.type === 'carrier');
       if (carrier && (carrier.deployState === 'deployed' || carrier.deployState === 'deploying')) {
+        if (sim.activeTearId) {
+          appendLog(`↩ ABANDONED: Active conquest field aborted. All deployed planet units lost.`);
+          sim.activeTearId = null;
+          conquestBattle = null; // Wipe the conquest battle!
+          const tabConquestBtn = document.getElementById('tab-conquest');
+          if (tabConquestBtn) tabConquestBtn.style.display = 'none';
+        }
         carrier.deployState = 'undeploying';
         appendLog(`⚓ UN-DOCKING: Flagship has initiated un-docking procedures. Retracting tentacles...`);
+        updateSelectionDecks();
       }
     });
   }
@@ -369,6 +508,51 @@ function initApp() {
     });
   }
 
+  // Planetary tactical radar minimap click interaction
+  const conquestRadarCanvas = document.getElementById('conquest-radar-canvas');
+  if (conquestRadarCanvas) {
+    conquestRadarCanvas.style.cursor = 'crosshair';
+    conquestRadarCanvas.addEventListener('click', (e) => {
+      if (!conquestBattle) return;
+      const rect = conquestRadarCanvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      const mapW = conquestBattle.map.width;
+      const mapH = conquestBattle.map.height;
+      const scaleX = conquestRadarCanvas.width / mapW;
+      const scaleY = conquestRadarCanvas.height / mapH;
+      const scale = Math.min(scaleX, scaleY);
+
+      const drawW = mapW * scale;
+      const drawH = mapH * scale;
+      const offsetX = (conquestRadarCanvas.width - drawW) / 2;
+      const offsetY = (conquestRadarCanvas.height - drawH) / 2;
+
+      // Project clicked pixel coordinates back to raw planetary world coordinates
+      const worldX = (clickX - offsetX) / scale;
+      const worldY = (clickY - offsetY) / scale;
+
+      // Bounds clamping for camera target to prevent scrolling out of the map boundaries
+      conquestBattle.camera.targetX = Math.max(0, Math.min(mapW - conquestBattle.canvas.width / conquestBattle.camera.zoom, worldX - conquestBattle.canvas.width / (2 * conquestBattle.camera.zoom)));
+      conquestBattle.camera.targetY = Math.max(0, Math.min(mapH - conquestBattle.canvas.height / conquestBattle.camera.zoom, worldY - conquestBattle.canvas.height / (2 * conquestBattle.camera.zoom)));
+
+      // Visual flash indicator at camera destination
+      if (sim && sim.waypoints) {
+        sim.waypoints.push({
+          id: `conquest-wp-${Date.now()}`,
+          x: worldX,
+          y: worldY,
+          radius: 8,
+          alpha: 1.0,
+          color: '#00ffff'
+        });
+      }
+
+      appendLog(`🛰️ PLANETARY_RADAR: Sensor grid locked and camera centered at [${Math.round(worldX)}, ${Math.round(worldY)}].`);
+    });
+  }
+
   // Collapsible tactical combat log panel toggle
   const collapsibleLog = document.getElementById('collapsible-log');
   const logHeaderToggle = document.getElementById('log-header-toggle');
@@ -408,6 +592,23 @@ function initApp() {
     if (elemMetal) elemMetal.textContent = Math.round(mothershipBase.inventory.metalElement || 0);
     if (elemSoil) elemSoil.textContent = Math.round(mothershipBase.inventory.soilElement || 0);
     if (elemSymmetry) elemSymmetry.textContent = Math.round(mothershipBase.inventory.symmetryCrystal || 0);
+
+    const btnToggleFactoryPower = document.getElementById('btn-toggle-factory-power');
+    if (btnToggleFactoryPower) {
+      if (mothershipBase.factoryActive !== false) {
+        btnToggleFactoryPower.textContent = '🟢 FACTORY: ACTIVE';
+        btnToggleFactoryPower.style.borderColor = 'var(--color-green)';
+        btnToggleFactoryPower.style.color = 'var(--color-green)';
+        btnToggleFactoryPower.style.background = 'rgba(0, 255, 102, 0.05)';
+        btnToggleFactoryPower.style.textShadow = '0 0 5px rgba(0, 255, 102, 0.3)';
+      } else {
+        btnToggleFactoryPower.textContent = '🔴 FACTORY: OFFLINE';
+        btnToggleFactoryPower.style.borderColor = 'var(--color-red)';
+        btnToggleFactoryPower.style.color = 'var(--color-red)';
+        btnToggleFactoryPower.style.background = 'rgba(255, 51, 68, 0.05)';
+        btnToggleFactoryPower.style.textShadow = '0 0 5px rgba(255, 51, 68, 0.3)';
+      }
+    }
   }
   window.updateMothershipUiStockpile = updateMothershipUiStockpile;
 
@@ -430,6 +631,8 @@ function initApp() {
       newMode = 'cosmic'; // Redirect grid mode to cosmic sector
     }
     activeMode = newMode;
+    window.activeMode = newMode;
+    window.currentSolarSystem = currentSolarSystem;
     
     // Update Tab active classes
     const tabTacticalBtn = document.getElementById('tab-tactical');
@@ -444,7 +647,8 @@ function initApp() {
     const shipyardHud = document.getElementById('shipyard-hud-overlay');
     const commandHud = document.getElementById('command-hud-overlay');
     const formationHud = document.getElementById('formation-hud-overlay');
-    const radarContainer = document.querySelector('.radar-container');
+    const sectorRadarContainer = document.getElementById('sector-radar-container');
+    const conquestRadarContainer = document.getElementById('conquest-radar-container');
     const controlsOverlay = document.querySelector('.controls-overlay');
     const canvasHud = document.querySelector('.canvas-hud');
     const btnToggleDebugMenu = document.getElementById('btn-toggle-debug-menu');
@@ -452,12 +656,18 @@ function initApp() {
     const mothershipHud = document.getElementById('mothership-hud-overlay');
     const conquestHud = document.getElementById('conquest-hud-overlay');
     const debugDeployHud = document.getElementById('debug-deploy-hud-overlay');
+    const solarsystemHud = document.getElementById('solarsystem-hud-overlay');
+    const tavernOverlay = document.getElementById('tavern-detail-overlay');
+    
+    if (solarsystemHud) solarsystemHud.style.display = 'none';
+    if (tavernOverlay) tavernOverlay.style.display = 'none';
     
     if (newMode === 'cosmic') {
       if (shipyardHud) shipyardHud.style.display = 'flex';
       if (commandHud) commandHud.style.display = 'flex';
       if (formationHud) formationHud.style.display = 'flex';
-      if (radarContainer) radarContainer.style.display = 'block';
+      if (sectorRadarContainer) sectorRadarContainer.style.display = 'block';
+      if (conquestRadarContainer) conquestRadarContainer.style.display = 'none';
       if (controlsOverlay) controlsOverlay.style.display = 'block';
       if (canvasHud) canvasHud.style.display = 'block';
       if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'flex';
@@ -480,7 +690,8 @@ function initApp() {
       if (shipyardHud) shipyardHud.style.display = 'none';
       if (commandHud) commandHud.style.display = 'none';
       if (formationHud) formationHud.style.display = 'none';
-      if (radarContainer) radarContainer.style.display = 'none';
+      if (sectorRadarContainer) sectorRadarContainer.style.display = 'none';
+      if (conquestRadarContainer) conquestRadarContainer.style.display = 'none';
       if (controlsOverlay) controlsOverlay.style.display = 'none';
       if (canvasHud) canvasHud.style.display = 'none';
       if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'flex';
@@ -503,7 +714,10 @@ function initApp() {
         mothershipBase = new MothershipBase(canvas);
         window.mothershipBase = mothershipBase;
         window.saveGame = () => {
-          if (mothershipBase) mothershipBase.saveToStorage();
+          if (mothershipBase) {
+            mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+            mothershipBase.saveToStorage();
+          }
         };
 
         // Sync material stockpile from simulation to mothership
@@ -521,13 +735,17 @@ function initApp() {
             }
             updateMothershipUiStockpile();
           });
+      } else if (mothershipBase) {
+        mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+        updateMothershipUiStockpile();
       }
     } 
     else if (newMode === 'conquest') {
       if (shipyardHud) shipyardHud.style.display = 'none';
       if (commandHud) commandHud.style.display = 'none';
       if (formationHud) formationHud.style.display = 'none';
-      if (radarContainer) radarContainer.style.display = 'none';
+      if (sectorRadarContainer) sectorRadarContainer.style.display = 'none';
+      if (conquestRadarContainer) conquestRadarContainer.style.display = 'block';
       if (controlsOverlay) controlsOverlay.style.display = 'none';
       if (canvasHud) canvasHud.style.display = 'none';
       if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'flex';
@@ -544,6 +762,43 @@ function initApp() {
       }
       
       if (tabConquestBtn) tabConquestBtn.classList.add('active');
+    }
+    else if (newMode === 'solarsystem') {
+      if (shipyardHud) shipyardHud.style.display = 'none';
+      if (commandHud) commandHud.style.display = 'none';
+      if (formationHud) formationHud.style.display = 'none';
+      if (sectorRadarContainer) sectorRadarContainer.style.display = 'none';
+      if (conquestRadarContainer) conquestRadarContainer.style.display = 'none';
+      if (controlsOverlay) controlsOverlay.style.display = 'none';
+      if (canvasHud) canvasHud.style.display = 'none';
+      if (btnToggleDebugMenu) btnToggleDebugMenu.style.display = 'none';
+      
+      updateDebugUiVisibility();
+      
+      if (mothershipHud) {
+        mothershipHud.style.display = 'none';
+        mothershipHud.classList.remove('active');
+      }
+      if (conquestHud) {
+        conquestHud.style.display = 'none';
+        conquestHud.classList.remove('active');
+      }
+      if (solarsystemHud) {
+        solarsystemHud.style.display = 'block';
+      }
+      
+      if (currentSolarSystem) {
+        const titleEl = document.getElementById('solarsystem-title');
+        const zodiacEl = document.getElementById('solarsystem-zodiac');
+        if (titleEl) titleEl.textContent = currentSolarSystem.star.name.toUpperCase();
+        if (zodiacEl) zodiacEl.textContent = `${currentSolarSystem.region.zodiac.toUpperCase()} Domain - ${currentSolarSystem.star.classification}`;
+        
+        updatePlanetList();
+        if (currentSolarSystem.selectedPlanetIndex === -1 && currentSolarSystem.planets.length > 0) {
+          currentSolarSystem.selectedPlanetIndex = 0;
+        }
+        selectPlanet(currentSolarSystem.selectedPlanetIndex);
+      }
     }
   }
   window.switchMode = switchMode;
@@ -773,6 +1028,25 @@ function initApp() {
     });
   }
 
+  // Bind Factory Power Toggle Button
+  const btnToggleFactoryPower = document.getElementById('btn-toggle-factory-power');
+  if (btnToggleFactoryPower) {
+    btnToggleFactoryPower.addEventListener('click', () => {
+      ensureMothershipBase().then(() => {
+        if (mothershipBase) {
+          mothershipBase.factoryActive = !mothershipBase.factoryActive;
+          updateMothershipUiStockpile();
+          mothershipBase.saveToStorage();
+          if (mothershipBase.factoryActive) {
+            appendLog("🔌 POWER_GRID: Mothership automation lines online. Extractor units energized.");
+          } else {
+            appendLog("🔌 POWER_GRID: Mothership automation lines deactivated. Extraction suspended to stockpile resources.");
+          }
+        }
+      });
+    });
+  }
+
   // Bind individual tech node buttons
   Object.keys(ZODIAC_TECHS).forEach(techId => {
     const btn = document.getElementById(`tech-${techId}`);
@@ -840,11 +1114,15 @@ function initApp() {
       mothershipBase = new MothershipBase(canvas);
       window.mothershipBase = mothershipBase;
       window.saveGame = () => {
-        if (mothershipBase) mothershipBase.saveToStorage();
+        if (mothershipBase) {
+          mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+          mothershipBase.saveToStorage();
+        }
       };
       mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
-      mothershipBase.loadFromStorage();
+      return mothershipBase.loadFromStorage();
     }
+    return Promise.resolve();
   }
 
   const devAddQm = document.getElementById('dev-add-qm');
@@ -964,7 +1242,7 @@ function initApp() {
   }
 
   // Bind Mothership Building Placer tool buttons
-  const baseTools = ['extractor', 'belt', 'synthesizer', 'storage', 'assembler', 'deployer'];
+  const baseTools = ['extractor', 'extractor_element', 'belt', 'synthesizer_matter', 'synthesizer_elements', 'synthesizer_zodiac', 'storage', 'assembler', 'factory', 'deployer'];
   baseTools.forEach(tool => {
     const btn = document.getElementById(`tool-${tool}`);
     if (btn) {
@@ -1021,6 +1299,38 @@ function initApp() {
     });
   }
 
+  // Bind Mothership Bottom Dock Category Tab Switching
+  const catBtnLogistics = document.getElementById('cat-btn-logistics');
+  const catBtnProduction = document.getElementById('cat-btn-production');
+  const catBtnElements = document.getElementById('cat-btn-elements');
+  const catBtnSystems = document.getElementById('cat-btn-systems');
+
+  const dockGroupLogistics = document.getElementById('dock-group-logistics');
+  const dockGroupProduction = document.getElementById('dock-group-production');
+  const dockGroupElements = document.getElementById('dock-group-elements');
+  const dockGroupSystems = document.getElementById('dock-group-systems');
+
+  const switchCategory = (activeCat) => {
+    // Buttons
+    if (catBtnLogistics) catBtnLogistics.classList.toggle('active', activeCat === 'logistics');
+    if (catBtnProduction) catBtnProduction.classList.toggle('active', activeCat === 'production');
+    if (catBtnElements) catBtnElements.classList.toggle('active', activeCat === 'elements');
+    if (catBtnSystems) catBtnSystems.classList.toggle('active', activeCat === 'systems');
+
+    // Groups
+    if (dockGroupLogistics) dockGroupLogistics.style.display = activeCat === 'logistics' ? 'flex' : 'none';
+    if (dockGroupProduction) dockGroupProduction.style.display = activeCat === 'production' ? 'flex' : 'none';
+    if (dockGroupElements) dockGroupElements.style.display = activeCat === 'elements' ? 'flex' : 'none';
+    if (dockGroupSystems) dockGroupSystems.style.display = activeCat === 'systems' ? 'flex' : 'none';
+
+    appendLog(`MOTHERSHIP_BASE: Switched bottom dock category to [${activeCat.toUpperCase()}].`);
+  };
+
+  if (catBtnLogistics) catBtnLogistics.addEventListener('click', () => switchCategory('logistics'));
+  if (catBtnProduction) catBtnProduction.addEventListener('click', () => switchCategory('production'));
+  if (catBtnElements) catBtnElements.addEventListener('click', () => switchCategory('elements'));
+  if (catBtnSystems) catBtnSystems.addEventListener('click', () => switchCategory('systems'));
+
   // Bind Launch Conquest drop button
   const btnLaunchConquest = document.getElementById('btn-launch-conquest');
   const dropThemeSelect = document.getElementById('drop-theme-select');
@@ -1059,30 +1369,9 @@ function initApp() {
     btnConquestReturn.addEventListener('click', () => {
       if (conquestBattle) {
         if (conquestBattle.conquestWon) {
-          // Grant substantial rewards
-          sim.qm = Math.min(sim.maxQm, sim.qm + 1000);
-          if (mothershipBase) {
-            mothershipBase.inventory.exoticCores += 10;
-            mothershipBase.inventory.zodiacTethers += 5;
-            mothershipBase.inventory.quantumMatter += 1000;
-          }
-          appendLog(`🏆 CLAIMED REWARDS: Transmuted and claimed drop cargo! +1000 QM, +10 Exotic Cores, +5 Zodiac Tethers.`);
-          
-          // Clear any nearby enemies and close vortices
-          sim.enemies = [];
-          sim.vortices = [];
-          
-          // Clear nearest Space Tear
-          const carrier = sim.ships.find(s => s.type === 'carrier');
-          if (carrier && sim.spaceTears) {
-            sim.spaceTears = sim.spaceTears.filter(t => {
-              const dx = t.x - carrier.x;
-              const dy = t.y - carrier.y;
-              return Math.sqrt(dx*dx + dy*dy) > 500;
-            });
-          }
+          appendLog(`🏆 VICTORY: Objectives complete! Return to Cosmic Sector and click "FINALIZE CONQUEST" on the flagship control console to claim your rewards.`);
         } else {
-          appendLog(`↩ RETREATING: Retreated to Orbit. Planetary bases salvaged and infantry returned.`);
+          appendLog(`↩ RETREATING: Returned to Orbit. Your planetary bases and units remain active on the conquest field. Re-enter at any time.`);
         }
       }
       switchMode('cosmic');
@@ -1136,7 +1425,7 @@ function initApp() {
         if (mothershipBase.selectedTool) {
           mothershipBase.selectedTool = null;
           // Deactivate all button UI highlights
-          const baseTools = ['extractor', 'belt', 'synthesizer', 'storage', 'assembler', 'deployer'];
+          const baseTools = ['extractor', 'extractor_element', 'belt', 'synthesizer_matter', 'synthesizer_elements', 'synthesizer_zodiac', 'storage', 'assembler', 'factory', 'deployer'];
           baseTools.forEach(t => {
             const btn = document.getElementById(`tool-${t}`);
             if (btn) btn.classList.remove('active');
@@ -1178,9 +1467,18 @@ function initApp() {
         clickDistance = 0;
       }
     }
+    else if (activeMode === 'solarsystem' && currentSolarSystem) {
+      if (e.button === 0) {
+        const planetIdx = currentSolarSystem.checkPlanetClick(x, y);
+        if (planetIdx !== -1) {
+          currentSolarSystem.selectedPlanetIndex = planetIdx;
+          selectPlanet(planetIdx);
+        }
+      }
+    }
   });
 
-  canvas.addEventListener('mousemove', (e) => {
+  window.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -1188,6 +1486,11 @@ function initApp() {
     mousePos.x = x;
     mousePos.y = y;
 
+    if (activeMode === 'solarsystem' && currentSolarSystem) {
+      const hoverIdx = currentSolarSystem.checkPlanetClick(x, y);
+      currentSolarSystem.hoveredPlanetIndex = hoverIdx;
+    }
+    
     if (activeMode === 'cosmic' || activeMode === 'grid') {
       if (sim.isDragging) {
         sim.selectionEnd = { x: x, y: y };
@@ -1225,7 +1528,7 @@ function initApp() {
     }
   });
 
-  canvas.addEventListener('mouseup', (e) => {
+  window.addEventListener('mouseup', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -1253,18 +1556,22 @@ function initApp() {
               const dy = worldPos.y - t.y;
               return Math.sqrt(dx*dx + dy*dy) < t.radius;
             });
-             if (clickedTear) {
+              if (clickedTear) {
               const carrier = sim.ships.find(s => s.type === 'carrier');
               if (carrier) {
                 if (carrier.deployState === 'deployed' && carrier.dockedTearId === clickedTear.id) {
-                  appendLog(`🔮 VOID_GATEWAY: Commencing Conquest deployment. Drop target theme: [${clickedTear.themeId.toUpperCase()}].`);
-                  // Filter out the triggered tear
-                  sim.spaceTears = sim.spaceTears.filter(t => t.id !== clickedTear.id);
-                  // Reset carrier deploy state
-                  carrier.deployState = 'none';
-                  carrier.dockedTearId = null;
-                  carrier.deployProgress = 0;
-                  launchConquest(clickedTear.themeId, clickedTear.isSmallGrind);
+                  if (!sim.activeTearId) {
+                    appendLog(`🔮 VOID_GATEWAY: Commencing Conquest deployment. Drop target theme: [${clickedTear.themeId.toUpperCase()}].`);
+                    sim.activeTearId = clickedTear.id;
+                    launchConquest(clickedTear.themeId, clickedTear.isSmallGrind);
+                  } else {
+                    appendLog(`🔮 VOID_GATEWAY: Re-entering active Conquest field [${clickedTear.themeId.toUpperCase()}].`);
+                    if (conquestBattle) {
+                      switchMode('conquest');
+                    } else {
+                      launchConquest(clickedTear.themeId, clickedTear.isSmallGrind);
+                    }
+                  }
                 } else if (carrier.deployState === 'deploying' && carrier.dockedTearId === clickedTear.id) {
                   appendLog(`⚓ LOCK-IN: Flagship deployment in progress. Please wait for the tentacles to fully spread before launching the Conquest Drop.`);
                 } else {
@@ -1280,6 +1587,58 @@ function initApp() {
               sim.selectionEnd = null;
               return;
             }
+          }
+
+          // Check click inside Tavern/Landmark structures
+          const clickedStruct = getStructureAt(worldX, worldY);
+          if (clickedStruct && (clickedStruct.type === 'tavern' || clickedStruct.type === 'city')) {
+            selectedTavern = clickedStruct;
+            const carrier = sim.ships.find(s => s.type === 'carrier');
+            let dist = 9999;
+            if (carrier) {
+              const dx = carrier.x - clickedStruct.x;
+              const dy = carrier.y - clickedStruct.y;
+              dist = Math.round(Math.sqrt(dx * dx + dy * dy));
+            }
+            
+            // Show the Tavern detailed overlay
+            const tavernOverlay = document.getElementById('tavern-detail-overlay');
+            if (tavernOverlay) {
+              tavernOverlay.style.display = 'block';
+              document.getElementById('tavern-card-name').textContent = clickedStruct.name.toUpperCase();
+              document.getElementById('tavern-card-desc').textContent = clickedStruct.description;
+              document.getElementById('tavern-card-dist').textContent = carrier ? `${dist} units` : 'DESTROYED';
+              
+              const region = sim.getRegionAt(clickedStruct.x, clickedStruct.y);
+              document.getElementById('tavern-card-zodiac').textContent = region ? `${region.zodiac} Domain` : 'Unstable Space';
+              
+              const deployBtn = document.getElementById('btn-deploy-system-probe');
+              if (deployBtn) {
+                if (dist <= 250) {
+                  deployBtn.disabled = false;
+                  deployBtn.textContent = '⚡ DOCK & ENTER SYSTEM';
+                  deployBtn.style.borderColor = 'var(--color-green)';
+                  deployBtn.style.color = 'var(--color-green)';
+                  deployBtn.style.background = 'rgba(0, 255, 102, 0.05)';
+                  deployBtn.style.cursor = 'pointer';
+                } else {
+                  deployBtn.disabled = true;
+                  deployBtn.textContent = 'MOVE FLAGSHIP CLOSER (REQ. < 250u)';
+                  deployBtn.style.borderColor = 'var(--color-text-dim)';
+                  deployBtn.style.color = 'var(--color-text-dim)';
+                  deployBtn.style.background = 'none';
+                  deployBtn.style.cursor = 'not-allowed';
+                }
+              }
+            }
+            
+            appendLog(`📍 LANDMARK_LOCATED: Focused scanning arrays on ${clickedStruct.name.toUpperCase()}.`);
+            sim.selectionStart = null;
+            sim.selectionEnd = null;
+            return;
+          } else {
+            const tavernOverlay = document.getElementById('tavern-detail-overlay');
+            if (tavernOverlay) tavernOverlay.style.display = 'none';
           }
 
           let selectedAny = false;
@@ -1370,9 +1729,15 @@ function initApp() {
         isCameraDragging = false;
       }
     }
-    else if (activeMode === 'mothership') {
+    else if (activeMode === 'mothership' && mothershipBase) {
       if (isCameraDragging) {
         isCameraDragging = false;
+        // If they released the right mouse button and didn't move much, cycle building config!
+        if (e.button === 2 && clickDistance <= 12) {
+          mothershipBase.handleRightClick(x, y);
+        }
+      } else if (e.button === 2) {
+        mothershipBase.handleRightClick(x, y);
       }
     }
   });
@@ -1407,6 +1772,18 @@ function initApp() {
       }
 
       conquestBattle.camera.zoom = newZoom;
+    } else if (activeMode === 'mothership' && mothershipBase) {
+      const zoomSpeed = 0.08;
+      const oldZoom = mothershipBase.zoom || 1.0;
+      let newZoom = oldZoom;
+
+      if (e.deltaY < 0) {
+        newZoom = Math.min(2.5, oldZoom + zoomSpeed);
+      } else {
+        newZoom = Math.max(0.4, oldZoom - zoomSpeed);
+      }
+
+      mothershipBase.zoom = newZoom;
     }
   }, { passive: false });
 
@@ -1459,6 +1836,29 @@ function initApp() {
       if (key === 'r') {
         mothershipBase.handleRotateKey();
       }
+      if (key === '1') document.getElementById('tool-belt')?.click();
+      if (key === '2') document.getElementById('tool-storage')?.click();
+      if (key === '3') document.getElementById('tool-deployer')?.click();
+      if (key === '4') {
+        const ext = document.getElementById('tool-extractor');
+        const extEl = document.getElementById('tool-extractor_element');
+        if (ext && ext.parentElement.style.display !== 'none') ext.click();
+        else if (extEl && extEl.parentElement.style.display !== 'none') extEl.click();
+      }
+      if (key === '5') {
+        const sm = document.getElementById('tool-synthesizer_matter');
+        const se = document.getElementById('tool-synthesizer_elements');
+        if (sm && sm.parentElement.style.display !== 'none') sm.click();
+        else if (se && se.parentElement.style.display !== 'none') se.click();
+      }
+      if (key === '6') {
+        const am = document.getElementById('tool-assembler');
+        const sz = document.getElementById('tool-synthesizer_zodiac');
+        if (am && am.parentElement.style.display !== 'none') am.click();
+        else if (sz && sz.parentElement.style.display !== 'none') sz.click();
+      }
+      if (key === '7') document.getElementById('tool-factory')?.click();
+      if (key === 'x') document.getElementById('tool-demolish')?.click();
     }
   });
 
@@ -1466,8 +1866,329 @@ function initApp() {
     keysPressed[e.key.toLowerCase()] = false;
   });
 
+  // Initialize Solar System events
+  initSolarSystemEvents();
+
+  // Force initial view and visibility state setup on application start
+  switchMode('cosmic');
+
   // Initialize loop
   tickGameLoop();
+}
+
+function getNearbySystem(carrier) {
+  if (!carrier) return null;
+  const cx = Math.floor(carrier.x / 1500);
+  const cy = Math.floor(carrier.y / 1500);
+  
+  // Check flagship's current chunk and 8 neighbors
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const struct = getStructureInChunk(cx + dx, cy + dy);
+      if (struct && (struct.type === 'tavern' || struct.type === 'city')) {
+        const dist = Math.hypot(carrier.x - struct.x, carrier.y - struct.y);
+        if (dist <= 250) {
+          return { struct, dist };
+        }
+      }
+    }
+  }
+  return null;
+}
+window.getNearbySystem = getNearbySystem;
+
+function selectPlanet(planetIdx) {
+  if (!currentSolarSystem) return;
+  currentSolarSystem.selectedPlanetIndex = planetIdx;
+  
+  const planet = currentSolarSystem.planets[planetIdx];
+  const inspectorPanel = document.getElementById('solarsystem-inspector-panel');
+  const emptyHelper = document.getElementById('solarsystem-empty-helper');
+  
+  if (!planet) {
+    if (inspectorPanel) inspectorPanel.style.display = 'none';
+    if (emptyHelper) emptyHelper.style.display = 'block';
+    return;
+  }
+  
+  if (inspectorPanel) inspectorPanel.style.display = 'block';
+  if (emptyHelper) emptyHelper.style.display = 'none';
+  
+  const nameEl = document.getElementById('inspector-planet-name');
+  if (nameEl) nameEl.textContent = planet.name.toUpperCase();
+  
+  const elem = planet.preferredElement;
+  const yieldEl = document.getElementById('inspector-planet-yield');
+  if (yieldEl) {
+    yieldEl.textContent = `${elem.name.toUpperCase()} (${elem.stat})`;
+    yieldEl.style.color = elem.color;
+  }
+  
+  const peakEl = document.getElementById('tuner-resonance-peak');
+  if (peakEl) peakEl.textContent = `${planet.resonancePeak.toFixed(1)} Hz`;
+  
+  const slider = document.getElementById('slider-planet-freq');
+  if (slider) {
+    // Only set slider value if the user is not actively dragging it to prevent fighting
+    if (document.activeElement !== slider) {
+      slider.value = planet.targetFrequency;
+    }
+  }
+  
+  updatePlanetTunerDisplay(planet);
+  updateActiveProbesList(planet);
+}
+window.selectPlanet = selectPlanet;
+
+function updatePlanetTunerDisplay(planet) {
+  const currentFreqEl = document.getElementById('tuner-current-freq');
+  if (currentFreqEl) currentFreqEl.textContent = `${planet.vibrationFrequency.toFixed(1)} Hz`;
+  
+  const freqDiff = Math.abs(planet.vibrationFrequency - planet.resonancePeak);
+  let matchPct = 0;
+  if (freqDiff < 1.5) {
+    matchPct = Math.round(((1.5 - freqDiff) / 1.5) * 100);
+  }
+  
+  const matchBar = document.getElementById('tuner-match-bar');
+  if (matchBar) {
+    const barWidth = 10;
+    const filledChars = Math.round((matchPct / 100) * barWidth);
+    const emptyChars = barWidth - filledChars;
+    const barStr = '[' + '='.repeat(filledChars) + ' '.repeat(emptyChars) + ']';
+    matchBar.textContent = `${barStr} ${matchPct}% RESONANT`;
+    
+    if (matchPct > 80) {
+      matchBar.style.color = 'var(--color-green)';
+      matchBar.style.borderColor = 'var(--color-green)';
+    } else if (matchPct > 40) {
+      matchBar.style.color = 'var(--color-cyan)';
+      matchBar.style.borderColor = 'var(--color-cyan)';
+    } else {
+      matchBar.style.color = 'var(--color-text-dim)';
+      matchBar.style.borderColor = 'var(--color-border)';
+    }
+  }
+}
+window.updatePlanetTunerDisplay = updatePlanetTunerDisplay;
+
+function updateActiveProbesList(planet) {
+  const listEl = document.getElementById('inspector-probes-list');
+  if (!listEl) return;
+  
+  listEl.innerHTML = '';
+  
+  if (planet.plantedSeeds.length === 0) {
+    listEl.innerHTML = '<div style="font-size: 9px; color: var(--color-text-dim); font-style: italic; margin-top: 4px;">No active probe cores sown. Deploy one below!</div>';
+    return;
+  }
+  
+  planet.plantedSeeds.forEach(seed => {
+    const seedRow = document.createElement('div');
+    seedRow.style.cssText = 'display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,0.15); padding: 5px; background: rgba(0,0,0,0.3); font-size: 9px; margin-bottom: 4px;';
+    
+    const progressPct = Math.round(seed.progress);
+    
+    const topLine = document.createElement('div');
+    topLine.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 3px;';
+    
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = `CRYSTAL_NODE [${seed.id}]`;
+    labelSpan.style.color = seed.element.color;
+    labelSpan.style.fontWeight = 'bold';
+    
+    const stateSpan = document.createElement('span');
+    stateSpan.textContent = seed.harvestReady ? 'READY TO HARVEST' : `GROWING: ${progressPct}%`;
+    stateSpan.style.color = seed.harvestReady ? 'var(--color-green)' : 'var(--color-cyan)';
+    stateSpan.style.fontWeight = 'bold';
+    
+    topLine.appendChild(labelSpan);
+    topLine.appendChild(stateSpan);
+    seedRow.appendChild(topLine);
+    
+    const barContainer = document.createElement('div');
+    barContainer.style.cssText = 'width: 100%; height: 3px; background: #111; margin-bottom: 4px; border-radius: 1px; overflow: hidden;';
+    const barFill = document.createElement('div');
+    barFill.style.cssText = `width: ${progressPct}%; height: 100%; background: ${seed.harvestReady ? '#00ff66' : seed.element.color}; transition: width 0.1s linear;`;
+    barContainer.appendChild(barFill);
+    seedRow.appendChild(barContainer);
+    
+    const actionLine = document.createElement('div');
+    actionLine.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
+    
+    const yieldInfo = document.createElement('span');
+    yieldInfo.textContent = `Est. Yield: +${seed.value} units`;
+    yieldInfo.style.color = 'var(--color-text-dim)';
+    
+    const harvestBtn = document.createElement('button');
+    harvestBtn.className = 'tactics-btn font-mono';
+    harvestBtn.style.cssText = 'padding: 2px 6px; font-size: 8px; cursor: pointer;';
+    
+    if (seed.harvestReady) {
+      harvestBtn.textContent = 'HARVEST ⚡';
+      harvestBtn.style.borderColor = 'var(--color-green)';
+      harvestBtn.style.color = '#fff';
+      harvestBtn.style.background = 'rgba(0, 255, 102, 0.15)';
+      
+      harvestBtn.addEventListener('click', () => {
+        const harvested = currentSolarSystem.harvestProbe(currentSolarSystem.selectedPlanetIndex, seed.id, mothershipBase);
+        if (harvested) {
+          if (mothershipBase) {
+            sim.qm = mothershipBase.inventory.quantumMatter;
+            mothershipBase.updateUiDisplay();
+            mothershipBase.saveToStorage();
+          }
+          appendLog(`⛏️ HARVESTED: Transmuted matured ${harvested.element.name} crystal. Gained +${harvested.value} elements into mothership cargo!`);
+          updateActiveProbesList(planet);
+          updatePlanetList();
+        }
+      });
+    } else {
+      harvestBtn.textContent = 'GROWING';
+      harvestBtn.disabled = true;
+      harvestBtn.style.borderColor = 'rgba(255,255,255,0.15)';
+      harvestBtn.style.color = 'var(--color-text-dim)';
+      harvestBtn.style.background = 'none';
+      harvestBtn.style.cursor = 'not-allowed';
+    }
+    
+    actionLine.appendChild(yieldInfo);
+    actionLine.appendChild(harvestBtn);
+    seedRow.appendChild(actionLine);
+    
+    listEl.appendChild(seedRow);
+  });
+}
+window.updateActiveProbesList = updateActiveProbesList;
+
+function updatePlanetList() {
+  const listEl = document.getElementById('solarsystem-planet-list');
+  if (!listEl || !currentSolarSystem) return;
+  
+  listEl.innerHTML = '';
+  
+  currentSolarSystem.planets.forEach((planet, idx) => {
+    const isSelected = idx === currentSolarSystem.selectedPlanetIndex;
+    
+    const rowBtn = document.createElement('button');
+    rowBtn.className = 'tactics-btn font-mono';
+    rowBtn.style.cssText = `width: 100%; text-align: left; padding: 6px 8px; font-size: 9.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;`;
+    
+    if (isSelected) {
+      rowBtn.style.borderColor = 'var(--color-cyan)';
+      rowBtn.style.color = 'var(--color-cyan)';
+      rowBtn.style.background = 'rgba(0, 229, 255, 0.08)';
+    } else {
+      rowBtn.style.borderColor = 'var(--color-border)';
+      rowBtn.style.color = '#fff';
+      rowBtn.style.background = 'rgba(255, 255, 255, 0.01)';
+    }
+    
+    const leftSide = document.createElement('span');
+    leftSide.textContent = `🪐 ${planet.name.toUpperCase()}`;
+    
+    const rightSide = document.createElement('span');
+    rightSide.style.cssText = 'font-size: 8.5px;';
+    if (planet.plantedSeeds.length > 0) {
+      const readyCount = planet.plantedSeeds.filter(s => s.harvestReady).length;
+      if (readyCount > 0) {
+        rightSide.textContent = `READY (${readyCount})`;
+        rightSide.style.color = 'var(--color-green)';
+        rightSide.style.fontWeight = 'bold';
+      } else {
+        rightSide.textContent = `SOWN (${planet.plantedSeeds.length})`;
+        rightSide.style.color = 'var(--color-cyan)';
+      }
+    } else {
+      rightSide.textContent = 'BARREN';
+      rightSide.style.color = 'var(--color-text-dim)';
+    }
+    
+    rowBtn.appendChild(leftSide);
+    rowBtn.appendChild(rightSide);
+    
+    rowBtn.addEventListener('click', () => {
+      currentSolarSystem.selectedPlanetIndex = idx;
+      selectPlanet(idx);
+    });
+    
+    listEl.appendChild(rowBtn);
+  });
+}
+window.updatePlanetList = updatePlanetList;
+
+function initSolarSystemEvents() {
+  const returnBtn = document.getElementById('btn-solarsystem-return');
+  if (returnBtn) {
+    returnBtn.addEventListener('click', () => {
+      switchMode('cosmic');
+      appendLog("◀ HARMONIZATION_DECK: Returning to Cosmic Sector tactical overview.");
+    });
+  }
+  
+  const slider = document.getElementById('slider-planet-freq');
+  if (slider) {
+    slider.addEventListener('input', () => {
+      if (currentSolarSystem && currentSolarSystem.selectedPlanetIndex !== -1) {
+        const planet = currentSolarSystem.planets[currentSolarSystem.selectedPlanetIndex];
+        if (planet) {
+          planet.targetFrequency = parseFloat(slider.value);
+          updatePlanetTunerDisplay(planet);
+        }
+      }
+    });
+  }
+  
+  const plantBtn = document.getElementById('btn-plant-probe');
+  if (plantBtn) {
+    plantBtn.addEventListener('click', () => {
+      if (!currentSolarSystem || currentSolarSystem.selectedPlanetIndex === -1) return;
+      const planet = currentSolarSystem.planets[currentSolarSystem.selectedPlanetIndex];
+      if (!planet) return;
+      
+      if (planet.plantedSeeds.length >= 3) {
+        appendLog("<span class='text-red'>🌱 DEPLOY_BLOCKED: Max active probe slots reached on this planet. (Limit: 3)</span>");
+        return;
+      }
+      
+      if (sim.qm >= 30) {
+        sim.qm -= 30;
+        if (mothershipBase) {
+          mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+          mothershipBase.updateUiDisplay();
+          mothershipBase.saveToStorage();
+        }
+        currentSolarSystem.plantProbe(currentSolarSystem.selectedPlanetIndex);
+        appendLog(`🌱 SOWN_PROBE: Sowed an advanced bio-resonant probe core into ${planet.name.toUpperCase()}'s atmospheric mantle. (-30 QM)`);
+        
+        updateActiveProbesList(planet);
+        updatePlanetList();
+      } else {
+        appendLog("<span class='text-red'>🌱 DEPLOY_BLOCKED: Insufficient QM to sow probe core. (30 QM required)</span>");
+      }
+    });
+  }
+  
+  const deployTavernProbeBtn = document.getElementById('btn-deploy-system-probe');
+  if (deployTavernProbeBtn) {
+    deployTavernProbeBtn.addEventListener('click', () => {
+      if (!selectedTavern) return;
+      
+      // Instantiate or recover SolarSystem (completely free of QM cost!)
+      sim.discoveredSolarSystems = sim.discoveredSolarSystems || {};
+      const ssKey = `${selectedTavern.x},${selectedTavern.y}`;
+      let solSystem = sim.discoveredSolarSystems[ssKey];
+      if (!solSystem) {
+        solSystem = new SolarSystem(canvas, selectedTavern.x, selectedTavern.y, selectedTavern, sim.getRegionAt(selectedTavern.x, selectedTavern.y));
+        sim.discoveredSolarSystems[ssKey] = solSystem;
+      }
+      currentSolarSystem = solSystem;
+      
+      appendLog(`🚀 DOCKING: Successfully docked flagship inside orbital pathways of ${selectedTavern.name.toUpperCase()}! Harmonization deck online.`);
+      
+      switchMode('solarsystem');
+    });
+  }
 }
 
 // Keyboard scrolling camera speed
@@ -1549,6 +2270,55 @@ function updateSelectionDecks() {
     } else {
       standardCmds.style.display = 'grid';
       deployedCmds.style.display = 'none';
+    }
+  }
+
+  // Dynamically update deployed panel buttons based on conquest state
+  if (carrierIsDeployedOrDeploying && carrier) {
+    const btnDeployedLaunch = document.getElementById('btn-deployed-launch');
+    const btnDeployedFinalize = document.getElementById('btn-deployed-finalize');
+    const btnDeployedUndeploy = document.getElementById('btn-deployed-undeploy');
+    const activeConquest = sim.activeTearId;
+    const isWon = conquestBattle && conquestBattle.conquestWon;
+
+    if (activeConquest) {
+      if (btnDeployedLaunch) {
+        btnDeployedLaunch.textContent = "🔮 RE-ENTER CONQUEST FIELD";
+        btnDeployedLaunch.style.borderColor = "#9c27b0";
+        btnDeployedLaunch.style.color = "#ea80fc";
+        btnDeployedLaunch.style.background = "rgba(156, 39, 176, 0.08)";
+        btnDeployedLaunch.style.textShadow = "0 0 5px rgba(234,128,252,0.3)";
+      }
+      if (btnDeployedUndeploy) {
+        btnDeployedUndeploy.textContent = "⚠️ ABANDON CONQUEST & UNDOCK";
+        btnDeployedUndeploy.style.borderColor = "var(--color-red)";
+        btnDeployedUndeploy.style.color = "var(--color-red)";
+        btnDeployedUndeploy.style.background = "rgba(255, 51, 68, 0.08)";
+      }
+      if (btnDeployedFinalize) {
+        if (isWon) {
+          btnDeployedFinalize.style.display = 'block';
+        } else {
+          btnDeployedFinalize.style.display = 'none';
+        }
+      }
+    } else {
+      if (btnDeployedLaunch) {
+        btnDeployedLaunch.textContent = "🚀 LAUNCH CONQUEST DROP";
+        btnDeployedLaunch.style.borderColor = "var(--color-green)";
+        btnDeployedLaunch.style.color = "var(--color-green)";
+        btnDeployedLaunch.style.background = "rgba(0, 255, 102, 0.05)";
+        btnDeployedLaunch.style.textShadow = "0 0 5px rgba(0,255,102,0.3)";
+      }
+      if (btnDeployedUndeploy) {
+        btnDeployedUndeploy.textContent = "⚓ RETRACT TENTACLES (UN-DEPLOY)";
+        btnDeployedUndeploy.style.borderColor = "var(--color-red)";
+        btnDeployedUndeploy.style.color = "var(--color-red)";
+        btnDeployedUndeploy.style.background = "rgba(255, 51, 68, 0.05)";
+      }
+      if (btnDeployedFinalize) {
+        btnDeployedFinalize.style.display = 'none';
+      }
     }
   }
   
@@ -1826,6 +2596,106 @@ function drawRadarMinimap() {
   ctx.strokeRect(camX, camY, camW, camH);
 }
 
+function drawConquestRadarMinimap() {
+  const cRadar = document.getElementById('conquest-radar-canvas');
+  if (!cRadar || !conquestBattle) return;
+  const ctx = cRadar.getContext('2d');
+  const w = cRadar.width;
+  const h = cRadar.height;
+
+  // 1. Clear with deep space black
+  ctx.fillStyle = '#010204';
+  ctx.fillRect(0, 0, w, h);
+
+  // 2. Map dimensions and scaling
+  const mapW = conquestBattle.map.width;
+  const mapH = conquestBattle.map.height;
+  const scaleX = w / mapW;
+  const scaleY = h / mapH;
+  const scale = Math.min(scaleX, scaleY);
+
+  const drawW = mapW * scale;
+  const drawH = mapH * scale;
+  const offsetX = (w - drawW) / 2;
+  const offsetY = (h - drawH) / 2;
+
+  // 3. Draw map boundaries
+  ctx.strokeStyle = 'rgba(255, 51, 68, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(offsetX, offsetY, drawW, drawH);
+
+  // 4. Draw mineral vein deposits on minimap
+  conquestBattle.map.resources.forEach(res => {
+    if (res.type === 'deposit' && res.amount > 0) {
+      if (!conquestBattle.isPositionInVision(res.x, res.y)) return;
+      const rx = offsetX + res.x * scale;
+      const ry = offsetY + res.y * scale;
+      ctx.fillStyle = res.color;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  // 5. Draw player units (green/yellow) and flagship (white)
+  conquestBattle.playerUnits.forEach(u => {
+    const rx = offsetX + u.x * scale;
+    const ry = offsetY + u.y * scale;
+    ctx.fillStyle = u.type === 'gatherer' ? '#ffaa00' : '#00ff66';
+    ctx.fillRect(rx - 1.5, ry - 1.5, 3, 3);
+  });
+
+  const ms = conquestBattle.mothership;
+  if (ms) {
+    const rx = offsetX + ms.x * scale;
+    const ry = offsetY + ms.y * scale;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(rx, ry, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 6. Draw enemy units & structures (red)
+  conquestBattle.enemyUnits.forEach(e => {
+    const inVision = conquestBattle.isPositionInVision(e.x, e.y);
+    const isBase = e.type === 'citadel' || e.type === 'turret';
+    if (!inVision && !isBase) return; // Hidden units stay hidden on radar
+
+    const rx = offsetX + e.x * scale;
+    const ry = offsetY + e.y * scale;
+    ctx.fillStyle = inVision ? '#ff3344' : 'rgba(255, 51, 68, 0.3)';
+    
+    if (isBase) {
+      ctx.fillRect(rx - 3, ry - 3, 6, 6);
+    } else {
+      ctx.fillRect(rx - 1.5, ry - 1.5, 3, 3);
+    }
+  });
+
+  // 7. Draw camera viewport outline (yellow-green/cyan) showing where the player camera is
+  const camX = conquestBattle.camera.x;
+  const camY = conquestBattle.camera.y;
+  const viewW = conquestBattle.canvas.width / conquestBattle.camera.zoom;
+  const viewH = conquestBattle.canvas.height / conquestBattle.camera.zoom;
+
+  const cvX = offsetX + camX * scale;
+  const cvY = offsetY + camY * scale;
+  const cvW = viewW * scale;
+  const cvH = viewH * scale;
+
+  ctx.strokeStyle = 'rgba(0, 229, 255, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cvX, cvY, cvW, cvH);
+
+  // 8. Sweep line
+  const sweepAngle = (conquestBattle.time * 1.6) % (Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 51, 68, 0.08)';
+  ctx.beginPath();
+  ctx.moveTo(w / 2, h / 2);
+  ctx.lineTo(w / 2 + Math.cos(sweepAngle) * 75, h / 2 + Math.sin(sweepAngle) * 75);
+  ctx.stroke();
+}
+
 let lastFrameTime = 0;
 const fpsInterval = 1000 / 60; // ~16.67ms per frame
 
@@ -1870,6 +2740,15 @@ function tickGameLoop(timestamp) {
   if (elapsed >= fpsInterval) {
     lastFrameTime = timestamp - (elapsed % fpsInterval);
 
+    // Run mothership tick in background continuously so factory production runs in all modes
+    if (mothershipBase) {
+      // Sync simulation QM to Mothership Base first so harvested QM is not lost
+      mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+      mothershipBase.tick();
+      // Keep cosmic map QM in sync with Mothership Base so we share resources in real-time
+      sim.qm = mothershipBase.inventory.quantumMatter;
+    }
+
     // 1. Handle Keyboard edge scrollings
     handleCameraScrolling();
 
@@ -1912,13 +2791,23 @@ function tickGameLoop(timestamp) {
       hudFleetCount.textContent = `${sim.ships.length} / 50`;
       hudCamCoords.textContent = `${Math.round(sim.camera.x + sim.width/2)}, ${Math.round(sim.camera.y + sim.height/2)}`;
 
-      // Update cosmic region info in real-time based on camera center
+      // Update cosmic region info in real-time based on flagship position
       const hudRegionName = document.getElementById('hud-region-name');
       const hudRegionTitle = document.getElementById('hud-region-title');
+      const hudFlagshipCoords = document.getElementById('hud-flagship-coords');
+      
+      if (hudFlagshipCoords) {
+        if (carrier) {
+          hudFlagshipCoords.textContent = `${Math.round(carrier.x)}, ${Math.round(carrier.y)}`;
+        } else {
+          hudFlagshipCoords.textContent = 'DESTROYED';
+        }
+      }
+
       if (hudRegionName && hudRegionTitle) {
-        const camCenterX = sim.camera.x + sim.width / 2;
-        const camCenterY = sim.camera.y + sim.height / 2;
-        const region = sim.getRegionAt(camCenterX, camCenterY);
+        const trackingX = carrier ? carrier.x : (sim.camera.x + sim.width / 2);
+        const trackingY = carrier ? carrier.y : (sim.camera.y + sim.height / 2);
+        const region = sim.getRegionAt(trackingX, trackingY);
         if (region) {
           hudRegionName.textContent = `${region.zodiac} ${region.name}`;
           hudRegionName.style.color = region.color;
@@ -1960,6 +2849,17 @@ function tickGameLoop(timestamp) {
         sectorThreatLabel.className = `indicator-value ${threatClass}`;
       }
 
+      // Real-time proximal system docking tactical command check
+      if (btnTacticalEnterSystem) {
+        const nearby = getNearbySystem(carrier);
+        if (nearby) {
+          btnTacticalEnterSystem.style.display = 'block';
+          btnTacticalEnterSystem.textContent = `⚡ ENTER ${nearby.struct.name.toUpperCase()}`;
+        } else {
+          btnTacticalEnterSystem.style.display = 'none';
+        }
+      }
+
       // 5. Render side list cards and real-time clock
       updateSelectionDecks();
       updateRealtimeClock();
@@ -1968,8 +2868,27 @@ function tickGameLoop(timestamp) {
       drawRadarMinimap();
     } 
     else if (activeMode === 'mothership' && mothershipBase) {
-      // Tick & render mothership
-      mothershipBase.tick();
+      // Render WebGL backdrop (stars & nebulae) underneath the mothership base!
+      if (sim && sim.webglRenderer) {
+        // Temporarily sync camera coordinates from mothership base to simulation
+        const oldCamX = sim.camera.x;
+        const oldCamY = sim.camera.y;
+        const oldZoom = sim.camera.zoom;
+        
+        sim.camera.x = -mothershipBase.cameraX;
+        sim.camera.y = -mothershipBase.cameraY;
+        sim.camera.zoom = 1.0;
+        
+        // Render WebGL backdrop
+        sim.webglRenderer.updateAndRender(sim, true);
+        
+        // Restore simulation camera coordinates
+        sim.camera.x = oldCamX;
+        sim.camera.y = oldCamY;
+        sim.camera.zoom = oldZoom;
+      }
+
+      // Render mothership (tick is handled globally at start of frame)
       mothershipBase.render();
 
       // Update Mothership stockpile numbers
@@ -1983,6 +2902,11 @@ function tickGameLoop(timestamp) {
       hudCamCoords.textContent = "DOCK_O1";
       hudThreatLevel.textContent = "STABLE";
       hudThreatLevel.className = "hud-val text-green";
+
+      const hudFlagshipCoords = document.getElementById('hud-flagship-coords');
+      if (hudFlagshipCoords) {
+        hudFlagshipCoords.textContent = "DOCKED";
+      }
 
       updateRealtimeClock();
     }
@@ -2020,6 +2944,43 @@ function tickGameLoop(timestamp) {
       hudThreatLevel.textContent = "PLANETARY_WAR";
       hudThreatLevel.className = "hud-val text-amber";
 
+      const hudFlagshipCoords = document.getElementById('hud-flagship-coords');
+      if (hudFlagshipCoords) {
+        hudFlagshipCoords.textContent = "ORBITAL_LOCK";
+      }
+
+      updateRealtimeClock();
+      drawConquestRadarMinimap();
+    }
+    else if (activeMode === 'solarsystem' && currentSolarSystem) {
+      currentSolarSystem.tick();
+      currentSolarSystem.render();
+      
+      if (mothershipBase) {
+        mothershipBase.inventory.quantumMatter = Math.round(sim.qm);
+        mothershipBase.tick();
+        sim.qm = mothershipBase.inventory.quantumMatter;
+      }
+      
+      qmDisplay.textContent = Math.round(sim.qm);
+      hudFleetCount.textContent = "N/A";
+      hudCamCoords.textContent = "ORBITAL";
+      hudThreatLevel.textContent = "HARMONIC";
+      hudThreatLevel.className = "hud-val text-cyan";
+      
+      const hudFlagshipCoords = document.getElementById('hud-flagship-coords');
+      if (hudFlagshipCoords) {
+        hudFlagshipCoords.textContent = "HARMONIZED";
+      }
+      
+      if (currentSolarSystem.selectedPlanetIndex !== -1) {
+        const planet = currentSolarSystem.planets[currentSolarSystem.selectedPlanetIndex];
+        if (planet) {
+          updatePlanetTunerDisplay(planet);
+          updateActiveProbesList(planet);
+        }
+      }
+      
       updateRealtimeClock();
     }
   }

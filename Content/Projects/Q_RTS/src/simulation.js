@@ -2,6 +2,7 @@ import { getBiomeAt, getStructureAt, getStructureInChunk, BIOMES, setBiomeOffset
 import { CONFIG } from './config.js';
 import { SHIPS_PRESETS, ENEMIES_PRESETS, EXPLOSION_PRESETS } from './units.js';
 import { WEATHER_SETTINGS, weatherState } from './weather.js';
+import { WebglRenderer } from './webgl_renderer.js';
 
 // The 12 Astrological Lusts of Will (Cosmic Regions of Infinite Space)
 export const REGIONS = [
@@ -135,12 +136,24 @@ export class Simulation {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     
-    // Endless Map Camera System
-    this.camera = { x: -canvas.width / 2, y: -canvas.height / 2, targetX: -canvas.width / 2, targetY: -canvas.height / 2, zoom: 1.0 };
-    
     // Screen size tracking
     this.width = canvas.width;
     this.height = canvas.height;
+
+    // Initialise WebGL background renderer if available
+    const glCanvas = document.getElementById('webgl-canvas');
+    if (glCanvas) {
+      try {
+        this.webglRenderer = new WebglRenderer(glCanvas);
+        this.webglRenderer.resize(this.width, this.height);
+      } catch (err) {
+        console.warn('WebGL Renderer failed to initialize. Falling back to 2D Canvas:', err);
+        this.webglRenderer = null;
+      }
+    }
+    
+    // Endless Map Camera System
+    this.camera = { x: -canvas.width / 2, y: -canvas.height / 2, targetX: -canvas.width / 2, targetY: -canvas.height / 2, zoom: 1.0 };
     
     // Grid settings
     this.gridNodes = [];
@@ -153,6 +166,10 @@ export class Simulation {
     // Player resources and fleets
     this.qm = CONFIG.player.startingQm; // Starting Quantum Matter
     this.maxQm = CONFIG.player.maxQm;
+    this.tickCount = 0;                 // Master frame ticker
+    this.accumulatedQmGained = 0;       // Consolidated matter collection
+    this.lastGatheredX = null;
+    this.lastGatheredY = null;
     
     // Lists of game entities
     this.ships = [];      // Player fleet
@@ -169,6 +186,23 @@ export class Simulation {
     // Endless Map procedural generation tracking
     this.generatedChunks = new Set();
     this.overriddenBiomes = new Map(); // Key: "tx,ty", Value: Biome object
+    
+    // Proxy/Interceptors for overriddenBiomes to auto-clear biome rendering cache on any map alteration
+    const originalSet = this.overriddenBiomes.set.bind(this.overriddenBiomes);
+    const originalDelete = this.overriddenBiomes.delete.bind(this.overriddenBiomes);
+    const originalClear = this.overriddenBiomes.clear.bind(this.overriddenBiomes);
+    this.overriddenBiomes.set = (key, val) => {
+      if (this.biomeCache) this.biomeCache.clear();
+      return originalSet(key, val);
+    };
+    this.overriddenBiomes.delete = (key) => {
+      if (this.biomeCache) this.biomeCache.clear();
+      return originalDelete(key);
+    };
+    this.overriddenBiomes.clear = () => {
+      if (this.biomeCache) this.biomeCache.clear();
+      return originalClear();
+    };
     
     // Drag select state
     this.selectionStart = null;
@@ -542,6 +576,10 @@ export class Simulation {
     this.canvas.width = width;
     this.canvas.height = height;
     
+    if (this.webglRenderer) {
+      this.webglRenderer.resize(width, height);
+    }
+    
     // Re-setup coordinate grid nodes on resize
     this.setupGrid();
   }
@@ -849,6 +887,105 @@ export class Simulation {
   tick() {
     if (this.isPaused) return;
 
+    this.tickCount++;
+
+    // Periodic Cleanup of extremely distant chunks and entities (procedural garbage collection)
+    if (this.tickCount % 180 === 0) {
+      const viewCenterX = this.camera.x + this.width / 2;
+      const viewCenterY = this.camera.y + this.height / 2;
+      const cullRadius = 6000;
+      const cullRadiusSq = cullRadius * cullRadius;
+
+      // Keep track of which chunks we are unloading
+      const chunksToUnload = new Set();
+
+      // Helper to check if a coordinate is extremely far from camera and all ships
+      const isExtremelyFar = (x, y) => {
+        const dxCam = x - viewCenterX;
+        const dyCam = y - viewCenterY;
+        if (dxCam * dxCam + dyCam * dyCam < cullRadiusSq) return false;
+
+        for (let i = 0; i < this.ships.length; i++) {
+          const s = this.ships[i];
+          const dxShip = x - s.x;
+          const dyShip = y - s.y;
+          if (dxShip * dxShip + dyShip * dyShip < cullRadiusSq) {
+            return false;
+          }
+        }
+        return true;
+      };
+
+      const permanentIds = ['citadel-east', 'citadel-north', 'anomaly-alpha', 'anomaly-beta', 'anomaly-gamma', 'anomaly-delta'];
+
+      // Cull distant enemies
+      this.enemies = this.enemies.filter(enemy => {
+        if (permanentIds.includes(enemy.id)) return true;
+        
+        if (isExtremelyFar(enemy.x, enemy.y)) {
+          const cx = Math.floor(enemy.x / 1500);
+          const cy = Math.floor(enemy.y / 1500);
+          chunksToUnload.add(`${cx},${cy}`);
+          return false;
+        }
+        return true;
+      });
+
+      // Cull distant debris
+      this.debris = this.debris.filter(scrap => {
+        if (isExtremelyFar(scrap.x, scrap.y)) {
+          const cx = Math.floor(scrap.x / 1500);
+          const cy = Math.floor(scrap.y / 1500);
+          chunksToUnload.add(`${cx},${cy}`);
+          return false;
+        }
+        return true;
+      });
+
+      // Cull distant black holes / white holes
+      this.blackHoles = this.blackHoles.filter(bh => {
+        if (permanentIds.includes(bh.id)) return true;
+
+        if (isExtremelyFar(bh.x, bh.y)) {
+          const cx = Math.floor(bh.x / 1500);
+          const cy = Math.floor(bh.y / 1500);
+          chunksToUnload.add(`${cx},${cy}`);
+          return false;
+        }
+        return true;
+      });
+
+      // Remove unloaded chunks from generatedChunks set so they can regenerate when player returns
+      chunksToUnload.forEach(chunkKey => {
+        this.generatedChunks.delete(chunkKey);
+      });
+    }
+
+    // Consolidated QM notifications: Flush accumulated QM gains every second (approx 60 frames)
+    if (this.tickCount % 60 === 0) {
+      if (this.accumulatedQmGained > 0) {
+        const carrier = this.ships.find(s => s.type === 'carrier');
+        const displayX = this.lastGatheredX !== null ? this.lastGatheredX : (carrier ? carrier.x : this.camera.x + this.width / 2);
+        const displayY = this.lastGatheredY !== null ? this.lastGatheredY : (carrier ? carrier.y : this.camera.y + this.height / 2);
+
+        if (!this.floatingTexts) this.floatingTexts = [];
+        this.floatingTexts.push({
+          x: displayX,
+          y: displayY,
+          text: `+${this.accumulatedQmGained} QM`,
+          color: '#00ff66',
+          age: 0,
+          maxAge: 60
+        });
+
+        this.appendFeed(`⚡ GATHER: Transmuted consolidated siphons & knot inversions (+${this.accumulatedQmGained} QM).`);
+
+        this.accumulatedQmGained = 0;
+        this.lastGatheredX = null;
+        this.lastGatheredY = null;
+      }
+    }
+
     if (this.carrierSymmetricGunsUpgrade) {
       const carrier = this.ships.find(s => s.type === 'carrier');
       if (carrier) {
@@ -1063,6 +1200,13 @@ export class Simulation {
           ship.vy = 0;
           ship.targetX = null;
           ship.targetY = null;
+          if (ship.dockedTearId && this.spaceTears) {
+            const tear = this.spaceTears.find(t => t.id === ship.dockedTearId);
+            if (tear) {
+              ship.x = tear.x;
+              ship.y = tear.y;
+            }
+          }
           if (ship.deployProgress >= 1.0) {
             ship.deployState = 'deployed';
             this.appendFeed("⚓ DEPLOYED: Flagship deployed tentacles into spacetime tear. Click anywhere on the tear or use launch drop to drop!");
@@ -1072,6 +1216,13 @@ export class Simulation {
           ship.vy = 0;
           ship.targetX = null;
           ship.targetY = null;
+          if (ship.dockedTearId && this.spaceTears) {
+            const tear = this.spaceTears.find(t => t.id === ship.dockedTearId);
+            if (tear) {
+              ship.x = tear.x;
+              ship.y = tear.y;
+            }
+          }
         } else if (ship.deployState === 'undeploying') {
           ship.deployProgress = Math.max(0.0, ship.deployProgress - 0.0125); // retract slightly quicker, ~1.3 seconds
           ship.vx = 0;
@@ -1340,6 +1491,29 @@ export class Simulation {
 
     // 7. Update Hostile Forces (AI patrol, attack fleet, citadel spawns)
     this.enemies.forEach(enemy => {
+      // LOD Sleep state: Skip AI pathfinding, gravity, and weapon checks if too far out of action
+      const viewCenterX = this.camera.x + this.width / 2;
+      const viewCenterY = this.camera.y + this.height / 2;
+      const distToCamSq = (enemy.x - viewCenterX) * (enemy.x - viewCenterX) + (enemy.y - viewCenterY) * (enemy.y - viewCenterY);
+      
+      let nearShip = false;
+      for (let i = 0; i < this.ships.length; i++) {
+        const s = this.ships[i];
+        const dx = enemy.x - s.x;
+        const dy = enemy.y - s.y;
+        if (dx * dx + dy * dy < 3000 * 3000) {
+          nearShip = true;
+          break;
+        }
+      }
+
+      if (distToCamSq > 3000 * 3000 && !nearShip) {
+        if (enemy.cooldown > 0) enemy.cooldown--;
+        if (enemy.teleportCooldown > 0) enemy.teleportCooldown--;
+        if (enemy.spawnTimer !== undefined) enemy.spawnTimer++;
+        return;
+      }
+
       if (enemy.cooldown > 0) enemy.cooldown--;
       if (enemy.teleportCooldown > 0) enemy.teleportCooldown--;
 
@@ -1638,7 +1812,9 @@ export class Simulation {
               radius: 4,
               mass: 15,
               gravityRange: 25,
-              value: 75
+              value: 75,
+              spawnTime: this.time,
+              spawnDuration: 1.5
             });
           }
           if (!this.spaceTears) this.spaceTears = [];
@@ -1665,7 +1841,9 @@ export class Simulation {
             radius: 4,
             mass: 15,
             gravityRange: 25,
-            value: 40
+            value: 40,
+            spawnTime: this.time,
+            spawnDuration: 1.5
           });
           this.appendFeed(`HOSTILE_NEUTRALIZED: ELIMINATED VOID RAIDER.`);
         }
@@ -1686,12 +1864,21 @@ export class Simulation {
         if (collected) return;
         const dx = ship.x - scrap.x;
         const dy = ship.y - scrap.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const distSq = dx * dx + dy * dy;
+        const collectRange = ship.radius + 20;
 
-        if (dist < ship.radius + 20) {
+        if (distSq < collectRange * collectRange) {
+          const dist = Math.sqrt(distSq);
           collected = true;
           this.qm = Math.min(this.maxQm, this.qm + scrap.value);
-          this.appendFeed(`RESOURCES_SECURED: HARVESTED QUANTUM CRYSTALS (+${scrap.value} QM).`);
+          const base = window.mothershipBase;
+          if (scrap.elementType && base) {
+            base.inventory[scrap.elementType] = (base.inventory[scrap.elementType] || 0) + 1;
+            this.appendFeed(`✨ ELEMENT SECURED: Refined raw [${scrap.elementLabel}] (+1) into mothership mainframe reserves.`);
+            if (window.updateMothershipUiStockpile) window.updateMothershipUiStockpile();
+          } else {
+            this.appendFeed(`RESOURCES_SECURED: HARVESTED QUANTUM CRYSTALS (+${scrap.value} QM).`);
+          }
         }
       });
 
@@ -1810,10 +1997,12 @@ export class Simulation {
         this.ships.forEach(ship => {
           const dx = ship.x - cloud.x;
           const dy = ship.y - cloud.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const distSq = dx * dx + dy * dy;
+          const rad = cloud.radius || 100;
           
-          if (dist < cloud.radius) {
-            const factor = (cloud.radius - dist) / cloud.radius;
+          if (distSq < rad * rad) {
+            const dist = Math.sqrt(distSq) || 1;
+            const factor = (rad - dist) / rad;
             
             // Swirling gravitational current inside the cloud
             const force = 0.5 * factor * intensity;
@@ -1836,9 +2025,12 @@ export class Simulation {
           if (enemy.type === 'citadel') return;
           const dx = enemy.x - cloud.x;
           const dy = enemy.y - cloud.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          if (dist < cloud.radius) {
-            const factor = (cloud.radius - dist) / cloud.radius;
+          const distSq = dx * dx + dy * dy;
+          const rad = cloud.radius || 100;
+          
+          if (distSq < rad * rad) {
+            const dist = Math.sqrt(distSq) || 1;
+            const factor = (rad - dist) / rad;
             const force = 0.4 * factor * intensity;
             enemy.vx += (-dy / dist) * force;
             enemy.vy += (dx / dist) * force;
@@ -1849,9 +2041,12 @@ export class Simulation {
         this.debris.forEach(scrap => {
           const dx = scrap.x - cloud.x;
           const dy = scrap.y - cloud.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          if (dist < cloud.radius) {
-            const factor = (cloud.radius - dist) / cloud.radius;
+          const distSq = dx * dx + dy * dy;
+          const rad = cloud.radius || 100;
+          
+          if (distSq < rad * rad) {
+            const dist = Math.sqrt(distSq) || 1;
+            const factor = (rad - dist) / rad;
             const force = 0.7 * factor * intensity;
             scrap.x += (-dy / dist) * force * 1.5;
             scrap.y += (dx / dist) * force * 1.5;
@@ -1903,7 +2098,9 @@ export class Simulation {
             radius: 4,
             mass: 15,
             gravityRange: 25,
-            value: 30 + Math.floor(Math.random() * 20)
+            value: 30 + Math.floor(Math.random() * 20),
+            spawnTime: this.time,
+            spawnDuration: 1.5
           });
         }
 
@@ -2033,10 +2230,10 @@ export class Simulation {
     
     // LEVEL OF DETAIL (LOD) SPACETIME GRID RESOLUTION COARSE-GRAINING
     let spacing = 45; // Grid spacing multiplier
-    if (zoom < 0.3) {
-      spacing = 180; // Ultra coarse-grain for full 12% zoom out (16x fewer nodes processed/drawn)
-    } else if (zoom < 0.7) {
-      spacing = 90; // Coarse-grain for medium zoom out (4x fewer nodes processed/drawn)
+    if (zoom < 0.18) {
+      spacing = 180; // Ultra coarse-grain only at extreme zoom out under 18% zoom
+    } else if (zoom < 0.38) {
+      spacing = 90; // Coarse-grain only at low zoom out under 38% zoom
     }
 
     this.activeSiphons = [];
@@ -2119,6 +2316,20 @@ export class Simulation {
       );
     });
 
+    // Lazy initialization of caches to keep them bound and ultra-performing
+    if (!this.biomeCache) this.biomeCache = new Map();
+    if (!this.regionCache) this.regionCache = new Map();
+    if (this.biomeCache.size > 5000) this.biomeCache.clear();
+    if (this.regionCache.size > 5000) this.regionCache.clear();
+
+    // Clear biome cache when ships are moving so the space-time grid is recalculated in real-time as the ship "eats" or passes through the space!
+    const anyShipMoving = this.ships.some(s => Math.abs(s.vx) > 0.05 || Math.abs(s.vy) > 0.05);
+    if (anyShipMoving) {
+      this.biomeCache.clear();
+    }
+
+    const weatherActive = activeWeatherClouds.length > 0;
+
     let nodeIdx = 0;
     for (let c = startC; c <= endC; c++) {
       const screenRestX = c * spacing - fractionalCamX;
@@ -2150,14 +2361,16 @@ export class Simulation {
         dxTotal += Math.sin(phase1) * 2.5 * ampFactor;
         dyTotal += Math.cos(phase2) * 2.5 * ampFactor;
 
-        // Localized weather clouds wave ripples
-        if (activeWeatherClouds.length > 0) {
+        // Localized weather clouds wave ripples - OPTIMIZED: Squared check before Math.sqrt
+        if (weatherActive) {
           activeWeatherClouds.forEach(cloud => {
             const dx = worldRestX - cloud.x;
             const dy = worldRestY - cloud.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < cloud.radius) {
-              const factor = (cloud.radius - dist) / cloud.radius;
+            const distSq = dx * dx + dy * dy;
+            const rad = cloud.radius || 100;
+            if (distSq < rad * rad) {
+              const dist = Math.sqrt(distSq) || 1;
+              const factor = (rad - dist) / rad;
               const wavePhase = (dist * 0.045 - this.time * 3.5);
               const waveAmp = 18.0 * factor * cloud.intensity;
               dxTotal += Math.sin(wavePhase) * waveAmp;
@@ -2166,15 +2379,17 @@ export class Simulation {
           });
         }
 
-        // Accumulate grid sags towards nearby active pre-culled gravitational objects
+        // Accumulate grid sags towards nearby active pre-culled gravitational objects - OPTIMIZED: Squared check before Math.sqrt
         activeGravitySources.forEach(source => {
           const dx = source.x - worldRestX;
           const dy = source.y - worldRestY;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const distSq = dx * dx + dy * dy;
+          const range = source.gravityRange || 50;
 
-          if (dist < source.gravityRange) {
+          if (distSq < range * range) {
+            const dist = Math.sqrt(distSq) || 1;
             // Quadratic smoothstep decay at gravity range borders
-            const rangeFactor = (source.gravityRange - dist) / source.gravityRange;
+            const rangeFactor = (range - dist) / range;
             let pull = (source.mass * 1.25 * rangeFactor) / (dist * 0.05 + 8.0);
 
             // If the gravity source possesses a frame-drag whirl signature (Dreadnought / Black Holes)
@@ -2194,14 +2409,17 @@ export class Simulation {
           }
         });
 
-        // Accumulate pre-culled shockwave outward wave ripples
+        // Accumulate pre-culled shockwave outward wave ripples - OPTIMIZED: Squared check before Math.sqrt
         activeShockwaves.forEach(sw => {
           const dx = sw.x - worldRestX;
           const dy = sw.y - worldRestY;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const distSq = dx * dx + dy * dy;
           const swWidth = 65; // Wave boundary width
+          const maxR = sw.radius + swWidth;
+          const minR = Math.max(0, sw.radius - swWidth);
           
-          if (Math.abs(dist - sw.radius) < swWidth) {
+          if (distSq < maxR * maxR && distSq > minR * minR) {
+            const dist = Math.sqrt(distSq) || 1;
             const ageRatio = sw.age / sw.maxAge;
             const factor = (1.0 - Math.abs(dist - sw.radius) / swWidth) * (1.0 - ageRatio);
             // Oscillatory sine displacement pulse
@@ -2218,25 +2436,89 @@ export class Simulation {
         // Cache node world position and corresponding biome to fully eliminate redundant rendering evaluations
         node.worldX = worldRestX + dxTotal;
         node.worldY = worldRestY + dyTotal;
-        node.biome = this.getBiomeAt(node.worldX, node.worldY);
-        node.region = this.getRegionAt(node.worldX, node.worldY);
+
+        // OPTIMIZED: Cache biome and region queries at the undistorted coordinates to prevent astronomical trigonometric calculations!
+        const bx = Math.round(worldRestX / 45);
+        const by = Math.round(worldRestY / 45);
+        const rx = Math.round(worldRestX / 2000);
+        const ry = Math.round(worldRestY / 2000);
+
+        // OPTIMIZED: relax weather cache key rate to 120 ticks (~2 seconds) so we completely eliminate the micro-stutter during weather
+        const bKey = weatherActive ? `${bx},${by},${Math.floor(this.tickCount / 120)}` : `${bx},${by}`;
+        const rKey = `${rx},${ry},${Math.floor(this.tickCount / 60)}`;
+
+        let biome = this.biomeCache.get(bKey);
+        if (!biome) {
+          biome = this.getBiomeAt(worldRestX, worldRestY);
+          this.biomeCache.set(bKey, biome);
+        }
+
+        let region = this.regionCache.get(rKey);
+        if (!region) {
+          region = this.getRegionAt(worldRestX, worldRestY);
+          this.regionCache.set(rKey, region);
+        }
+
+        node.biome = biome;
+        node.region = region;
+
+        // OPTIMIZED: Pre-calculate storm color and weight on each node to avoid O(N * M) nested cloud scans in rendering loops
+        let stormColor = null;
+        let stormWeight = 0;
+        if (this.foldActive && activeWeatherClouds.length > 0) {
+          activeWeatherClouds.forEach(cloud => {
+            if (cloud.intensity > 0.05) {
+              const dx = worldRestX - cloud.x;
+              const dy = worldRestY - cloud.y;
+              const distSq = dx * dx + dy * dy;
+              const rad = cloud.radius || 100;
+              if (distSq < rad * rad) {
+                const dist = Math.sqrt(distSq) || 1;
+                const factor = (rad - dist) / rad * cloud.intensity;
+                if (factor > 0.05) {
+                  stormColor = cloud.color;
+                  stormWeight = factor;
+                }
+              }
+            }
+          });
+        }
+        node.stormColor = stormColor;
+        node.stormWeight = stormWeight;
 
         let isRevealed = false;
         const revealRadius = 2000; // matching minimap distance
-        for (let i = 0; i < this.ships.length; i++) {
-          const ship = this.ships[i];
-          const dx = node.worldX - ship.x;
-          const dy = node.worldY - ship.y;
-          if (dx * dx + dy * dy < revealRadius * revealRadius) {
+        const revealRadiusSq = revealRadius * revealRadius;
+
+        // OPTIMIZED: Check flagship carrier first since most revealed nodes are near the player's core fleet
+        if (carrier) {
+          const dx = node.worldX - carrier.x;
+          const dy = node.worldY - carrier.y;
+          if (dx * dx + dy * dy < revealRadiusSq) {
             isRevealed = true;
-            break;
+          }
+        }
+
+        if (!isRevealed) {
+          for (let i = 0; i < this.ships.length; i++) {
+            const ship = this.ships[i];
+            if (ship === carrier) continue;
+            const dx = node.worldX - ship.x;
+            const dy = node.worldY - ship.y;
+            if (dx * dx + dy * dy < revealRadiusSq) {
+              isRevealed = true;
+              break;
+            }
           }
         }
         node.isRevealed = isRevealed;
 
         if (carrier && node.biome && node.biome.id !== 'void' && node.biome.id !== 'terraformed' && node.biome.resource) {
-          const distToCarrier = Math.sqrt((worldRestX - carrier.x) * (worldRestX - carrier.x) + (worldRestY - carrier.y) * (worldRestY - carrier.y)) || 1;
-          if (distToCarrier < 420) {
+          const dCarrierX = worldRestX - carrier.x;
+          const dCarrierY = worldRestY - carrier.y;
+          const distSqCarrier = dCarrierX * dCarrierX + dCarrierY * dCarrierY;
+          if (distSqCarrier < 420 * 420) {
+            const distToCarrier = Math.sqrt(distSqCarrier) || 1;
             const rangeFactor = (420 - distToCarrier) / 420;
             const pull = (1400 * 1.25 * rangeFactor) / (distToCarrier * 0.05 + 8.0);
             const inversionRatio = pull / distToCarrier;
@@ -2251,30 +2533,25 @@ export class Simulation {
                 const qmGained = 4;
                 this.qm = Math.min(this.maxQm, this.qm + qmGained);
                 
+                this.accumulatedQmGained = (this.accumulatedQmGained || 0) + qmGained;
+                this.lastGatheredX = node.worldX;
+                this.lastGatheredY = node.worldY;
+
                 this.overriddenBiomes.set(key, BIOMES.terraformed);
                 node.biome = BIOMES.terraformed;
-
-                this.appendFeed(`⚡ KNOT_INVERSION_GATHER: Space-time inverted at Sector [${tx}, ${ty}] -> Transmuted +4 QM!`);
-                
-                if (!this.floatingTexts) this.floatingTexts = [];
-                this.floatingTexts.push({
-                  x: node.worldX,
-                  y: node.worldY,
-                  text: `+4 QM (${resName})`,
-                  color: '#00ff66',
-                  age: 0,
-                  maxAge: 45
-                });
 
                 this.shockwaves.push({
                   x: worldRestX,
                   y: worldRestY,
-                  radius: 4,
+                  radius: 32,
                   maxRadius: 32,
                   energy: 1.5,
                   speed: 3.0,
                   age: 0,
-                  maxAge: 16
+                  maxAge: 50,
+                  isGatherPull: true,
+                  targetShip: carrier,
+                  resource: resName
                 });
               }
             } else if (inversionRatio >= 0.15) {
@@ -2288,16 +2565,11 @@ export class Simulation {
               });
 
               if (Math.random() < 0.0006) {
-                this.qm = Math.min(this.maxQm, this.qm + 1);
-                if (!this.floatingTexts) this.floatingTexts = [];
-                this.floatingTexts.push({
-                  x: node.worldX,
-                  y: node.worldY,
-                  text: `+1 QM`,
-                  color: 'rgba(0, 229, 255, 0.85)',
-                  age: 0,
-                  maxAge: 35
-                });
+                const qmGained = 1;
+                this.qm = Math.min(this.maxQm, this.qm + qmGained);
+                this.accumulatedQmGained = (this.accumulatedQmGained || 0) + qmGained;
+                this.lastGatheredX = node.worldX;
+                this.lastGatheredY = node.worldY;
               }
             }
           }
@@ -2546,9 +2818,14 @@ export class Simulation {
 
   // Main Render Loop
   render() {
-    // Fill deep cosmos vacuum color background
-    this.ctx.fillStyle = '#020204';
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    // Render high performance WebGL backdrop or fall back to 2D canvas clearing
+    if (this.webglRenderer) {
+      this.webglRenderer.updateAndRender(this);
+      this.ctx.clearRect(0, 0, this.width, this.height);
+    } else {
+      this.ctx.fillStyle = '#020204';
+      this.ctx.fillRect(0, 0, this.width, this.height);
+    }
 
     // Save and apply camera zoom transform for all world content
     this.ctx.save();
@@ -2556,8 +2833,8 @@ export class Simulation {
     this.ctx.scale(this.camera.zoom || 1.0, this.camera.zoom || 1.0);
     this.ctx.translate(-this.width / 2, -this.height / 2);
 
-    // If weather is active, draw a dynamic ambient environmental glow!
-    if (this.foldActive && this.weatherClouds && this.weatherClouds.length > 0) {
+    // If weather is active and we don't have WebGL, draw a dynamic ambient environmental glow!
+    if (!this.webglRenderer && this.foldActive && this.weatherClouds && this.weatherClouds.length > 0) {
       this.weatherClouds.forEach(cloud => {
         if (cloud.intensity > 0.01) {
           const screenX = cloud.x - this.camera.x;
@@ -2605,7 +2882,9 @@ export class Simulation {
     this.drawBiomeTiles();
 
     // 2. Draw distortion grid lines
-    this.drawDistortionGrid();
+    if (!this.webglRenderer) {
+      this.drawDistortionGrid();
+    }
 
     // 2.5 Draw active spacetime siphons
     this.drawSiphons();
@@ -2795,25 +3074,156 @@ export class Simulation {
       const alpha = 1.0 - ageRatio;
       if (alpha <= 0.01) return;
 
-      this.ctx.beginPath();
-      this.ctx.arc(sX, sY, sw.radius, 0, Math.PI * 2);
+      if (sw.isGatherPull) {
+        // High-fidelity physical elastic "string pull" effect - styled to be beautifully subtle and soft
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.45 * alpha;
 
-      if (sw.isHealPulse) {
-        // Spacetime Reconstruction Pulse: cybernetic lime green/neon teal
-        this.ctx.strokeStyle = `rgba(57, 255, 20, ${alpha * 0.85})`;
-        this.ctx.lineWidth = 4.0 * (1.0 - ageRatio * 0.5);
-        this.ctx.shadowBlur = 15;
-        this.ctx.shadowColor = '#39ff14';
+        const targetShip = sw.targetShip;
+        const toX = targetShip ? (targetShip.x - this.camera.x) : sX;
+        const toY = targetShip ? (targetShip.y - this.camera.y) : sY;
+
+        const resColor = sw.resource === 'Water' ? '#00beff' :
+                         sw.resource === 'Earth' ? '#bea05a' :
+                         sw.resource === 'Wind' ? '#ffb300' :
+                         sw.resource === 'Air' ? '#28a050' :
+                         '#00e5ff';
+
+        const dx = toX - sX;
+        const dy = toY - sY;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const perpX = -dy / len;
+        const perpY = dx / len;
+
+        const connectDuration = 0.35; // First 35% of life is projecting/connecting
+        
+        if (ageRatio <= connectDuration) {
+          // Stage 1: Connection Process (The tether wiggles as it projects outward from tile to ship)
+          const connectProgress = ageRatio / connectDuration;
+          
+          this.ctx.beginPath();
+          const steps = 15;
+          const subDx = dx * connectProgress;
+          const subDy = dy * connectProgress;
+          
+          for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const px = sX + subDx * t;
+            const py = sY + subDy * t;
+            
+            // Wiggle amplitude decays as it shoots forward
+            const waveAmp = 6 * Math.sin(t * Math.PI) * Math.sin(this.time * 0.5 + t * 6) * (1.0 - connectProgress);
+            const finalX = px + perpX * waveAmp;
+            const finalY = py + perpY * waveAmp;
+            
+            if (i === 0) {
+              this.ctx.moveTo(finalX, finalY);
+            } else {
+              this.ctx.lineTo(finalX, finalY);
+            }
+          }
+          this.ctx.strokeStyle = resColor;
+          this.ctx.lineWidth = 1.0;
+          this.ctx.stroke();
+
+          // Energetic glowing laser head flying forward
+          const endX = sX + subDx;
+          const endY = sY + subDy;
+          this.ctx.beginPath();
+          this.ctx.arc(endX, endY, 3.2, 0, Math.PI * 2);
+          this.ctx.fillStyle = '#ffffff';
+          this.ctx.shadowBlur = 8;
+          this.ctx.shadowColor = resColor;
+          this.ctx.fill();
+          this.ctx.shadowBlur = 0;
+        } else {
+          // Stage 2: Established Siphon & Tension Pull (Connected and pulling/reeling matter in)
+          const siphonProgress = (ageRatio - connectDuration) / (1.0 - connectDuration);
+          
+          this.ctx.beginPath();
+          const steps = 15;
+          for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const px = sX + dx * t;
+            const py = sY + dy * t;
+            
+            // String is wavy at first, then straightens out as it's pulled taut
+            const waveAmp = 10 * Math.sin(t * Math.PI) * Math.sin(this.time * 0.35 + t * 4) * (1.0 - siphonProgress);
+            const finalX = px + perpX * waveAmp;
+            const finalY = py + perpY * waveAmp;
+            
+            if (i === 0) {
+              this.ctx.moveTo(finalX, finalY);
+            } else {
+              this.ctx.lineTo(finalX, finalY);
+            }
+          }
+          this.ctx.strokeStyle = resColor;
+          this.ctx.lineWidth = 1.0;
+          this.ctx.shadowBlur = 4;
+          this.ctx.shadowColor = resColor;
+          this.ctx.stroke();
+          this.ctx.shadowBlur = 0;
+
+          // Multiple high-speed energy beads flowing along the established line
+          const beadCount = 3;
+          for (let b = 0; b < beadCount; b++) {
+            const offset = b / beadCount;
+            // Continual wrapping flow
+            const travelProgress = (siphonProgress * 3.0 + offset) % 1.0;
+            const px = sX + dx * travelProgress;
+            const py = sY + dy * travelProgress;
+            const wave = 10 * Math.sin(travelProgress * Math.PI) * Math.sin(this.time * 0.35 + travelProgress * 4) * (1.0 - siphonProgress);
+
+            this.ctx.beginPath();
+            this.ctx.arc(px + perpX * wave, py + perpY * wave, 1.8 * (1.0 - travelProgress * 0.5), 0, Math.PI * 2);
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.shadowBlur = 5;
+            this.ctx.shadowColor = resColor;
+            this.ctx.fill();
+            this.ctx.shadowBlur = 0;
+          }
+        }
+
+        // Contracting grid-lock circle (shrinks instead of expanding)
+        const shrinkRadius = 32 * (1.0 - ageRatio);
+        if (shrinkRadius > 0.5) {
+          const strokeRgb = resColor === '#00beff' ? '0, 190, 255' : 
+                            resColor === '#bea05a' ? '190, 160, 90' : 
+                            resColor === '#ffb300' ? '255, 179, 0' : 
+                            resColor === '#28a050' ? '40, 160, 80' : 
+                            '0, 229, 255';
+          this.ctx.strokeStyle = `rgba(${strokeRgb}, 0.5)`;
+          this.ctx.lineWidth = 1.0;
+          this.ctx.setLineDash([2, 3]);
+          this.ctx.beginPath();
+          this.ctx.arc(sX, sY, shrinkRadius, 0, Math.PI * 2);
+          this.ctx.stroke();
+          this.ctx.setLineDash([]);
+        }
+        
+        this.ctx.restore();
       } else {
-        // Standard kinetic shockwave: hot cyan/white
-        this.ctx.strokeStyle = `rgba(0, 229, 255, ${alpha * 0.6})`;
-        this.ctx.lineWidth = 2.0 * (1.0 - ageRatio * 0.5);
-        this.ctx.shadowBlur = 8;
-        this.ctx.shadowColor = '#00e5ff';
-      }
+        this.ctx.beginPath();
+        this.ctx.arc(sX, sY, sw.radius, 0, Math.PI * 2);
 
-      this.ctx.stroke();
-      this.ctx.shadowBlur = 0; // Reset shadow for next iterations
+        if (sw.isHealPulse) {
+          // Spacetime Reconstruction Pulse: cybernetic lime green/neon teal
+          this.ctx.strokeStyle = `rgba(57, 255, 20, ${alpha * 0.85})`;
+          this.ctx.lineWidth = 4.0 * (1.0 - ageRatio * 0.5);
+          this.ctx.shadowBlur = 15;
+          this.ctx.shadowColor = '#39ff14';
+        } else {
+          // Standard kinetic shockwave: hot cyan/white
+          this.ctx.strokeStyle = `rgba(0, 229, 255, ${alpha * 0.6})`;
+          this.ctx.lineWidth = 2.0 * (1.0 - ageRatio * 0.5);
+          this.ctx.shadowBlur = 8;
+          this.ctx.shadowColor = '#00e5ff';
+        }
+
+        this.ctx.stroke();
+        this.ctx.shadowBlur = 0; // Reset shadow for next iterations
+      }
     });
     this.ctx.restore();
   }
@@ -2823,7 +3233,27 @@ export class Simulation {
     const cols = this.gridCols;
     const rows = this.gridRows;
 
-    // Draw vertical columns lines segment-by-segment for beautiful biome coloring
+    const batches = {};
+    const stormBatches = {};
+
+    const addSegment = (n1, n2, strokeColor, lineWidth, stormColor, stormWeight) => {
+      const key = `${strokeColor}||${lineWidth.toFixed(1)}`;
+      if (!batches[key]) {
+        batches[key] = { strokeColor, lineWidth, points: [] };
+      }
+      batches[key].points.push(n1.x, n1.y, n2.x, n2.y);
+
+      if (stormColor && stormWeight > 0.05) {
+        const stormWidth = lineWidth * 0.8;
+        const sKey = `${stormColor}||${stormWidth.toFixed(1)}||${stormWeight.toFixed(2)}`;
+        if (!stormBatches[sKey]) {
+          stormBatches[sKey] = { stormColor, stormWidth, stormWeight, points: [] };
+        }
+        stormBatches[sKey].points.push(n1.x, n1.y, n2.x, n2.y);
+      }
+    };
+
+    // 1. Collect vertical column lines
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows - 1; r++) {
         const idx1 = c * rows + r;
@@ -2831,7 +3261,7 @@ export class Simulation {
         const n1 = this.gridNodes[idx1];
         const n2 = this.gridNodes[idx2];
         if (n1 && n2) {
-          // Space Tear grid line culling
+          // Space Tear grid line culling - OPTIMIZED: Squared checks instead of Math.sqrt
           let insideTear = false;
           if (this.spaceTears && this.spaceTears.length > 0) {
             for (let i = 0; i < this.spaceTears.length; i++) {
@@ -2840,7 +3270,8 @@ export class Simulation {
               const dy1 = n1.worldY - tear.y;
               const dx2 = n2.worldX - tear.x;
               const dy2 = n2.worldY - tear.y;
-              if (Math.sqrt(dx1*dx1 + dy1*dy1) < tear.radius || Math.sqrt(dx2*dx2 + dy2*dy2) < tear.radius) {
+              const rSq = tear.radius * tear.radius;
+              if (dx1 * dx1 + dy1 * dy1 < rSq || dx2 * dx2 + dy2 * dy2 < rSq) {
                 insideTear = true;
                 break;
               }
@@ -2852,7 +3283,6 @@ export class Simulation {
           if (!biome) continue;
           
           const isRevealed = n1.isRevealed;
-
           const region1 = n1.region || REGIONS[0];
           const region2 = n2.region || REGIONS[0];
           const isBorder = (region1.index !== region2.index);
@@ -2865,53 +3295,19 @@ export class Simulation {
             strokeColor = region1.color; // pure vibrant celestial color at country boundaries
           }
 
-          let stormColor = null;
-          let stormWeight = 0;
-          
-          // Environment color shift: warp grid lines color & thickness inside storm clouds!
-          if (this.foldActive && this.weatherClouds && this.weatherClouds.length > 0) {
-            this.weatherClouds.forEach(cloud => {
-              if (cloud.intensity > 0.05) {
-                const dx = n1.worldX - cloud.x;
-                const dy = n1.worldY - cloud.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < cloud.radius) {
-                  const factor = (cloud.radius - dist) / cloud.radius * cloud.intensity;
-                  if (factor > 0.05) {
-                    stormColor = cloud.color;
-                    stormWeight = factor;
-                    lineWidth += factor * 1.5;
-                  }
-                }
-              }
-            });
-          }
-
-          this.ctx.beginPath();
-          this.ctx.moveTo(n1.x, n1.y);
-          this.ctx.lineTo(n2.x, n2.y);
-          
-          this.ctx.strokeStyle = strokeColor;
-          this.ctx.lineWidth = lineWidth;
-          this.ctx.stroke();
-
-          // Overlay transparent storm highlight so the biome remains fully visible beneath
+          // OPTIMIZED: Retrieve pre-calculated storm details directly from node to completely eliminate O(N * M) nested storm cloud loop and Math.sqrt per segment
+          let stormColor = n1.stormColor;
+          let stormWeight = n1.stormWeight;
           if (stormColor && stormWeight > 0.05) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(n1.x, n1.y);
-            this.ctx.lineTo(n2.x, n2.y);
-            this.ctx.strokeStyle = stormColor;
-            this.ctx.lineWidth = lineWidth * 0.8;
-            this.ctx.save();
-            this.ctx.globalAlpha = stormWeight * 0.45;
-            this.ctx.stroke();
-            this.ctx.restore();
+            lineWidth += stormWeight * 1.5;
           }
+
+          addSegment(n1, n2, strokeColor, lineWidth, stormColor, stormWeight);
         }
       }
     }
 
-    // Draw horizontal rows lines segment-by-segment for beautiful biome coloring
+    // 2. Collect horizontal rows lines
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols - 1; c++) {
         const idx1 = c * rows + r;
@@ -2919,7 +3315,7 @@ export class Simulation {
         const n1 = this.gridNodes[idx1];
         const n2 = this.gridNodes[idx2];
         if (n1 && n2) {
-          // Space Tear grid line culling
+          // Space Tear grid line culling - OPTIMIZED: Squared checks instead of Math.sqrt
           let insideTear = false;
           if (this.spaceTears && this.spaceTears.length > 0) {
             for (let i = 0; i < this.spaceTears.length; i++) {
@@ -2928,7 +3324,8 @@ export class Simulation {
               const dy1 = n1.worldY - tear.y;
               const dx2 = n2.worldX - tear.x;
               const dy2 = n2.worldY - tear.y;
-              if (Math.sqrt(dx1*dx1 + dy1*dy1) < tear.radius || Math.sqrt(dx2*dx2 + dy2*dy2) < tear.radius) {
+              const rSq = tear.radius * tear.radius;
+              if (dx1 * dx1 + dy1 * dy1 < rSq || dx2 * dx2 + dy2 * dy2 < rSq) {
                 insideTear = true;
                 break;
               }
@@ -2940,7 +3337,6 @@ export class Simulation {
           if (!biome) continue;
           
           const isRevealed = n1.isRevealed;
-
           const region1 = n1.region || REGIONS[0];
           const region2 = n2.region || REGIONS[0];
           const isBorder = (region1.index !== region2.index);
@@ -2953,50 +3349,47 @@ export class Simulation {
             strokeColor = region1.color; // pure vibrant celestial color at country boundaries
           }
 
-          let stormColor = null;
-          let stormWeight = 0;
-          
-          // Environment color shift: warp grid lines color & thickness inside storm clouds!
-          if (this.foldActive && this.weatherClouds && this.weatherClouds.length > 0) {
-            this.weatherClouds.forEach(cloud => {
-              if (cloud.intensity > 0.05) {
-                const dx = n1.worldX - cloud.x;
-                const dy = n1.worldY - cloud.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < cloud.radius) {
-                  const factor = (cloud.radius - dist) / cloud.radius * cloud.intensity;
-                  if (factor > 0.05) {
-                    stormColor = cloud.color;
-                    stormWeight = factor;
-                    lineWidth += factor * 1.5;
-                  }
-                }
-              }
-            });
-          }
-
-          this.ctx.beginPath();
-          this.ctx.moveTo(n1.x, n1.y);
-          this.ctx.lineTo(n2.x, n2.y);
-          
-          this.ctx.strokeStyle = strokeColor;
-          this.ctx.lineWidth = lineWidth;
-          this.ctx.stroke();
-
-          // Overlay transparent storm highlight so the biome remains fully visible beneath
+          // OPTIMIZED: Retrieve pre-calculated storm details directly from node to completely eliminate O(N * M) nested storm cloud loop and Math.sqrt per segment
+          let stormColor = n1.stormColor;
+          let stormWeight = n1.stormWeight;
           if (stormColor && stormWeight > 0.05) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(n1.x, n1.y);
-            this.ctx.lineTo(n2.x, n2.y);
-            this.ctx.strokeStyle = stormColor;
-            this.ctx.lineWidth = lineWidth * 0.8;
-            this.ctx.save();
-            this.ctx.globalAlpha = stormWeight * 0.45;
-            this.ctx.stroke();
-            this.ctx.restore();
+            lineWidth += stormWeight * 1.5;
           }
+
+          addSegment(n1, n2, strokeColor, lineWidth, stormColor, stormWeight);
         }
       }
+    }
+
+    // 3. Render batched grid segments
+    for (const key in batches) {
+      const b = batches[key];
+      this.ctx.beginPath();
+      const pts = b.points;
+      for (let i = 0; i < pts.length; i += 4) {
+        this.ctx.moveTo(pts[i], pts[i+1]);
+        this.ctx.lineTo(pts[i+2], pts[i+3]);
+      }
+      this.ctx.strokeStyle = b.strokeColor;
+      this.ctx.lineWidth = b.lineWidth;
+      this.ctx.stroke();
+    }
+
+    // 4. Render batched storm overlay segments
+    for (const key in stormBatches) {
+      const sb = stormBatches[key];
+      this.ctx.beginPath();
+      const pts = sb.points;
+      for (let i = 0; i < pts.length; i += 4) {
+        this.ctx.moveTo(pts[i], pts[i+1]);
+        this.ctx.lineTo(pts[i+2], pts[i+3]);
+      }
+      this.ctx.strokeStyle = sb.stormColor;
+      this.ctx.lineWidth = sb.stormWidth;
+      this.ctx.save();
+      this.ctx.globalAlpha = sb.stormWeight * 0.45;
+      this.ctx.stroke();
+      this.ctx.restore();
     }
 
     // Land identification textures/symbols are removed to preserve a clean abstract space grid look
@@ -3048,17 +3441,57 @@ export class Simulation {
       const screenY = scrap.y - this.camera.y;
 
       // Only draw on-screen
-      if (this.isInViewport(screenX, screenY, 20)) {
+      if (this.isInViewport(screenX, screenY, 50)) {
+        const spawnDur = scrap.spawnDuration || 1.5;
+        const age = (scrap.spawnTime !== undefined) ? (this.time - scrap.spawnTime) : spawnDur;
+        const isSpawning = age < spawnDur;
+        const scale = isSpawning ? Math.min(1.0, age / spawnDur) : 1.0;
+        const alpha = isSpawning ? age / spawnDur : 1.0;
+
+        if (isSpawning && zoom >= 0.3) {
+          const progress = age / spawnDur;
+          
+          // 1. Condensing quantum ring: shrinks from outer boundary into the spawn coordinates
+          const condRadius = 45 * (1.0 - progress) + scrap.radius * progress;
+          this.ctx.strokeStyle = `rgba(0, 229, 255, ${0.7 * (1.0 - progress)})`;
+          this.ctx.lineWidth = 1.5;
+          this.ctx.beginPath();
+          this.ctx.arc(screenX, screenY, condRadius, 0, Math.PI * 2);
+          this.ctx.stroke();
+
+          // 2. Expanding secondary ripple: flashes outward and fades out
+          const expRadius = 30 * progress;
+          this.ctx.strokeStyle = `rgba(255, 51, 255, ${0.5 * (1.0 - progress)})`;
+          this.ctx.lineWidth = 1;
+          this.ctx.beginPath();
+          this.ctx.arc(screenX, screenY, expRadius, 0, Math.PI * 2);
+          this.ctx.stroke();
+        }
+
+        // Apply custom colors for special elements (like elements siphoned from tears)
+        if (scrap.color) {
+          this.ctx.fillStyle = scrap.color;
+          if (zoom >= 0.4) {
+            this.ctx.shadowColor = scrap.color;
+          }
+        } else {
+          this.ctx.fillStyle = '#00e5ff';
+          if (zoom >= 0.4) {
+            this.ctx.shadowColor = '#00e5ff';
+          }
+        }
+
         if (zoom >= 0.4) {
           // Draw small rotating crystal square
           this.ctx.save();
           this.ctx.translate(screenX, screenY);
           this.ctx.rotate(this.time * 2 + scrap.x);
+          this.ctx.scale(scale, scale);
           this.ctx.fillRect(-2.5, -2.5, 5, 5);
           this.ctx.restore();
         } else {
           // LOD: draw static pixel dot, extremely fast
-          this.ctx.fillRect(screenX - 1.5, screenY - 1.5, 3, 3);
+          this.ctx.fillRect(screenX - 1.5 * scale, screenY - 1.5 * scale, 3 * scale, 3 * scale);
         }
       }
     });
@@ -3121,6 +3554,85 @@ export class Simulation {
       }
     });
     this.ctx.restore();
+  }
+
+  // Heals a specific Spacetime Tear upon Conquest Completion, spawning elements based on cosmic zone
+  healSpacetimeTear(tearId) {
+    if (!this.spaceTears) return;
+    const tearIndex = this.spaceTears.findIndex(t => t.id === tearId);
+    if (tearIndex === -1) return;
+
+    const tear = this.spaceTears[tearIndex];
+    const region = this.getRegionAt(tear.x, tear.y) || REGIONS[0];
+
+    // 1. Trigger beautiful Spacetime Reconstruction healing waves
+    for (let j = 0; j < 3; j++) {
+      this.shockwaves.push({
+        x: tear.x,
+        y: tear.y,
+        radius: 10 + j * 50,
+        maxRadius: 600 + j * 100,
+        energy: 120,
+        speed: 12.0 - j * 2.0,
+        age: 0,
+        maxAge: 70 + j * 10,
+        isHealPulse: true
+      });
+    }
+
+    // 2. Spawn elements based on the region's zodiac category
+    let elementType = 'symmetryCrystal';
+    let label = 'SYMMETRY CRYSTAL';
+    let color = '#00e5ff'; // Neon blue/cyan for Symmetry
+
+    if (region.zodiac.includes('Libra')) {
+      elementType = 'symmetryCrystal';
+      label = 'SYMMETRY CRYSTAL';
+      color = '#00e5ff';
+    } else if (region.zodiac.includes('Taurus') || region.zodiac.includes('Virgo') || region.zodiac.includes('Capricorn')) {
+      elementType = 'soilElement';
+      label = 'SOIL ELEMENT';
+      color = '#c2b09e';
+    } else if (region.zodiac.includes('Gemini') || region.zodiac.includes('Aquarius')) {
+      elementType = 'airElement';
+      label = 'AIR ELEMENT';
+      color = '#b3e5fc';
+    } else if (region.zodiac.includes('Cancer') || region.zodiac.includes('Scorpio') || region.zodiac.includes('Pisces')) {
+      elementType = 'waterElement';
+      label = 'WATER ELEMENT';
+      color = '#42a5f5';
+    } else {
+      elementType = 'metalElement';
+      label = 'METAL ELEMENT';
+      color = '#cfd8dc';
+    }
+
+    const shardCount = 8 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < shardCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 50 + Math.random() * 200;
+      this.debris.push({
+        id: `element-shard-${Date.now()}-${Math.random()}`,
+        x: tear.x + Math.cos(angle) * dist,
+        y: tear.y + Math.sin(angle) * dist,
+        radius: 6,
+        mass: 22,
+        gravityRange: 50,
+        value: 100,
+        color: color,
+        elementType: elementType,
+        elementLabel: label,
+        age: 0,
+        spawnTime: this.time,
+        spawnDuration: 1.5
+      });
+    }
+
+    // Remove the tear
+    this.spaceTears.splice(tearIndex, 1);
+
+    this.appendFeed(`🌌 SPACETIME_HEALED: Spacetime tear at [${Math.round(tear.x)}, ${Math.round(tear.y)}] successfully sealed!`);
+    this.appendFeed(`✨ COSMIC_EMISSION: Spawns ${shardCount} raw [${label}] remnants. Collect with flagship to add to base.`);
   }
 
   // Draw procedural landmarks, taverns, and cities
@@ -3210,7 +3722,8 @@ export class Simulation {
 
             this.ctx.fillStyle = struct.color;
             this.ctx.font = '8px "JetBrains Mono", monospace';
-            this.ctx.fillText(`[${struct.type.toUpperCase()}] SECTOR [${cx}, ${cy}]`, 0, -22);
+            const labelType = struct.type === 'tavern' ? 'SOLAR SYSTEM' : 'STAR SYSTEM';
+            this.ctx.fillText(`[${labelType}] SECTOR [${cx}, ${cy}]`, 0, -22);
 
             // If selected unit or camera is very close, draw descriptive subtext
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
