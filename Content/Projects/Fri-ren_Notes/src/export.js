@@ -81,6 +81,12 @@ export class ExportMenu {
           font-size: 13px;
           outline: none;
           border-radius: 0;
+          -moz-appearance: textfield; /* Firefox */
+        }
+        #canvas-export-menu input[type="number"]::-webkit-outer-spin-button,
+        #canvas-export-menu input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none; /* Chrome, Safari, Edge, Opera */
+          margin: 0;
         }
         #canvas-export-menu #export-bounds-info {
           font-family: var(--font-mono);
