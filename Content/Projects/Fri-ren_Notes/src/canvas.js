@@ -647,11 +647,24 @@ export class CanvasLite {
       }
     }
 
-    // Check for resize handle (bottom-right corner) in reverse order (topmost first)
-    const resizableBox = [...this.boxes].reverse().find(b => 
-      x >= b.x + b.w - 20 && x <= b.x + b.w + 10 && 
-      y >= b.y + b.h - 20 && y <= b.y + b.h + 10
+    // Check if the topmost box under the mouse is selected and the click is precisely on its bottom-right resize handle
+    const topmostBox = [...this.boxes].reverse().find(b => 
+      x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h
     );
+
+    let resizableBox = null;
+    if (topmostBox) {
+      const isSelected = (this.selectedBox && this.selectedBox.id === topmostBox.id) || 
+                          (this.selectedBoxes && this.selectedBoxes.some(b => b.id === topmostBox.id));
+      if (isSelected) {
+        const dx = (topmostBox.x + topmostBox.w) - x;
+        const dy = (topmostBox.y + topmostBox.h) - y;
+        // Check if click matches the visual 15px bottom-right right-angle triangle
+        if (dx >= 0 && dx <= 15 && dy >= 0 && dy <= 15 && (dx + dy) <= 15) {
+          resizableBox = topmostBox;
+        }
+      }
+    }
 
     if (resizableBox) {
       this.isResizing = true;
@@ -1039,7 +1052,7 @@ export class CanvasLite {
       if (box.color) {
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'multiply';
-        this.ctx.globalAlpha = isNight ? 1.0 : 0.15;
+        this.ctx.globalAlpha = isNight ? 1.0 : 0.25;
         this.ctx.fillStyle = box.color;
         this.ctx.fillRect(box.x, box.y, box.w, box.h);
         this.ctx.restore();
