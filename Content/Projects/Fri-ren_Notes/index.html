@@ -97,6 +97,7 @@
                   <span class="brand-text">CANVAS LITE <small style="font-size: 8px; opacity: 0.5;">(v0.1)</small></span>
                 </div>
                 <div class="canvas-controls">
+                  <div id="canvas-palette" class="canvas-palette" style="display: flex; gap: 4px; align-items: center; margin-right: 12px;"></div>
                   <button id="canvas-add-box" title="Add new box">+ BOX</button>
                   <button id="canvas-add-image" title="Add image">+ IMAGE</button>
                 </div>
@@ -106,7 +107,11 @@
                 <canvas id="canvas-lite"></canvas>
                 <div id="canvas-peeks-layer">
                   <div id="canvas-inline-editor" class="hidden">
-                    <input type="text" id="canvas-box-input" placeholder="Name">
+                    <div style="display: flex; gap: 4px; width: 100%; box-sizing: border-box;">
+                      <input type="text" id="canvas-box-emoji" placeholder="Emoji" style="width: 50px; font-size: 11px;">
+                      <input type="text" id="canvas-box-title" placeholder="Card Title" style="flex: 1; font-size: 11px;">
+                    </div>
+                    <textarea id="canvas-box-input" placeholder="Name"></textarea>
                     <input type="text" id="canvas-box-link" placeholder="[[Note Link]]">
                   </div>
                   <div id="canvas-toolbar" class="hidden">

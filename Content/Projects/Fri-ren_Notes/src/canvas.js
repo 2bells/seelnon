@@ -17,8 +17,12 @@ export class CanvasLite {
     this.panningWithSpace = false;
     this.lastMousePos = { x: 0, y: 0 };
     
-    this.mode = 'select'; // 'select', 'panning', 'connecting'
+    this.mode = 'select'; // 'select', 'panning', 'connecting', 'marquee'
     this.selectedBox = null;
+    this.selectedBoxes = [];
+    this.marqueeStart = null;
+    this.marqueeEnd = null;
+    this.lastCanvasMousePos = { x: 0, y: 0 };
     this.selectedArrow = null;
     this.connectingFrom = null;
     this.tempConnectionEnd = null;
@@ -50,7 +54,10 @@ export class CanvasLite {
         h: b.h,
         text: b.text || "",
         linkedNote: b.linkedNote || null,
-        image: typeof b.image === "string" ? b.image : null
+        image: typeof b.image === "string" ? b.image : null,
+        color: b.color || null,
+        emoji: b.emoji || null,
+        customTitle: b.customTitle || null
       })),
       arrows: this.arrows.map(a => ({
         from: a.from,
@@ -68,6 +75,7 @@ export class CanvasLite {
     this.currentSessionId = Date.now();
     this.closeAllPeeks();
     this.selectedBox = null;
+    this.selectedBoxes = [];
     this.selectedArrow = null;
     this.editingBox = null;
     this.inlineEditor.classList.add('hidden');
@@ -78,7 +86,12 @@ export class CanvasLite {
       this.arrows = [];
       this.viewport = { x: 0, y: 0, scale: 1 };
     } else {
-      this.boxes = data.boxes || [];
+      this.boxes = (data.boxes || []).map(b => ({
+        ...b,
+        color: b.color || null,
+        emoji: b.emoji || null,
+        customTitle: b.customTitle || null
+      }));
       this.arrows = data.arrows || [];
       this.viewport = data.viewport || { x: 0, y: 0, scale: 1 };
     }
@@ -140,6 +153,7 @@ export class CanvasLite {
     this.boxes = state.boxes;
     this.arrows = state.arrows;
     this.selectedBox = null;
+    this.selectedBoxes = [];
     this.selectedArrow = null;
     this.closeEditor();
     this.closeAllPeeks();
@@ -154,6 +168,15 @@ export class CanvasLite {
   init() {
     window.addEventListener('resize', () => this.onResize());
     this.onResize();
+
+    if (document.fonts) {
+      document.fonts.ready.then(() => {
+        this.render();
+      });
+      document.fonts.addEventListener('loadingdone', () => {
+        this.render();
+      });
+    }
     
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
@@ -272,6 +295,28 @@ export class CanvasLite {
         this.render();
       }
     });
+    
+    const emojiInput = document.getElementById('canvas-box-emoji');
+    if (emojiInput) {
+      emojiInput.addEventListener('input', () => {
+        if (this.editingBox) {
+          this.editingBox.emoji = emojiInput.value.trim() || null;
+          this.render();
+        }
+      });
+    }
+
+    const titleInput = document.getElementById('canvas-box-title');
+    if (titleInput) {
+      titleInput.addEventListener('input', () => {
+        if (this.editingBox) {
+          this.editingBox.customTitle = titleInput.value.trim() || null;
+          this.render();
+        }
+      });
+    }
+
+    this.canvasPalette = document.getElementById('canvas-palette');
 
     this.render();
   }
@@ -475,23 +520,43 @@ export class CanvasLite {
     this.inlineEditor.classList.remove('hidden');
     this.boxInput.value = box.text;
     this.boxLink.value = box.linkedNote || '';
+    
+    const emojiInput = document.getElementById('canvas-box-emoji');
+    const titleInput = document.getElementById('canvas-box-title');
+    if (emojiInput) emojiInput.value = box.emoji || '';
+    if (titleInput) titleInput.value = box.customTitle || '';
+
     this.updateEditorPos();
     this.boxInput.focus();
   }
 
   closeEditor() {
     if (this.editingBox) {
+      const emojiInput = document.getElementById('canvas-box-emoji');
+      const titleInput = document.getElementById('canvas-box-title');
+      if (emojiInput) this.editingBox.emoji = emojiInput.value.trim() || null;
+      if (titleInput) this.editingBox.customTitle = titleInput.value.trim() || null;
+      this.editingBox.text = this.boxInput.value;
+      this.editingBox.linkedNote = this.boxLink.value || null;
       this.saveHistory();
     }
     this.editingBox = null;
     this.inlineEditor.classList.add('hidden');
     this.updateToolbarPos();
+    this.render();
   }
 
   updateEditorPos() {
     if (!this.editingBox) return;
+    const minW = 180;
+    const minH = 120;
+    const editorWidth = Math.max(minW, this.editingBox.w);
+    const editorHeight = Math.max(minH, this.editingBox.h);
+
     this.inlineEditor.style.left = `${this.editingBox.x + this.editingBox.w / 2}px`;
     this.inlineEditor.style.top = `${this.editingBox.y + this.editingBox.h + 10}px`;
+    this.inlineEditor.style.width = `${editorWidth}px`;
+    this.inlineEditor.style.height = `${editorHeight}px`;
   }
 
   updateToolbarPos() {
@@ -566,6 +631,7 @@ export class CanvasLite {
     }
 
     const pos = this.getMousePos(e);
+    this.lastCanvasMousePos = pos;
     const { x, y } = pos;
 
     // Check for "Wire" handle (ONLY IF SELECTED)
@@ -581,8 +647,8 @@ export class CanvasLite {
       }
     }
 
-    // Check for resize handle (bottom-right corner)
-    const resizableBox = this.boxes.find(b => 
+    // Check for resize handle (bottom-right corner) in reverse order (topmost first)
+    const resizableBox = [...this.boxes].reverse().find(b => 
       x >= b.x + b.w - 20 && x <= b.x + b.w + 10 && 
       y >= b.y + b.h - 20 && y <= b.y + b.h + 10
     );
@@ -591,21 +657,27 @@ export class CanvasLite {
       this.isResizing = true;
       this.dragTarget = resizableBox;
       this.selectedBox = resizableBox;
+      this.selectedBoxes = [resizableBox];
       this.selectedArrow = null;
       this.updateToolbarPos();
       this.render();
       return;
     }
 
-    // Check for box click
-    const clickedBox = this.boxes.find(b => 
+    // Check for box click in reverse order (topmost first)
+    const clickedBox = [...this.boxes].reverse().find(b => 
       x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h
     );
 
     if (clickedBox) {
       this.isDragging = true;
       this.dragTarget = clickedBox;
-      this.selectedBox = clickedBox;
+      if (!this.selectedBoxes.some(b => b.id === clickedBox.id)) {
+        this.selectedBox = clickedBox;
+        this.selectedBoxes = [clickedBox];
+      } else {
+        this.selectedBox = clickedBox;
+      }
       this.selectedArrow = null;
       this.offset.x = x - clickedBox.x;
       this.offset.y = y - clickedBox.y;
@@ -615,8 +687,14 @@ export class CanvasLite {
       if (clickedArrow) {
         this.selectedArrow = clickedArrow;
         this.selectedBox = null;
+        this.selectedBoxes = [];
       } else {
+        // Clicked on empty space -> Start Marquee selection!
+        this.mode = 'marquee';
+        this.marqueeStart = { x, y };
+        this.marqueeEnd = { x, y };
         this.selectedBox = null;
+        this.selectedBoxes = [];
         this.selectedArrow = null;
       }
     }
@@ -624,17 +702,73 @@ export class CanvasLite {
     this.render();
   }
 
+  getArrowAnchors(from, to) {
+    const anchorsFrom = [
+      { x: from.x + from.w/2, y: from.y, dir: { x: 0, y: -1 } },
+      { x: from.x + from.w/2, y: from.y + from.h, dir: { x: 0, y: 1 } },
+      { x: from.x, y: from.y + from.h/2, dir: { x: -1, y: 0 } },
+      { x: from.x + from.w, y: from.y + from.h/2, dir: { x: 1, y: 0 } }
+    ];
+    const anchorsTo = [
+      { x: to.x + to.w/2, y: to.y, dir: { x: 0, y: -1 } },
+      { x: to.x + to.w/2, y: to.y + to.h, dir: { x: 0, y: 1 } },
+      { x: to.x, y: to.y + to.h/2, dir: { x: -1, y: 0 } },
+      { x: to.x + to.w, y: to.y + to.h/2, dir: { x: 1, y: 0 } }
+    ];
+
+    let bestDist = Infinity;
+    let start = anchorsFrom[0];
+    let end = anchorsTo[0];
+
+    anchorsFrom.forEach(a1 => {
+      anchorsTo.forEach(a2 => {
+        const d = Math.hypot(a1.x - a2.x, a1.y - a2.y);
+        if (d < bestDist) {
+          bestDist = d;
+          start = a1;
+          end = a2;
+        }
+      });
+    });
+
+    return { start, end };
+  }
+
   findArrowAt(x, y) {
-    const threshold = 10;
+    const threshold = Math.max(12, 16 / this.viewport.scale);
     for (const arrow of this.arrows) {
       const from = this.boxes.find(b => b.id === arrow.from);
       const to = this.boxes.find(b => b.id === arrow.to);
       if (!from || !to) continue;
 
-      // Simple midpoint check for selection
-      const midX = (from.x + from.w/2 + to.x + to.w/2) / 2;
-      const midY = (from.y + from.h/2 + to.y + to.h/2) / 2;
-      if (Math.hypot(x - midX, y - midY) < 20) return arrow;
+      const { start, end } = this.getArrowAnchors(from, to);
+      if (!start || !end) continue;
+
+      const dist = Math.hypot(end.x - start.x, end.y - start.y);
+      const bend = Math.min(dist / 2, 40);
+      const alignedX = Math.abs(start.x - end.x) < 5;
+      const alignedY = Math.abs(start.y - end.y) < 5;
+
+      const samples = 12;
+      for (let i = 0; i <= samples; i++) {
+        const t = i / samples;
+        let px, py;
+        if (alignedX || alignedY) {
+          px = start.x + (end.x - start.x) * t;
+          py = start.y + (end.y - start.y) * t;
+        } else {
+          const cp1x = start.x + start.dir.x * bend;
+          const cp1y = start.y + start.dir.y * bend;
+          const cp2x = end.x + end.dir.x * bend;
+          const cp2y = end.y + end.dir.y * bend;
+
+          const mt = 1 - t;
+          px = mt*mt*mt*start.x + 3*mt*mt*t*cp1x + 3*mt*t*t*cp2x + t*t*t*end.x;
+          py = mt*mt*mt*start.y + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*end.y;
+        }
+
+        if (Math.hypot(x - px, y - py) < threshold) return arrow;
+      }
     }
     return null;
   }
@@ -661,18 +795,33 @@ export class CanvasLite {
     if (this.mode === 'connecting') {
       this.tempConnectionEnd = { x, y };
       this.render();
+    } else if (this.mode === 'marquee') {
+      this.marqueeEnd = { x, y };
+      this.render();
     } else if (this.isResizing && this.dragTarget) {
       this.dragTarget.w = Math.max(50, x - this.dragTarget.x);
       this.dragTarget.h = Math.max(30, y - this.dragTarget.y);
       this.updateToolbarPos();
+      this.updateEditorPos();
       this.render();
     } else if (this.isDragging && this.dragTarget) {
-      this.dragTarget.x = x - this.offset.x;
-      this.dragTarget.y = y - this.offset.y;
+      const dx = x - this.lastCanvasMousePos.x;
+      const dy = y - this.lastCanvasMousePos.y;
+      if (this.selectedBoxes && this.selectedBoxes.includes(this.dragTarget)) {
+        this.selectedBoxes.forEach(b => {
+          b.x += dx;
+          b.y += dy;
+        });
+      } else {
+        this.dragTarget.x += dx;
+        this.dragTarget.y += dy;
+      }
       this.updateToolbarPos();
+      this.updateEditorPos();
       this.render();
     }
     this.lastMousePos = { x: mouseX, y: mouseY };
+    this.lastCanvasMousePos = pos;
   }
 
   handleMouseUp(e) {
@@ -699,6 +848,32 @@ export class CanvasLite {
       this.render();
     }
 
+    if (this.mode === 'marquee') {
+      if (this.marqueeStart && this.marqueeEnd) {
+        const minX = Math.min(this.marqueeStart.x, this.marqueeEnd.x);
+        const maxX = Math.max(this.marqueeStart.x, this.marqueeEnd.x);
+        const minY = Math.min(this.marqueeStart.y, this.marqueeEnd.y);
+        const maxY = Math.max(this.marqueeStart.y, this.marqueeEnd.y);
+        
+        const insideBoxes = this.boxes.filter(b => {
+          const cx = b.x + b.w / 2;
+          const cy = b.y + b.h / 2;
+          return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+        });
+        
+        this.selectedBoxes = insideBoxes;
+        if (insideBoxes.length === 1) {
+          this.selectedBox = insideBoxes[0];
+        } else {
+          this.selectedBox = null;
+        }
+      }
+      this.marqueeStart = null;
+      this.marqueeEnd = null;
+      this.mode = 'select';
+      this.render();
+    }
+
     if (this.isDragging || this.isResizing) {
       if (e) this.saveHistory();
       else this.saveHistory(true); // Touch usually doesn't have multiple 'history' states during move
@@ -720,7 +895,7 @@ export class CanvasLite {
     const pos = this.getMousePos(e);
     const { x, y } = pos;
 
-    const clickedBox = this.boxes.find(b => 
+    const clickedBox = [...this.boxes].reverse().find(b => 
       x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h
     );
 
@@ -732,10 +907,19 @@ export class CanvasLite {
   }
 
   deleteSelectedBox() {
-    if (!this.selectedBox) return;
-    this.boxes = this.boxes.filter(b => b.id !== this.selectedBox.id);
-    this.arrows = this.arrows.filter(a => a.from !== this.selectedBox.id && a.to !== this.selectedBox.id);
-    this.selectedBox = null;
+    if (this.selectedBoxes && this.selectedBoxes.length > 0) {
+      const idsToDelete = new Set(this.selectedBoxes.map(b => b.id));
+      this.boxes = this.boxes.filter(b => !idsToDelete.has(b.id));
+      this.arrows = this.arrows.filter(a => !idsToDelete.has(a.from) && !idsToDelete.has(a.to));
+      this.selectedBoxes = [];
+      this.selectedBox = null;
+    } else if (this.selectedBox) {
+      this.boxes = this.boxes.filter(b => b.id !== this.selectedBox.id);
+      this.arrows = this.arrows.filter(a => a.from !== this.selectedBox.id && a.to !== this.selectedBox.id);
+      this.selectedBox = null;
+    } else {
+      return;
+    }
     this.updateToolbarPos();
     this.saveHistory();
     this.render();
@@ -772,6 +956,7 @@ export class CanvasLite {
     };
     this.boxes.push(box);
     this.selectedBox = box;
+    this.selectedBoxes = [box];
     this.selectedArrow = null;
     this.updateToolbarPos();
     this.saveHistory();
@@ -780,6 +965,7 @@ export class CanvasLite {
 
   render() {
     this.updatePeekPos();
+    this.renderCanvasPalette();
     const isNight = document.body.classList.contains('night-mode');
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
@@ -832,8 +1018,11 @@ export class CanvasLite {
 
     // Draw Boxes
     this.boxes.forEach(box => {
-      const isSelected = this.selectedBox && this.selectedBox.id === box.id;
+      const isSelected = (this.selectedBox && this.selectedBox.id === box.id) || 
+                          (this.selectedBoxes && this.selectedBoxes.some(b => b.id === box.id));
       
+      const textFillColor = mainColor;
+
       this.ctx.fillStyle = bgBox;
       this.ctx.strokeStyle = isSelected ? highlightColor : mainColor;
       this.ctx.lineWidth = 2 / this.viewport.scale;
@@ -846,12 +1035,21 @@ export class CanvasLite {
       this.ctx.fillStyle = bgBox;
       this.ctx.strokeRect(box.x, box.y, box.w, box.h);
       this.ctx.fillRect(box.x, box.y, box.w, box.h);
+
+      if (box.color) {
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'multiply';
+        this.ctx.globalAlpha = isNight ? 1.0 : 0.15;
+        this.ctx.fillStyle = box.color;
+        this.ctx.fillRect(box.x, box.y, box.w, box.h);
+        this.ctx.restore();
+      }
       
       // Draw image if exists
       if (box.image) {
         const isVaultImg = typeof box.image === 'string' && box.image.includes('![[');
         const imgSrc = isVaultImg ? this.extractImgId(box.image) : box.image;
-
+ 
         if (!box._imgCached || box._imgSource !== box.image) {
           box._imgSource = box.image;
           box._imgLoaded = false;
@@ -867,7 +1065,7 @@ export class CanvasLite {
           } else {
             box._imgCached.src = box.image;
           }
-
+ 
           box._imgCached.onload = () => {
             box._imgLoaded = true;
             this.render();
@@ -876,6 +1074,32 @@ export class CanvasLite {
         if (box._imgLoaded) {
           this.ctx.drawImage(box._imgCached, box.x + 2, box.y + 2, box.w - 4, box.h - 4);
         }
+      }
+
+      // Draw Emoji Icon & Custom Title Badge Header if present
+      const hasHeader = box.emoji || box.customTitle;
+      const headerHeight = 22;
+      if (hasHeader) {
+        // Draw divider line
+        this.ctx.strokeStyle = isSelected ? highlightColor : mainColor;
+        this.ctx.lineWidth = 1 / this.viewport.scale;
+        this.ctx.beginPath();
+        this.ctx.moveTo(box.x, box.y + headerHeight);
+        this.ctx.lineTo(box.x + box.w, box.y + headerHeight);
+        this.ctx.stroke();
+
+        this.ctx.save();
+        this.ctx.fillStyle = textFillColor;
+        this.ctx.font = `800 10px "Inter"`;
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+        
+        let headerText = '';
+        if (box.emoji) headerText += box.emoji + ' ';
+        if (box.customTitle) headerText += box.customTitle;
+        
+        this.ctx.fillText(headerText, box.x + 8, box.y + headerHeight / 2);
+        this.ctx.restore();
       }
       
       // Wire Handle (ONLY IF SELECTED)
@@ -907,23 +1131,55 @@ export class CanvasLite {
         this.ctx.lineTo(box.x + box.w - 2, box.y + box.h - 6);
         this.ctx.stroke();
       }
-
-      this.ctx.fillStyle = mainColor;
+ 
+      this.ctx.fillStyle = textFillColor;
       this.ctx.font = `800 12px "Inter"`;
       this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
       
-      let displayText = box.text;
-      if (box.linkedNote) displayText += ' 🔗';
-      this.ctx.fillText(displayText, box.x + box.w/2, box.y + box.h/2 + 5);
+      const rawText = box.text || '';
+      const lines = rawText.split(/\r?\n|\\n|<br\s*\/?>/i);
+      
+      const remainingHeight = box.h - (hasHeader ? headerHeight : 0) - (box.linkedNote ? 16 : 0);
+      const centerY = box.y + (hasHeader ? headerHeight : 0) + remainingHeight / 2;
+      
+      const lineHeight = 16;
+      const totalTextHeight = lines.length * lineHeight;
+      
+      lines.forEach((line, index) => {
+        let displayText = line;
+        if (box.linkedNote && index === lines.length - 1) {
+          displayText += ' 🔗';
+        }
+        const lineY = centerY - (totalTextHeight - lineHeight) / 2 + index * lineHeight;
+        this.ctx.fillText(displayText, box.x + box.w/2, lineY);
+      });
       
       if (box.linkedNote) {
         this.ctx.font = `italic 9px monospace`;
         this.ctx.globalAlpha = 0.6;
+        this.ctx.fillStyle = textFillColor;
         this.ctx.fillText(`[[${box.linkedNote}]]`, box.x + box.w/2, box.y + box.h - 8);
         this.ctx.globalAlpha = 1.0;
       }
     });
 
+    // Draw Marquee selection box
+    if (this.mode === 'marquee' && this.marqueeStart && this.marqueeEnd) {
+      this.ctx.strokeStyle = highlightColor;
+      this.ctx.lineWidth = 1.5;
+      this.ctx.setLineDash([4, 4]);
+      const x = Math.min(this.marqueeStart.x, this.marqueeEnd.x);
+      const y = Math.min(this.marqueeStart.y, this.marqueeEnd.y);
+      const w = Math.abs(this.marqueeStart.x - this.marqueeEnd.x);
+      const h = Math.abs(this.marqueeStart.y - this.marqueeEnd.y);
+      this.ctx.strokeRect(x, y, w, h);
+      
+      this.ctx.fillStyle = isNight ? 'rgba(255, 187, 0, 0.08)' : 'rgba(204, 0, 0, 0.04)';
+      this.ctx.fillRect(x, y, w, h);
+      this.ctx.setLineDash([]);
+    }
+ 
     this.ctx.restore();
 
     // Help Text
@@ -941,33 +1197,8 @@ export class CanvasLite {
   }
 
   drawSmartArrow(from, to, color, isSelected = false) {
-    const anchorsFrom = [
-      { x: from.x + from.w/2, y: from.y, dir: { x: 0, y: -1 } },
-      { x: from.x + from.w/2, y: from.y + from.h, dir: { x: 0, y: 1 } },
-      { x: from.x, y: from.y + from.h/2, dir: { x: -1, y: 0 } },
-      { x: from.x + from.w, y: from.y + from.h/2, dir: { x: 1, y: 0 } }
-    ];
-    const anchorsTo = [
-      { x: to.x + to.w/2, y: to.y, dir: { x: 0, y: -1 } },
-      { x: to.x + to.w/2, y: to.y + to.h, dir: { x: 0, y: 1 } },
-      { x: to.x, y: to.y + to.h/2, dir: { x: -1, y: 0 } },
-      { x: to.x + to.w, y: to.y + to.h/2, dir: { x: 1, y: 0 } }
-    ];
-
-    let bestDist = Infinity;
-    let start = anchorsFrom[0];
-    let end = anchorsTo[0];
-
-    anchorsFrom.forEach(a1 => {
-      anchorsTo.forEach(a2 => {
-        const d = Math.hypot(a1.x - a2.x, a1.y - a2.y);
-        if (d < bestDist) {
-          bestDist = d;
-          start = a1;
-          end = a2;
-        }
-      });
-    });
+    const { start, end } = this.getArrowAnchors(from, to);
+    if (!start || !end) return;
 
     this.ctx.strokeStyle = color;
     this.ctx.lineWidth = isSelected ? 3 : 1.5;
@@ -1000,6 +1231,45 @@ export class CanvasLite {
     this.ctx.moveTo(end.x, end.y);
     this.ctx.lineTo(end.x - headlen * Math.cos(angle + Math.PI / 6), end.y - headlen * Math.sin(angle + Math.PI / 6));
     this.ctx.stroke();
+  }
+
+  renderCanvasPalette() {
+    if (!this.canvasPalette) return;
+    this.canvasPalette.innerHTML = '';
+    
+    const colors = [
+      '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff',
+      '#a0c4ff', '#bdb2ff', '#ffc6ff', '#ffffff', ''
+    ];
+    
+    colors.forEach(c => {
+      const swatch = document.createElement('div');
+      swatch.className = `canvas-color-swatch ${(!c) ? 'empty' : ''}`;
+      if (c) swatch.style.backgroundColor = c;
+      swatch.title = c ? `Tint color: ${c}` : 'Clear Tint';
+      
+      if (this.selectedBox && (this.selectedBox.color || '') === c) {
+        swatch.classList.add('active');
+      } else if (!this.selectedBox && !c) {
+        // No active selected box
+      }
+      
+      swatch.onclick = (e) => {
+        e.stopPropagation();
+        if (this.selectedBoxes && this.selectedBoxes.length > 0) {
+          this.selectedBoxes.forEach(box => {
+            box.color = c || null;
+          });
+          this.saveHistory();
+          this.render();
+        } else if (this.selectedBox) {
+          this.selectedBox.color = c || null;
+          this.saveHistory();
+          this.render();
+        }
+      };
+      this.canvasPalette.appendChild(swatch);
+    });
   }
 }
 
