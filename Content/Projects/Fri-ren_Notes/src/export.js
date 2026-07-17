@@ -10,6 +10,10 @@ export class ExportMenu {
   }
 
   init() {
+    if (document.getElementById('canvas-export-menu')) {
+      this.modal = document.getElementById('canvas-export-menu');
+      return;
+    }
     this.injectHTML();
     this.bindEvents();
   }
@@ -145,6 +149,16 @@ export class ExportMenu {
         }
         #canvas-export-menu input[type="checkbox"] {
           background: var(--bg-workspace);
+        }
+        #canvas-export-menu input[type="checkbox"]:checked {
+          background: var(--text-primary) !important;
+        }
+        #canvas-export-menu input[type="checkbox"]:checked::after {
+          content: 'X';
+          color: var(--bg-main) !important;
+        }
+        body.night-mode #canvas-export-menu input[type="checkbox"]:checked::after {
+          color: #1c1814 !important;
         }
       </style>
 
