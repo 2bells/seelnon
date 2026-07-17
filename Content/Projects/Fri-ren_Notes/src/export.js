@@ -21,39 +21,161 @@ export class ExportMenu {
     overlay.id = 'canvas-export-menu';
     overlay.className = 'overlay hidden';
     overlay.innerHTML = `
-      <div class="overlay-content" style="width: 440px; max-width: 90vw;">
+      <style>
+        #canvas-export-menu .overlay-content {
+          position: relative;
+          width: 440px;
+          max-width: 90vw;
+          background: var(--bg-main);
+          color: var(--text-primary);
+          border: 3px solid var(--text-primary);
+          box-shadow: 10px 10px 0px #000;
+          padding: 32px;
+          font-family: var(--font-sans);
+          box-sizing: border-box;
+        }
+        #canvas-export-menu .overlay-content h3 {
+          border-bottom: 2px solid var(--text-primary);
+          padding-bottom: 8px;
+          margin-bottom: 24px;
+          margin-top: 0;
+          font-weight: 800;
+          font-size: 1.1rem;
+        }
+        #canvas-export-menu .export-close-btn {
+          position: absolute;
+          top: 16px;
+          right: 20px;
+          font-size: 26px;
+          font-weight: 800;
+          cursor: pointer;
+          border: none;
+          background: transparent;
+          line-height: 1;
+          padding: 4px;
+          color: var(--text-primary);
+          transition: transform 0.1s;
+        }
+        #canvas-export-menu .export-close-btn:hover {
+          transform: scale(1.2);
+        }
+        #canvas-export-menu .control-group {
+          margin-bottom: 20px;
+        }
+        #canvas-export-menu .control-group > label {
+          display: block;
+          font-size: 10px;
+          font-weight: 800;
+          margin-bottom: 6px;
+          opacity: 0.7;
+          text-transform: uppercase;
+        }
+        #canvas-export-menu input[type="number"] {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 10px;
+          border: 2px solid var(--text-primary);
+          background: var(--bg-workspace);
+          color: var(--text-primary);
+          font-family: var(--font-mono);
+          font-size: 13px;
+          outline: none;
+          border-radius: 0;
+        }
+        #canvas-export-menu #export-bounds-info {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          margin-bottom: 8px;
+          border: 2px solid var(--text-primary);
+          padding: 10px;
+          background: var(--bg-workspace);
+          color: var(--text-primary);
+          line-height: 1.4;
+        }
+        #canvas-export-menu .zoom-btn {
+          flex: 1;
+          text-align: center;
+          height: 32px;
+          font-size: 11px;
+          font-weight: 800;
+          border: 2px solid var(--text-primary);
+          background: var(--bg-main);
+          color: var(--text-primary);
+          cursor: pointer;
+          transition: all 0.1s;
+          border-radius: 0;
+          text-transform: uppercase;
+        }
+        #canvas-export-menu .zoom-btn.active {
+          background: var(--text-primary);
+          color: var(--bg-main);
+        }
+        #canvas-export-menu .zoom-btn:hover {
+          opacity: 0.9;
+        }
+        #canvas-export-menu #export-confirm-btn {
+          width: 100%;
+          padding: 12px;
+          border: 2px solid var(--text-primary);
+          background: var(--text-primary);
+          color: var(--bg-main);
+          font-weight: 800;
+          font-size: 13px;
+          cursor: pointer;
+          box-shadow: 4px 4px 0 #000;
+          font-family: var(--font-sans);
+          transition: all 0.1s;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          border-radius: 0;
+        }
+        #canvas-export-menu #export-confirm-btn:hover {
+          transform: translate(-2px, -2px);
+          box-shadow: 6px 6px 0 #000;
+        }
+        #canvas-export-menu #export-confirm-btn:active {
+          transform: translate(0px, 0px);
+          box-shadow: 2px 2px 0 #000;
+        }
+        #canvas-export-menu input[type="checkbox"] {
+          background: var(--bg-workspace);
+        }
+      </style>
+
+      <div class="overlay-content">
+        <button class="export-close-btn" id="export-close-btn" title="Close">&times;</button>
         <h3>EXPORT CANVAS (.PNG)</h3>
         
         <div class="control-group">
           <label>MAP BOUNDS</label>
-          <div style="font-family: var(--font-mono); font-size: 11px; margin-bottom: 8px; border: 2px solid #141414; padding: 8px; background: rgba(0,0,0,0.02);" id="export-bounds-info">
+          <div id="export-bounds-info">
             Calculating...
           </div>
         </div>
 
         <div class="control-group">
           <label>PADDING AROUND BOUNDS (PX)</label>
-          <input type="number" id="export-padding" value="40" min="0" max="500" style="width: 100%; box-sizing: border-box; padding: 8px; border: 2px solid #141414; font-family: var(--font-mono);" />
+          <input type="number" id="export-padding" value="40" min="0" max="500" />
         </div>
 
         <div class="control-group">
           <label>RESOLUTION PRESET</label>
           <div class="btn-row" style="display: flex; gap: 8px;">
-            <button id="preset-1x" class="zoom-btn" style="flex: 1; text-align: center;">1x (Original)</button>
-            <button id="preset-2x" class="zoom-btn active" style="flex: 1; text-align: center;">2x (HD)</button>
-            <button id="preset-4x" class="zoom-btn" style="flex: 1; text-align: center;">4x (UHD)</button>
-            <button id="preset-8x" class="zoom-btn" style="flex: 1; text-align: center;">8x (Retina)</button>
+            <button id="preset-1x" class="zoom-btn">1x</button>
+            <button id="preset-2x" class="zoom-btn active">2x</button>
+            <button id="preset-4x" class="zoom-btn">4x</button>
+            <button id="preset-8x" class="zoom-btn">8x</button>
           </div>
         </div>
 
         <div class="control-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
             <label>WIDTH (PX)</label>
-            <input type="number" id="export-width" style="width: 100%; box-sizing: border-box; padding: 8px; border: 2px solid #141414; font-family: var(--font-mono);" />
+            <input type="number" id="export-width" />
           </div>
           <div>
             <label>HEIGHT (PX)</label>
-            <input type="number" id="export-height" style="width: 100%; box-sizing: border-box; padding: 8px; border: 2px solid #141414; font-family: var(--font-mono);" />
+            <input type="number" id="export-height" />
           </div>
         </div>
 
@@ -78,8 +200,8 @@ export class ExportMenu {
         <div class="control-group" style="margin-bottom: 16px;">
           <label>FORMAT</label>
           <div class="btn-row" style="display: flex; gap: 8px;">
-            <button id="format-png" class="zoom-btn active" style="flex: 1; text-align: center;">PNG</button>
-            <button id="format-jpg" class="zoom-btn" style="flex: 1; text-align: center;">JPEG</button>
+            <button id="format-png" class="zoom-btn active">PNG</button>
+            <button id="format-jpg" class="zoom-btn">JPEG</button>
           </div>
         </div>
 
@@ -88,12 +210,11 @@ export class ExportMenu {
             <label style="margin: 0;">JPEG QUALITY</label>
             <span id="export-quality-val" style="font-family: var(--font-mono); font-size: 11px; font-weight: bold;">0.95</span>
           </div>
-          <input type="range" id="export-quality" min="0.1" max="1.0" step="0.05" value="0.95" style="width: 100%; accent-color: #a18a5e;" />
+          <input type="range" id="export-quality" min="0.1" max="1.0" step="0.05" value="0.95" style="width: 100%; accent-color: var(--text-primary);" />
         </div>
 
-        <div style="display: flex; gap: 12px; margin-top: 24px;">
-          <button id="export-cancel-btn" class="close-overlay" style="flex: 1; padding: 10px; border: 2px solid #141414; background: transparent; font-weight: bold; cursor: pointer; font-family: var(--font-sans);">CANCEL</button>
-          <button id="export-confirm-btn" style="flex: 1.5; padding: 10px; border: 2px solid #141414; background: #a18a5e; color: #1c1814; font-weight: bold; cursor: pointer; box-shadow: 4px 4px 0 #000; font-family: var(--font-sans); transition: transform 0.1s, box-shadow 0.1s;">EXPORT IMAGE</button>
+        <div style="display: flex; justify-content: center; margin-top: 24px;">
+          <button id="export-confirm-btn">EXPORT IMAGE</button>
         </div>
       </div>
     `;
@@ -103,7 +224,7 @@ export class ExportMenu {
   }
 
   bindEvents() {
-    const cancelBtn = this.modal.querySelector('#export-cancel-btn');
+    const closeBtn = this.modal.querySelector('#export-close-btn');
     const confirmBtn = this.modal.querySelector('#export-confirm-btn');
     const widthInput = this.modal.querySelector('#export-width');
     const heightInput = this.modal.querySelector('#export-height');
@@ -127,7 +248,7 @@ export class ExportMenu {
     const formatPng = this.modal.querySelector('#format-png');
     const formatJpg = this.modal.querySelector('#format-jpg');
 
-    cancelBtn.addEventListener('click', () => this.close());
+    closeBtn.addEventListener('click', () => this.close());
     
     // Close on clicking outside content
     this.modal.addEventListener('mousedown', (e) => {
