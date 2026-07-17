@@ -1,6 +1,7 @@
 import { Vault } from './db.js';
 import { Editor } from './editor.js';
 import { GraphModule } from './graph.js';
+import { ExportMenu } from './export.js';
 
 class CavemanApp {
   constructor() {
@@ -8,6 +9,7 @@ class CavemanApp {
     this.vault = new Vault();
     this.editorModule = new Editor(this.vault);
     this.graphModule = new GraphModule(this);
+    this.exportMenu = new ExportMenu(this);
     this.notes = [];
     this.currentNote = null;
     this.viewMode = null; // 'preview', 'editor', 'canvas'
@@ -288,7 +290,13 @@ class CavemanApp {
     this.deleteNoteBtn.addEventListener('click', () => this.deleteCurrentNote());
     this.editorEl.addEventListener('paste', (e) => this.handlePaste(e));
     this.exportBtn.addEventListener('click', () => this.exportVault());
-    this.exportNoteBtn.addEventListener('click', () => this.exportNoteAsPDF());
+    this.exportNoteBtn.addEventListener('click', () => {
+      if (this.viewMode === 'canvas') {
+        this.exportMenu.open();
+      } else {
+        this.exportNoteAsPDF();
+      }
+    });
     this.importInput.addEventListener('change', (e) => this.importVault(e));
     this.searchInput.addEventListener('input', () => this.renderNoteList());
     this.themeToggle.addEventListener('click', () => this.toggleTheme());
