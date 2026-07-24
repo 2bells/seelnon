@@ -15,7 +15,7 @@ But the main problem I have is: priests that are constantly doing AMOUNTS of log
 
 And while doing so, they will 'make a bed' out of 'big words', so the sentence will sound like:
 
-> And that idea has a very deep and important application for philosophical and theological views of the world itself, as it presents a dilemma of such magnitude, that we can even call it a 'trilemma'. And it affects everyone within today's society, starting from little children and all the way to the oldest of elders, it is not a generational problem, it is problem of humanity itself that originates within the very time of the creation and propagates all the way to the current modern era. Our SIN that we inherit from the original Humans: Adam and Eve and their Fall is why we suffer and why animals suffer on the planet for all these years! ...
+> And that idea has a very deep and important application for philosophical and theological views of the world itself, as it presents a dilemma of such magnitude, that we can even call it a 'trilemma'. And it affects everyone within today's society, starting from little children and all the way to the oldest of elders, it is not a generational problem, it is a problem of humanity itself that originates within the very time of the creation and propagates all the way to the current modern era. Our SIN that we inherit from the original Humans: Adam and Eve and their Fall is why we suffer and why animals suffer on the planet for all these years! ...
 
 They will keep going and then:
 
