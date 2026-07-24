@@ -23,7 +23,7 @@ They will keep going and then:
 
 And overall they would go and just explain every aspect of life and every emotion, construct a big Barnum statement of Saturday's 'horoscope' quality and conclude: yeap! Demons!. While also, if you actually listening to the guy, he pretty much 'includes himself' in the description, because of how broad it is. And the only way he is not part of the picture is because he is wearing the robe and in the room explaining it to you.
 
-Idk... Dark Forest hypothesis is actually about humanity itself... sad... I hope one day to find a 'warm campfire' in that 'night'. I thought I had it, silly me, was a pointy hat and a talking stick after all... no substance, no soul, just cosmetics and namings...
+Idk... Dark Forest hypothesis is actually about humanity itself... sad... I hope one day to find a 'warm campfire' in that 'night'. For years I thought I had it, silly me, was a pointy hat and a talking stick after all... no substance, no soul, just cosmetics and namings...
 
 ```
 thought of a day
