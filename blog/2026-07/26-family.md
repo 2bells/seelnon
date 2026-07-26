@@ -31,7 +31,7 @@ We even chatted a bit after, she stopped responding as soon as I said how much w
 
 ## Now
 
-It kind of fun having 2 soul sister. We even found a suffering soul like mine as well, her story probably even more exciting than mine [Tragedy wise I mean. I had a cute soul read of hers one time, sadly I don't have the right to call exterminatus on this planet. Not enough authority to my soul after all]. 
+It kind of fun having 2 soul sister. We even found a suffering soul like mine as well, her story probably even more exciting than mine [Tragedy wise I mean. I had a cute soul read of hers one time, sadly I don't have the right to call exterminatus on this planet. Not enough authority to me after all]. 
 But I suspect the problem is: sisters think that I'm like Omnissiah of sorts, when I just have a little bit more heightened intuition and can feel feelings of people... That is usually what are 'Intuitive Empaths' are for and my sis back then said: 'that's is your problem'. Cute, now it is 'our' problem... Double cute. [We do have borderline telepathic disorder, that's for sure. Not fully reliable, usually works very well only when someone is really being hurt. Pure family instincts. But there were some events to create a pure and unseparable 'soul' connection, so there are some additional fun stuff came along with it.]
 
 Maybe one day we can make our own flying 'Jade Chamber' with like cool Roman Architecture + Lago d'Iseo castle style... Could be cute and cozy. Maybe then being just awake won't hurt the soul as much. Also half a gravity as well, please... maybe 1/4 actually.
