@@ -21,7 +21,7 @@ And the lady I was living with followed in my mother's footsteps and tried to ki
 
 ___
 
-So she bought a bunch of poison and tried to double suicide. As, you know... all reasonable people do that. She was even writing to my mother: 'the longer he stays here the worst it will get'. Because everything was 'painted' in poison, mostly water supply and she would burn the poison to make it stay in the air as a bunch of particles that then will drop into your drink and food. She even had her own 5L bottle of water and a cup with a closed lid, such a smart human being!
+So she bought a bunch of poison and tried to double suicide. As, you know... all reasonable people do that. She was even writing to my mother: 'the longer he stays here the worse it will get'. Because everything was 'painted' in poison, mostly water supply and she would burn the poison to make it stay in the air as a bunch of particles that then will drop into your drink and food. She even had her own 5L bottle of water and a cup with a closed lid, such a smart human being!
 
 I mean... clearly, my sister is a demon here! It is me so far gone into the lala land, so... I shouldn't stress it, let's just end it... without my concent at that as well...
 It was the most fun time I had with the lady from all 8 years of living with her, because after a few weeks of living together we ended up being more like roommates. She didn't like that 'I'm too hot' for some reason (in temperature I mean). 
