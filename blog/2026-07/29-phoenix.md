@@ -1,6 +1,6 @@
 # Phoenix
 
-![img](https://i.etsystatic.com/62451112/r/il/2bddfe/7384282036/il_300x300.7384282036_pw8r.jpg)
+![img](blog/2026-07/img/phnx.jpg)
 
 And She has risen, not from ash, but from Night itself
 She, who knows the purity and fall
