@@ -32,7 +32,7 @@ But even things like: 'why I buy 2 bottles of milk, instead of 1?' is a good que
 
 Within our 'age of knowledge' and hunt for objectivity, we did lose a lot of 'subjective truths'. And even with our 'objective' reality we state that being alive and conscious = having subjective experience. That's makes you wonder... how much 'knowledge' and 'set truths' manifest an 'unconscious' state within one self.
 
-And the main problem of 'unresolved subjective perspectives' lead to instant doubt, that could be exploited by entities who do provide a 'concrete answer' on the spot. Let's say: 'what is a good citizen?' 'the one who respects the king of course!'... read it a few times and see how flawed it is. You may start to refine it with 'the one who abides the law', but then 'who makes the law?', maybe 'citizen who doesn't cause trouble'... for who? 'for other citizens of course'. How do we know who is truly troubled and who cries wolf? Maybe 'the one who helps other citizens!' but what is 'help'?... see... Фilosoffy!
+And the main problem of 'unresolved subjective perspectives' leads to instant doubt, that could be exploited by entities who do provide a 'concrete answer' on the spot. Let's say: 'what is a good citizen?' 'the one who respects the king of course!'... read it a few times and see how flawed it is. You may start to refine it with 'the one who abides the law', but then 'who makes the law?', maybe 'citizen who doesn't cause trouble'... for who? 'for other citizens of course'. How do we know who is truly troubled and who cries wolf? Maybe 'the one who helps other citizens!' but what is 'help'?... see... Фilosoffy!
 
 ![img](blog/2026-07/img/fpyl.jpg)
 
