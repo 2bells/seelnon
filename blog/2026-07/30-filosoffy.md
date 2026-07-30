@@ -2,7 +2,7 @@
 
 ![img](blog/2026-07/img/filosof.jpg)
 
-Kind of just a topic mostly on philosophy of 'status'. Emergent invention of nature. Problem with that is: people tend to think that it is something what our brave minds and hearts figured out. But if you take a bunch of sand, take your gentle 2 hands and push it closer together, you will make a hill. Naturally some grains of sand will end up on the very top.
+Kind of a topic mostly on philosophy of 'status'. Emergent invention of nature. Problem with that is: people tend to think that it is something what our brave minds and hearts figured out. But if you take a bunch of sand, take your gentle 2 hands and push it closer together, you will make a hill. Naturally some grains of sand will end up on the very top.
 
 That's your King!
 
@@ -11,7 +11,7 @@ Let's give sand grains a mind to figure it out. Eventually there will be the MOS
 
 It becomes a gameplay of 'get on the top of the hill', rather than a philosophy of 'rule'. Then interestingly enough a group of 'like-minded' will naturally form and realise: King is one, we can't be all King, so, let's be the ones to decide what King shall do. So we are true kings without crowns and when King is blamed for things, he is the perfect scapegoat as well.
 
-And again, gameplay is not about philosophy of proper 'rule', but of 'how to split and maintain the King'... It becomes a 'game' problem, while players are just 'playing' and optimising strategies.
+And again, gameplay is not about identifying ideas and mechanisms of a proper 'rule', but of 'how to split and maintain the King'... It becomes a 'game' problem, while players are just 'playing' and optimising strategies.
 
 Solution is actually simple: population itself should be of enough clarity with understanding of underlying philosophy of the 'rule'. So when King emerges, it will emerge from that 'population', rather than be the one with the most 'schemes' under the belt.
 Even though it is simple: it requires the whole population to be inline with themselves. Utopia.
