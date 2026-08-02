@@ -26,7 +26,7 @@ And here in those woods he lays in his deep underground tomb, undisturbed by tim
 
 ## Cat's Tails
 
-Oh and that story I told about my meditation spot being golden yellow, because of the Sun God's gift? This is 5 meter away from the spot:
+Oh and that story I told about my meditation spot being golden yellow, because of the Sun God's gift? This is 5 meters away from the spot:
 
 ![img](blog/2026-08/img/cats_tails.jpg)
 
