@@ -34,7 +34,7 @@ And this is the spot itself:
 
 ![img](blog/2026-08/img/place.jpg)
 
-Even a butterfly came to chill with me as I was taking pictures. She came back like 3 times and a few times defended me from a 'fly' that tried to sit next to it on my knee))) cute.
+Even a butterfly came to chill with me as I was taking pictures. She came back like 3 times and a few times defended me from a 'fly' that tried to sit next to her on my knee))) cute.
 
 ![img](blog/2026-08/img/butterfly.jpg)
 
