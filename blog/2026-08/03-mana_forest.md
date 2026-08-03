@@ -3,7 +3,7 @@
 ![img](blog/2026-08/img/forest/1.jpg)
 
 To replenish mana and refill some potions I went to explore a bit... some fun 'broken poetry' should be cute to go along as well.
-
+ 
 
 ---
 
