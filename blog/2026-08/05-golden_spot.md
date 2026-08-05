@@ -45,7 +45,8 @@ Occult guy dies in a plane crash. I was praying for a person at the time. Then i
 So people started to go crazy around me. I even had a dream of a guy I suspected in some 'community unrest' back in the day coming to me and saying: 'my brother died'. For me it was: wait you had a brother? And now it is still like: wait it was on a plane? Why everyone is more aware of the lore than me?)))
 
 I guess I became a perfect vessel to direct all hate, misery and loss. So there were a lot of curses and hexes and witchcraft done on me and people around me... nothing worked, so plan B is just to remove me from their sight with a lot of defamation following on top...
-So I knew this doesn't come from me, but from their own distorted views: all I had to do is wait. And yeah, more people appeared who are victims of their powerplays.
+And I also don't understand why they didn't try to use basic logic: "If he can do some magicks to nuke people, why are we still alive?". Answer is actually also simple: they use those 'magicks' as a 'Death Note' every other weekend, so of course their line of thinking is 'This also must be the work of a Death Note!'... well, world is a bit largen than one might think.
+So I knew this doesn't come from me, but from their own distorted views: all I had to do is wait. And yeah, more people appeared who are victims of their powerplays. [Lies, Magicks, Money: The Dark Triad]
 
 So in case of impersonations / doxing I do cut my photos in a fun way... There is a cute picture of a double rainbow I talked before as well [Rainbow was 4th of July, Talked about it here in the 'Kangxi Mobile' post 5th of July. And github has a fun way to check for all commits, so it is not added post factum]...
 
