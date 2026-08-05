@@ -5,9 +5,13 @@
 A few cute pictures of the spot I talked about. Featuring the 'border' between gold and green.
 
 ![img](blog/2026-08/img/line/border_line.jpg)
+
 ![img](blog/2026-08/img/line/border_line2.jpg)
+
 ![img](blog/2026-08/img/line/border_line9.jpg)
+
 ![img](blog/2026-08/img/line/border_line7.jpg)
+
 ![img](blog/2026-08/img/line/comparison.jpg)
 
 Looking cute.
@@ -21,7 +25,7 @@ Recently there were developments on that, pretty much someone else got into the 
 
 It is my guess, but... nowadays you can make 2 accounts -> name them as your 'users' -> talk to yourself in any manner, form and degeneracy -> screenshot your own schizophrenia -> send as evidence -> look, he is the filthy criminal!
 And you may say, why they don't double check the other side... well idk... but they can go to the emulated 'victim' and ask just a general question: 'did you talk?' and if answer is 'yes'. GOT EM!
-And why would they only fish for 'yes'. Because logs could easily be manufactured in a way that 'if you ever speak, your pillow will always be warm on both sides!'... followed by 'and YouTube will never work when you eat!'... so you can see how high the stakes are, so 'investigators' will be very careful not to trigger such violence against someone.
+And why would they only fish for 'yes'? Because logs could easily be manufactured in a way that 'if you ever speak, your pillow will always be warm on both sides!'... followed by 'and YouTube will never work when you eat!'... so you can see how high the stakes are, so 'investigators' will be very careful not to trigger such violence against someone.
 
 The problem here is: after successful 'play' you will have to brag about it a little bit. You can't just lay low and enjoy your time, because act of doing such thing is already saying about deeper needs and desires. So there will be 'brags' and patronizing, claiming victory with states: 'don't be like him!'. And what happens later? Adrenaline goes down and someone else appears on the horizon who they don't like and 'scheme' already proven to be working... so they do it once again.
 
@@ -43,9 +47,11 @@ So people started to go crazy around me. I even had a dream of a guy I suspected
 I guess I became a perfect vessel to direct all hate, misery and loss. So there were a lot of curses and hexes and witchcraft done on me and people around me... nothing worked, so plan B is just to remove me from their sight with a lot of defamation following on top...
 So I knew this doesn't come from me, but from their own distorted views: all I had to do is wait. And yeah, more people appeared who are victims of their powerplays.
 
-So in case of impersonations / doxing I do cut my photos in a fun way... There is a cute picture of a double rainbow I talked before as well [Rainbow was 4th of July, Talked about it here in the 'Kangxi Mobile' post 5th of July]...
+So in case of impersonations / doxing I do cut my photos in a fun way... There is a cute picture of a double rainbow I talked before as well [Rainbow was 4th of July, Talked about it here in the 'Kangxi Mobile' post 5th of July. And github has a fun way to check for all commits, so it is not added post factum]...
 
 ![img](blog/2026-08/img/line/double_rainbow.jpg)
+
+[5th July Post](blog/2026-07/05-kangxi_mobile.md)
 
 Of course you can have 'AI Generated' argument... but for that: you can spot specific grass blades on photos on top and see the consistency of them. For the rainbow there are more photos and you can have fun matching clouds.
 

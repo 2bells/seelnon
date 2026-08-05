@@ -33,7 +33,9 @@ A forest line beckoning me in
 I stepped in further into flowers, berries, fruits and height
 
 ![img](blog/2026-08/img/forest/7.jpg)
+
 ![img](blog/2026-08/img/forest/8.jpg)
+
 ![img](blog/2026-08/img/forest/9.jpg)
 
 Trees swayed in silent cover, playfully, to my delight
