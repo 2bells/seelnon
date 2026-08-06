@@ -15,8 +15,6 @@ What also is interesting is that people do report Mandela effects and weirdness 
 
 ```
 thought of a day
- 
+  
 prayge and heal 
 ```
-
-//GitHub actions are not actioning, lol..
