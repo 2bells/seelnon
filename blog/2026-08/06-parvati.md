@@ -4,7 +4,7 @@
 
 Didn't know that people are shipping 'peoples' from scriptures. Cute.
 
-And that blue guy, you probably saw him at some other places:
+And that blue guy, you probably saw Him at some other places:
 
 ![img](https://i.pinimg.com/1200x/a0/ff/1b/a0ff1b6356fc0bf47a8e280a223c7a82.jpg)
 
