@@ -25,6 +25,7 @@ While going through the list was able to get first time 100% on some pieces:
 And some other memorable 'Full combos':
 
 ![img](blog/2026-08/img/beatmaps/fs_thumb.jpg)
+
 [Image](https://www.dropbox.com/scl/fi/1tf5z0ez97nahlq1ibvdp/FSs.png?rlkey=g1t4ugmu2k8s2d34y1wxbb4zb&st=r249ygba&raw=1)
 
 I think using keyboard supposed to be harder than on touch, mostly because hand/eye coordination. But I like feel of keyboards, but didn't want to ruing my main one, so I had to dust out my first ever Dactyl:
@@ -38,7 +39,7 @@ After using those, normal keyboards start to feel really bad to use)))
 ```
 thought of a day
 
-true wisdom is hidden
-further beyond
-the ice wall
+music is
+about space
+beetwen the notes
 ```
