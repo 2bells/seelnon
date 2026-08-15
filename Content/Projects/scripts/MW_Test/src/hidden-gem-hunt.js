@@ -42,7 +42,7 @@ function renderGroupHeader() {
     <div class="gem-title-row">
       <h1>Today's Hidden Gems</h1>
       <span class="gem-info" tabindex="0" data-action="reviewer-info">
-        <span class="gem-info-pop">🕵️ <b>Be a Reviewer</b> — the wonderlands below are undiscovered. Play + review them to earn votes. Review 3 → 1 vote, 5 → 2 votes, 7 → 3 votes. Spend your votes on the gems you believe in and become their <b>OG</b>, unlocking cosmetics as they climb.</span>
+        <span class="gem-info-pop">🕵️ <b>Be a Reviewer</b> — the wonderlands below are undiscovered. Play and review them to earn votes. Review 3 → 1 vote, 5 → 2 votes, 7 → 3 votes. Spend your votes on the stages you believe in and become their <b>Original Supporter</b>, with a chance of unlocking cosmetics as they climb.</span>
       </span>
     </div>
   </div>`;
@@ -53,9 +53,9 @@ function renderConfirmBar() {
   const selected = selectedGems.length;
   return `<div class="gem-confirm-bar">
     <div class="gem-stats">
-      <span>✅ Reviewed: <strong>${playedCount}</strong>/7</span>
+      <span>Reviewed: <strong>${playedCount}</strong>/7</span>
       <span>🗳 Votes earned: <strong>${votes}</strong></span>
-      <span>⭐ Voted: <strong>${selected}</strong></span>
+      <span>Voted: <strong>${selected}</strong></span>
     </div>
     <button class="gem-vote-btn" data-gem-action="confirm" ${selected === 0 ? 'disabled' : ''}>Cast ${selected} vote${selected === 1 ? '' : 's'}</button>
   </div>`;
@@ -91,9 +91,10 @@ export function renderHiddenGemHunt() {
 function renderGemResult() {
   const selected = stages.filter(s => selectedGems.includes(s.id));
   return `<div class="gem-result-view">
-    <div class="gem-result-header">🎉 You are now an <strong>OG</strong> of these stages!</div>
+    <div class="gem-result-header"> </div>
+    <p></p>
     <p class="gem-result-sub">If any of your picks hit 10K+ plays, you earn exclusive cosmetic <strong>Reviewer Rewards</strong>.</p>
-    <div class="gem-result-grid">${selected.map(s => `<div class="gem-result-card"><img src="${s.image}" alt=""><div><h4>${s.title}</h4><p>by ${s.author}</p><span class="gem-og-badge">👑 OG</span></div></div>`).join('')}</div>
+    <div class="gem-result-grid">${selected.map(s => `<div class="gem-result-card"><img src="${s.image}" alt=""><div><h4>${s.title}</h4><p>by ${s.author}</p><span class="gem-og-badge">Supported</span></div></div>`).join('')}</div>
     <div class="gem-rewards"><h4>Potential Rewards</h4><div class="gem-reward-list">
       <div class="gem-reward"><span>🥇</span><span>Hit 10K plays → <strong>Golden Nameplate</strong></span></div>
       <div class="gem-reward"><span>🥈</span><span>Hit 50K plays → <strong>Dragon Wings</strong></span></div>

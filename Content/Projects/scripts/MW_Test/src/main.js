@@ -47,7 +47,7 @@ const categories = [
   ['ROGUE-LIKE', images.portals], ['SURVIVAL', images.river], ['PUZZLE', images.tiles], ['RACING', images.tornado], ['ACTION', images.laser]
 ];
 const categoriesRow2 = [
-  ['Co-operative', images.coOp], ['Fighting', images.laser], ['Horror', images.hallway], ['Story-rich', images.dungeon], ['Sports', images.tornado], ['Adventure', images.jungle]
+  ['CO-OP', images.coOp], ['FIGHTING', images.laser], ['HORROR', images.hallway], ['STORY-RICH', images.dungeon], ['SPORTS', images.tornado], ['ADVENTURE', images.jungle]
 ];
 
 const paidPromotions = [
@@ -55,7 +55,7 @@ const paidPromotions = [
   { id: 'promo2', title: 'Speed Run Plaza', author: 'Sponsored Builds', category: 'Platformer', image: images.portals, worldId: 'portals', views: '521', reviews: '71.8%', reviewCount: '156', players: '1', description: 'The ultimate speedrun course — promoted by our partners.', tags: ['Platformer', 'Action'], time: '5m 00s', guid: '99900000222', type: 'Platformer', sponsored: true },
   { id: 'promo3', title: 'Battle Arena X', author: 'Sponsored Builds', category: 'PvP', image: images.laser, worldId: 'laser', views: '278', reviews: '68.5%', reviewCount: '67', players: '4-8', description: 'Sponsored PvP arena with power-ups and ranked matchmaking.', tags: ['PvP', 'Action', 'Competitive'], time: '8m 30s', guid: '99900000333', type: 'PvP', sponsored: true },
   { id: 'promo4', title: 'Pet Paradise VIP', author: 'Sponsored Builds', category: 'Idle', image: images.pets, worldId: 'pets', views: '195', reviews: '65.0%', reviewCount: '42', players: '1', description: 'Exclusive VIP pet club zone — sponsored content with premium features.', tags: ['Idle', 'Relaxing'], time: '15m+', guid: '99900000444', type: 'Idle', sponsored: true },
-  { id: 'promo5', title: 'Neon Drift GP', author: 'Sponsored Builds', category: 'Racing', image: images.tornado, worldId: 'tornado', views: '423', reviews: '73.1%', reviewCount: '118', players: '2-6', description: 'High-speed neon racing sponsored by DriftEnergy. Feel the speed.', tags: ['Racing', 'Action'], time: '6m 15s', guid: '99900000555', type: 'Racing', sponsored: true }
+  { id: 'promo5', title: 'Neon Drift GP', author: 'Sponsored Builds', category: 'Racing', image: images.tornado, worldId: 'tornado', views: '423', reviews: '73.1%', reviewCount: '118', players: '2-6', description: 'High-speed neon racing sponsored by DriftEnergy. Feel the speed at full.', tags: ['Racing', 'Action'], time: '6m 15s', guid: '99900000555', type: 'Racing', sponsored: true }
 ];
 
 const playlists = [
@@ -159,7 +159,7 @@ function tabContent(tab) {
   if (tab === 'questing') return `<section class="content-section"><div class="section-heading"><div><p class="eyebrow">Best for your goals</p><h2>Questing</h2></div></div><p class="questing-note">Stages best suited to clearing your current quests — daily tasks, weekly goals, and exp grinds.</p><div class="quest-grid">${questingWorlds.map((world) => worldCard(world)).join('')}</div></section>`;
   if (tab === 'official') return section('Official Picks', 'official', [worlds[7], worlds[3], worlds[5]]);  if (tab === 'hidden') return section('Hidden Gem Hunt', 'hidden', [worlds[9], worlds[8], worlds[2]]);
   if (tab === 'playlists') return `<section class="content-section"><div class="section-heading"><div><p class="eyebrow">Rated collections by people</p><h2>Playlists</h2></div></div><div class="playlist-grid">${playlists.map(playlistCard).join('')}</div></section>`;
-  return `<div>${section('Recommended for you', 'recommended', [worlds[1], worlds[2], worlds[3]])}${section('Rising stars', 'rising', [worlds[8], worlds[9], worlds[4]])}</div>`;
+  return `<div>${section('Recommended for you', 'recommended', [worlds[1], worlds[2], worlds[3]])}<br>${section('Rising stars', 'rising', [worlds[8], worlds[9], worlds[4]])}</div>`;
 }
 
 function render() { app.innerHTML = activeWorld ? renderDetailPage(activeWorld) : browsePage(); }
