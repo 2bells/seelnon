@@ -1,6 +1,7 @@
 import { renderDetailPage } from './detail.js';
 import { renderHiddenGemHunt, handleGemClick } from './hidden-gem-hunt.js';
 import { renderEvents } from './events.js';
+import { renderLibraryPage } from './library.js';
 
 const images = {
   hallway: 'https://images.pexels.com/photos/30299504/pexels-photo-30299504.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
@@ -67,10 +68,13 @@ const playlists = [
 let activeWorld = null;
 let featuredIndex = 0;
 let currentPage = 'for-you';
+let currentCategory = 'ADVENTURE';
 
 const app = document.querySelector('#app');
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const worldById = (id) => worlds.find((world) => world.id === id) || worlds[0];
+
+export { worlds, escapeHtml, worldCard };
 
 function similarTo(world) {
   const sameType = worlds.filter((w) => w.id !== world.id && w.type === world.type);
@@ -150,6 +154,7 @@ function browsePage() {
   let body;
   if (currentPage === 'notice-me') body = `<main class="page-shell">${noticeMePage()}</main>`;
   else if (currentPage === 'hidden') body = `<main class="page-shell">${renderHiddenGemHunt()}</main>`;
+  else if (currentPage === 'library') body = `<main class="page-shell">${renderLibraryPage(currentCategory)}</main>`;
   else body = `<main class="page-shell">${categoryBrowser()}${featured()}${questRail()}<section class="tabs-section" id="for-you">    <div class="content-tabs"><button class="tab events-tab" data-tab="events">Events</button><button class="tab active" data-tab="for-you">For you</button><button class="tab" data-tab="recent-updated">Recently Updated</button><button class="tab" data-tab="monthly">Monthly Popular</button><button class="tab" data-tab="hall-of-fame">Hall of fame</button><button class="tab" data-tab="official">Official Picks</button><button class="tab" data-tab="playlists">Playlists</button><button class="tab" data-tab="questing">Questing</button></div><div id="tab-content">${tabContent('for-you')}</div></section></main>`;
   return `${header()}${body}`;
 }
@@ -173,12 +178,13 @@ function render() { app.innerHTML = browsePage(); }
 function setTab(tab) { document.querySelectorAll('.tab').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab)); const target = document.querySelector('#tab-content'); if (target) target.innerHTML = tabContent(tab); }
 
 document.addEventListener('click', (event) => {
-  const target = event.target.closest('[data-world], [data-action], [data-tab], [data-review], [data-category], [data-page], [data-promo-vote], [data-gem-cat], [data-gem-action], [data-gem-vote], [data-gem-review]');
+  const target = event.target.closest('[data-world], [data-action], [data-tab], [data-review], [data-category], [data-library], [data-page], [data-promo-vote], [data-gem-cat], [data-gem-action], [data-gem-vote], [data-gem-review]');
   if (!target) return;
   if (target.dataset.page) { currentPage = target.dataset.page; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   if (target.dataset.world) { openDetail(worldById(target.dataset.world)); return; }
   if (target.dataset.tab) { setTab(target.dataset.tab); return; }
-  if (target.dataset.category) { const category = target.dataset.category.toLowerCase(); setTab(category.includes('puzzle') ? 'hall-of-fame' : category.includes('survival') ? 'hidden' : 'monthly'); document.querySelector('#for-you')?.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (target.dataset.library) { currentCategory = target.dataset.library; currentPage = 'library'; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (target.dataset.category) { currentCategory = target.dataset.category; currentPage = 'library'; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   if (target.dataset.gemCat || target.dataset.gemAction || target.dataset.gemVote || target.dataset.gemReview) { handleGemClick(target); return; }
   if (target.dataset.promoVote) {
     const vote = target.dataset.vote;
