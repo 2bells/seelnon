@@ -177,7 +177,7 @@ a { text-decoration: none; color: inherit; }
 .gem-stage-actions { display: flex; align-items: center; gap: 8px; }
 .gem-review-btn { padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 800; white-space: nowrap; background: #3B82F6; color: #fff; }
 .gem-review-btn:hover { background: #4f92ff; }
-.gem-review-btn.played, .gem-review-btn:disabled { background: #ffd15e; color: #fff; cursor: default; }
+.gem-review-btn.played, .gem-review-btn:disabled { background: #ffd15e; color: #04103288; cursor: default; }
 .gem-pick-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; padding: 0; border-radius: 7px; font-size: 18px; line-height: 1;
@@ -185,7 +185,7 @@ a { text-decoration: none; color: inherit; }
 }
 .gem-pick-btn:hover:not(:disabled) { background: rgba(20,38,90,.16); }
 .gem-pick-btn:disabled { background: transparent; color: #c3ccdb; cursor: not-allowed; }
-.gem-pick-btn.spent { background: rgba(241,185,62,.16); color: #ffd15e; cursor: default; }
+.gem-pick-btn.spent { background: #f1b93e; color: #fff; cursor: default; }
 @media (max-width: 900px) {
   .gem-stage-row, .gem-stage-row.row2 { grid-template-columns: repeat(2, 1fr); }
   .gem-info-pop { width: 220px; }
