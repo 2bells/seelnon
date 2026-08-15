@@ -77,6 +77,11 @@ a { text-decoration: none; color: inherit; }
 .video-preview .play { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: #fff; color: #1d4db0; font-size: 18px; }
 .video-preview b { position: absolute; bottom: 9px; left: 12px; color: #fff; }
 .featured-desc { font-size: 13px; line-height: 1.6; color: #4a5a78; }
+.featured-desc-box {
+  padding: 12px 14px; border-radius: 8px; color: #33435f;
+  background: #dde6f1;
+  border: 1px solid #c3cfdd;
+}
 
 /* ===== Community Verdict (inside detail sidebar) ===== */
 .verdict-heading { font-family: Georgia, serif; font-size: 18px; color: #2a3a55; margin-bottom: 10px; }
@@ -262,7 +267,49 @@ a { text-decoration: none; color: inherit; }
 .content-tabs { display: flex; gap: 7px; overflow: auto; padding: 5px 0 16px; }
 .tab { white-space: nowrap; padding: 10px 15px; border-radius: 6px; background: #1d3776; color: #c5d1e9; font-weight: 800; border: 1px solid #ffffff1f; }
 .tab:hover, .tab.active { background: #f3f5f7; color: #19366d; }
+.tab.quest-tab { background: #f1ba30; color: #252f55; border-color: #f1ba30; }
+.tab.quest-tab:hover { background: #ffd15e; color: #1d2b54; }
+.tab.quest-tab.active { background: #f1ba30; color: #fff; border-color: #f1ba30; box-shadow: 0 0 0 2px #f1ba3044; }
 .content-section { margin-top: 4px; }
+.questing-note { margin: -4px 0 18px; color: #8fa8d6; font-size: 14px; line-height: 1.6; }
+.quest-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+/* ===== Events ===== */
+.events-tab { background: #8b3bd6; color: #fff; border-color: #8b3bd6; }
+.events-tab:hover { background: #a355f2; color: #fff; }
+.events-tab.active { background: #8b3bd6; color: #fff; border-color: #8b3bd6; box-shadow: 0 0 0 2px #8b3bd644; }
+.events-page { display: flex; flex-direction: column; gap: 34px; }
+.events-hero { text-align: center; padding: 26px 20px; border-radius: 12px; background: linear-gradient(160deg, #2b1a55, #1b1040); border: 1px solid #4a3a86; }
+.events-eyebrow { margin: 0 0 6px; color: #c9abf6; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; }
+.events-hero h2 { margin: 0 0 6px; font-family: Georgia, serif; font-size: 30px; color: #fff; }
+.events-hero p { margin: 0 auto; max-width: 560px; color: #b9a9ea; font-size: 14px; line-height: 1.6; }
+.events-section { margin-top: 0; }
+.event-tag { display: inline-block; padding: 4px 8px; border-radius: 4px; background: #8b3bd6; color: #fff; font-weight: 800; font-size: 11px; position: absolute; top: 10px; left: 10px; }
+.event-tag.chalk { background: #f1ba30; color: #252f55; }
+.event-tag.batonTag { background: #e05bb0; color: #fff; }
+.event-tag.large { position: static; font-size: 13px; padding: 6px 12px; }
+.event-meta { display: flex; gap: 14px; font-size: 12px; font-weight: 800; color: #334461; }
+.event-difficulty { font-size: 11px; font-weight: 800; color: #6f7d92; }
+.event-goal { font-size: 12px; font-weight: 800; color: #16845f; }
+.event-card, .card-event, .card-baton { overflow: hidden; padding: 0; border-radius: 8px; background: #f0f3f6; text-align: left; color: #192b50; box-shadow: 0 10px 20px #06143c55; transition: .2s; }
+.event-card:hover, .card-event:hover, .card-baton:hover { transform: translateY(-4px); box-shadow: 0 16px 26px #06143c88; background: #fff; }
+.jam-grid, .baton-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.speed-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.card-event-note { margin: 6px 0 0; color: #75829a; font-size: 12px; }
+.card-event-note b { color: #192b50; }
+.baton-explain { padding: 22px 24px; border-radius: 14px; background: linear-gradient(160deg, #3a1a4a, #231030); border: 1px solid #5a2a6a; }
+.baton-explain-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.baton-explain-head h3 { margin: 0; font-family: Georgia, serif; font-size: 24px; color: #fff; }
+.baton-explain > p { color: #d9c6ea; font-size: 14px; line-height: 1.7; margin: 14px 0 0; width: 100%; }
+.baton-explain > p b { color: #fff; }
+.baton-timeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0; }
+.baton-step { padding: 14px 12px; border-radius: 10px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+.baton-step b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #e05bb0; color: #fff; margin-bottom: 8px; }
+.baton-step span { color: #cfbde3; font-size: 12px; line-height: 1.5; }
+.baton-step b + span b { background: none; width: auto; height: auto; color: #f1ba30; }
+.baton-outro { border-top: 1px solid rgba(255,255,255,.12); padding-top: 12px; margin-top: 0 !important; }
+@media (max-width: 900px) { .jam-grid, .baton-grid { grid-template-columns: repeat(2, 1fr); } .baton-timeline { grid-template-columns: repeat(2, 1fr); } .speed-grid { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .jam-grid, .baton-grid { grid-template-columns: 1fr; } .baton-timeline { grid-template-columns: 1fr; } }
 
 /* ===== World cards ===== */
 .world-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -409,7 +456,7 @@ a { text-decoration: none; color: inherit; }
   .featured-verdict { min-height: 300px; }
   .category-grid { grid-template-columns: repeat(3, 1fr); }
   .category-grid.row2 { grid-template-columns: repeat(3, 1fr); }
-  .world-grid, .playlist-grid { grid-template-columns: repeat(2, 1fr); }
+  .world-grid, .playlist-grid, .quest-grid { grid-template-columns: repeat(2, 1fr); }
   .promo-grid { grid-template-columns: repeat(2, 1fr); }
   .steam-layout { grid-template-columns: 1fr; }
   .detail-sidebar { display: grid; grid-template-columns: 1fr 1fr; }
@@ -430,7 +477,7 @@ a { text-decoration: none; color: inherit; }
   .category-grid.row2 { grid-template-columns: repeat(2, 1fr); }
   .category-tile { height: 88px; }
   .quick-links { grid-template-columns: 1fr; }
-  .world-grid, .playlist-grid { grid-template-columns: 1fr; }
+  .world-grid, .playlist-grid, .quest-grid { grid-template-columns: 1fr; }
   .promo-grid { grid-template-columns: 1fr; }
   .content-tabs { margin-inline: -4px; }
   .detail-header { padding: 0 14px; }

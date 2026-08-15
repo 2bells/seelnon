@@ -1,5 +1,6 @@
 import { renderDetailPage } from './detail.js';
 import { renderHiddenGemHunt, handleGemClick } from './hidden-gem-hunt.js';
+import { renderEvents } from './events.js';
 
 const images = {
   hallway: 'https://images.pexels.com/photos/30299504/pexels-photo-30299504.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
@@ -92,7 +93,7 @@ function categoryBrowser() {
 function featured() {
   const featuredWorlds = [worlds[0], worlds[7], worlds[3]];
   const world = featuredWorlds[featuredIndex];
-  return `<section class="featured-layout" id="top"><div class="featured-art"><img src="${world.image}" alt="${escapeHtml(world.title)}"><button class="slide-arrow left" data-action="featured-prev">‹</button><button class="slide-arrow right" data-action="featured-next">›</button><div class="feature-bottom"><button class="primary-button" data-world="${world.id}">View Wonderland</button><div class="feature-dots">${featuredWorlds.map((_, index) => `<i class="${index === featuredIndex ? 'selected' : ''}"></i>`).join('')}</div></div></div><button class="featured-info" data-world="${world.id}"><h1>${escapeHtml(world.title)}</h1><div class="chip-row"><span class="chip">${world.category}</span><span class="chip pale">${world.players === '1' ? 'Single Player' : `${world.players} Players`}</span></div><div class="metric-line"><span class="views">◉ ${world.views} views</span><span class="good">✓ ${world.reviews}</span></div><div class="video-preview"><img src="${world.image}" alt=""><span class="play">▶</span><b>Guide Video</b></div><div class="featured-desc">${escapeHtml(world.description)}</div></button></section>`;
+  return `<section class="featured-layout" id="top"><div class="featured-art"><img src="${world.image}" alt="${escapeHtml(world.title)}"><button class="slide-arrow left" data-action="featured-prev">‹</button><button class="slide-arrow right" data-action="featured-next">›</button><div class="feature-bottom"><button class="primary-button" data-world="${world.id}">View Wonderland</button><div class="feature-dots">${featuredWorlds.map((_, index) => `<i class="${index === featuredIndex ? 'selected' : ''}"></i>`).join('')}</div></div></div><button class="featured-info" data-world="${world.id}"><h1>${escapeHtml(world.title)}</h1><div class="chip-row"><span class="chip">${world.category}</span><span class="chip pale">${world.players === '1' ? 'Single Player' : `${world.players} Players`}</span></div><div class="metric-line"><span class="views">◉ ${formatPlayCount(world)}</span><span class="good">✓ ${world.reviews}</span></div><div class="video-preview"><img src="${world.image}" alt=""><span class="play">▶</span><b>Guide Video</b></div><div class="featured-desc"><div class="featured-desc-box">${escapeHtml(world.description)}</div></div></button></section>`;
 }
 
 function questRail() {
@@ -117,6 +118,7 @@ function worldCard(world, compact = false) {
 }
 
 const hallOfFame = worlds.filter((w) => w.plays >= 1000000).sort((a, b) => b.plays - a.plays);
+const questingWorlds = worlds.filter((w) => ['Survival', 'Action', 'Racing', 'PvP', 'Party'].includes(w.type));
 
 function hofCard(world, index) {
   return `<button class="world-card hof-card" data-world="${world.id}"><div class="card-image"><img src="${world.image}" alt="${escapeHtml(world.title)}"><span class="category-chip">${world.category}</span><span class="hof-rank">#${index + 1}</span></div><div class="card-copy"><h3>${escapeHtml(world.title)}</h3><p>by ${escapeHtml(world.author)}</p><div class="card-footer"><div class="card-meta"><span class="good">✓ ${world.reviews} rating</span><span>${world.players} ${world.players === '1' ? 'player' : 'players'}</span></div><span class="date-text">${world.updated}</span></div></div></button>`;
@@ -142,19 +144,20 @@ function browsePage() {
   let body;
   if (currentPage === 'notice-me') body = `<main class="page-shell">${noticeMePage()}</main>`;
   else if (currentPage === 'hidden') body = `<main class="page-shell">${renderHiddenGemHunt()}</main>`;
-  else body = `<main class="page-shell">${categoryBrowser()}${featured()}${questRail()}<section class="tabs-section" id="for-you"><div class="content-tabs"><button class="tab active" data-tab="for-you">For you</button><button class="tab" data-tab="recent-updated">Recently Updated</button><button class="tab" data-tab="monthly">Monthly Popular</button><button class="tab" data-tab="hall-of-fame">Hall of fame</button><button class="tab" data-tab="official">Official Picks</button><button class="tab" data-tab="playlists">Playlists</button></div><div id="tab-content">${tabContent('for-you')}</div></section></main>`;
+  else body = `<main class="page-shell">${categoryBrowser()}${featured()}${questRail()}<section class="tabs-section" id="for-you">    <div class="content-tabs"><button class="tab events-tab" data-tab="events">Events</button><button class="tab active" data-tab="for-you">For you</button><button class="tab" data-tab="recent-updated">Recently Updated</button><button class="tab" data-tab="monthly">Monthly Popular</button><button class="tab" data-tab="hall-of-fame">Hall of fame</button><button class="tab" data-tab="official">Official Picks</button><button class="tab" data-tab="playlists">Playlists</button><button class="tab" data-tab="questing">Questing</button></div><div id="tab-content">${tabContent('for-you')}</div></section></main>`;
   return `${header()}${body}`;
 }
 
 function tabContent(tab) {
+  if (tab === 'events') return renderEvents();
   if (tab === 'recent-updated') return section('Recently Updated', 'recent-updated', [worlds[3], worlds[2], worlds[9], worlds[7], worlds[0], worlds[4]]);
   if (tab === 'monthly') return section('Monthly Popular', 'monthly', [worlds[3], worlds[7], worlds[4]]);
   if (tab === 'hall-of-fame') {
     const cards = hallOfFame.length ? hallOfFame.map(hofCard).join('') : '<p style="color:#8fa8d6;padding:20px;">No wonderlands have reached 1M plays yet.</p>';
     return `<section class="content-section"><div class="section-heading"><div><p class="eyebrow">The elite</p><h2>Hall of Fame</h2></div><span class="hof-badge">🏆 1M+ plays</span></div><div class="world-grid">${cards}</div><p class="hof-note">Only wonderlands with over <strong>1,000,000 plays</strong> earn a permanent spot. Play count is retired on entry — ranked by community rating.</p></section>`;
   }
-  if (tab === 'official') return section('Official Picks', 'official', [worlds[7], worlds[3], worlds[5]]);
-  if (tab === 'hidden') return section('Hidden Gem Hunt', 'hidden', [worlds[9], worlds[8], worlds[2]]);
+  if (tab === 'questing') return `<section class="content-section"><div class="section-heading"><div><p class="eyebrow">Best for your goals</p><h2>Questing</h2></div></div><p class="questing-note">Stages best suited to clearing your current quests — daily tasks, weekly goals, and exp grinds.</p><div class="quest-grid">${questingWorlds.map((world) => worldCard(world)).join('')}</div></section>`;
+  if (tab === 'official') return section('Official Picks', 'official', [worlds[7], worlds[3], worlds[5]]);  if (tab === 'hidden') return section('Hidden Gem Hunt', 'hidden', [worlds[9], worlds[8], worlds[2]]);
   if (tab === 'playlists') return `<section class="content-section"><div class="section-heading"><div><p class="eyebrow">Rated collections by people</p><h2>Playlists</h2></div></div><div class="playlist-grid">${playlists.map(playlistCard).join('')}</div></section>`;
   return `<div>${section('Recommended for you', 'recommended', [worlds[1], worlds[2], worlds[3]])}${section('Rising stars', 'rising', [worlds[8], worlds[9], worlds[4]])}</div>`;
 }
