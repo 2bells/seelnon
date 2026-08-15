@@ -347,12 +347,47 @@ a { text-decoration: none; color: inherit; }
 .playlist-copy small b { color: #16845f; }
 .playlist-mark { display: grid; place-items: center; width: 30px; height: 30px; background: #dae7ff; color: #305dba; border-radius: 5px; }
 
-/* ===== Detail page ===== */
-.detail-page { min-height: 100vh; background: #0d1a3e; color: #192743; }
-.detail-header { height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; background: #081634; color: #fff; }
-.back-button, .close-button { padding: 9px 13px; border: 1px solid #ffffff36; border-radius: 6px; background: #ffffff12; color: #fff; font-weight: 800; }
-.close-button { font-size: 24px; line-height: 1; }
-.detail-brand { font-family: Georgia, serif; font-size: 21px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 50%; }
+/* ===== Detail overlay ===== */
+.no-scroll { overflow: hidden; }
+.detail-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  padding: 28px;
+  overflow-y: auto;
+  background: rgba(5, 12, 38, .55);
+  backdrop-filter: blur(8px) saturate(.9);
+  -webkit-backdrop-filter: blur(8px) saturate(.9);
+}
+.detail-page {
+  position: relative;
+  width: 100%; max-width: 1100px;
+  height: min(850px, calc(100vh - 56px));
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: #0d1a3e; color: #192743;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+.detail-header {
+  position: sticky; top: 0; z-index: 5;
+  height: 68px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 30px; background: #081634; color: #fff;
+}
+.back-button { padding: 9px 13px; border: 1px solid #ffffff36; border-radius: 6px; background: #ffffff12; color: #fff; font-weight: 800; min-width: 132px; }
+.close-button {
+  display: grid; place-items: center;
+  width: 42px; height: 42px; padding: 0 0 0 3px;
+  border: none; border-radius: 50%;
+  background: #f1b93e; color: #172a55; font-size: 24px; line-height: 1; font-weight: 800;
+  box-shadow: 0 4px 10px #0004;
+}
+.close-button:hover { background: #ffd15e; }
+.detail-brand {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  max-width: 55%;
+  font-family: Georgia, serif; font-size: 21px; font-weight: 800;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .detail-shell { max-width: 1180px; margin: 0 auto; padding: 30px 24px 70px; }
 .detail-hero { position: relative; height: 330px; overflow: hidden; border-radius: 8px; background: #182d68; }
 .detail-hero img { width: 100%; height: 100%; object-fit: cover; }
@@ -360,6 +395,20 @@ a { text-decoration: none; color: inherit; }
 .detail-hero-copy { position: absolute; z-index: 1; bottom: 28px; left: 30px; color: #fff; }
 .detail-hero-copy h1 { margin: 9px 0 4px; font: 800 42px Georgia, serif; }
 .detail-hero-copy p { margin: 0; color: #d4dced; }
+
+/* ===== Similar to this one ===== */
+.sidebar-panel.similar-panel { display: flex; flex-direction: column; gap: 10px; background: linear-gradient(135deg, #1a3a7a, #244a9e); }
+.sidebar-panel.similar-panel > b { color: #fff; }
+.similar-card { display: flex; flex-direction: column; gap: 6px; text-align: left; border: 1px solid #c3cfdd; border-radius: 8px; padding: 8px; background: #fafbfd; color: #2a3a55; }
+.similar-card:hover { border-color: #3163aa; box-shadow: 0 4px 12px #04103233; }
+.similar-copy p { color: #66748b; }
+.similar-copy small { color: #7a879d; }
+.similar-thumb { position: relative; border-radius: 6px; overflow: hidden; }
+.similar-thumb img { width: 100%; height: 90px; object-fit: cover; display: block; }
+.similar-rating { position: absolute; bottom: 6px; left: 6px; padding: 2px 6px; border-radius: 4px; background: #16845f; color: #fff; font-size: 11px; font-weight: 800; }
+.similar-copy h4 { margin: 0; font-family: Georgia, serif; font-size: 14px; }
+.similar-copy p { margin: 1px 0 0; color: #66748b; font-size: 12px; }
+.similar-copy small { color: #7a879d; font-size: 11px; }
 
 /* ===== Steam layout ===== */
 .steam-layout { display: grid; grid-template-columns: 290px 1fr; gap: 22px; margin-top: 22px; }
@@ -484,6 +533,8 @@ a { text-decoration: none; color: inherit; }
   .detail-shell { padding: 16px 12px 50px; }
   .detail-hero { height: 250px; }
   .detail-hero-copy { left: 18px; bottom: 18px; }
+  .detail-overlay { padding: 12px; }
+  .detail-page { height: calc(100vh - 24px); border-radius: 10px; }
   .detail-hero-copy h1 { font-size: 30px; }
   .review-jump { flex-direction: column; align-items: flex-start; }
   .detail-sidebar { display: flex; }

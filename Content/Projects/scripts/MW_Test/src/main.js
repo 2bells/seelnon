@@ -72,6 +72,12 @@ const app = document.querySelector('#app');
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const worldById = (id) => worlds.find((world) => world.id === id) || worlds[0];
 
+function similarTo(world) {
+  const sameType = worlds.filter((w) => w.id !== world.id && w.type === world.type);
+  const rest = worlds.filter((w) => w.id !== world.id && w.type !== world.type);
+  return sameType.concat(rest).slice(0, 6);
+}
+
 function icon(symbol, label) { return `<span class="icon" aria-hidden="true">${symbol}</span><span class="sr-only">${label}</span>`; }
 
 function header() {
@@ -162,7 +168,7 @@ function tabContent(tab) {
   return `<div>${section('Recommended for you', 'recommended', [worlds[1], worlds[2], worlds[3]])}<br>${section('Rising stars', 'rising', [worlds[8], worlds[9], worlds[4]])}</div>`;
 }
 
-function render() { app.innerHTML = activeWorld ? renderDetailPage(activeWorld) : browsePage(); }
+function render() { app.innerHTML = browsePage(); }
 
 function setTab(tab) { document.querySelectorAll('.tab').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab)); const target = document.querySelector('#tab-content'); if (target) target.innerHTML = tabContent(tab); }
 
@@ -170,7 +176,7 @@ document.addEventListener('click', (event) => {
   const target = event.target.closest('[data-world], [data-action], [data-tab], [data-review], [data-category], [data-page], [data-promo-vote], [data-gem-cat], [data-gem-action], [data-gem-vote], [data-gem-review]');
   if (!target) return;
   if (target.dataset.page) { currentPage = target.dataset.page; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-  if (target.dataset.world) { activeWorld = worldById(target.dataset.world); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (target.dataset.world) { openDetail(worldById(target.dataset.world)); return; }
   if (target.dataset.tab) { setTab(target.dataset.tab); return; }
   if (target.dataset.category) { const category = target.dataset.category.toLowerCase(); setTab(category.includes('puzzle') ? 'hall-of-fame' : category.includes('survival') ? 'hidden' : 'monthly'); document.querySelector('#for-you')?.scrollIntoView({ behavior: 'smooth' }); return; }
   if (target.dataset.gemCat || target.dataset.gemAction || target.dataset.gemVote || target.dataset.gemReview) { handleGemClick(target); return; }
@@ -179,12 +185,35 @@ document.addEventListener('click', (event) => {
     target.closest('.promo-card')?.querySelector('.promo-actions')?.replaceChildren(`<span class="promo-voted">${vote === 'yes' ? '✓ Noted as worth a look' : '✗ Registered as not my thing'}</span>`);
     return;
   }
-  if (target.dataset.action === 'close-detail') { activeWorld = null; render(); return; }
+  if (target.dataset.action === 'close-detail') { closeDetail(); return; }
   if (target.dataset.action === 'featured-prev') { featuredIndex = (featuredIndex + 2) % 3; render(); return; }
   if (target.dataset.action === 'featured-next') { featuredIndex = (featuredIndex + 1) % 3; render(); return; }
   if (target.dataset.action === 'copy-guid') { navigator.clipboard?.writeText(activeWorld.guid); target.textContent = 'Copied'; setTimeout(() => { target.textContent = 'Copy'; }, 1200); return; }
-  if (target.dataset.action === 'check-reviews') { document.querySelector('#reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  if (target.dataset.action === 'check-reviews') {
+    const reviews = document.querySelector('#reviews');
+    if (reviews) reviews.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 });
 
-window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && activeWorld) { activeWorld = null; render(); } });
+function openDetail(world) {
+  activeWorld = world;
+  const existing = document.querySelector('.detail-overlay');
+  if (existing) existing.remove();
+  const similar = similarTo(world);
+  const overlay = document.createElement('div');
+  overlay.className = 'detail-overlay';
+  overlay.innerHTML = renderDetailPage(world, similar);
+  app.appendChild(overlay);
+  document.body.classList.add('no-scroll');
+  overlay.scrollTo({ top: 0 });
+}
+
+function closeDetail() {
+  const overlay = document.querySelector('.detail-overlay');
+  if (overlay) overlay.remove();
+  activeWorld = null;
+  document.body.classList.remove('no-scroll');
+}
+
+window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && activeWorld) { closeDetail(); } });
 render();
