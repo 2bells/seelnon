@@ -2,6 +2,8 @@ import { renderDetailPage } from './detail.js';
 import { renderHiddenGemHunt, handleGemClick } from './hidden-gem-hunt.js';
 import { renderEvents } from './events.js';
 import { renderLibraryPage } from './library.js';
+import { renderFeedPage } from './feed.js';
+import { togglePostLike, togglePostStar } from './feed.js';
 
 const images = {
   hallway: 'https://images.pexels.com/photos/30299504/pexels-photo-30299504.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
@@ -91,6 +93,7 @@ function header() {
       <button class="nav-link ${currentPage === 'for-you' ? 'active' : ''}" data-page="for-you">For you</button>
       <button class="nav-link ${currentPage === 'notice-me' ? 'active' : ''}" data-page="notice-me">Notice me</button>
       <button class="nav-link ${currentPage === 'hidden' ? 'active' : ''}" data-page="hidden">Hidden Gems</button>
+      <button class="nav-link ${currentPage === 'feed' ? 'active' : ''}" data-page="feed">Feed</button>
     </nav>
     <div class="header-actions"><button class="ghost-button" data-action="open-search">Search</button><button class="ghost-button" data-action="open-library">Library</button><button class="profile-button">M</button></div>
   </header>`;
@@ -154,6 +157,7 @@ function browsePage() {
   let body;
   if (currentPage === 'notice-me') body = `<main class="page-shell">${noticeMePage()}</main>`;
   else if (currentPage === 'hidden') body = `<main class="page-shell">${renderHiddenGemHunt()}</main>`;
+  else if (currentPage === 'feed') body = `<main class="page-shell">${renderFeedPage()}</main>`;
   else if (currentPage === 'library') body = `<main class="page-shell">${renderLibraryPage(currentCategory)}</main>`;
   else body = `<main class="page-shell">${categoryBrowser()}${featured()}${questRail()}<section class="tabs-section" id="for-you">    <div class="content-tabs"><button class="tab events-tab" data-tab="events">Events</button><button class="tab active" data-tab="for-you">For you</button><button class="tab" data-tab="recent-updated">Recently Updated</button><button class="tab" data-tab="monthly">Monthly Popular</button><button class="tab" data-tab="hall-of-fame">Hall of fame</button><button class="tab" data-tab="official">Official Picks</button><button class="tab" data-tab="playlists">Playlists</button><button class="tab" data-tab="questing">Questing</button></div><div id="tab-content">${tabContent('for-you')}</div></section></main>`;
   return `${header()}${body}`;
@@ -178,8 +182,19 @@ function render() { app.innerHTML = browsePage(); }
 function setTab(tab) { document.querySelectorAll('.tab').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab)); const target = document.querySelector('#tab-content'); if (target) target.innerHTML = tabContent(tab); }
 
 document.addEventListener('click', (event) => {
-  const target = event.target.closest('[data-world], [data-action], [data-tab], [data-review], [data-category], [data-library], [data-page], [data-promo-vote], [data-gem-cat], [data-gem-action], [data-gem-vote], [data-gem-review]');
+  const target = event.target.closest('[data-world], [data-action], [data-tab], [data-review], [data-category], [data-library], [data-page], [data-promo-vote], [data-gem-cat], [data-gem-action], [data-gem-vote], [data-gem-review], [data-post-like], [data-post-star]');
   if (!target) return;
+  if (target.dataset.postLike != null || target.dataset.postStar != null) {
+    const btn = target.closest('.post-btn');
+    const like = btn.dataset.postLike != null;
+    const key = btn.dataset.postLike != null ? btn.dataset.postLike : btn.dataset.postStar;
+    const pressed = like ? togglePostLike(key) : togglePostStar(key);
+    btn.classList.toggle('active', pressed);
+    btn.setAttribute('aria-pressed', String(pressed));
+    const glyph = btn.querySelector('.glyph');
+    if (glyph) glyph.textContent = like ? (pressed ? '♥' : '♡') : (pressed ? '★' : '☆');
+    return;
+  }
   if (target.dataset.page) { currentPage = target.dataset.page; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   if (target.dataset.world) { openDetail(worldById(target.dataset.world)); return; }
   if (target.dataset.tab) { setTab(target.dataset.tab); return; }
@@ -191,6 +206,7 @@ document.addEventListener('click', (event) => {
     target.closest('.promo-card')?.querySelector('.promo-actions')?.replaceChildren(`<span class="promo-voted">${vote === 'yes' ? '✓ Noted as worth a look' : '✗ Registered as not my thing'}</span>`);
     return;
   }
+  if (currentPage === 'feed') return;
   if (target.dataset.action === 'close-detail') { closeDetail(); return; }
   if (target.dataset.action === 'featured-prev') { featuredIndex = (featuredIndex + 2) % 3; render(); return; }
   if (target.dataset.action === 'featured-next') { featuredIndex = (featuredIndex + 1) % 3; render(); return; }
