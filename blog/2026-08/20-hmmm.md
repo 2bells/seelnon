@@ -14,6 +14,12 @@ idk... weird flew.
 But I played a lot of 'mental games' of chess while watching, also a lot of skills from Go transfer as well.
 My end game is 300 elo at best though.
 
+![img](blog/2026-08/img/chss1.jpg)
+
+So when I think about the 'game rating' it is tied to accuracy of the game it seems. So 81.5% leads you into 1500...
+
+For now thinking to learn a bit about Stockfish and how it works.
+
 ```
 thought of a day
 
