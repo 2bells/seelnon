@@ -19,7 +19,7 @@ It might seen some futures when in 12 moves you will be in trouble on all 4 time
 
 Stockfish is too strong for a pleb like me, its lowest is '2nd best moves at 1320 elo'... So yeah, at its lowest it plays 100% all the time, just not the most perfect 100%.
 
-Meaning: for elo lower than 1320 it uses another package of js-chess-engine that is a bit wild, but fits into the lower elo. It surprisingly 'weird' in a good way, was a good find. 
+Meaning: for elo lower than 1320 I use another package to fit the gap and it is js-chess-engine that is a bit wild, but fits into the lower elo. It surprisingly 'weird' in a fun way, was a good find. 
 
 [GitHub Link](https://github.com/josefjadrny/js-chess-engine/tree/master)
 
