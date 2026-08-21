@@ -4,6 +4,7 @@ import { explainMove, identifyOpening } from "./learning.js";
 
 const $ = (id) => document.getElementById(id);
 const boardEl = $("board"), movesEl = $("moves"), analysisEl = $("analysis");
+const sideEl = document.querySelector(".side");
 const statusEl = $("status"), livelineEl = $("liveline");
 const eloS = $("elo"), eloV = $("eloval"), newBtn = $("newgame");
 const promEl = $("promo");
@@ -984,6 +985,22 @@ function startGame(color) {
 
 function newGame() { startGame(playerColor); }
 
+/* The board's height (a square) should dictate the side panel's height. When
+   the move/analysis list is longer than the board, the side must scroll
+   instead of stretching the whole layout (which would also stretch the eval
+   bar). Watch the board's real rendered size and keep the side capped to it —
+   re-syncing whenever the board actually changes size. */
+function syncSideHeight() {
+  const h = boardEl.offsetHeight;
+  if (h > 0) sideEl.style.maxHeight = h + "px";
+}
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(() => requestAnimationFrame(syncSideHeight)).observe(boardEl);
+} else {
+  window.addEventListener("resize", syncSideHeight);
+}
+syncSideHeight();
+
 /* ---------- boot ---------- */
 applyTheme();
 buildMenu();
@@ -991,4 +1008,5 @@ eloV.textContent = eloS.value;
 render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint(); updateStatus();
 applySpoiler();
 preloadSets();
+syncSideHeight();
 initEngine();
