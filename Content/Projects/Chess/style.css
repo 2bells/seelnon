@@ -82,6 +82,29 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
 }
 
 .boardwrap { width: 100%; max-width: 660px; position: relative; }
+/* captured-piece tray — a slim column hugging the board's right edge */
+.captured {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 100%;
+  margin-left: 10px;
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+.captured .caprow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.2);
+}
+.captured svg { width: 20px; height: 20px; display: block; }
+.captured .empty { color: var(--text-dim); font-size: 9px; opacity: 0.35; }
 .arrowsvg {
   position: absolute; inset: 0; pointer-events: none; z-index: 30;
 }
@@ -401,6 +424,12 @@ button.lk:hover { border-color: var(--accent); color: #241403; background: var(-
 button.lk.on { border-color: var(--accent); background: var(--accent); color: #241403; font-weight: 700; }
 .lk.ty { color: var(--text); }
 .lk.ty.fu { color: var(--text-dim); opacity: 0.55; }
+.lchips.sres { margin-top: 2px; }
+a.lk.sbook {
+  color: var(--accent); text-decoration: none; font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.08); background: transparent;
+}
+a.lk.sbook:hover { border-color: var(--accent); background: var(--accent); color: #241403; }
 .lnav {
   display: flex; align-items: center; gap: 6px; margin-top: 4px;
 }

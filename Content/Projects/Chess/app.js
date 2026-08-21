@@ -381,6 +381,7 @@ function render() {
   const last = viewIndex > 0 ? moveRows[viewIndex - 1] : null;
   const flip = playerColor === "b";
   const danger = dangerOn ? dangerSquares(gameFens[viewIndex]) : null;
+  renderCaptured(gameFens[viewIndex]);
   let html = "";
   for (let dr = 0; dr < 8; dr++) for (let dc = 0; dc < 8; dc++) {
     const r = flip ? 7 - dr : dr;
@@ -417,6 +418,34 @@ function dangerSquares(fen) {
   return set;
 }
 function clearSel() { selected = null; legalTargets = []; }
+
+/* Cute tray of the captured pieces, hugging the board's right edge. White's
+   captures are black pieces it has taken, and vice versa. */
+function renderCaptured(fen) {
+  const place = fen.split(" ")[0];
+  const count = { w: {}, b: {} };
+  for (const ch of place) {
+    if (ch === "/" || /[0-9]/.test(ch)) continue;
+    const side = ch === ch.toUpperCase() ? "w" : "b";
+    const type = ch.toUpperCase();
+    count[side][type] = (count[side][type] || 0) + 1;
+  }
+  const start = { P: 8, N: 2, B: 2, R: 2, Q: 1, K: 1 };
+  // capturedBy[s] = pieces of the OPPONENT that side took (so they render in
+  // the opponent's color), biggest pieces first for a nice descending stack.
+  const order = ["Q", "R", "B", "N", "P"];
+  const line = (takers, taken) => {
+    const code = (t) => (taken === "w" ? "w" : "b") + t;
+    const got = order.map((t) => Math.max(0, start[t] - (count[taken][t] || 0)))
+      .map((n, k) => Array(n).fill(code(order[k]))).flat();
+    if (!got.length) return `<span class="empty">·</span>`;
+    return got.map((c) => pieceMarkup(c)).join("");
+  };
+  const el = document.getElementById("captured");
+  if (el) el.innerHTML =
+    `<div class="caprow" title="Black has captured">${line("b", "w")}</div>` +
+    `<div class="caprow" title="White has captured">${line("w", "b")}</div>`;
+}
 
 /* ---------- arrows (right-click) ---------- */
 function sqXY(sq) {
@@ -640,13 +669,41 @@ function chipRowHTML() {
   return r;
 }
 
+/* Wikibooks study resources, each tagged by the game phase it belongs to.
+   "always" shows in every panel; "opening"/"middle"/"endgame" only in that
+   phase. Pages are stable — no move-chasing, so the link always lands on a
+   real, useful chapter. */
+const WB_STUDY = [
+  ["Tempo", "Chess/Tempo", "opening"],
+  ["Chess Opening Theory", "Chess_Opening_Theory", "opening"],
+  ["Tactics", "Chess/Tactics", "middle"],
+  ["Tactics Exercises", "Chess/Tactics_Exercises", "middle"],
+  ["Strategy", "Chess/Strategy", "middle"],
+  ["Chess Strategy", "Chess_Strategy", "endgame"],
+  ["Checkmates", "Chess/Checkmates", "endgame"],
+  ["Endgame", "Chess/The_Endgame/King_and_Queen_vs._King", "endgame"],
+];
+const WB_BASE = "https://en.wikibooks.org/wiki/";
+const wbUrl = (page) => WB_BASE + encodeURIComponent(page).replace(/%2F/g, "/");
+
 /* The identified opening's theory — moves played so far vs still to come. */
 function theoryRowHTML(theory) {
   if (!theory || !theory.moves || !theory.moves.length) return "";
   const from = theory.consumed || 0;
   const chips = theory.moves.map((m, k) =>
     `<span class="lk ty ${k < from ? "" : "fu"}">${m}</span>`).join(" ");
-  return `<div class="lcap">Theory · ${theory.name}</div><div class="lchips">${chips}</div>`;
+  return `<div class="lcap"><span>Theory · ${theory.name}</span></div><div class="lchips">${chips}</div>`;
+}
+
+/* A "keep studying" footer shown on every learn panel; the chips shown depend
+   on the game state so the links match what you're working on right now. */
+function studyRowHTML(ex) {
+  const raw = ex && ex.phase ? ex.phase : "middlegame";
+  const phase = raw === "endgame" ? "endgame" : raw === "opening" ? "opening" : "middle";
+  const shown = WB_STUDY.filter(([, , w]) => w === phase);
+  const chips = shown.map(([label, page]) =>
+    `<a class="lk ty sbook" href="${wbUrl(page)}" target="_blank" rel="noopener">${label}</a>`).join("");
+  return `<div class="lcap">More · Wikibooks <span class="dim">(${phase})</span></div><div class="lchips sres">${chips}</div>`;
 }
 
 /* Phase badge for the learn panel header. */
@@ -750,10 +807,6 @@ async function openLearn(idx) {
     }
   }
 
-  if (ex.endgame) {
-    body += `<div class="learn-op"><div class="oname">Material</div><p class="odesc">${ex.endgame.mat}</p></div>`;
-  }
-
   if (ex.tactics) {
     for (const t of ex.tactics) {
       body += `<div class="learn-op"><div class="oname">${t.tag}</div><p class="odesc">${t.text}</p></div>`;
@@ -774,6 +827,8 @@ async function openLearn(idx) {
     body += `<div class="lcap"><span id="llabel">${learnReplay.label}</span><span class="lmem" id="lmem"></span></div>` +
       `<div class="lnav" id="linewrap"></div>`;
   }
+
+  body += studyRowHTML(ex);
 
   learnBody.innerHTML = body;
   renderLineUI();

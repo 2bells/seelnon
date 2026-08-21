@@ -130,14 +130,6 @@ export function explainMove(i, sans, fen, best, klass, playedSan, playerColor) {
 
   if (gp.phase === "middlegame") {
     out.tactics = [];
-    if (best && best.pv && best.pv.length) {
-      const cap = capturedOf(fen, best.pv[0]);
-      const san = toSan(fen, best.pv[0]);
-      out.tactics.push(cap
-        ? { tag: "Tactic", text: `The best move <b>${san}</b> is a sharp tactic — it wins a ${PIECE_DISP[cap]}.` }
-        : { tag: "Line", text: `A strong try is <b>${san}</b>.` });
-    }
-    out.tactics.push({ tag: "Material", text: leadText(m.w - m.b) });
     out.wisdom = [MIDDLE_TIPS[(seed + i) % MIDDLE_TIPS.length], MIDDLE_TIPS[(seed + i + 1) % MIDDLE_TIPS.length]];
   }
 
