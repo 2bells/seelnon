@@ -80,11 +80,16 @@ function recolor(svg, set, pal, code) {
   if (!svg) return "";
   const map = SETS[set].map;
   const side = code.startsWith("w") ? "w" : "b";
-  let s = svg;
-  for (const [src, key] of (map[side] || [])) {
-    s = s.split(src).join(pal[key]);
-  }
-  return s;
+  const pairs = map[side] || [];
+  if (!pairs.length) return svg;
+  // Single-pass replacement over the ORIGINAL string. Sequential split/join
+  // would let a palette target color (e.g. #ffffff) be re-matched by a later
+  // source (e.g. #fff) and corrupt the fill. Longest-first so a source that is
+  // a prefix of another source wins.
+  const sorted = pairs.slice().sort((a, b) => b[0].length - a[0].length);
+  const re = new RegExp(sorted.map(([src]) => src.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+  const lookup = new Map(sorted.map(([src, key]) => [src, pal[key]]));
+  return svg.replace(re, (m) => lookup.get(m));
 }
 
 function pieceMarkup(code) {
