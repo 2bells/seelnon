@@ -612,7 +612,7 @@ function miniBoardMarkup(fen, from, to) {
 }
 /* ---- learn (second board) panel ---- */
 
-/* Build the clickable chip row for a Stockfish continuation. */
+/* Build the clickable chip row for the current replay line (Stockfish or mate). */
 function chipRowHTML() {
   const n = learnReplay.steps.length;
   let r = "";
@@ -623,13 +623,56 @@ function chipRowHTML() {
   return r;
 }
 
-/* The identified opening's theory — matched so far vs still to come. */
-function theoryRowHTML(opening) {
-  if (!opening || !opening.moves || !opening.moves.length) return "";
-  const from = opening.consumed || 0;
-  const chips = opening.moves.map((m, k) =>
+/* The identified opening's theory — moves played so far vs still to come. */
+function theoryRowHTML(theory) {
+  if (!theory || !theory.moves || !theory.moves.length) return "";
+  const from = theory.consumed || 0;
+  const chips = theory.moves.map((m, k) =>
     `<span class="lk ty ${k < from ? "" : "fu"}">${m}</span>`).join(" ");
-  return `<div class="lcap">Theory · ${opening.name}</div><div class="lchips">${chips}</div>`;
+  return `<div class="lcap">Theory · ${theory.name}</div><div class="lchips">${chips}</div>`;
+}
+
+/* Phase badge for the learn panel header. */
+function phaseLabel(ex) {
+  if (ex.phase === "opening") {
+    const o = ex.opening;
+    return o ? `Opening · ${o.eco} <span class="oname">${o.name}</span>` : "Opening";
+  }
+  if (ex.phase === "endgame") return "Endgame · <span class=\"oname\">checkmate showcase</span>";
+  return "Middlegame · <span class=\"oname\">tactics</span>";
+}
+
+/* Rebuild the replay line's step list from a UCI PV. */
+function buildReplay(pv, fen) {
+  learnReplay.steps = [];
+  if (!pv || !pv.length) return;
+  const c = new Chess(fen);
+  for (const u of pv) {
+    const m = uciToMove(u);
+    let mv;
+    try { mv = m.promotion ? c.move({ from: m.from, to: m.to, promotion: m.promotion }) : c.move({ from: m.from, to: m.to }); }
+    catch (e) { break; }
+    learnReplay.steps.push({ san: mv.san, from: mv.from, to: mv.to, fen: c.fen() });
+  }
+}
+
+/* Re-render the line chips/label and rebind after an async mate search. */
+function renderLineUI() {
+  const wrap = document.getElementById("linewrap");
+  if (!wrap) return;
+  const n = learnReplay.steps.length;
+  const label = document.getElementById("llabel");
+  if (label) label.textContent = learnReplay.label;
+  const mem = document.getElementById("lmem");
+  if (mem) mem.textContent = n ? `${n} plies` : "";
+  wrap.innerHTML = `<button class="lvg" id="lprevx" data-way="-1">‹</button>` +
+    `<div class="lchips scroll">${chipRowHTML()}</div>` +
+    `<button class="lvg" id="lnextx" data-way="1">›</button>`;
+  wrap.querySelectorAll(".lk[data-step]").forEach((el) =>
+    el.addEventListener("click", () => replayStep(+el.dataset.step)));
+  wrap.querySelectorAll(".lvg").forEach((el) =>
+    el.addEventListener("click", () => replayStep(learnReplay.cur + (+el.dataset.way))));
+  replayStep(0);
 }
 
 /* Move the learn mini-board to a replay step (0 = played move as played). */
@@ -658,7 +701,7 @@ function renderLearnBoard() {
   for (const el of chips) el.classList.toggle("on", +el.dataset.step === learnReplay.cur);
 }
 
-function openLearn(idx) {
+async function openLearn(idx) {
   if (idx < 1 || idx > moveRows.length) return;
   const i = idx - 1;
   viewAt(idx);
@@ -670,46 +713,77 @@ function openLearn(idx) {
   const klass = a && a.klass ? a.klass : null;
   const ex = explainMove(i, sans, fen, best, klass, row.san, playerColor);
 
-  // Rebuild the engine continuation from the position the move was played in.
-  learnReplay = { row, idx, cur: 0, steps: [] };
-  if (best && best.pv && best.pv.length) {
-    const c = new Chess(fen);
-    for (const u of best.pv) {
-      const m = uciToMove(u);
-      let mv;
-      try { mv = m.promotion ? c.move({ from: m.from, to: m.to, promotion: m.promotion }) : c.move({ from: m.from, to: m.to }); }
-      catch (e) { break; }
-      learnReplay.steps.push({ san: mv.san, from: mv.from, to: mv.to, fen: c.fen() });
-    }
-  }
+  learnReplay = { row, idx, cur: 0, steps: [], label: ex.phase === "endgame" ? "Checkmate line" : "Stockfish line" };
+
+  // Default to the normal engine continuation; the endgame may replace it with
+  // a dedicated forced-mate line once the search below finishes.
+  const initialPv = (ex.phase === "endgame" && best && best.stype === "mate") ? best.pv : (best ? best.pv : null);
+  buildReplay(initialPv, fen);
 
   learnTitle.innerHTML = `${Math.floor(i / 2) + 1}${i % 2 === 0 ? "." : "…"} ${row.san}` +
     (klass ? ` <span class="kbad ${KCLASS[klass].c}">${KCLASS[klass].n}</span>` : "");
 
   let body = "";
-  if (ex.opening && ex.opening.name) {
-    body += `<p class="ofirst">Opening · ${ex.opening.eco} <span class="oname">${ex.opening.name}</span></p>`;
-    body += theoryRowHTML(ex.opening);
+  body += `<p class="ofirst">${phaseLabel(ex)}</p>`;
+
+  if (ex.theory) {
+    body += theoryRowHTML(ex.theory);
+    if (ex.theory.plan) {
+      body += `<div class="learn-op"><div class="oname">The plan</div><p class="odesc">${ex.theory.plan}</p></div>`;
+    }
   }
-  for (const p of ex.klassParts) body += `<p><span class="oklas ${KCLASS[klass].c}">${KCLASS[klass].n}</span>${p}</p>`;
-  for (const p of ex.bestParts) body += `<p>${p}</p>`;
+
+  if (ex.endgame) {
+    body += `<div class="learn-op"><div class="oname">Material</div><p class="odesc">${ex.endgame.mat}</p></div>`;
+  }
+
+  if (ex.tactics) {
+    for (const t of ex.tactics) {
+      body += `<div class="learn-op"><div class="oname">${t.tag}</div><p class="odesc">${t.text}</p></div>`;
+    }
+  }
+
+  if (ex.endgame) {
+    body += `<div id="matebox" class="learn-op"><div class="oname">Checkmate showcase</div>` +
+      `<p class="odesc">Looking for a forced mate…</p></div>`;
+  }
+
+  if (ex.wisdom && ex.wisdom.length) {
+    body += `<div class="lcap">Chess wisdom</div>`;
+    for (const w of ex.wisdom) body += `<p class="odesc">${w}</p>`;
+  }
+
   if (learnReplay.steps.length) {
-    body += `<div class="lcap"><span>Stockfish line</span><span class="lmem" id="lmem">${learnReplay.steps.length} plies</span></div>` +
-      `<div class="lnav"><button class="lvg" id="lprevx" data-way="-1">‹</button>` +
-      `<div class="lchips scroll">${chipRowHTML()}</div>` +
-      `<button class="lvg" id="lnextx" data-way="1">›</button></div>`;
-  }
-  if (ex.opening && ex.opening.desc) {
-    body += `<div class="learn-op"><div class="oname">About the ${ex.opening.name}</div><p class="odesc">${ex.opening.desc}</p></div>`;
+    body += `<div class="lcap"><span id="llabel">${learnReplay.label}</span><span class="lmem" id="lmem"></span></div>` +
+      `<div class="lnav" id="linewrap"></div>`;
   }
 
   learnBody.innerHTML = body;
-  learnBody.querySelectorAll(".lk[data-step]").forEach((el) =>
-    el.addEventListener("click", () => replayStep(+el.dataset.step)));
-  learnBody.querySelectorAll(".lvg").forEach((el) =>
-    el.addEventListener("click", () => replayStep(learnReplay.cur + (+el.dataset.way))));
-  replayStep(0);
+  renderLineUI();
   learnEl.classList.remove("hidden");
+
+  // In the endgame, ask the engine for a forced-mate continuation and show it
+  // as the "checkmate showcase" — how to finish with the pieces left.
+  if (ex.endgame) {
+    const box = document.getElementById("matebox");
+    try {
+      const lines = await strongSearch(fen, { depth: 20 });
+      const top = lines[0];
+      if (top && top.stype === "mate" && top.pv && top.pv.length) {
+        learnReplay.label = `Checkmate in ${top.sval}`;
+        buildReplay(top.pv, fen);
+        renderLineUI();
+        if (box) box.innerHTML = `<div class="oname">Checkmate showcase</div>` +
+          `<p class="odesc">Forced mate in ${top.sval} — watch the line above.</p>`;
+      } else if (box) {
+        box.innerHTML = `<div class="oname">Checkmate showcase</div>` +
+          `<p class="odesc">No forced mate in sight — accurate and steady play is enough here.</p>`;
+      }
+    } catch (e) {
+      if (box) box.innerHTML = `<div class="oname">Checkmate showcase</div>` +
+        `<p class="odesc">Could not analyse this position.</p>`;
+    }
+  }
 }
 
 function resumeFrom(i) {
