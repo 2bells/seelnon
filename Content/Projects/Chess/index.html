@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chess</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Chess</h1>
+    <label class="elo">
+      <span>Opponent</span>
+      <input id="elo" type="range" min="500" max="2850" step="10" value="1000" />
+      <span id="eloval" class="eloval">1000</span>
+    </label>
+    <button id="newgame" class="btn">New game</button>
+    <button id="settings" class="btn ghost">Theme</button>
+  </header>
+
+  <div class="layout">
+    <div class="boardzone">
+      <div id="evbar" class="evbar" title="Evaluation">
+        <div id="evfill" class="evfill"></div>
+        <span id="evnum" class="evnum">0.00</span>
+      </div>
+      <div class="boardwrap">
+        <div id="board" class="board"></div>
+        <svg id="arrows" class="arrowsvg" viewBox="0 0 8 8" preserveAspectRatio="none"></svg>
+        <button id="cleararr" class="chip" title="Erase arrows">✕</button>
+      </div>
+    </div>
+
+    <div class="side">
+      <div id="status" class="status">Starting opponent…</div>
+      <div id="liveline" class="liveline hidden"></div>
+
+      <div id="accbar" class="accbar hidden">
+        <div class="acc-title">Accuracy</div>
+        <div class="acc-row">
+          <span id="accname1" class="accname">You</span>
+          <div class="acc-track"><div id="pt1" class="acc-fill"></div></div>
+          <span id="accpct1" class="accpct">—</span>
+        </div>
+        <div class="acc-row">
+          <span id="accname2" class="accname">Opponent</span>
+          <div class="acc-track"><div id="pt2" class="acc-fill acc-o"></div></div>
+          <span id="accpct2" class="accpct">—</span>
+        </div>
+      </div>
+
+      <div class="phead">
+        <button id="tabmoves" class="tab active">Moves</button>
+        <button id="tabanalysis" class="tab" style="margin-bottom:0">Analysis</button>
+        <button id="spoiler" class="tab spoil on" title="Toggle spoilers">🔒 Spoilers</button>
+      </div>
+      <div id="spillock" class="spillock hidden">
+        <div class="lockicon">🔒</div>
+        <div class="locktext">Spoilers locked — toggle to reveal eval &amp; analysis</div>
+      </div>
+      <div id="moves" class="moves"></div>
+      <div id="analysis" class="moves hidden"></div>
+
+      <div id="resumebar" class="resumebar hidden">
+        <span>Viewing past move</span>
+        <button id="resume" class="btn small">Continue from here</button>
+        <button id="wellive" class="btn small ghost">Live</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="promo" class="promo hidden">
+    <span>Promote to</span>
+    <button data-p="q">Queen</button>
+    <button data-p="r">Rook</button>
+    <button data-p="b">Bishop</button>
+    <button data-p="n">Knight</button>
+  </div>
+
+  <div id="colorpick" class="colorpick hidden">
+    <div class="cp-title">Play as</div>
+    <div class="cp-opts">
+      <button id="pickw" class="cp-opt">White</button>
+      <button id="pickb" class="cp-opt">Black</button>
+      <button id="pickr" class="cp-opt">Random</button>
+    </div>
+    <button id="pickclose" class="cp-cancel">Cancel</button>
+  </div>
+
+  <div id="menu" class="menu hidden">
+    <div class="menuhead">Board look
+      <button id="menuclose" class="x">&times;</button>
+    </div>
+    <div class="msec">
+      <div class="mlabel">Board</div>
+      <div id="boardopts" class="opts"></div>
+    </div>
+    <div class="msec">
+      <div class="mlabel">Pieces</div>
+      <div id="pieceopts" class="opts"></div>
+      <div id="preview" class="preview"></div>
+    </div>
+    <div class="msec">
+      <div class="mlabel">Piece color</div>
+      <div id="paletteopts" class="opts"></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
