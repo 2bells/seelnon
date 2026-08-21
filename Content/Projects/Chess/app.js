@@ -287,9 +287,18 @@ function scoreString(st) {
   if (st.stype === "mate") return (st.sval > 0 ? "+" : "") + "M" + Math.abs(st.sval);
   const c = st.sval / 100; return (c > 0 ? "+" : "") + c.toFixed(2);
 }
-function whitePct(st) {
+// Share (0-100 %) of the bar owned by the + side of `st` — the player. The player
+// fills from the bottom (their side). Mate scores pin to the extremes.
+function playerPct(st) {
   if (st.stype === "mate") return st.sval > 0 ? 97 : 3;
   return Math.max(3, Math.min(97, 50 + (st.sval / 100) * 8));
+}
+// Re-express a Stockfish eval (relative to the side to move `to`) from the
+// PLAYER's fixed point of view, returned as a fresh {stype, sval} object.
+function toPlayerPov(st, to, player) {
+  const same = to === player;
+  if (st.stype === "mate") return { stype: "mate", sval: same ? st.sval : -st.sval };
+  return { stype: st.stype, sval: same ? st.sval : -st.sval };
 }
 
 function matchesMove(line, mv) {
@@ -737,21 +746,30 @@ function renderEval() {
   else if (analysis && analysis[viewIndex]) sc = analysis[viewIndex].best;
   else sc = posEvals.get(gameFens[viewIndex]) || null;
   const pal = PALETTES[palName];
-  // Player always sits at the bottom of the board; match the eval bar so the
-  // player's own color is on the bottom. White player -> white at bottom.
-  evBar.classList.toggle("flip", playerColor === "w");
-  evBar.style.background = pal.B_BODY;
-  evNum.style.color = pal.B_HL;
+  // Player always sits at the bottom of the board. The bar always measures the
+  // position from the PLAYER's fixed perspective, so the shown value never flips
+  // as the side to move alternates. The player's own color fills up from the
+  // bottom: ahead -> it fills up, behind -> it drains to the top.
+  const playerLight = playerColor === "w";
+  evBar.classList.add("flip");
+  evBar.style.background = playerLight ? pal.B_BODY : pal.W_BODY;
+  evNum.style.color = playerLight ? pal.B_HL : pal.W_HL;
+  const toMove = gameFens[viewIndex].split(" ")[1];
+  let pSt;
   if (!sc) {
     // No fresh evaluation for this position yet (it's being recalculated). Keep
     // showing the previous value instead of snapping back to neutral each time.
-    if (lastShownEval) { sc = lastShownEval; }
+    // lastShownEval is stored in player perspective, so it's NOT re-negated for
+    // the new side to move — otherwise the bar would flip every move.
+    if (lastShownEval) { pSt = lastShownEval; }
     else { evFill.style.background = pal.W_BODY; evFill.style.height = "50%"; evNum.textContent = ""; return; }
+  } else {
+    pSt = toPlayerPov(sc, toMove, playerColor);
   }
-  evFill.style.background = pal.W_BODY;
-  evFill.style.height = whitePct(sc) + "%";
-  evNum.textContent = scoreString(sc);
-  lastShownEval = sc;
+  evFill.style.background = playerLight ? pal.W_BODY : pal.B_BODY;
+  evFill.style.height = playerPct(pSt) + "%";
+  evNum.textContent = scoreString(pSt);
+  lastShownEval = pSt;
 }
 function renderHint() {
   if (spoilerOn) { livelineEl.classList.add("locked"); return; }
