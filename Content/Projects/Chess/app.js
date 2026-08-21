@@ -732,6 +732,9 @@ function renderEval() {
   else if (analysis && analysis[viewIndex]) sc = analysis[viewIndex].best;
   else sc = posEvals.get(gameFens[viewIndex]) || null;
   const pal = PALETTES[palName];
+  // Player always sits at the bottom of the board; match the eval bar so the
+  // player's own color is on the bottom. White player -> white at bottom.
+  evBar.classList.toggle("flip", playerColor === "w");
   evBar.style.background = pal.B_BODY;
   evNum.style.color = pal.B_HL;
   if (!sc) {

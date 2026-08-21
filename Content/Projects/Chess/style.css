@@ -22,13 +22,12 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   display: flex;
-  align-items: center;
-  justify-content: center;
   min-height: 100vh;
 }
 main {
   width: min(1220px, 100%);
   padding: 14px 18px;
+  margin: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -76,6 +75,7 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
   justify-content: center;
 }
 .evfill { position: absolute; left: 0; right: 0; top: 0; background: var(--ev-ok); transition: height 0.35s ease; }
+.evbar.flip .evfill { top: auto; bottom: 0; }
 .evnum {
   position: relative; z-index: 2; font-size: 11px; font-weight: 800;
   color: var(--ev-text); writing-mode: vertical-rl; text-orientation: mixed;
