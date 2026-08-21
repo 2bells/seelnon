@@ -1,6 +1,7 @@
 import { Chess } from "./chess.js";
 import { weakMove } from "./weakengine.js";
-import { explainMove, identifyOpening } from "./learning.js";
+import { explainMove } from "./learning.js";
+import { identifyOpening } from "./openings.js";
 
 const $ = (id) => document.getElementById(id);
 const boardEl = $("board"), movesEl = $("moves"), analysisEl = $("analysis");
@@ -15,12 +16,14 @@ const colorPick = $("colorpick");
 const tabMoves = $("tabmoves"), tabAnalysis = $("tabanalysis");
 const arrowsSvg = $("arrows"), clearArrBtn = $("cleararr");
 const spoilerBtn = $("spoiler"), spillockEl = $("spillock");
+const dangerBtn = $("dangerbtn");
 const learnEl = $("learn"), learnTitle = $("learnTitle"), learnBody = $("learnBody"),
       learnBoard = $("learnboard"), learnArrows = $("learnarrows"), learnClose = $("learnClose");
 
 let arrows = [];
 let arrowFrom = null;
 let spoilerOn = localStorage.getItem("chessx.spoiler") !== "off";
+let dangerOn = localStorage.getItem("chessx.danger") === "on";
 
 let playerColor = "w";
 let engineColor = "b";
@@ -377,6 +380,7 @@ function render() {
   const pieces = fenToPieces(gameFens[viewIndex]);
   const last = viewIndex > 0 ? moveRows[viewIndex - 1] : null;
   const flip = playerColor === "b";
+  const danger = dangerOn ? dangerSquares(gameFens[viewIndex]) : null;
   let html = "";
   for (let dr = 0; dr < 8; dr++) for (let dc = 0; dc < 8; dc++) {
     const r = flip ? 7 - dr : dr;
@@ -385,7 +389,8 @@ function render() {
     const dark = (r + c) % 2 === 1, pc = pieces[r][c];
     const isLast = last && (sq === last.from || sq === last.to);
     const isSel = selected === sq, isTarget = legalTargets.includes(sq);
-    let cls = "sq " + (dark ? "dark" : "light") + (isLast ? " last" : "") + (isSel ? " selected" : "");
+    let cls = "sq " + (dark ? "dark" : "light") + (isLast ? " last" : "") + (isSel ? " selected" : "") +
+      (danger && danger.has(sq) ? " danger" : "");
     let inner = "";
     if (isTarget) inner += '<div class="dot"></div>';
     if (pc) { const code = (pc === pc.toUpperCase() ? "w" : "b") + pc.toUpperCase();
@@ -398,6 +403,18 @@ function render() {
   boardEl.innerHTML = html;
   boardEl.querySelectorAll(".sq").forEach((el) => el.addEventListener("click", () => onSquare(el.dataset.sq)));
   drawArrows();
+}
+/* Every square the opponent attacks in the given position, so you can see
+   where a piece would be a free capture. */
+function dangerSquares(fen) {
+  const pos = new Chess(fen);
+  const enemy = pos.turn() === "w" ? "b" : "w";
+  const set = new Set();
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const sq = String.fromCharCode(97 + c) + (8 - r);
+    if (pos.attackers(sq, enemy).length) set.add(sq);
+  }
+  return set;
 }
 function clearSel() { selected = null; legalTargets = []; }
 
@@ -1043,6 +1060,17 @@ spoilerBtn.addEventListener("click", () => {
   applySpoiler();
 });
 
+/* ---- danger (attacked-square) toggle ---- */
+function applyDanger() {
+  dangerBtn.classList.toggle("on", dangerOn);
+  render();
+}
+dangerBtn.addEventListener("click", () => {
+  dangerOn = !dangerOn;
+  localStorage.setItem("chessx.danger", dangerOn ? "on" : "off");
+  applyDanger();
+});
+
 function startGame(color) {
   cancelEngine();
   gen++;
@@ -1081,6 +1109,7 @@ buildMenu();
 eloV.textContent = eloS.value;
 render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint(); updateStatus();
 applySpoiler();
+applyDanger();
 preloadSets();
 syncSideHeight();
 initEngine();

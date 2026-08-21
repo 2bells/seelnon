@@ -176,6 +176,9 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
 .tab.active { background: var(--panel2); color: var(--text); }
 .tab.spoil { margin-left: auto; font-size: 0.8rem; }
 .tab.spoil.on { color: var(--accent); background: var(--panel2); }
+.tab.spoil#dangerbtn.on { color: #ff6b6b; }
+.sq.danger { box-shadow: inset 0 0 0 100vmax rgba(235, 55, 55, 0.26); }
+.sq.danger .dot { background: rgba(0, 0, 0, 0.5); }
 
 /* ---- spoiler lock ---- */
 .side { position: relative; }
@@ -365,7 +368,13 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
   display: flex; flex-direction: column; gap: 9px; padding-right: 4px;
 }
 .learn-body p { margin: 0; }
-.learn-body .ofirst { font-size: 0.78rem; color: var(--text-dim); }
+.learn-body .ofirst { font-size: 0.82rem; color: var(--text-dim); }
+.learn-body .ofirst .oname { color: var(--accent); font-weight: 800; }
+.learn-body .ohead {
+  font-size: 0.8rem; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--accent); padding-bottom: 2px; border-bottom: 1px solid var(--panel2);
+}
+.learn-body .ohead span { color: var(--text-dim); font-weight: 700; }
 .learn-body b { color: var(--accent); }
 .learn-body .oklas {
   display: inline-block; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.4px;
