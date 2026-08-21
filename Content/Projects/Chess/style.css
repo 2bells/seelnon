@@ -53,19 +53,24 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---- layout ---- */
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 430px); gap: 18px; align-items: start; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 430px); gap: 18px; align-items: stretch; }
 
-.boardzone { display: flex; gap: 10px; max-width: 660px; }
+/* The board zone is the square anchor of the whole layout. Its height comes
+   purely from the board (aspect-ratio 1), and the right-hand panel stretches
+   to match it. */
+.boardzone { position: relative; justify-self: start; max-width: 660px; }
 
-/* eval bar */
+/* eval bar — floats to the LEFT of the board, out of the flow, so it never
+   shrinks the board. It spans the board's full height. */
 .evbar {
-  position: relative;
+  position: absolute;
+  top: 0; bottom: 0;
+  right: 100%;
+  margin-right: 10px;
   width: 30px;
-  align-self: stretch;
   background: var(--ev-bad);
   border-radius: 8px;
   overflow: hidden;
-  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,7 +81,7 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
   color: var(--ev-text); writing-mode: vertical-rl; text-orientation: mixed;
 }
 
-.boardwrap { flex: 1; min-width: 0; position: relative; }
+.boardwrap { width: 100%; max-width: 660px; position: relative; }
 .arrowsvg {
   position: absolute; inset: 0; pointer-events: none; z-index: 30;
 }
@@ -136,7 +141,7 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
 .side {
   background: var(--panel); border-radius: 12px; padding: 14px;
   display: flex; flex-direction: column; gap: 10px;
-  max-height: 70vh;
+  min-height: 0;
 }
 .status { font-size: 1rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; background: var(--panel2); }
 .liveline { font-size: 0.85rem; color: var(--text-dim); padding: 0 4px; }
@@ -336,5 +341,5 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
 
 @media (max-width: 820px) {
   .layout { grid-template-columns: 1fr; }
-  .side { max-height: none; }
+  .side { align-self: start; }
 }
