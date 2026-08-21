@@ -753,7 +753,7 @@ function renderEval() {
   const playerLight = playerColor === "w";
   evBar.classList.add("flip");
   evBar.style.background = playerLight ? pal.B_BODY : pal.W_BODY;
-  evNum.style.color = playerLight ? pal.B_HL : pal.W_HL;
+  evNum.style.color = pal.B_HL;
   const toMove = gameFens[viewIndex].split(" ")[1];
   let pSt;
   if (!sc) {
