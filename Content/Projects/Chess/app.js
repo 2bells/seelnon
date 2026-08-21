@@ -1,5 +1,6 @@
 import { Chess } from "./chess.js";
 import { weakMove } from "./weakengine.js";
+import { explainMove, identifyOpening } from "./learning.js";
 
 const $ = (id) => document.getElementById(id);
 const boardEl = $("board"), movesEl = $("moves"), analysisEl = $("analysis");
@@ -13,6 +14,8 @@ const colorPick = $("colorpick");
 const tabMoves = $("tabmoves"), tabAnalysis = $("tabanalysis");
 const arrowsSvg = $("arrows"), clearArrBtn = $("cleararr");
 const spoilerBtn = $("spoiler"), spillockEl = $("spillock");
+const learnEl = $("learn"), learnTitle = $("learnTitle"), learnBody = $("learnBody"),
+      learnBoard = $("learnboard"), learnArrows = $("learnarrows"), learnClose = $("learnClose");
 
 let arrows = [];
 let arrowFrom = null;
@@ -169,6 +172,11 @@ let analysis = [];
 // Last eval the bar actually displayed, so during a recalculation it stays put
 // (no flicker back to neutral) until a fresh evaluation for this position lands.
 let lastShownEval = null;
+
+// Learn-panel replay: the Stockfish best continuation, clicked through on the
+// mini board. cur===0 shows the position after the played move; cur>=1 steps
+// into the engine line.
+let learnReplay = { row: null, idx: 0, cur: 0, steps: [] };
 
 const KCLASS = {
   brilliant: { n: "Brilliant", c: "k-bril" },
@@ -584,6 +592,125 @@ async function refreshLive() {
 function viewAt(i) {
   viewIndex = i; clearSel(); render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint();
 }
+
+/* ---------- learn (second board) panel ---------- */
+function miniBoardMarkup(fen, from, to) {
+  const pieces = fenToPieces(fen);
+  let html = "";
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const rank = 8 - r, file = String.fromCharCode(97 + c), sq = file + rank;
+    const dark = (r + c) % 2 === 1, pc = pieces[r][c];
+    const cls = "sq " + (dark ? "dark" : "light") +
+      (sq === from ? " hl" : "") + (sq === to ? " hlto" : "");
+    let inner = "";
+    if (pc) { const code = (pc === pc.toUpperCase() ? "w" : "b") + pc.toUpperCase();
+      inner += `<span class="piece">${pieceMarkup(code)}</span>`; }
+    html += `<div class="${cls}">${inner}</div>`;
+  }
+  return html;
+}
+/* ---- learn (second board) panel ---- */
+
+/* Build the clickable chip row for a Stockfish continuation. */
+function chipRowHTML() {
+  const n = learnReplay.steps.length;
+  let r = "";
+  for (let k = 0; k < n; k++) {
+    const s = learnReplay.steps[k];
+    r += `<button class="lk" data-step="${k + 1}">${s.san}</button>`;
+  }
+  return r;
+}
+
+/* The identified opening's theory — matched so far vs still to come. */
+function theoryRowHTML(opening) {
+  if (!opening || !opening.moves || !opening.moves.length) return "";
+  const from = opening.consumed || 0;
+  const chips = opening.moves.map((m, k) =>
+    `<span class="lk ty ${k < from ? "" : "fu"}">${m}</span>`).join(" ");
+  return `<div class="lcap">Theory · ${opening.name}</div><div class="lchips">${chips}</div>`;
+}
+
+/* Move the learn mini-board to a replay step (0 = played move as played). */
+function replayStep(cur) {
+  const n = learnReplay.steps.length;
+  learnReplay.cur = Math.max(0, Math.min(n, cur));
+  renderLearnBoard();
+  const cap = learnBody.querySelector(".lmem");
+  if (cap) cap.textContent = n ? `${learnReplay.cur}/${n} plies` : "";
+  const prev = document.getElementById("lprevx"), next = document.getElementById("lnextx");
+  if (prev) prev.disabled = learnReplay.cur === 0;
+  if (next) next.disabled = learnReplay.cur === n;
+}
+
+/* Redraw the learn mini board and chip highlights at the replay position. */
+function renderLearnBoard() {
+  const st = learnReplay.steps[learnReplay.cur - 1];
+  if (st) {
+    learnBoard.innerHTML = miniBoardMarkup(st.fen, st.from, st.to);
+    learnArrows.innerHTML = arrowLine(st.from, st.to, "");
+  } else {
+    learnBoard.innerHTML = miniBoardMarkup(gameFens[learnReplay.idx], learnReplay.row.from, learnReplay.row.to);
+    learnArrows.innerHTML = arrowLine(learnReplay.row.from, learnReplay.row.to, "");
+  }
+  const chips = learnBody.querySelectorAll(".lk[data-step]");
+  for (const el of chips) el.classList.toggle("on", +el.dataset.step === learnReplay.cur);
+}
+
+function openLearn(idx) {
+  if (idx < 1 || idx > moveRows.length) return;
+  const i = idx - 1;
+  viewAt(idx);
+  const row = moveRows[i];
+  const a = analysis[i];
+  const sans = moveRows.slice(0, idx).map((m) => m.san);
+  const fen = gameFens[i];
+  const best = a && a.best ? a.best : null;
+  const klass = a && a.klass ? a.klass : null;
+  const ex = explainMove(i, sans, fen, best, klass, row.san, playerColor);
+
+  // Rebuild the engine continuation from the position the move was played in.
+  learnReplay = { row, idx, cur: 0, steps: [] };
+  if (best && best.pv && best.pv.length) {
+    const c = new Chess(fen);
+    for (const u of best.pv) {
+      const m = uciToMove(u);
+      let mv;
+      try { mv = m.promotion ? c.move({ from: m.from, to: m.to, promotion: m.promotion }) : c.move({ from: m.from, to: m.to }); }
+      catch (e) { break; }
+      learnReplay.steps.push({ san: mv.san, from: mv.from, to: mv.to, fen: c.fen() });
+    }
+  }
+
+  learnTitle.innerHTML = `${Math.floor(i / 2) + 1}${i % 2 === 0 ? "." : "…"} ${row.san}` +
+    (klass ? ` <span class="kbad ${KCLASS[klass].c}">${KCLASS[klass].n}</span>` : "");
+
+  let body = "";
+  if (ex.opening && ex.opening.name) {
+    body += `<p class="ofirst">Opening · ${ex.opening.eco} <span class="oname">${ex.opening.name}</span></p>`;
+    body += theoryRowHTML(ex.opening);
+  }
+  for (const p of ex.klassParts) body += `<p><span class="oklas ${KCLASS[klass].c}">${KCLASS[klass].n}</span>${p}</p>`;
+  for (const p of ex.bestParts) body += `<p>${p}</p>`;
+  if (learnReplay.steps.length) {
+    body += `<div class="lcap"><span>Stockfish line</span><span class="lmem" id="lmem">${learnReplay.steps.length} plies</span></div>` +
+      `<div class="lnav"><button class="lvg" id="lprevx" data-way="-1">‹</button>` +
+      `<div class="lchips scroll">${chipRowHTML()}</div>` +
+      `<button class="lvg" id="lnextx" data-way="1">›</button></div>`;
+  }
+  if (ex.opening && ex.opening.desc) {
+    body += `<div class="learn-op"><div class="oname">About the ${ex.opening.name}</div><p class="odesc">${ex.opening.desc}</p></div>`;
+  }
+
+  learnBody.innerHTML = body;
+  learnBody.querySelectorAll(".lk[data-step]").forEach((el) =>
+    el.addEventListener("click", () => replayStep(+el.dataset.step)));
+  learnBody.querySelectorAll(".lvg").forEach((el) =>
+    el.addEventListener("click", () => replayStep(learnReplay.cur + (+el.dataset.way))));
+  replayStep(0);
+  learnEl.classList.remove("hidden");
+}
+
 function resumeFrom(i) {
   cancelEngine();
   gen++;
@@ -710,7 +837,7 @@ function renderMoves() {
   if (rowOpen) html += "</div>";
   if (!moveRows.length) html = '<div class="mrow" style="color:var(--text-dim)">Make a move to begin.</div>';
   movesEl.innerHTML = html;
-  movesEl.querySelectorAll(".m").forEach((el) => el.addEventListener("click", () => viewAt(+el.dataset.keep + 1)));
+  movesEl.querySelectorAll(".m").forEach((el) => el.addEventListener("click", () => openLearn(+el.dataset.keep + 1)));
   if (isLive()) movesEl.scrollTop = movesEl.scrollHeight;
 }
 
@@ -733,7 +860,7 @@ function renderAnalysis() {
   }
   if (!html) html = '<div class="mrow" style="color:var(--text-dim)">Analysis appears as the game is played.</div>';
   analysisEl.innerHTML = html;
-  analysisEl.querySelectorAll(".analine").forEach((el) => el.addEventListener("click", () => viewAt(+el.dataset.keep + 1)));
+  analysisEl.querySelectorAll(".analine").forEach((el) => el.addEventListener("click", () => openLearn(+el.dataset.keep + 1)));
   if (isLive()) analysisEl.scrollTop = analysisEl.scrollHeight;
 }
 
@@ -801,6 +928,7 @@ eloS.addEventListener("input", () => { eloV.textContent = eloS.value; if (engine
 newBtn.addEventListener("click", () => colorPick.classList.remove("hidden"));
 settingsBtn.addEventListener("click", () => menu.classList.toggle("hidden"));
 menuClose.addEventListener("click", () => menu.classList.add("hidden"));
+learnClose.addEventListener("click", () => learnEl.classList.add("hidden"));
 resumeBtn.addEventListener("click", () => { if (!thinking && !analyzing) resumeFrom(viewIndex); });
 liveBtn.addEventListener("click", () => viewAt(gameFens.length - 1));
 tabMoves.addEventListener("click", () => showTab("moves"));
