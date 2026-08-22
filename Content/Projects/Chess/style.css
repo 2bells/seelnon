@@ -223,24 +223,24 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
   padding: 4px; padding-right: 6px;
 }
 /* ---- themed scrollbars ---- */
-.moves, #analysis, .menu, .evbar {
+.moves, #analysis, .menu, .evbar, .learn-body {
   scrollbar-width: thin;
   scrollbar-color: var(--accent) rgba(0,0,0,0.25);
 }
-.moves::-webkit-scrollbar, #analysis::-webkit-scrollbar {
+.moves::-webkit-scrollbar, #analysis::-webkit-scrollbar, .learn-body::-webkit-scrollbar {
   width: 9px;
 }
-.moves::-webkit-scrollbar-track, #analysis::-webkit-scrollbar-track {
+.moves::-webkit-scrollbar-track, #analysis::-webkit-scrollbar-track, .learn-body::-webkit-scrollbar-track {
   background: rgba(0,0,0,0.25);
   border-radius: 8px;
 }
-.moves::-webkit-scrollbar-thumb, #analysis::-webkit-scrollbar-thumb {
+.moves::-webkit-scrollbar-thumb, #analysis::-webkit-scrollbar-thumb, .learn-body::-webkit-scrollbar-thumb {
   background: linear-gradient(var(--panel2), #3a2e23);
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-.moves::-webkit-scrollbar-thumb:hover, #analysis::-webkit-scrollbar-thumb:hover {
+.moves::-webkit-scrollbar-thumb:hover, #analysis::-webkit-scrollbar-thumb:hover, .learn-body::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(var(--accent), #b07f42);
   border: 2px solid transparent;
   background-clip: padding-box;

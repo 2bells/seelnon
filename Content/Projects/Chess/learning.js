@@ -40,9 +40,14 @@ export function gamePhase(sans, fen) {
   const m = materialOf(fen);
   const plies = sans.length;
   const endgame = m.total <= 15;
+  const inBook = !!(op && op.inBook);
   let phase = "opening";
   if (endgame) phase = "endgame";
-  else if (!(op && op.inBook) && plies > 22) phase = "middlegame";
+  // Play is opening while it follows a named book line (capped), and for a few
+  // short moves after a deviation. The moment the line has left book, opening
+  // theory stops being the point and the middlegame takes over.
+  else if (plies <= 22 && (inBook || plies < 8)) phase = "opening";
+  else phase = "middlegame";
   return { phase, opening: op ? op.opening : null, theory: op, material: m, plies };
 }
 
@@ -130,12 +135,12 @@ export function explainMove(i, sans, fen, best, klass, playedSan, playerColor) {
 
   if (gp.phase === "middlegame") {
     out.tactics = [];
-    out.wisdom = [MIDDLE_TIPS[(seed + i) % MIDDLE_TIPS.length], MIDDLE_TIPS[(seed + i + 1) % MIDDLE_TIPS.length]];
+    out.wisdom = [MIDDLE_TIPS[(seed + i) % MIDDLE_TIPS.length]];
   }
 
   if (gp.phase === "endgame") {
     out.endgame = { mat: leadText(m.w - m.b) };
-    out.wisdom = [ENDGAME_TIPS[(seed + i) % ENDGAME_TIPS.length], ENDGAME_TIPS[(seed + i + 1) % ENDGAME_TIPS.length]];
+    out.wisdom = [ENDGAME_TIPS[(seed + i) % ENDGAME_TIPS.length]];
   }
 
   return out;

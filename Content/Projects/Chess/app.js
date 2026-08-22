@@ -761,6 +761,53 @@ function replayStep(cur) {
   if (next) next.disabled = learnReplay.cur === n;
 }
 
+/* ------------------------------------------------ punishment (refutation)
+   When the player misses (blunder/inaccuracy/mistake), the most instructive
+   thing to show is the OPPONENT's punishment — the refutation that exploits
+   the error. We analyse the position right after the played move and report
+   where (and after how many moves) the damage lands. */
+const PUN_MAT = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+function punMat(fen, color) {
+  const board = fen.split(" ")[0];
+  let s = 0;
+  for (const ch of board) {
+    const type = ch.toLowerCase();
+    if (!(type in PUN_MAT)) continue;
+    if ((ch === ch.toUpperCase() ? "w" : "b") === color) s += PUN_MAT[type];
+  }
+  return s;
+}
+
+/* Walk the opponent's continuation pv (opponent = side to move at startFen) and
+   find the first decisive event: the opponent winning at least a minor piece,
+   or checkmate. Returns { kinds, plies, gain } where plies = number of pv plies
+   (moves after the played move) until it lands. */
+function analyzePunishment(startFen, pv) {
+  if (!pv || !pv.length) return null;
+  const c = new Chess(startFen);
+  const punisher = c.turn();
+  const defender = punisher === "w" ? "b" : "w";
+  const base = punMat(startFen, punisher) - punMat(startFen, defender);
+  for (let k = 0; k < pv.length; k++) {
+    const m = uciToMove(pv[k]);
+    try { c.move({ from: m.from, to: m.to, promotion: m.promotion || "q" }); } catch (e) { break; }
+    if (c.isCheckmate()) return { kind: "mate", plies: k + 1, gain: 0 };
+    const gain = (punMat(c.fen(), punisher) - punMat(c.fen(), defender)) - base;
+    if (gain >= 3) return { kind: "material", plies: k + 1, gain };
+    if (k >= 15) break;
+  }
+  return { kind: "edge", plies: pv.length, gain: 0 };
+}
+
+function punishSummary(res, klass) {
+  const moves = Math.ceil(res.plies / 2);
+  const m = moves === 1 ? "move" : "moves";
+  const label = (klass || "move").toLowerCase();
+  if (res.kind === "mate") return `This ${label} is decisive: it allows a forced checkmate in ${moves} ${m}. Replay the line to see where it ends.`;
+  if (res.kind === "material") return `This ${label} hands your opponent material in ${moves} ${m}. Replay the line to watch it land.`;
+  return `This ${label} leaves the opponent with a clear upper hand. Replay the line to see how they press the advantage.`;
+}
+
 /* Redraw the learn mini board and chip highlights at the replay position. */
 function renderLearnBoard() {
   const st = learnReplay.steps[learnReplay.cur - 1];
@@ -787,18 +834,37 @@ async function openLearn(idx) {
   const klass = a && a.klass ? a.klass : null;
   const ex = explainMove(i, sans, fen, best, klass, row.san, playerColor);
 
-  learnReplay = { row, idx, cur: 0, steps: [], label: ex.phase === "endgame" ? "Checkmate line" : "Stockfish line" };
+  // A real miss (inaccuracy/mistake/blunder) is best learned from the opponent's
+  // REFUTATION — how the error is punished — rather than the "better move" alone.
+  // If there's a position after the played move that isn't already the end, we
+  // show the punishment as the primary replay line (fetched async below).
+  const isMiss = klass === "blunder" || klass === "mistake" || klass === "inaccuracy";
+  const afterFen = gameFens[i + 1];
+  const canPunish = isMiss && afterFen && !new Chess(afterFen).isGameOver();
+
+  learnReplay = { row, idx, cur: 0, steps: [], label: canPunish ? "How it's punished" : (ex.phase === "endgame" ? "Checkmate line" : "Stockfish line") };
 
   // Default to the normal engine continuation; the endgame may replace it with
-  // a dedicated forced-mate line once the search below finishes.
-  const initialPv = (ex.phase === "endgame" && best && best.stype === "mate") ? best.pv : (best ? best.pv : null);
-  buildReplay(initialPv, fen);
+  // a dedicated forced-mate line once the search below finishes. A punishable
+  // miss skips both and uses the opponent's refutation instead.
+  let initialPv = null;
+  if (!canPunish) {
+    initialPv = (ex.phase === "endgame" && best && best.stype === "mate") ? best.pv : (best ? best.pv : null);
+  }
+  buildReplay(initialPv || [], fen);
 
   learnTitle.innerHTML = `${Math.floor(i / 2) + 1}${i % 2 === 0 ? "." : "…"} ${row.san}` +
     (klass ? ` <span class="kbad ${KCLASS[klass].c}">${KCLASS[klass].n}</span>` : "");
 
   let body = "";
   body += `<p class="ofirst">${phaseLabel(ex)}</p>`;
+
+  if (canPunish) {
+    body += `<div id="pmon" class="learn-op"><div class="oname">Where it bites</div><p class="odesc">Analysing the punishment…</p></div>`;
+    if (a && a.bestSan) {
+      body += `<div class="learn-op"><div class="oname">Instead, play ${a.bestSan}</div></div>`;
+    }
+  }
 
   if (ex.theory) {
     body += theoryRowHTML(ex.theory);
@@ -813,22 +879,26 @@ async function openLearn(idx) {
     }
   }
 
-  if (ex.endgame) {
+  if (ex.endgame && !canPunish) {
     body += `<div id="matebox" class="learn-op"><div class="oname">Checkmate showcase</div>` +
       `<p class="odesc">Looking for a forced mate…</p></div>`;
   }
 
-  if (ex.wisdom && ex.wisdom.length) {
-    body += `<div class="lcap">Chess wisdom</div>`;
-    for (const w of ex.wisdom) body += `<p class="odesc">${w}</p>`;
-  }
+  body += studyRowHTML(ex);
 
-  if (learnReplay.steps.length) {
+  // Default line header shows only when a line already exists; for a punishable
+  // miss the punishment line is filled in async, so always reserve the slot here
+  // (otherwise the later async render has nothing to draw into).
+  if (learnReplay.steps.length || canPunish) {
     body += `<div class="lcap"><span id="llabel">${learnReplay.label}</span><span class="lmem" id="lmem"></span></div>` +
       `<div class="lnav" id="linewrap"></div>`;
   }
 
-  body += studyRowHTML(ex);
+  // "Chess wisdom" is always the very last section.
+  if (ex.wisdom && ex.wisdom.length) {
+    body += `<div class="lcap">Chess wisdom</div>`;
+    for (const w of ex.wisdom) body += `<p class="odesc">${w}</p>`;
+  }
 
   learnBody.innerHTML = body;
   renderLineUI();
@@ -836,7 +906,7 @@ async function openLearn(idx) {
 
   // In the endgame, ask the engine for a forced-mate continuation and show it
   // as the "checkmate showcase" — how to finish with the pieces left.
-  if (ex.endgame) {
+  if (ex.endgame && !canPunish) {
     const box = document.getElementById("matebox");
     try {
       const lines = await strongSearch(fen, { depth: 20 });
@@ -854,6 +924,38 @@ async function openLearn(idx) {
     } catch (e) {
       if (box) box.innerHTML = `<div class="oname">Checkmate showcase</div>` +
         `<p class="odesc">Could not analyse this position.</p>`;
+    }
+  }
+
+  // For a miss, find the opponent's best refutation from the position AFTER the
+  // played move — this is the punishment. Build it as the primary replay line
+  // and tell the player where (and in how many moves) it lands.
+  if (canPunish) {
+    const box = document.getElementById("pmon");
+    try {
+      const lines = await strongSearch(afterFen, { depth: 16 });
+      const top = lines && lines[0];
+      if (top && top.pv && top.pv.length) {
+        const res = analyzePunishment(afterFen, top.pv);
+        learnReplay.label = "How it's punished";
+        buildReplay(top.pv, afterFen);
+        renderLineUI();
+        // Proof: reshape the refutation's eval (which Stockfish reports from
+        // the side to move = the opponent) onto the player's fixed view and
+        // state who the line leaves ahead.
+        const toMove = afterFen.split(" ")[1];
+        const pSt = toPlayerPov(top, toMove, playerColor);
+        let evTxt = pSt.stype === "mate"
+          ? (pSt.sval > 0 ? "+" : "-") + "M" + Math.abs(pSt.sval)
+          : (pSt.sval > 0 ? "+" : "") + (pSt.sval / 100).toFixed(2);
+        const whom = pSt.sval > 0 ? "for you" : pSt.sval < 0 ? "for your opponent" : "even";
+        if (box) box.innerHTML = `<div class="oname">Where it bites</div><p class="odesc">${punishSummary(res, klass)}</p>` +
+          `<p class="odesc">Evaluation after the line: <b>${evTxt}</b> ${whom}.</p>`;
+      } else if (box) {
+        box.innerHTML = `<div class="oname">Where it bites</div><p class="odesc">Could not find a clear punishment.</p>`;
+      }
+    } catch (e) {
+      if (box) box.innerHTML = `<div class="oname">Where it bites</div><p class="odesc">Could not analyse the punishment.</p>`;
     }
   }
 }
