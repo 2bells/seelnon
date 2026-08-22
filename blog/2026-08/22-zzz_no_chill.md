@@ -1,4 +1,4 @@
-Chill ZZZ
+# Chill ZZZ
 
 ![img](blog/2026-08/img/moon3.jpg)
 
@@ -9,7 +9,7 @@ They literally said:
 
 I know that next day it will be: OMG everything is so perfect OMG! But still... ZZZ has no chill.
 
-# Choss
+## Choss
 
 Some chess updates with wiki links and stockfish generates lines to explore blunders and tell you how much it cost you. Also all 55 openings are included in the openings.js: really cool.
 
@@ -20,7 +20,7 @@ Something I noticed: the more I play it the worse I get. Not literally, but I th
 Tbh, another proof of numbers being 'pure evil'. Because I feel that I'm starting to understand the game more and start to experiment, but evaluation says: no, too bad, experiments = lower number.
 So internally I'm happy that I experiment, but seeing lower number is annoying))) The usual.
 
-# Impacto
+## Impacto
 
 ![img](blog/2026-08/img/trt1.jpg)
 
