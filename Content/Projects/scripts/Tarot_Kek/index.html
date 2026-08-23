@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Card Oracle</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <canvas id="aurora"></canvas>
+
+    <section id="draw" class="view">
+      <div class="halo">
+        <div class="energy" id="energy">0</div>
+      </div>
+      <button id="cast" class="cast" disabled>cast the cards</button>
+      <p class="countdown">next read in <span id="timer">--:--:--</span></p>
+    </section>
+
+    <section id="reading" class="view hidden">
+      <h1>your spread</h1>
+      <div class="cards" id="cards"></div>
+      <div class="number-box">
+        <span class="number-label">today's number</span>
+        <span class="number" id="todayNumber">0</span>
+      </div>
+      <p class="countdown">next read in <span id="timer2">--:--:--</span></p>
+      <br />
+      <button id="again" class="cast ghost">read again</button>
+    </section>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
