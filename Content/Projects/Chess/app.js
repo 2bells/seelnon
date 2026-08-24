@@ -2,11 +2,12 @@ import { Chess } from "./chess.js";
 import { weakMove } from "./weakengine.js";
 import { explainMove } from "./learning.js";
 import { identifyOpening } from "./openings.js";
+import { createTester } from "./tester.js";
 
 const $ = (id) => document.getElementById(id);
 const boardEl = $("board"), movesEl = $("moves"), analysisEl = $("analysis");
 const sideEl = document.querySelector(".side");
-const statusEl = $("status"), livelineEl = $("liveline");
+const statusEl = $("statustext"), statusBar = $("status"), rewindBtn = $("rewind"), livelineEl = $("liveline");
 const eloS = $("elo"), eloV = $("eloval"), newBtn = $("newgame");
 const promEl = $("promo");
 const evFill = $("evfill"), evNum = $("evnum"), evBar = $("evbar");
@@ -24,6 +25,52 @@ let arrows = [];
 let arrowFrom = null;
 let spoilerOn = localStorage.getItem("chessx.spoiler") !== "off";
 let dangerOn = localStorage.getItem("chessx.danger") === "on";
+
+/* ---------- sound ---------- */
+let muted = localStorage.getItem("chessx.mute") === "on";
+// Decoded audio buffers, played through Web Audio. Decoding into memory makes
+// every sound instant (no re-fetching on first play, which is what made the
+// first move sound laggy/drop with the old cloneNode approach).
+const tracks = {};      // decoded AudioBuffer per sound key
+const sound = (() => {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  const ctx = new AC();
+  const gain = ctx.createGain();
+  gain.gain.value = 0.6;
+  gain.connect(ctx.destination);
+  // Browsers keep the context suspended until a user gesture. Resume on the
+  // first interaction so even the very first move has working audio.
+  function resume() { if (ctx.state === "suspended") ctx.resume(); }
+  window.addEventListener("click", resume, { once: true });
+  window.addEventListener("keydown", resume, { once: true });
+  return { ctx, gain };
+})();
+
+async function loadSfx() {
+  const FILES = { move: "move", capture: "capture", check: "move-2", promote: "promote" };
+  if (!sound) return;
+  await Promise.all(Object.entries(FILES).map(async ([key, file]) => {
+    try {
+      const res = await fetch(`sfx/${file}.wav`);
+      const buf = await res.arrayBuffer();
+      tracks[key] = await sound.ctx.decodeAudioData(buf);
+    } catch (e) { tracks[key] = null; }
+  }));
+}
+function play(name) {
+  if (muted || !sound || !tracks[name]) return;
+  const src = sound.ctx.createBufferSource();
+  src.buffer = tracks[name];
+  src.connect(sound.gain);
+  src.start();
+}
+function moveSound(mv) {
+  if (mv.promotion) play("promote");
+  else if (mv.captured) play("capture");
+  else play("move");
+  if (chess.inCheck()) play("check");
+}
 
 let playerColor = "w";
 let engineColor = "b";
@@ -515,12 +562,16 @@ function endArrow(target) {
 }
 
 function onSquare(sq) {
-  if (!engineReady || thinking || analyzing || gameOver || !isLive()) { clearSel(); render(); return; }
+  if (!tester.isOn()) {
+    if (!engineReady || thinking || analyzing || gameOver || !isLive()) { clearSel(); render(); return; }
+  }
   if (pendingPromo) { pendingPromo = null; promEl.classList.add("hidden"); }
   if (selected && selected === sq) { clearSel(); render(); return; }
   const piece = chess.get(sq);
   if (selected && legalTargets.includes(sq)) { playMove(selected, sq, null); return; }
-  if (piece && piece.color === playerColor && chess.turn() === playerColor) {
+  // In test mode the player controls both sides, so any piece is draggable at
+  // any time. Otherwise only the player's own pieces on their own turn.
+  if (piece && (tester.isOn() || (piece.color === playerColor && chess.turn() === playerColor))) {
     selected = sq; legalTargets = chess.moves({ square: sq, verbose: true }).map((m) => m.to); render(); return;
   }
   clearSel(); render();
@@ -530,16 +581,17 @@ function isPromotion(from, to) { const p = chess.get(from); if (!p || p.type !==
   return (p.color === "w" && to[1] === "8") || (p.color === "b" && to[1] === "1"); }
 
 function playMove(from, to, prom) {
-  if (gameOver || thinking || !engineReady) return;
+  if (!tester.isOn() && (gameOver || thinking || !engineReady)) return;
   if (!prom && isPromotion(from, to)) { pendingPromo = { from, to }; promEl.classList.remove("hidden"); return; }
   let mv;
   try { mv = prom ? chess.move({ from, to, promotion: prom }) : chess.move({ from, to }); }
   catch (e) { clearSel(); render(); return; }
+  moveSound(mv);
   moveRows.push({ from: mv.from, to: mv.to, san: mv.san, promotion: mv.promotion || null });
   gameFens.push(chess.fen());
   viewIndex = moveRows.length;
   clearSel(); render(); renderMoves(); renderAnalysis(); updateStatus(); renderResume();
-  afterPlayerMove();
+  if (tester.isOn()) tester.afterMove(); else afterPlayerMove();
 }
 function afterPlayerMove() {
   if (chess.isGameOver()) { gameOver = true; thinking = false; updateStatus(); renderResume(); finalizeAnalysis(); return; }
@@ -607,6 +659,7 @@ function applyChosen(chosen) {
   const m = uciToMove(chosen);
   const myGen = gen;
   try { const mv = m.promotion ? chess.move({ from: m.from, to: m.to, promotion: m.promotion }) : chess.move({ from: m.from, to: m.to });
+    moveSound(mv);
     moveRows.push({ from: mv.from, to: mv.to, san: mv.san, promotion: mv.promotion || null });
     gameFens.push(chess.fen()); viewIndex = moveRows.length; }
   catch (e) { thinking = false; return; }
@@ -977,6 +1030,26 @@ function renderResume() {
   resBar.classList.add("hidden");
 }
 
+// Take back the last move without re-running a full analysis: step the board
+// back to just before the opponent's reply and reuse the existing per-move
+// analysis for everything we keep. Returns to the player's turn so they can
+// play again immediately.
+function rewind() {
+  if (tester.isOn() || thinking || analyzing || gameOver || !isLive()) return;
+  if (moveRows.length === 0) return;
+  cancelEngine(); gen++;
+  const i = Math.max(0, moveRows.length - 2);
+  chess = new Chess(gameFens[i]);
+  moveRows = moveRows.slice(0, i);
+  gameFens = gameFens.slice(0, i + 1);
+  analysis = analysis.slice(0, i);
+  viewIndex = i;
+  gameOver = false; analyzing = false; thinking = false;
+  clearSel(); promEl.classList.add("hidden"); pendingPromo = null;
+  render(); renderMoves(); renderAnalysis(); renderResume(); renderAccuracy(); renderEval(); renderHint(); updateStatus();
+  refreshLive();
+}
+
 /* ---------- analysis ---------- */
 async function analyzeIndex(i) {
   if (analysis[i]) return analysis[i];
@@ -1149,7 +1222,7 @@ function renderEval() {
 }
 function renderHint() {
   if (spoilerOn) { livelineEl.classList.add("locked"); return; }
-  const show = isLive() && !gameOver && !thinking && chess.turn() === playerColor;
+  const show = (isLive() && !gameOver) && (tester.isOn() || (!thinking && chess.turn() === playerColor));
   const hint = posHints.get(gameFens[viewIndex]);
   if (show && hint) { livelineEl.innerHTML = `Engine suggests <b>${hint}</b>`; livelineEl.classList.remove("hidden"); }
   else livelineEl.classList.add("hidden");
@@ -1157,7 +1230,7 @@ function renderHint() {
 
 /* ---------- status ---------- */
 function updateStatus() {
-  if (!engineReady) { statusEl.textContent = "Starting opponent…"; return; }
+  if (!engineReady) { statusEl.textContent = "Starting opponent…"; rewindBtn.classList.add("hidden"); return; }
   if (gameOver) {
     if (chess.isCheckmate()) statusEl.textContent = chess.turn() === playerColor ? "Checkmate — you lost" : "Checkmate — you won";
     else if (chess.isStalemate()) statusEl.textContent = "Stalemate — draw";
@@ -1165,11 +1238,22 @@ function updateStatus() {
     else if (chess.isThreefoldRepetition()) statusEl.textContent = "Draw — repetition";
     else if (chess.isDraw()) statusEl.textContent = "Draw — 50-move rule";
     else statusEl.textContent = "Game over";
+    rewindBtn.classList.add("hidden");
     return;
   }
-  if (thinking) { statusEl.textContent = "Opponent thinking…"; return; }
+  if (thinking) { statusEl.textContent = "Opponent thinking…"; updateRewind(); return; }
   if (chess.turn() === playerColor) statusEl.textContent = chess.inCheck() ? "Your move — check!" : "Your move";
   else statusEl.textContent = "Opponent thinking…";
+  updateRewind();
+}
+
+// Show the take-back arrow while it's the player's move and there's something
+// to take back. Hidden in test mode (which has its own Reset) and while the
+// engine is thinking or the game is over.
+function updateRewind() {
+  const on = !tester.isOn() && !gameOver && !thinking && !analyzing &&
+    isLive() && chess.turn() === playerColor && moveRows.length > 0;
+  rewindBtn.classList.toggle("hidden", !on);
 }
 
 /* ---------- controls ---------- */
@@ -1179,6 +1263,7 @@ settingsBtn.addEventListener("click", () => menu.classList.toggle("hidden"));
 menuClose.addEventListener("click", () => menu.classList.add("hidden"));
 learnClose.addEventListener("click", () => learnEl.classList.add("hidden"));
 resumeBtn.addEventListener("click", () => { if (!thinking && !analyzing) resumeFrom(viewIndex); });
+rewindBtn.addEventListener("click", rewind);
 liveBtn.addEventListener("click", () => viewAt(gameFens.length - 1));
 tabMoves.addEventListener("click", () => showTab("moves"));
 tabAnalysis.addEventListener("click", () => showTab("analysis"));
@@ -1229,6 +1314,7 @@ dangerBtn.addEventListener("click", () => {
 });
 
 function startGame(color) {
+  if (tester.isOn()) tester.stop();
   cancelEngine();
   gen++;
   playerColor = color;
@@ -1260,13 +1346,87 @@ if (typeof ResizeObserver !== "undefined") {
 }
 syncSideHeight();
 
+/* ---- mute toggle ---- */
+function applyMute() {
+  const icon = $("muteicon"), label = $("mutelabel");
+  icon.textContent = muted ? "🔇" : "🔊";
+  label.textContent = muted ? "Off" : "On";
+  $("mutebtn").classList.toggle("on", !muted);
+}
+$("mutebtn").addEventListener("click", () => {
+  muted = !muted;
+  localStorage.setItem("chessx.mute", muted ? "on" : "off");
+  applyMute();
+});
+
+/* ---- test mode controller ---- */
+// The board's working area, seeded from a FEN: used both when entering test
+// mode and when resetting it, to start (again) from the chosen position.
+function setWorking(fen) {
+  cancelEngine(); gen++;
+  chess = new Chess(fen);
+  moveRows = []; gameFens = [chess.fen()]; viewIndex = 0;
+  gameOver = false; analyzing = false; analysis = []; thinking = false;
+  arrows = []; arrowFrom = null; drawArrows();
+  clearSel(); promEl.classList.add("hidden"); pendingPromo = null;
+}
+// Snapshot the real game so test mode can be put back exactly as found.
+function testSnapshot() {
+  return { fen: chess.fen(), moveRows: moveRows.slice(), gameFens: gameFens.slice(), viewIndex, gameOver, analysis: analysis.slice() };
+}
+function restoreTest(b) {
+  cancelEngine(); gen++;
+  chess = new Chess(b.fen);
+  moveRows = b.moveRows; gameFens = b.gameFens; viewIndex = b.viewIndex;
+  gameOver = b.gameOver; analysis = b.analysis; analyzing = false; thinking = false;
+  arrows = []; arrowFrom = null; drawArrows();
+  clearSel(); promEl.classList.add("hidden"); pendingPromo = null;
+}
+function renderAll() {
+  render(); renderMoves(); renderAnalysis(); renderResume(); renderAccuracy();
+  renderEval(); renderHint(); updateStatus();
+}
+function resumeTest() {
+  if (gameOver || !engineReady) { updateStatus(); return; }
+  if (chess.turn() === engineColor) engineMove(); else refreshLive();
+  updateStatus(); renderHint();
+}
+
+const tester = createTester({
+  testBtn: $("testtoggle"), resetBtn: $("testreset"),
+  cancelEngine: () => { cancelEngine(); gen++; },
+  snapshot: testSnapshot,
+  setWorking, restoreTest, renderAll, resume: resumeTest,
+  currentIndex: () => moveRows.length - 1,
+  analyzeIndex, renderMoves, renderAnalysis, renderEval, refreshLive, updateStatus,
+});
+
 /* ---------- boot ---------- */
-applyTheme();
-buildMenu();
-eloV.textContent = eloS.value;
-render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint(); updateStatus();
-applySpoiler();
-applyDanger();
-preloadSets();
-syncSideHeight();
-initEngine();
+const loadingEl = $("loading"), loadingPieces = $("loadingpieces");
+// Build the piece parade (pawn → … → king) so the loading screen visibly
+// finishes building right as the board becomes fully interactive.
+function showLoadingPieces() {
+  loadingPieces.innerHTML = ["wP", "wN", "wB", "wR", "wQ", "wK"]
+    .map((c, i) => `<span class="lpiece" style="animation-delay:${i * 130}ms">${pieceMarkup(c)}</span>`).join("");
+}
+function hideLoading() {
+  loadingEl.classList.add("done");
+  setTimeout(() => loadingEl.classList.add("hidden"), 480);
+}
+async function boot() {
+  const sfxReady = loadSfx();
+  applyTheme();
+  buildMenu();
+  eloV.textContent = eloS.value;
+  render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint(); updateStatus();
+  applySpoiler();
+  applyDanger();
+  applyMute();
+  await Promise.all([sfxReady, preloadSets()].map((p) => Promise.resolve(p).catch(() => {})));
+  showLoadingPieces();
+  await initEngine();
+  syncSideHeight();
+  // Let the piece parade finish before sweeping the screen away.
+  setTimeout(hideLoading, 1100);
+}
+boot();

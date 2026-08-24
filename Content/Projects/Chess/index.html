@@ -15,6 +15,8 @@
       <input id="elo" type="range" min="500" max="2850" step="10" value="1000" />
       <span id="eloval" class="eloval">1000</span>
     </label>
+    <button id="testtoggle" class="btn ghost testtoggle" title="Free-move test board">Test</button>
+    <button id="testreset" class="btn ghost testreset hidden" title="Reset to the position test mode started from">Reset</button>
     <button id="newgame" class="btn">New game</button>
     <button id="settings" class="btn ghost">Theme</button>
   </header>
@@ -34,7 +36,7 @@
     </div>
 
     <div class="side">
-      <div id="status" class="status">Starting opponent…</div>
+      <div id="status" class="status"><span id="statustext">Starting opponent…</span><button id="rewind" class="rewind hidden" title="Take back your last move">↶</button></div>
       <div id="liveline" class="liveline hidden"></div>
 
       <div id="accbar" class="accbar hidden">
@@ -107,6 +109,15 @@
       <div class="mlabel">Piece color</div>
       <div id="paletteopts" class="opts"></div>
     </div>
+    <div class="msec">
+      <div class="mlabel">Sound</div>
+      <button id="mutebtn" class="optbtn"><span id="muteicon">🔊</span> <span id="mutelabel">On</span></button>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">
+    <div class="loading-label">Setting up board…</div>
+    <div id="loadingpieces" class="loading-pieces"></div>
   </div>
 
   <div id="learn" class="learn hidden">
