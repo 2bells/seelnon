@@ -89,7 +89,7 @@ function diceInt(center, spread) {
 // Under the hood each move is decided between the angel and the devil: the
 // angel votes for a solid, near-best move; the devil votes for a wild gambit or
 // a plain blunder. Their roll is weighted by the current mood + personality.
-function rollMood(bot, evalScore) {
+function rollMood(bot, evalScore, used) {
   const d = { ...STYLES[bot.style].base };
   const lock = dice(bot.lockIn), sloppy = dice(bot.sloppy);
   d.locked += (lock / 100) * 0.5;
@@ -99,6 +99,10 @@ function rollMood(bot, evalScore) {
   if (evalScore > 1.2) d.locked += 0.25;
   else if (evalScore < -1.2) { d.desperate += 0.2; d.sloppy += 0.15; }
   for (const k in d) d[k] = Math.max(0, d[k]);
+  // The sloppy window is a one-shot: the player gets one chance to punish it,
+  // then the devil is done gambling for the whole game. Shut its weight off so
+  // we never bounce back into sloppiness ("up and down a lot").
+  if (used.sloppy) d.sloppy = 0;
   const total = d.solid + d.sloppy + d.locked + d.desperate;
   let r = Math.random() * total;
   for (const k of ["solid", "sloppy", "locked", "desperate"]) { r -= d[k]; if (r <= 0) return k; }
@@ -146,9 +150,18 @@ export function createBrain(bot) {
   // Below Stockfish's UCI_Elo floor (~1320) the engine clamps, so scale up the
   // devil's volume to keep genuinely weak bots weak.
   const low = Math.max(0, (1320 - bot.elo) / 1320);
+  // How devastating a blunder this bot can afford to make. Runs 0 at ~1350 up to
+  // 1 at ~1600: above that strength the bot never hangs whole pieces — sloppy
+  // stops meaning "shove the queen" and becomes plain inaccuracy instead. A
+  // (1 - strength) multiplier dries the big-random-blunder path out entirely.
+  const strength = Math.min(1, Math.max(0, (bot.elo - 1350) / 250));
+  const blunderMult = 1 - strength;
   let mood = "solid";
   let moodLeft = 0;
   let prevEval = null;
+  // One-shot flags: the player gets exactly ONE sloppy window and ONE big
+  // blunder per game, so the bot isn't careening up and down the whole time.
+  const used = { sloppy: false, blunder: false };
   const setMood = (m, len) => { mood = m; moodLeft = len; };
   return {
     mood: () => MOODS[mood].label,
@@ -162,25 +175,38 @@ export function createBrain(bot) {
       // bad"); one already far ahead gets cocky and loosens up ("not even
       // funny anymore"). A big swing cuts the current window short and flips the
       // mood on the spot — the character reacts to the game, not just to a dice.
+      // The sloppy window is one-shot, so its rebound can only ever lock in, and
+      // the game never bounces back into a second sloppy stretch.
       if (prevEval !== null && mood === "sloppy" && evalScore - prevEval < -2.0) {
+        used.sloppy = true;
         setMood("locked", Math.max(2, diceInt(bot.lockLen, 2)));
-      } else if (prevEval !== null && mood === "locked" && evalScore - prevEval > 2.0) {
+      } else if (prevEval !== null && mood === "locked" && evalScore - prevEval > 2.0 && !used.sloppy) {
         setMood("sloppy", Math.max(2, diceInt(bot.sloppyLen, 2)));
       }
       prevEval = evalScore;
 
       // Draw the window's rolled personality once it's time for a new stretch.
-      if (moodLeft <= 0) { const nm = rollMood(bot, evalScore); setMood(nm, windowLen(bot, nm)); }
+      if (moodLeft <= 0) {
+        const nm = rollMood(bot, evalScore, used);
+        if (nm === "sloppy") used.sloppy = true;
+        setMood(nm, windowLen(bot, nm));
+      }
       moodLeft--;
       const m = MOODS[mood];
 
       // Devil's loudest suggestion: just move some random piece. Blunders get
       // weaker in "locked" windows and ride on the rolled blunder + sloppiness.
-      const devilBlunder = dice(bot.blunder) / 100 + (mood === "sloppy" ? 0.1 : 0) + (mood === "desperate" ? 0.15 : 0) + low * 0.2;
-      if (Math.random() < Math.min(0.7, devilBlunder)) {
-        const best = lines && lines.length ? lines[0].pv[0] : baseMove;
-        const b = randomBlunder(legalMoves, best);
-        if (b) return b;
+      // The whole path fades out for strong bots (blunderMult -> 0 above ~1600)
+      // and can only fire ONCE per game (used.blunder). Above that a strong
+      // bot's "off" moments still come from pickFromLines below — a slightly
+      // suboptimal but sane engine line = an inaccuracy, never a hung queen.
+      if (!used.blunder) {
+        const devilBlunder = dice(bot.blunder) / 100 + (mood === "sloppy" ? 0.1 : 0) + (mood === "desperate" ? 0.15 : 0) + low * 0.2;
+        if (Math.random() < Math.min(0.7, devilBlunder) * blunderMult) {
+          const best = lines && lines.length ? lines[0].pv[0] : baseMove;
+          const b = randomBlunder(legalMoves, best);
+          if (b) { used.blunder = true; return b; }
+        }
       }
       // Otherwise angel vs devil bid on which engine line to play.
       if (lines && lines.length) return pickFromLines(bot, m, lines, low);
