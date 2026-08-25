@@ -10,15 +10,19 @@
 <main>
   <header class="top">
     <h1>Chess</h1>
-    <label class="elo">
-      <span>Opponent</span>
+<button id="oppbtn" class="btn ghost oppbtn" title="Choose opponent">
+      <span id="oppword" class="opp-label">Opponent</span>
+      <span id="oppname" class="oppname">Elo 1000</span>
+    </button>
+    <label class="elo" id="elolabel">
+      <span>Elo</span>
       <input id="elo" type="range" min="500" max="2850" step="10" value="1000" />
       <span id="eloval" class="eloval">1000</span>
     </label>
     <button id="testtoggle" class="btn ghost testtoggle" title="Free-move test board">Test</button>
     <button id="testreset" class="btn ghost testreset hidden" title="Reset to the position test mode started from">Reset</button>
     <button id="newgame" class="btn">New game</button>
-    <button id="settings" class="btn ghost">Theme</button>
+    <button id="settings" class="btn ghost" title="Theme & settings">⚙</button>
   </header>
 
   <div class="layout">
@@ -36,6 +40,7 @@
     </div>
 
     <div class="side">
+      <div id="botcard" class="botcard hidden"></div>
       <div id="status" class="status"><span id="statustext">Starting opponent…</span><button id="rewind" class="rewind hidden" title="Take back your last move">↶</button></div>
       <div id="liveline" class="liveline hidden"></div>
 
@@ -75,11 +80,12 @@
   </div>
 
   <div id="promo" class="promo hidden">
-    <span>Promote to</span>
-    <button data-p="q">Queen</button>
-    <button data-p="r">Rook</button>
-    <button data-p="b">Bishop</button>
-    <button data-p="n">Knight</button>
+    <div class="promo-grid">
+      <button class="popt" data-p="q" data-code="Q" title="Queen"></button>
+      <button class="popt" data-p="r" data-code="R" title="Rook"></button>
+      <button class="popt" data-p="b" data-code="B" title="Bishop"></button>
+      <button class="popt" data-p="n" data-code="N" title="Knight"></button>
+    </div>
   </div>
 
   <div id="colorpick" class="colorpick hidden">
@@ -92,6 +98,106 @@
     <button id="pickclose" class="cp-cancel">Cancel</button>
   </div>
 
+  <div id="oppmenu" class="oppmenu hidden">
+    <div class="menuhead">Opponent
+      <button id="oppclose" class="x">&times;</button>
+    </div>
+
+    <div id="opplist">
+      <div class="msec">
+        <div class="mlabel">Saved bots</div>
+        <div id="botlist" class="botlist"></div>
+      </div>
+      <div class="msec">
+        <div class="mlabel">Or</div>
+        <div class="opts">
+          <button id="oppelo" class="optbtn">Use elo slider</button>
+          <button id="oppnew" class="optbtn">Create new bot</button>
+          <button id="oppproc" class="optbtn">Procedural</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="oppform" class="oppform hidden">
+      <div class="form-cols">
+        <div class="form-fluff">
+          <div class="msec">
+            <div class="mlabel">Profile picture</div>
+            <div class="pfprow">
+              <div id="pfpprev" class="pfpprev" title="Click to upload"><span class="pfpph">+</span></div>
+              <div class="pfpbtns">
+                <button id="pfpuploadbtn" class="optbtn">Upload</button>
+              </div>
+              <input id="pfpfile" type="file" accept="image/*" class="hidden" />
+            </div>
+            <input id="pfpurl" class="textin" type="text" placeholder="…or paste an image link" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Name</div>
+            <input id="botname" class="textin" type="text" maxlength="24" placeholder="Bot name" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Country</div>
+            <input id="botcountry" class="textin" type="text" maxlength="2" placeholder="Code e.g. IT" />
+            <div id="flagpicks" class="flagpicks"></div>
+          </div>
+          <div class="msec">
+            <div class="mlabel">Favorite opening</div>
+            <select id="botfavopening" class="textin"></select>
+          </div>
+          <div class="msec">
+            <div class="mlabel">Description</div>
+            <textarea id="botdesc" class="textin" rows="3" maxlength="140" placeholder="A line about them"></textarea>
+          </div>
+        </div>
+
+        <div class="form-settings">
+          <div class="msec">
+            <div class="mlabel">Elo <span id="botelov" class="val"></span></div>
+            <input id="botelo" type="range" min="500" max="2850" step="10" value="1500" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Style</div>
+            <div id="botstyle" class="opts"></div>
+          </div>
+          <div class="msec">
+            <div class="mlabel">Blunder <span id="botblunderv" class="val"></span></div>
+            <input id="botblunder" type="range" min="0" max="100" step="5" value="15" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Aggression <span id="botaggrv" class="val"></span></div>
+            <input id="botaggr" type="range" min="0" max="100" step="5" value="30" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Lock-in <span id="botlockv" class="val"></span></div>
+            <input id="botlock" type="range" min="0" max="100" step="5" value="50" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Sloppy <span id="botsloppyv" class="val"></span></div>
+            <input id="botsloppy" type="range" min="0" max="100" step="5" value="40" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Lock-in window <span id="botlocklenv" class="val"></span></div>
+            <input id="botlocklen" type="range" min="2" max="8" step="1" value="4" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Sloppy window <span id="botsloppylenv" class="val"></span></div>
+            <input id="botsloppylen" type="range" min="2" max="8" step="1" value="3" />
+          </div>
+          <div class="msec">
+            <div class="mlabel">Opening book</div>
+            <button id="botopening" class="optbtn">On</button>
+          </div>
+        </div>
+      </div>
+      <div class="msec opp-actions">
+        <button id="botsave" class="btn">Save</button>
+        <button id="botcancel" class="btn ghost">Cancel</button>
+        <button id="botdelete" class="btn ghost danger hidden">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <div id="menu" class="menu hidden">
     <div class="menuhead">Board look
       <button id="menuclose" class="x">&times;</button>
@@ -99,6 +205,14 @@
     <div class="msec">
       <div class="mlabel">Board</div>
       <div id="boardopts" class="opts"></div>
+    </div>
+    <div class="msec">
+      <div class="mlabel">My elo <span id="myelov" class="val"></span></div>
+      <input id="myelo" type="range" min="500" max="2850" step="10" value="1000" />
+    </div>
+    <div class="msec">
+      <div class="mlabel">Scale</div>
+      <div id="scaleopts" class="opts"></div>
     </div>
     <div class="msec">
       <div class="mlabel">Pieces</div>
