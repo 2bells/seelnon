@@ -42,12 +42,16 @@ main {
   background: var(--panel); padding: 2px 8px; border-radius: 6px;
 }
 input[type="range"] { accent-color: var(--accent); height: 6px; }
+.oppbtn { display: flex; align-items: center; gap: 7px; }
+.opp-label { color: var(--text-dim); font-size: 0.8rem; font-weight: 600; }
+.oppname { font-weight: 700; color: var(--accent); font-size: 0.9rem; }
 .btn {
   background: var(--accent); border: 0; color: #241403; font-weight: 700;
   padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
 }
 .btn:hover { filter: brightness(1.08); }
 .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--panel2); }
+.btn.danger { color: #ff6b6b; border-color: #ff6b6b; }
 .btn.small { padding: 6px 12px; font-size: 0.82rem; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -82,17 +86,19 @@ input[type="range"] { accent-color: var(--accent); height: 6px; }
 #testreset { border-color: #4f8ff0; color: #7ab3ff; }
 #testreset:hover { background: rgba(79, 143, 240, 0.12); }
 
-body.testing .board { position: relative; }
-body.testing .board::after {
-  content: "";
-  position: absolute; inset: 0; z-index: 60;
-  pointer-events: none;
+/* Blue tint overlay: anchored to .boardwrap (always position:relative) so it
+   never touches the board's own box model — toggling test mode causes zero
+   layout shift. It's always rendered and only fades opacity, so there is no
+   reflow either. */
+.boardwrap::before {
+  content: ""; position: absolute; inset: 0; z-index: 60; pointer-events: none;
   background: rgba(70, 130, 255, 0.16);
   box-shadow: inset 0 0 70px rgba(30, 90, 210, 0.38);
   border-radius: 4px;
+  opacity: 0; transition: opacity 0.15s ease;
 }
+body.testing .boardwrap::before { opacity: 1; }
 body.testing .moves, body.testing #analysis {
-  box-shadow: inset 0 0 0 2px rgba(70, 130, 255, 0.45);
   background: rgba(40, 80, 160, 0.08);
 }
 body.testing .status { background: rgba(60, 110, 200, 0.22); }
@@ -105,7 +111,7 @@ body.testing .liveline b { color: #7ab3ff; }
 /* The board zone is the square anchor of the whole layout. Its height comes
    purely from the board (aspect-ratio 1), and the right-hand panel stretches
    to match it. */
-.boardzone { position: relative; justify-self: start; max-width: 660px; }
+.boardzone { position: relative; justify-self: start; }
 
 /* eval bar — floats to the LEFT of the board, out of the flow, so it never
    shrinks the board. It spans the board's full height. */
@@ -129,7 +135,7 @@ body.testing .liveline b { color: #7ab3ff; }
   color: var(--ev-text); writing-mode: vertical-rl; text-orientation: mixed;
 }
 
-.boardwrap { width: 100%; max-width: 660px; position: relative; }
+.boardwrap { width: 100%; max-width: calc(660px * var(--board-scale, 1)); position: relative; }
 /* captured-piece tray — a slim column hugging the board's right edge */
 .captured {
   position: absolute;
@@ -368,13 +374,18 @@ body.testing .liveline b { color: #7ab3ff; }
 
 /* ---- promotion ---- */
 .promo {
-  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  position: fixed; z-index: 70;
   background: var(--panel); border: 1px solid var(--panel2); border-radius: 10px;
-  padding: 10px 14px; z-index: 60; display: flex; gap: 8px; align-items: center;
+  padding: 8px; box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%);
 }
-.promo button { background: transparent; border: 1px solid var(--panel2); color: var(--text);
-  border-radius: 6px; padding: 6px 10px; cursor: pointer; font-weight: 600; }
-.promo button:hover { background: var(--panel2); }
+.promo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.popt {
+  width: 46px; height: 46px; background: var(--panel2); border: 1px solid var(--panel2);
+  border-radius: 8px; cursor: pointer; display: grid; place-items: center; padding: 5px;
+}
+.popt:hover { border-color: var(--accent); }
+.popt svg { width: 100%; height: 100%; }
 
 /* ---- menu ---- */
 .menu {
@@ -419,6 +430,87 @@ body.testing .liveline b { color: #7ab3ff; }
 .cp-opt.b { color: #cba97b; }
 .cp-cancel { background: transparent; border: 0; color: var(--text-dim); margin-top: 10px; cursor: pointer; font-size: 0.82rem; }
 .cp-cancel:hover { color: var(--text); }
+
+/* ---- opponent menu ---- */
+.oppmenu {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: var(--panel); border: 1px solid var(--panel2); border-radius: 14px;
+  padding: 16px 18px; z-index: 80; width: 660px; max-width: calc(100vw - 28px);
+  max-height: 86vh; overflow-y: auto; box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+}
+.oppmenu input[type="range"] { width: 100%; margin: 4px 0; }
+.botlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+.botrow { display: flex; align-items: center; gap: 6px; }
+.botrow.on .botpick { border-color: var(--accent); }
+.botpick {
+  flex: 1; display: flex; align-items: center; gap: 9px;
+  background: var(--panel2); border: 2px solid transparent; color: var(--text);
+  border-radius: 8px; padding: 7px 10px; cursor: pointer; text-align: left; min-width: 0;
+}
+.botpick:hover { border-color: var(--accent); }
+.botinfo { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.botname { font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+.botmeta { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+.listpfp { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex: none; }
+.listpfp.ph { display: grid; place-items: center; background: var(--accent); color: #241403; font-weight: 800; }
+.flag { font-size: 0.9em; }
+.fflag { width: 20px; height: 15px; object-fit: cover; border-radius: 2px; vertical-align: -2px; }
+.botcard-name .fflag { width: 22px; height: 16px; vertical-align: -3px; margin-left: 4px; }
+.botedit, .botdel {
+  background: var(--panel2); border: 1px solid transparent; color: var(--text-dim);
+  border-radius: 7px; min-width: 30px; height: 30px; padding: 0 6px; cursor: pointer; font-size: 0.8rem;
+}
+.botedit:hover, .botdel:hover { color: var(--text); border-color: var(--panel2); }
+.botdel:hover { color: #ff6b6b; }
+.empty { color: var(--text-dim); font-size: 0.85rem; padding: 6px 0; }
+.textin {
+  width: 100%; box-sizing: border-box; background: var(--panel2); border: 1px solid var(--panel2);
+  color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 0.9rem;
+}
+.textin:focus { outline: none; border-color: var(--accent); }
+textarea.textin { resize: vertical; font-family: inherit; }
+.val { color: var(--accent); font-weight: 700; }
+.opp-actions { display: flex; gap: 8px; align-items: center; }
+.opp-actions .btn { flex: 1; white-space: nowrap; }
+
+/* two-column creation form: fluff (left) + settings (right) */
+.form-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.form-cols .msec { margin-bottom: 12px; }
+.form-fluff, .form-settings { min-width: 0; }
+.pfprow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pfpprev {
+  width: 64px; height: 64px; border-radius: 12px; background: var(--panel2);
+  display: grid; place-items: center; cursor: pointer; overflow: hidden;
+  background-size: cover; background-position: center; flex: none;
+  border: 2px dashed var(--panel2);
+}
+.pfpprev:hover { border-color: var(--accent); }
+.pfpprev.has { border-style: solid; }
+.pfpph { color: var(--text-dim); font-size: 1.6rem; font-weight: 700; }
+.pfpbtns { display: flex; flex-direction: column; gap: 6px; }
+.flagpicks { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.flagbtn {
+  background: var(--panel2); border: 2px solid transparent; border-radius: 7px;
+  padding: 2px 5px; line-height: 0; cursor: pointer;
+}
+.flagbtn.on { border-color: var(--accent); }
+
+/* character card in the side panel */
+.botcard { margin-bottom: 8px; }
+.botcard-in { display: flex; gap: 10px; align-items: flex-start; }
+.cardpfp { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; flex: none; }
+.cardpfp.ph { display: grid; place-items: center; background: var(--accent); color: #241403; font-weight: 800; font-size: 1.4rem; }
+.botcard-info { min-width: 0; }
+.botcard-name { font-weight: 800; font-size: 1.05rem; }
+.botcard-elo { font-size: 0.8rem; color: var(--text-dim); margin: 2px 0 4px; }
+.botcard-desc { font-size: 0.82rem; color: var(--text); opacity: 0.9; line-height: 1.35; }
+.procbadge {
+  display: inline-block; font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 5px; padding: 0 4px; margin-left: 6px; vertical-align: 2px;
+}
+.botcard-proc { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+@media (max-width: 560px) { .form-cols { grid-template-columns: 1fr; } }
 
 /* ---- learn (second board) panel ---- */
 .learn {

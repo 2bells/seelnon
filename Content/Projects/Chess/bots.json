@@ -1,0 +1,37 @@
+[
+  {
+    "id": "p-claudio", "name": "Claudio", "elo": 1350, "style": "cautious",
+    "blunder": 8, "aggression": 15, "lockIn": 75, "sloppy": 20,
+    "lockLen": 6, "sloppyLen": 3, "opening": true,
+    "pfp": "", "country": "IT", "favOpening": "Ruy Lopez",
+    "desc": "Plays the long game. Patience, sound structure, and a library of opening theory."
+  },
+  {
+    "id": "p-viktor", "name": "Viktor", "elo": 1850, "style": "aggressive",
+    "blunder": 20, "aggression": 85, "lockIn": 60, "sloppy": 45,
+    "lockLen": 4, "sloppyLen": 3, "opening": true,
+    "pfp": "", "country": "HU", "favOpening": "King's Gambit",
+    "desc": "Sharp and ruthless, a born swashbuckler who hunts your king."
+  },
+  {
+    "id": "p-nadia", "name": "Nadia", "elo": 1600, "style": "tactical",
+    "blunder": 25, "aggression": 55, "lockIn": 50, "sloppy": 55,
+    "lockLen": 4, "sloppyLen": 4, "opening": true,
+    "pfp": "", "country": "RU", "favOpening": "Sicilian Defense",
+    "desc": "Lives for tactics and sacrifices. Expect fireworks."
+  },
+  {
+    "id": "p-rocco", "name": "Rocco", "elo": 1200, "style": "random",
+    "blunder": 45, "aggression": 60, "lockIn": 30, "sloppy": 70,
+    "lockLen": 3, "sloppyLen": 5, "opening": false,
+    "pfp": "", "country": "BR", "favOpening": "",
+    "desc": "Chaos incarnate. Nobody, including him, knows what comes next."
+  },
+  {
+    "id": "p-ingrid", "name": "Ingrid", "elo": 2000, "style": "solid",
+    "blunder": 5, "aggression": 20, "lockIn": 85, "sloppy": 15,
+    "lockLen": 6, "sloppyLen": 3, "opening": true,
+    "pfp": "", "country": "SE", "favOpening": "London System",
+    "desc": "Rock solid and unshakable. Grinds you down move by move."
+  }
+]

@@ -1,7 +1,8 @@
 import { Chess } from "./chess.js";
 import { weakMove } from "./weakengine.js";
+import { loadBots, saveBots, findBot, getActiveBotId, setActiveBotId, defaultBot, createBrain, bookMove, STYLES } from "./opponent.js";
 import { explainMove } from "./learning.js";
-import { identifyOpening } from "./openings.js";
+import { identifyOpening, OPENINGS } from "./openings.js";
 import { createTester } from "./tester.js";
 
 const $ = (id) => document.getElementById(id);
@@ -25,6 +26,54 @@ let arrows = [];
 let arrowFrom = null;
 let spoilerOn = localStorage.getItem("chessx.spoiler") !== "off";
 let dangerOn = localStorage.getItem("chessx.danger") === "on";
+
+/* ---------- opponent (bots) ---------- */
+let userBots = loadBots();
+let presetBots = [];
+let bots = [...userBots];
+let activeBot = null;
+let brain = null;
+let procedural = localStorage.getItem("chessx.procedural") === "on";
+const MYELO_KEY = "chessx.myelo";
+function getMyElo() { const v = +localStorage.getItem(MYELO_KEY); return isFinite(v) && v >= 500 && v <= 2850 ? v : 1000; }
+const PROC_NAMES = ["Vega","Orion","Callum","Tessa","Bruno","Lind","Mira","Errol","Saoirse","Petro"];
+const PROC_FLAGS = ["IT","ES","FR","DE","PL","GR","IE","PT","CZ","RO"];
+function makeProcedural() {
+  const base = getMyElo();
+  const lo = Math.max(500, base - 250), hi = Math.min(2850, base + 250);
+  const elo = Math.round((lo + Math.random() * (hi - lo)) / 10) * 10;
+  const styleKey = ["solid", "aggressive", "cautious", "tactical", "random"][Math.floor(Math.random() * 5)];
+  const b = defaultBot();
+  b.name = PROC_NAMES[Math.floor(Math.random() * PROC_NAMES.length)];
+  b.elo = elo;
+  b.style = styleKey;
+  b.blunder = Math.round(Math.random() * 40);
+  b.aggression = Math.round(Math.random() * 100);
+  b.lockIn = Math.round(Math.random() * 100);
+  b.sloppy = Math.round(Math.random() * 100);
+  b.lockLen = 2 + Math.floor(Math.random() * 5);
+  b.sloppyLen = 2 + Math.floor(Math.random() * 4);
+  b.opening = Math.random() < 0.7;
+  b.country = PROC_FLAGS[Math.floor(Math.random() * PROC_FLAGS.length)];
+  if (Math.random() < 0.6) b.favOpening = OPENINGS[Math.floor(Math.random() * OPENINGS.length)][0];
+  b.desc = "Randomly generated around your elo.";
+  return b;
+}
+function rollProcedural() {
+  activeBot = makeProcedural();
+  brain = createBrain(activeBot);
+  applyOpponent();
+}
+function setProcedural(on) {
+  procedural = on;
+  localStorage.setItem("chessx.procedural", on ? "on" : "off");
+  if (on) { setActiveBotId(null); rollProcedural(); }
+  else { activeBot = null; brain = null; }
+  applyOpponent();
+}
+function isPreset(b) { return presetBots.some((p) => p.id === b.id); }
+function effectiveElo() { return activeBot ? activeBot.elo : +eloS.value; }
+function oppName() { return activeBot ? activeBot.name : "Opponent"; }
 
 /* ---------- sound ---------- */
 let muted = localStorage.getItem("chessx.mute") === "on";
@@ -124,6 +173,11 @@ let setName = localStorage.getItem("chessx.set") || "staunty";
 if (!SETS[setName]) setName = "staunty";
 let palName = localStorage.getItem("chessx.pal") || "wooden";
 if (!PALETTES[palName]) palName = "wooden";
+const SCALES = [100, 150];
+let boardScale = +localStorage.getItem("chessx.scale") || 150;
+if (!SCALES.includes(boardScale)) boardScale = 150;
+const boardZoneEl = document.querySelector(".boardzone");
+function applyScale() { boardZoneEl.style.setProperty("--board-scale", boardScale / 100); }
 let rawCache = {};
 for (const s of Object.keys(SETS)) { rawCache[s] = {}; }
 
@@ -182,6 +236,10 @@ function buildMenu() {
   pao.innerHTML = Object.entries(PALETTES).map(([k, p]) =>
     `<button class="optbtn ${palName === k ? "on" : ""}" data-pal="${k}">${p.name}</button>`
   ).join("");
+  const so = $("scaleopts");
+  so.innerHTML = SCALES.map((s) =>
+    `<button class="optbtn ${boardScale === s ? "on" : ""}" data-scale="${s}">${s}%</button>`
+  ).join("");
   bo.querySelectorAll("[data-theme]").forEach((el) => el.addEventListener("click", () => {
     themeName = el.dataset.theme; localStorage.setItem("chessx.theme", themeName);
     applyTheme(); refreshArts();
@@ -193,6 +251,10 @@ function buildMenu() {
   pao.querySelectorAll("[data-pal]").forEach((el) => el.addEventListener("click", () => {
     palName = el.dataset.pal; localStorage.setItem("chessx.pal", palName);
     refreshArts();
+  }));
+  so.querySelectorAll("[data-scale]").forEach((el) => el.addEventListener("click", () => {
+    boardScale = +el.dataset.scale; localStorage.setItem("chessx.scale", boardScale);
+    applyScale(); buildMenu();
   }));
   renderPreview();
 }
@@ -265,7 +327,7 @@ function applyOptions() {
   send("setoption name Hash value 32");
   send("setoption name MultiPV value 4");
   send("setoption name UCI_LimitStrength value true");
-  send(`setoption name UCI_Elo value ${eloS.value}`);
+  send(`setoption name UCI_Elo value ${effectiveElo()}`);
   send("ucinewgame");
 }
 async function initEngine() {
@@ -328,7 +390,7 @@ function strongSearch(fen, { depth = 12 } = {}) {
     try { return await searchOnce(fen, depth); }
     finally {
       send("setoption name UCI_LimitStrength value true");
-      send(`setoption name UCI_Elo value ${eloS.value}`);
+      send(`setoption name UCI_Elo value ${effectiveElo()}`);
     }
   });
 }
@@ -580,9 +642,28 @@ function onSquare(sq) {
 function isPromotion(from, to) { const p = chess.get(from); if (!p || p.type !== "p") return false;
   return (p.color === "w" && to[1] === "8") || (p.color === "b" && to[1] === "1"); }
 
+// Show the promotion popup centered on the destination square, offering the
+// four promotion pieces in the mover's color.
+function showPromo(from, to) {
+  const mover = chess.get(from).color;
+  const side = mover === "w" ? "w" : "b";
+  promEl.querySelectorAll(".popt").forEach((b) => {
+    b.innerHTML = pieceMarkup(side + b.dataset.code);
+  });
+  promEl.classList.remove("hidden");
+  const sq = boardEl.querySelector(`.sq[data-sq="${to}"]`);
+  const r = sq ? sq.getBoundingClientRect() : null;
+  if (r) promEl.style.left = (r.left + r.width / 2) + "px";
+  if (r) promEl.style.top = (r.top + r.height / 2) + "px";
+}
+
 function playMove(from, to, prom) {
   if (!tester.isOn() && (gameOver || thinking || !engineReady)) return;
-  if (!prom && isPromotion(from, to)) { pendingPromo = { from, to }; promEl.classList.remove("hidden"); return; }
+  if (!prom && isPromotion(from, to)) {
+    pendingPromo = { from, to };
+    showPromo(from, to);
+    return;
+  }
   let mv;
   try { mv = prom ? chess.move({ from, to, promotion: prom }) : chess.move({ from, to }); }
   catch (e) { clearSel(); render(); return; }
@@ -601,16 +682,50 @@ function afterPlayerMove() {
   analyzeIndex(i).then(() => {
     if (gameOver) return;
     const k = analysis[i] && analysis[i].klass;
-    statusEl.textContent = k ? KCLASS[k].n + " move!" : "Opponent thinking…";
+    statusEl.textContent = k ? KCLASS[k].n + " move!" : oppName() + " thinking…";
     renderMoves(); renderAnalysis(); renderEval();
     setTimeout(() => { if (!gameOver) engineMove(); }, 550);
   });
 }
 
+function sanToUci(fen, san) {
+  try { const c = new Chess(fen); const mv = c.move(san); return mv.from + mv.to + (mv.promotion || ""); }
+  catch (e) { return null; }
+}
+
 function engineMove() {
   const myGen = gen, fen = chess.fen();
-  const elo = +eloS.value;
+  const elo = effectiveElo();
   thinking = true; updateStatus(); render();
+
+  // A bot with the opening book on plays memorized theory for the first few
+  // moves instead of thinking — like a human who knows their repertoire.
+  if (activeBot && activeBot.opening) {
+    const book = bookMove(moveRows);
+    if (book) {
+      const uci = sanToUci(fen, book);
+      if (uci) { thinking = false; applyChosen(uci); return; }
+    }
+  }
+
+  // Bots use the state-machine brain over Stockfish's MultiPV lines so they
+  // can play "good but not best", blunder, and lock in. This works at any elo
+  // (below ~1320 the engine clamps but the brain scales up its sloppiness).
+  if (activeBot) {
+    const legalMoves = chess.moves({ verbose: true }).map((m) => m.from + m.to + (m.promotion || ""));
+    const inOpening = moveRows.length < 8;
+    const depth = inOpening ? 14 : 12;
+    search(fen, { depth }).then((lines) => {
+      if (gen !== myGen || gameOver) { thinking = false; return; }
+      if (lines.length) { posEvals.set(fen, lines[0]); posHints.set(fen, uciToSan(fen, lines[0].pv[0])); }
+      const evalScore = lines.length ? lines[0].sval : 0;
+      const chosen = brain.choose({ lines, legalMoves, evalScore });
+      thinking = false;
+      if (!chosen) return;
+      applyChosen(chosen);
+    });
+    return;
+  }
 
   // Below Stockfish's UCI Elo floor (~1320) it clamps and plays ~the same
   // strength no matter how low you set it, so a purpose-built weak engine takes
@@ -1241,9 +1356,9 @@ function updateStatus() {
     rewindBtn.classList.add("hidden");
     return;
   }
-  if (thinking) { statusEl.textContent = "Opponent thinking…"; updateRewind(); return; }
+  if (thinking) { statusEl.textContent = brain ? `${activeBot.name} (${brain.mood()}) thinking…` : oppName() + " thinking…"; updateRewind(); return; }
   if (chess.turn() === playerColor) statusEl.textContent = chess.inCheck() ? "Your move — check!" : "Your move";
-  else statusEl.textContent = "Opponent thinking…";
+  else statusEl.textContent = oppName() + " thinking…";
   updateRewind();
 }
 
@@ -1257,7 +1372,7 @@ function updateRewind() {
 }
 
 /* ---------- controls ---------- */
-eloS.addEventListener("input", () => { eloV.textContent = eloS.value; if (engine) send(`setoption name UCI_Elo value ${eloS.value}`); });
+eloS.addEventListener("input", () => { eloV.textContent = eloS.value; if (engine) send(`setoption name UCI_Elo value ${eloS.value}`); renderOppHeader(); });
 newBtn.addEventListener("click", () => colorPick.classList.remove("hidden"));
 settingsBtn.addEventListener("click", () => menu.classList.toggle("hidden"));
 menuClose.addEventListener("click", () => menu.classList.add("hidden"));
@@ -1269,8 +1384,7 @@ tabMoves.addEventListener("click", () => showTab("moves"));
 tabAnalysis.addEventListener("click", () => showTab("analysis"));
 promEl.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
   promEl.classList.add("hidden"); if (pendingPromo) { const { from, to } = pendingPromo; pendingPromo = null; playMove(from, to, b.dataset.p); }
-}));
-$("pickclose").addEventListener("click", () => colorPick.classList.add("hidden"));
+}));$("pickclose").addEventListener("click", () => colorPick.classList.add("hidden"));
 $("pickw").addEventListener("click", () => { colorPick.classList.add("hidden"); startGame("w"); });
 $("pickb").addEventListener("click", () => { colorPick.classList.add("hidden"); startGame("b"); });
 $("pickr").addEventListener("click", () => { colorPick.classList.add("hidden"); startGame(Math.random() < 0.5 ? "w" : "b"); });
@@ -1316,9 +1430,11 @@ dangerBtn.addEventListener("click", () => {
 function startGame(color) {
   if (tester.isOn()) tester.stop();
   cancelEngine();
+  if (procedural) { activeBot = makeProcedural(); brain = createBrain(activeBot); applyOpponent(); }
   gen++;
   playerColor = color;
   engineColor = color === "w" ? "b" : "w";
+  brain = activeBot ? createBrain(activeBot) : null;
   chess = new Chess();
   moveRows = []; gameFens = [chess.fen()]; viewIndex = 0;
   gameOver = false; analyzing = false; analysis = []; thinking = false;
@@ -1358,6 +1474,211 @@ $("mutebtn").addEventListener("click", () => {
   localStorage.setItem("chessx.mute", muted ? "on" : "off");
   applyMute();
 });
+
+/* ---- my elo (for procedural opponents) ---- */
+function renderMyElo() {
+  $("myelo").value = getMyElo();
+  $("myelov").textContent = getMyElo();
+}
+$("myelo").addEventListener("input", () => {
+  $("myelov").textContent = $("myelo").value;
+  localStorage.setItem(MYELO_KEY, $("myelo").value);
+});
+
+/* ---- opponent menu ---- */
+const oppMenu = $("oppmenu"), oppList = $("opplist"), oppForm = $("oppform");
+const FLAGS = ["IT","HU","GR","BR","SE","RU","US","GB","DE","FR","ES","NO","IN","JP"];
+const FLAG_CDN = "https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/flags/4x3/";
+let editingBot = null;
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function flagMarkup(code) { return code ? `<img class="fflag" src="${FLAG_CDN + code.toLowerCase()}.svg" alt="${esc(code)}" loading="lazy" />` : ""; }
+function pfpMarkup(b, cls) {
+  if (b.pfp) return `<img class="${cls}" src="${esc(b.pfp)}" alt="" loading="lazy" />`;
+  return `<div class="${cls} ph">${esc((b.name[0] || "?").toUpperCase())}</div>`;
+}
+function renderOppHeader() {
+  const opp = $("oppname");
+  if (activeBot) {
+    $("elolabel").classList.add("hidden");
+    $("oppword").classList.add("hidden");
+    opp.innerHTML = `${esc(activeBot.name)} · ${activeBot.elo}${activeBot.country ? " " + flagMarkup(activeBot.country) : ""}`;
+    opp.classList.remove("hidden");
+  } else {
+    $("elolabel").classList.remove("hidden");
+    $("oppword").classList.remove("hidden");
+    opp.classList.add("hidden");
+  }
+}
+function renderBotCard() {
+  const card = $("botcard");
+  if (!card) return;
+  if (!activeBot) { card.classList.add("hidden"); return; }
+  card.classList.remove("hidden");
+  const b = activeBot;
+  card.innerHTML = `
+    <div class="botcard-in">
+      ${pfpMarkup(b, "cardpfp")}
+      <div class="botcard-info">
+        <div class="botcard-name">${esc(b.name)} ${flagMarkup(b.country)}${procedural ? '<span class="procbadge">Procedural</span>' : ""}</div>
+        <div class="botcard-elo">${b.elo} · ${STYLES[b.style].label}${b.favOpening ? " · plays " + esc(b.favOpening) : ""}</div>
+        ${b.desc ? `<div class="botcard-desc">${esc(b.desc)}</div>` : ""}
+        ${procedural ? `<div class="botcard-proc">New opponent each game.</div>` : ""}
+      </div>
+    </div>`;
+}
+function applyOpponent() {
+  if (engine) send(`setoption name UCI_Elo value ${effectiveElo()}`);
+  renderOppHeader();
+  renderBotCard();
+  renderBotList();
+}
+function selectBot(b) {
+  procedural = false; localStorage.setItem("chessx.procedural", "off");
+  setActiveBotId(b.id); activeBot = b; brain = createBrain(b);
+  applyOpponent();
+}
+function renderBotList() {
+  if (!bots.length) { $("botlist").innerHTML = `<div class="empty">No bots yet — create one.</div>`; return; }
+  $("botlist").innerHTML = bots.map((b) => {
+    const on = activeBot && activeBot.id === b.id;
+    const fam = isPreset(b) ? "Preset" : "";
+    const edit = isPreset(b) ? "" : `<button class="botedit" data-id="${b.id}" title="Edit">✎</button>`;
+    const del = isPreset(b) ? "" : `<button class="botdel" data-id="${b.id}" title="Delete">🗑</button>`;
+    return `
+      <div class="botrow ${on ? "on" : ""}">
+        <button class="botpick" data-id="${b.id}">
+          ${pfpMarkup(b, "listpfp")}
+          <span class="botinfo">
+            <span class="botname">${esc(b.name)} ${flagMarkup(b.country)}</span>
+            <span class="botmeta">${b.elo} · ${STYLES[b.style].label}${fam ? " · " + fam : ""}</span>
+          </span>
+        </button>
+        ${edit}${del}
+      </div>`;
+  }).join("");
+}
+function openOppMenu() { renderBotList(); $("oppproc").classList.toggle("on", procedural); oppMenu.classList.remove("hidden"); showOppList(); }
+function closeOppMenu() { oppMenu.classList.add("hidden"); }
+function showOppList() { oppList.classList.remove("hidden"); oppForm.classList.add("hidden"); }
+function renderStyleOpts(sel) {
+  $("botstyle").innerHTML = Object.entries(STYLES).map(([k, s]) =>
+    `<button class="optbtn ${k === sel ? "on" : ""}" data-style="${k}">${s.label}</button>`).join("");
+}
+function renderOpeningBtn(on) {
+  const b = $("botopening"); b.classList.toggle("on", on); b.textContent = on ? "On" : "Off";
+}
+function renderFlagPicks(sel) {
+  $("flagpicks").innerHTML = FLAGS.map((f) =>
+    `<button class="flagbtn ${f === (sel ? sel.toUpperCase() : "") ? "on" : ""}" data-flag="${f}" title="${f}">${flagMarkup(f)}</button>`).join("");
+}
+function renderOpeningSel(sel) {
+  $("botfavopening").innerHTML = `<option value="">— none —</option>` +
+    OPENINGS.map((o) => `<option value="${esc(o[0])}" ${o[0] === sel ? "selected" : ""}>${esc(o[0])}</option>`).join("");
+}
+function refreshPfpPreview() {
+  const prev = $("pfpprev"), u = editingBot.pfp;
+  if (u) { prev.style.backgroundImage = `url("${u}")`; prev.classList.add("has"); prev.innerHTML = ""; }
+  else { prev.style.backgroundImage = ""; prev.classList.remove("has"); prev.innerHTML = '<span class="pfpph">+</span>'; }
+}
+function openBotForm(bot) {
+  editingBot = bot;
+  oppList.classList.add("hidden"); oppForm.classList.remove("hidden");
+  $("botname").value = bot.name;
+  $("botelo").value = bot.elo; $("botelov").textContent = bot.elo;
+  $("botblunder").value = bot.blunder; $("botblunderv").textContent = bot.blunder;
+  $("botaggr").value = bot.aggression; $("botaggrv").textContent = bot.aggression;
+  $("botlock").value = bot.lockIn; $("botlockv").textContent = bot.lockIn;
+  $("botsloppy").value = bot.sloppy; $("botsloppyv").textContent = bot.sloppy;
+  $("botlocklen").value = bot.lockLen; $("botlocklenv").textContent = bot.lockLen;
+  $("botsloppylen").value = bot.sloppyLen; $("botsloppylenv").textContent = bot.sloppyLen;
+  $("botcountry").value = (bot.country || "").toUpperCase();
+  $("botdesc").value = bot.desc || "";
+  $("pfpurl").value = bot.pfp || "";
+  refreshPfpPreview();
+  renderStyleOpts(bot.style); renderOpeningBtn(bot.opening); renderFlagPicks(bot.country); renderOpeningSel(bot.favOpening);
+  $("botdelete").classList.toggle("hidden", !bots.some((b) => b.id === bot.id) || isPreset(bot));
+  $("botdelete").disabled = isPreset(bot);
+  $("botname").focus();
+}
+function saveBotForm() {
+  editingBot.name = $("botname").value.trim() || "Bot";
+  editingBot.elo = +$("botelo").value;
+  editingBot.blunder = +$("botblunder").value;
+  editingBot.aggression = +$("botaggr").value;
+  editingBot.lockIn = +$("botlock").value;
+  editingBot.sloppy = +$("botsloppy").value;
+  editingBot.lockLen = +$("botlocklen").value;
+  editingBot.sloppyLen = +$("botsloppylen").value;
+  editingBot.pfp = $("pfpurl").value.trim();
+  editingBot.country = $("botcountry").value.trim().toUpperCase();
+  editingBot.desc = $("botdesc").value.trim();
+  editingBot.favOpening = $("botfavopening").value;
+  if (isPreset(editingBot)) {
+    // saving a preset creates a personal copy so we never write to bots.json
+    const copy = { ...editingBot };
+    copy.id = "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    userBots.push(copy); bots = [...presetBots, ...userBots];
+    editingBot = copy;
+  } else {
+    const existing = userBots.find((b) => b.id === editingBot.id);
+    if (existing) Object.assign(existing, editingBot); else { userBots.push(editingBot); bots = [...presetBots, ...userBots]; }
+  }
+  saveBots(userBots);
+  selectBot(editingBot);
+  showOppList();
+}
+function deleteBotForm() {
+  if (!confirm(`Delete ${editingBot.name}?`)) return;
+  userBots = userBots.filter((b) => b.id !== editingBot.id);
+  bots = [...presetBots, ...userBots];
+  if (activeBot && activeBot.id === editingBot.id) { activeBot = null; brain = null; setActiveBotId(null); }
+  saveBots(userBots); applyOpponent(); showOppList();
+}
+function bindVal(inputId, valId) {
+  const i = $(inputId), v = $(valId);
+  i.addEventListener("input", () => { v.textContent = i.value; });
+}
+async function loadPresets() {
+  try { const r = await fetch("bots.json"); const data = await r.json();
+    presetBots = Array.isArray(data) ? data.map((b) => ({ ...defaultBot(), ...b })) : []; }
+  catch (e) { presetBots = []; }
+  bots = [...presetBots, ...userBots];
+  if (procedural) { activeBot = makeProcedural(); }
+  else { activeBot = findBot(bots, getActiveBotId()); }
+  brain = activeBot ? createBrain(activeBot) : null;
+  renderOppHeader(); renderBotCard();
+}
+$("oppbtn").addEventListener("click", openOppMenu);
+$("oppclose").addEventListener("click", closeOppMenu);
+$("oppelo").addEventListener("click", () => { setProcedural(false); activeBot = null; brain = null; applyOpponent(); closeOppMenu(); });
+$("oppproc").addEventListener("click", () => { setProcedural(true); closeOppMenu(); });
+$("oppnew").addEventListener("click", () => openBotForm(defaultBot()));
+$("botcancel").addEventListener("click", showOppList);
+$("botsave").addEventListener("click", saveBotForm);
+$("botdelete").addEventListener("click", deleteBotForm);
+$("botlist").addEventListener("click", (e) => {
+  const pick = e.target.closest(".botpick"), edit = e.target.closest(".botedit"), del = e.target.closest(".botdel");
+  if (pick) { const b = findBot(bots, pick.dataset.id); if (b) selectBot(b); closeOppMenu(); }
+  else if (edit) { const b = findBot(bots, edit.dataset.id); if (b) openBotForm(b); }
+  else if (del) { const b = findBot(bots, del.dataset.id); if (b) { userBots = userBots.filter((x) => x.id !== b.id); bots = [...presetBots, ...userBots]; if (activeBot && activeBot.id === b.id) { activeBot = null; brain = null; setActiveBotId(null); } saveBots(userBots); applyOpponent(); } }
+});
+$("botstyle").addEventListener("click", (e) => { const s = e.target.closest("[data-style]"); if (s) { editingBot.style = s.dataset.style; renderStyleOpts(editingBot.style); } });
+$("botopening").addEventListener("click", () => { editingBot.opening = !editingBot.opening; renderOpeningBtn(editingBot.opening); });
+$("flagpicks").addEventListener("click", (e) => { const f = e.target.closest("[data-flag]"); if (f) { editingBot.country = f.dataset.flag; $("botcountry").value = f.dataset.flag; renderFlagPicks(f.dataset.flag); } });
+$("botcountry").addEventListener("input", () => renderFlagPicks($("botcountry").value));
+$("botfavopening").addEventListener("change", () => { editingBot.favOpening = $("botfavopening").value; });
+$("pfpuploadbtn").addEventListener("click", () => $("pfpfile").click());
+$("pfpprev").addEventListener("click", () => $("pfpfile").click());
+$("pfpfile").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const url = await websim.upload(f); $("pfpurl").value = url; editingBot.pfp = url; refreshPfpPreview(); }
+  catch (err) { console.error("upload failed", err); }
+  e.target.value = "";
+});
+$("pfpurl").addEventListener("input", () => { editingBot.pfp = $("pfpurl").value.trim(); refreshPfpPreview(); });
+bindVal("botelo", "botelov"); bindVal("botblunder", "botblunderv"); bindVal("botaggr", "botaggrv");
+bindVal("botlock", "botlockv"); bindVal("botsloppy", "botsloppyv");
+bindVal("botlocklen", "botlocklenv"); bindVal("botsloppylen", "botsloppylenv");
 
 /* ---- test mode controller ---- */
 // The board's working area, seeded from a FEN: used both when entering test
@@ -1416,12 +1737,18 @@ function hideLoading() {
 async function boot() {
   const sfxReady = loadSfx();
   applyTheme();
+  applyScale();
   buildMenu();
+  renderMyElo();
   eloV.textContent = eloS.value;
   render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint(); updateStatus();
+  renderOppHeader();
   applySpoiler();
   applyDanger();
   applyMute();
+  await loadPresets();
+  render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint(); updateStatus();
+  renderOppHeader(); renderBotCard();
   await Promise.all([sfxReady, preloadSets()].map((p) => Promise.resolve(p).catch(() => {})));
   showLoadingPieces();
   await initEngine();
