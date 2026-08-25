@@ -97,7 +97,7 @@ const sound = (() => {
 })();
 
 async function loadSfx() {
-  const FILES = { move: "move", capture: "capture", check: "move-2", promote: "promote" };
+  const FILES = { move: "move", capture: "capture", check: "check", promote: "promote" };
   if (!sound) return;
   await Promise.all(Object.entries(FILES).map(async ([key, file]) => {
     try {
