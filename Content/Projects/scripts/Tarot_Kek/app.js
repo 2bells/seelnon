@@ -94,14 +94,29 @@ function bigNumberOfDate(dateStr) {
   return (n * (10n ** 200n) + n) % (10n ** 36n);
 }
 
+// deterministic PRNG seeded from the date, so a day's reading never changes
+function seededRng(seed) {
+  let a = seed >>> 0;
+  return function next() {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function cast() {
-  // 3 cards from the date-seeded big number via mod 22
-  let n = bigNumberOfDate(today());
-  const picks = [];
+  const rng = seededRng(Number(bigNumberOfDate(today()) % 4294967296n));
+
+  // shuffle the 22-card deck and take the first 3 (mind, body, spirit).
+  // Drawing without replacement means: mind from 22, body from 21, spirit
+  // from 20 — never a repeat, and each slot is a fair pick.
+  const deck = DECK.map((_, i) => i);
   for (let i = 0; i < 3; i++) {
-    picks.push(Number(n % 22n));
-    n /= 22n;
+    const j = i + Math.floor(rng() * (DECK.length - i));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
   }
+  const picks = deck.slice(0, 3);
 
   // today's number: sum the three cards, keep the ones digit (drop the tens)
   const total = picks.reduce((a, b) => a + b, 0);
