@@ -105,8 +105,10 @@ function seededRng(seed) {
   };
 }
 
-function cast() {
-  const rng = seededRng(Number(bigNumberOfDate(today()) % 4294967296n));
+async function cast() {
+  const user = await window.websim?.getUser?.();
+  const uid = user?.id ?? "anonymous";
+  const rng = seededRng(Number(bigNumberOfDate(today() + uid) % 4294967296n));
 
   // shuffle the 22-card deck and take the first 3 (mind, body, spirit).
   // Drawing without replacement means: mind from 22, body from 21, spirit
