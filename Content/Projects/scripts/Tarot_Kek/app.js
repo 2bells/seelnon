@@ -1,28 +1,28 @@
 import "./aurora.js";
 
 const DECK = [
-  { num: 0, name: "The Fool", read: "Begin with an open, trusting step; the path is laid before you." },
-  { num: 1, name: "The Magician", read: "Your will and tools are gathered &mdash; manifest what you desire." },
-  { num: 2, name: "The High Priestess", read: "Listen to intuition; the answers lie beneath the surface." },
-  { num: 3, name: "The Empress", read: "Nurture what grows. Fertility of life, art, and feeling." },
-  { num: 4, name: "The Emperor", read: "Build on structure and authority. Take firm command." },
-  { num: 5, name: "The Hierophant", read: "Find wisdom in tradition, study, and the guidance of elders." },
-  { num: 6, name: "The Lovers", read: "A choice about union and values arises &mdash; choose with heart and head." },
-  { num: 7, name: "The Chariot", read: "Willpower conquers obstacles. Steer with discipline." },
-  { num: 8, name: "Strength", read: "Gentle courage tames the inner wildness. Patience is might." },
-  { num: 9, name: "The Hermit", read: "Withdraw to find the inner light. Solitude carries wisdom." },
-  { num: 10, name: "Wheel of Fortune", read: "A turn of fate. Ride the cycle with acceptance." },
-  { num: 11, name: "Justice", read: "Cause and effect. Seek truth and balance in your dealings." },
-  { num: 12, name: "The Hanged Man", read: "Pause and see things from a new, suspended angle." },
-  { num: 13, name: "Death", read: "A chapter ends so a new one begins. Shed the old." },
-  { num: 14, name: "Temperance", read: "Blend, moderate, find the middle alchemical path." },
-  { num: 15, name: "The Devil", read: "Name the chains you serve; attachment can be released." },
-  { num: 16, name: "The Tower", read: "A sudden shaking frees foundations. Let it fall to rebuild." },
-  { num: 17, name: "The Star", read: "Hope restores. A calm light after the storm." },
-  { num: 18, name: "The Moon", read: "Illusions and dreams. Trust slowly; shadows pass." },
-  { num: 19, name: "The Sun", read: "Radiance, joy, vitality. Clarity and success shine." },
-  { num: 20, name: "Judgement", read: "A call to awaken and be reborn by your own judgment." },
-  { num: 21, name: "The World", read: "Completion and integration. One cycle closes whole." },
+  { num: 0, name: "The Fool", art: "0Fool.jpg", read: "Begin with an open, trusting step; the path is laid before you." },
+  { num: 1, name: "The Magician", art: "1Magician.jpg", read: "Your will and tools are gathered &mdash; manifest what you desire." },
+  { num: 2, name: "The High Priestess", art: "2High Priestess.jpg", read: "Listen to intuition; the answers lie beneath the surface." },
+  { num: 3, name: "The Empress", art: "3empress.jpg", read: "Nurture what grows. Fertility of life, art, and feeling." },
+  { num: 4, name: "The Emperor", art: "4emperor.jpg", read: "Build on structure and authority. Take firm command." },
+  { num: 5, name: "The Hierophant", art: "5Heirophant.jpg", read: "Find wisdom in tradition, study, and the guidance of elders." },
+  { num: 6, name: "The Lovers", art: "6Lovers.jpg", read: "A choice about union and values arises &mdash; choose with heart and head." },
+  { num: 7, name: "The Chariot", art: "7Chariot.jpg", read: "Willpower conquers obstacles. Steer with discipline." },
+  { num: 8, name: "Strength", art: "8Strength.jpg", read: "Gentle courage tames the inner wildness. Patience is might." },
+  { num: 9, name: "The Hermit", art: "9Hermit.jpg", read: "Withdraw to find the inner light. Solitude carries wisdom." },
+  { num: 10, name: "Wheel of Fortune", art: "10Wheel_of_Fortune.jpg", read: "A turn of fate. Ride the cycle with acceptance." },
+  { num: 11, name: "Justice", art: "11Justice.jpg", read: "Cause and effect. Seek truth and balance in your dealings." },
+  { num: 12, name: "The Hanged Man", art: "12Hanged_Man.jpg", read: "Pause and see things from a new, suspended angle." },
+  { num: 13, name: "Death", art: "13Death.jpg", read: "A chapter ends so a new one begins. Shed the old." },
+  { num: 14, name: "Temperance", art: "14Temperance.jpg", read: "Blend, moderate, find the middle alchemical path." },
+  { num: 15, name: "The Devil", art: "15Devil.jpg", read: "Name the chains you serve; attachment can be released." },
+  { num: 16, name: "The Tower", art: "16Tower.jpg", read: "A sudden shaking frees foundations. Let it fall to rebuild." },
+  { num: 17, name: "The Star", art: "17Star.jpg", read: "Hope restores. A calm light after the storm." },
+  { num: 18, name: "The Moon", art: "18Moon.jpg", read: "Illusions and dreams. Trust slowly; shadows pass." },
+  { num: 19, name: "The Sun", art: "19Sun.jpg", read: "Radiance, joy, vitality. Clarity and success shine." },
+  { num: 20, name: "Judgement", art: "20Judgement.jpg", read: "A call to awaken and be reborn by your own judgment." },
+  { num: 21, name: "The World", art: "21World.jpg", read: "Completion and integration. One cycle closes whole." },
 ];
 
 const SLOTS = [
@@ -30,6 +30,8 @@ const SLOTS = [
   { label: "body" },
   { label: "spirit" },
 ];
+
+const ROMAN = ["0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI"];
 
 const castBtn = document.getElementById("cast");
 const energyEl = document.getElementById("energy");
@@ -105,10 +107,29 @@ function seededRng(seed) {
   };
 }
 
+// cache the first cast of each day (keyed by date+user) so a day's reading is
+// fixed once it's drawn, but the FIRST draw gets to use the collected pointer
+// chaos ("energy") as part of its randomness.
+const dayCache = new Map();
+
 async function cast() {
   const user = await window.websim?.getUser?.();
   const uid = user?.id ?? "anonymous";
-  const rng = seededRng(Number(bigNumberOfDate(today() + uid) % 4294967296n));
+  const key = today() + uid;
+
+  const cached = dayCache.get(key);
+  if (cached) {
+    showReading(cached.picks, cached.todayNumber);
+    return;
+  }
+
+  // The first draw of the day: stir the visual energy (mouse movement) into
+  // the seed. If no energy was gathered, fall back to the date+user seed alone.
+  let seed = bigNumberOfDate(key);
+  if (chaos > 0n) {
+    seed = (seed ^ (chaos % (10n ** 200n))) * 31n + 4242n;
+  }
+  const rng = seededRng(Number(seed % 4294967296n));
 
   // shuffle the 22-card deck and take the first 3 (mind, body, spirit).
   // Drawing without replacement means: mind from 22, body from 21, spirit
@@ -124,6 +145,7 @@ async function cast() {
   const total = picks.reduce((a, b) => a + b, 0);
   const todayNumber = total % 10;
 
+  dayCache.set(key, { picks, todayNumber });
   showReading(picks, todayNumber);
 }
 
@@ -135,9 +157,14 @@ function showReading(picks, todayNumber) {
     const el = document.createElement("div");
     el.className = "card";
     el.innerHTML = `
-      <span class="slot">${SLOTS[i].label}</span>
-      <span class="numeral">${card.num}</span>
-      <span class="name">${card.name}</span>
+      <span class="face">
+        <span class="art-wrap">
+          <img class="art" src="${card.art}" alt="${card.name}" loading="lazy" />
+          <span class="roman">${ROMAN[card.num]}</span>
+          <span class="slot">${SLOTS[i].label}</span>
+          <span class="name">${card.name}</span>
+        </span>
+      </span>
       <span class="read">${card.read}</span>`;
     wrap.appendChild(el);
   });
