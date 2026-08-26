@@ -109,7 +109,7 @@ export const FS = (() => {
   html('Tetri-Shot', 'Content/Projects/Tetri-Shot/', '/Projects', { icon: '  Content/Projects/Tetri-Shot/tetri-shot_thmb.jpg', description: 'A way to tetris.' });   
   html('Iso-Engine', 'Content/Projects/Iso_Engine/', '/Projects', { icon: '  Content/Projects/Iso_Engine/thumbnail_ISO_ENGINE.jpg', description: 'A way to make isometric games.' });     
   html('CN Study', 'Content/Projects/scripts/CN_Radicals_json/', '/Projects', { icon: '  Content/Projects/scripts/CN_Radicals/cn_thumbnail.jpg', description: 'A way to study Kangxi.' });     
-  
+  html('Chess', 'Content/Projects/Chess/', '/Projects', { icon: '  blog/2026-08/img/chess_mate.jpg', description: 'A way to play Chess.' });     
   
 
 
