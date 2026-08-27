@@ -3,6 +3,7 @@ import { weakMove } from "./weakengine.js";
 import { loadBots, saveBots, findBot, getActiveBotId, setActiveBotId, defaultBot, createBrain, bookMove, STYLES } from "./opponent.js";
 import { explainMove } from "./learning.js";
 import { identifyOpening, OPENINGS } from "./openings.js";
+import { toShredderFen, randomStartFen } from "./chess960.js";
 import { createTester } from "./tester.js";
 
 const $ = (id) => document.getElementById(id);
@@ -34,6 +35,7 @@ let bots = [...userBots];
 let activeBot = null;
 let brain = null;
 let procedural = localStorage.getItem("chessx.procedural") === "on";
+let chess960 = localStorage.getItem("chessx.chess960") === "on";
 const MYELO_KEY = "chessx.myelo";
 function getMyElo() { const v = +localStorage.getItem(MYELO_KEY); return isFinite(v) && v >= 500 && v <= 2850 ? v : 1000; }
 const PROC_NAMES = ["Vega","Orion","Callum","Tessa","Bruno","Lind","Mira","Errol","Saoirse","Petro"];
@@ -328,6 +330,7 @@ function applyOptions() {
   send("setoption name MultiPV value 4");
   send("setoption name UCI_LimitStrength value true");
   send(`setoption name UCI_Elo value ${effectiveElo()}`);
+  send(`setoption name UCI_Chess960 value ${chess960 ? "true" : "false"}`);
   send("ucinewgame");
 }
 async function initEngine() {
@@ -360,7 +363,7 @@ async function searchOnce(fen, depth, collect) {
     if (l.startsWith("info")) { const p = parseInfo(l); if (p) { const i = lines.findIndex((x) => x.multipv === p.multipv); if (i >= 0) lines[i] = p; else lines.push(p); } }
     if (collect) collect(l);
   });
-  send("position fen " + fen);
+  send("position fen " + engineFen(fen));
   send("go depth " + depth);
   inflight++;
   try { await pending; } catch (e) {}
@@ -397,6 +400,10 @@ function strongSearch(fen, { depth = 12 } = {}) {
 function cancelEngine() { if (inflight > 0) send("stop"); }
 
 function uciToMove(uci) { return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci[4] : null }; }
+// The engine gets a FEN in Shredder-Chess960 notation whenever Chess960 is off
+// it is just the plain FEN; in Chess960 the castling field expands to file
+// letters and UCI castling moves are expressed as king moves.
+function engineFen(fen) { return chess960 ? toShredderFen(fen) : fen; }
 function uciToSan(fen, uci) {
   try { const c = new Chess(fen); const m = uciToMove(uci);
     const mv = m.promotion ? c.move({ from: m.from, to: m.to, promotion: m.promotion }) : c.move({ from: m.from, to: m.to });
@@ -700,7 +707,7 @@ function engineMove() {
 
   // A bot with the opening book on plays memorized theory for the first few
   // moves instead of thinking — like a human who knows their repertoire.
-  if (activeBot && activeBot.opening) {
+  if (activeBot && activeBot.opening && !chess960) {
     const book = bookMove(moveRows);
     if (book) {
       const uci = sanToUci(fen, book);
@@ -730,7 +737,9 @@ function engineMove() {
   // Below Stockfish's UCI Elo floor (~1320) it clamps and plays ~the same
   // strength no matter how low you set it, so a purpose-built weak engine takes
   // over there. At/above 1320 real Stockfish plays the game.
-  if (elo < 1320) {
+  // js-chess-engine (the weak engine) does not understand Chess960 castling or
+  // back ranks, so in a 960 game we let Stockfish play even at low elo.
+  if (elo < 1320 && !chess960) {
     let chosen = null;
     try { chosen = weakMove(fen, elo); } catch (e) { chosen = null; }
     if (!chosen) { thinking = false; weakFallback(); return; }
@@ -1000,7 +1009,7 @@ async function openLearn(idx) {
   const fen = gameFens[i];
   const best = a && a.best ? a.best : null;
   const klass = a && a.klass ? a.klass : null;
-  const ex = explainMove(i, sans, fen, best, klass, row.san, playerColor);
+  const ex = explainMove(i, sans, fen, best, klass, row.san, playerColor, chess960);
 
   // A real miss (inaccuracy/mistake/blunder) is best learned from the opponent's
   // REFUTATION — how the error is punished — rather than the "better move" alone.
@@ -1427,6 +1436,21 @@ dangerBtn.addEventListener("click", () => {
   applyDanger();
 });
 
+/* ---- Chess960 toggle ---- */
+function applyChess960() {
+  const icon = $("chess960icon"), label = $("chess960label"), btn = $("chess960btn");
+  label.textContent = chess960 ? "On" : "Off";
+  icon.textContent = chess960 ? "☑" : "☐";
+  btn.classList.toggle("on", chess960);
+}
+$("chess960btn").addEventListener("click", () => {
+  chess960 = !chess960;
+  localStorage.setItem("chessx.chess960", chess960 ? "on" : "off");
+  applyChess960();
+  startGame(playerColor);
+});
+applyChess960();
+
 function startGame(color) {
   if (tester.isOn()) tester.stop();
   cancelEngine();
@@ -1435,7 +1459,9 @@ function startGame(color) {
   playerColor = color;
   engineColor = color === "w" ? "b" : "w";
   brain = activeBot ? createBrain(activeBot) : null;
-  chess = new Chess();
+  chess = chess960 ? new Chess(randomStartFen()) : new Chess();
+  send(`setoption name UCI_Chess960 value ${chess960 ? "true" : "false"}`);
+  // a fresh position needs a fresh opening-book / engine state
   moveRows = []; gameFens = [chess.fen()]; viewIndex = 0;
   gameOver = false; analyzing = false; analysis = []; thinking = false;
   arrows = []; arrowFrom = null; drawArrows();

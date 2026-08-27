@@ -35,8 +35,8 @@ function leadText(x) {
 /* Which part of the game we're in. The opening lasts while play follows a
    named line AND for a short while of normal development; the endgame is
    decided by how little material remains. */
-export function gamePhase(sans, fen) {
-  const op = identifyOpening(sans);
+export function gamePhase(sans, fen, chess960 = false) {
+  const op = chess960 ? null : identifyOpening(sans);
   const m = materialOf(fen);
   const plies = sans.length;
   const endgame = m.total <= 15;
@@ -107,10 +107,10 @@ const ENDGAME_TIPS = [
 
 /* ============================================================ EXPLAIN MOVE
    Compile a structured lesson for the move at index i (0-based ply). */
-export function explainMove(i, sans, fen, best, klass, playedSan, playerColor) {
+export function explainMove(i, sans, fen, best, klass, playedSan, playerColor, chess960 = false) {
   const mover = i % 2 === 0 ? "w" : "b";
   const myMove = mover === playerColor;
-  const gp = gamePhase(sans, fen);
+  const gp = gamePhase(sans, fen, chess960);
   const m = gp.material;
   const seed = i % Math.max(OPENING_TIPS.length, 1);
 
