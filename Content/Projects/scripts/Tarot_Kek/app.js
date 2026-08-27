@@ -107,18 +107,33 @@ function seededRng(seed) {
   };
 }
 
-// cache the first cast of each day (keyed by date+user) so a day's reading is
-// fixed once it's drawn, but the FIRST draw gets to use the collected pointer
-// chaos ("energy") as part of its randomness.
-const dayCache = new Map();
+const CACHE_KEY = "tarot-daily";
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveCache(date, uid, picks, todayNumber) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ date, uid, picks, todayNumber }));
+  } catch {
+    /* storage unavailable; reading just won't persist */
+  }
+}
 
 async function cast() {
   const user = await window.websim?.getUser?.();
   const uid = user?.id ?? "anonymous";
   const key = today() + uid;
 
-  const cached = dayCache.get(key);
-  if (cached) {
+  const cached = loadCache();
+  if (cached && cached.date === today() && cached.uid === uid) {
     showReading(cached.picks, cached.todayNumber);
     return;
   }
@@ -145,7 +160,7 @@ async function cast() {
   const total = picks.reduce((a, b) => a + b, 0);
   const todayNumber = total % 10;
 
-  dayCache.set(key, { picks, todayNumber });
+  saveCache(today(), uid, picks, todayNumber);
   showReading(picks, todayNumber);
 }
 
