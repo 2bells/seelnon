@@ -280,6 +280,9 @@ let selected = null;
 let legalTargets = [];
 let currentCb = null;
 let pendingPromo = null;
+let dragFrom = null;      // square a drag started from (or null)
+let dragState = null;     // { started, x, y } while a pointer drag is active
+let suppressClick = false; // true briefly after a real drag, to skip the click handler
 let gen = 0;
 let posEvals = new Map();
 let posHints = new Map();
@@ -518,7 +521,10 @@ function render() {
     html += `<div class="${cls}" data-sq="${sq}">${coord}${inner}</div>`;
   }
   boardEl.innerHTML = html;
-  boardEl.querySelectorAll(".sq").forEach((el) => el.addEventListener("click", () => onSquare(el.dataset.sq)));
+  boardEl.querySelectorAll(".sq").forEach((el) => {
+    el.addEventListener("click", () => { if (suppressClick) { suppressClick = false; return; } onSquare(el.dataset.sq); });
+    el.addEventListener("pointerdown", (ev) => startDrag(ev, el.dataset.sq));
+  });
   drawArrows();
 }
 /* Every square the opponent attacks in the given position, so you can see
@@ -534,6 +540,64 @@ function dangerSquares(fen) {
   return set;
 }
 function clearSel() { selected = null; legalTargets = []; }
+
+/* ---------- drag & drop ---------- */
+let floatEl = null;
+function draggablePiece(from) {
+  if (!from) return null;
+  const pc = chess.get(from);
+  if (!pc) return null;
+  const mine = tester.isOn() ||
+    (pc.color === playerColor && chess.turn() === playerColor && !gameOver && !thinking && engineReady && isLive());
+  return mine ? pc : null;
+}
+function startDrag(ev, from) {
+  if (ev.button !== 0 && ev.pointerType === "mouse") return;
+  if (!draggablePiece(from)) return;
+  ev.preventDefault();
+  dragFrom = from;
+  const sqEl = boardEl.querySelector(`.sq[data-sq="${from}"]`);
+  dragState = { x: ev.clientX, y: ev.clientY, started: false, src: sqEl };
+  window.addEventListener("pointermove", onDragMove);
+  window.addEventListener("pointerup", onDragUp, { once: true });
+}
+function onDragMove(ev) {
+  if (!dragState) return;
+  if (!dragState.started) {
+    if (Math.hypot(ev.clientX - dragState.x, ev.clientY - dragState.y) < 6) return;
+    dragState.started = true;
+    const srcW = dragState.src ? dragState.src.offsetWidth : 0;
+    selected = dragFrom;
+    legalTargets = chess.moves({ square: dragFrom, verbose: true }).map((m) => m.to);
+    render();
+    const pc = chess.get(dragFrom);
+    const code = (pc.color === "w" ? "w" : "b") + pc.type.toUpperCase();
+    floatEl = document.createElement("div");
+    floatEl.className = "float-piece";
+    floatEl.innerHTML = pieceMarkup(code);
+    if (srcW) floatEl.style.width = srcW + "px";
+    document.body.appendChild(floatEl);
+  }
+  dragState.x = ev.clientX; dragState.y = ev.clientY;
+  if (floatEl) { floatEl.style.left = ev.clientX + "px"; floatEl.style.top = ev.clientY + "px"; }
+}
+function onDragUp(ev) {
+  window.removeEventListener("pointermove", onDragMove);
+  if (!dragState) return;
+  const from = dragFrom, wasDragging = dragState.started;
+  dragFrom = null; dragState = null;
+  if (floatEl) { floatEl.remove(); floatEl = null; }
+  if (!wasDragging) return;
+  suppressClick = true;
+  const to = squareAtPoint(ev.clientX, ev.clientY);
+  if (to && to !== from) playMove(from, to, null);
+  else { clearSel(); render(); }
+}
+function squareAtPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const sq = el && el.closest ? el.closest(".sq") : null;
+  return sq ? sq.dataset.sq : null;
+}
 
 /* Cute tray of the captured pieces, hugging the board's right edge. White's
    captures are black pieces it has taken, and vice versa. */

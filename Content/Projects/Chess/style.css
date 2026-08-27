@@ -187,7 +187,8 @@ body.testing .liveline b { color: #7ab3ff; }
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
   border: 4px solid #2b211a;
 }
-.sq { position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.sq { position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; touch-action: none; cursor: grab; }
+.sq:active { cursor: grabbing; }
 .sq.light { background: var(--sq-light); }
 .sq.dark  { background: var(--sq-dark);  }
 .sq.last::after {
@@ -207,6 +208,14 @@ body.testing .liveline b { color: #7ab3ff; }
   background: rgba(0, 0, 0, 0.38); z-index: 2; pointer-events: none;
 }
 .sq .piece { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 3; pointer-events: none; }
+.float-piece {
+  position: fixed; z-index: 1000; aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  transform: translate(-50%, -50%) scale(1.25); pointer-events: none;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,0.5));
+}
+.float-piece svg { width: 100%; height: 100%; }
+.sq.selected .piece { opacity: 0.35; transform: scale(1.06); }
 .sq .piece svg { width: 88%; height: 88%; filter: drop-shadow(0 2px 1px rgba(0,0,0,0.35)); }
 .sq .coord { font-size: 10px; font-weight: 700; pointer-events: none; opacity: 0.75; z-index: 4; }
 .sq .rk { position: absolute; top: 2px; left: 4px; }
