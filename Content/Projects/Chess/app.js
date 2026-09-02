@@ -813,23 +813,57 @@ function engineMove() {
     return;
   }
 
+  // A plain Stockfish opponent from the slider. UCI_LimitStrength alone barely
+  // weakens it above ~1320, so we scale search depth + blunder rate from the
+  // target elo to make it genuinely play at (and be measured at) its setting.
   const inOpening = moveRows.length < 8;
-  const depth = inOpening ? 14 : 12;
+  const { depth: eDepth } = eloParams(elo);
+  const depth = inOpening ? Math.max(eDepth, 10) : eDepth;
   search(fen, { depth }).then((lines) => {
     if (gen !== myGen || gameOver) { thinking = false; return; }
     if (lines.length) { posEvals.set(fen, lines[0]); posHints.set(fen, uciToSan(fen, lines[0].pv[0])); }
     let chosen = null;
     if (lines.length) {
-      // Stockfish is Elo-limited via UCI_LimitStrength + UCI_Elo. Let it play
-      // its own best move at that strength; the eval is later compared against
-      // a full-strength reference for accuracy, so any real weakness the engine
-      // has at this Elo shows up as honest inaccuracy instead of forced chaos.
-      chosen = lines[0].pv[0];
+      chosen = selectEloMove(lines, elo);
     }
     thinking = false;
     if (!chosen) { return; }
     applyChosen(chosen);
   });
+}
+
+// ---- Slider (raw Stockfish) strength -------------------------------------
+// UCI_LimitStrength is a poor knob: above ~1320 it barely weakens Stockfish, so
+// a "1400" slider still plays near-peak strength and both sides measure too
+// high. To make the slider genuinely play at its Elo we scale how far the
+// engine looks ahead (depth) and inject occasional deliberate mistakes.
+// Search-depth plays the honest "didn't see it" weakness and an elo-scaled
+// blunder rate reproduces the real giveaway blunders a weaker player makes.
+function eloParams(elo) {
+  const L = Math.max(500, Math.min(2850, elo));
+  // Search-depth cut from full strength (~depth 14) + two deliberate-error
+  // channels so a mid/low slider genuinely fumbles instead of playing a pearl.
+  // Self-play confirms Stockfish stays tactically clean at any shallow depth,
+  // so the blunder/wobble injection (below) is what actually lowers measured
+  // strength — the exact calibration is fuzzy, which is why the review also
+  // shows the slider's configured elo for context.
+  const depth = Math.max(5, Math.min(11, Math.round(4 + (L - 500) / 330)));
+  // Per-move chance of a real giveaway (plays the engine's WORST searched line).
+  const blunder = Math.max(0, Math.min(0.14, (1700 - L) / 15000));
+  // Per-move chance of an ordinary mistake/inaccuracy (a worse-but-legal line).
+  const wobble = Math.max(0, Math.min(0.60, (2600 - L) / 5000));
+  return { depth, blunder, wobble };
+}
+function selectEloMove(lines, elo) {
+  if (!lines.length) return null;
+  const best = lines[0].pv[0];
+  const { blunder, wobble } = eloParams(elo);
+  const worse = lines.filter((l) => l.multipv > 1 && l.pv && l.pv.length);
+  if (!worse.length) return best;
+  const r = Math.random();
+  if (r < blunder) return worse[worse.length - 1].pv[0];   // hang
+  if (r < blunder + wobble) return worse[worse.length === 1 ? 0 : 1 + Math.floor(Math.random() * (worse.length - 1))].pv[0]; // mistake
+  return best;
 }
 
 // Fallback if the weak engine can't produce a move: ask anyway via stockfish.
@@ -1282,6 +1316,19 @@ async function finalizeAnalysis() {
   for (let i = 0; i < n; i++) { if (!analysis[i]) await analyzeIndex(i); renderAnalysis(); }
   analyzing = false;
   posEvals.set(gameFens[n], terminalScore());
+  // Feed this game's per-move losses into each side's review pool.
+  const youLosses = [];
+  const oppColor = playerColor === "w" ? "b" : "w";
+  const oppLosses = [];
+  for (let i = 0; i < moveRows.length; i++) {
+    const loser = (i % 2 === 0 ? "w" : "b");
+    const a = analysis[i];
+    if (a && a.loss != null) {
+      if (loser === playerColor) youLosses.push(a.loss);
+      else if (loser === oppColor) oppLosses.push(a.loss);
+    }
+  }
+  poolPush("you", youLosses); poolPush("opp", oppLosses);
   renderAnalysis(); renderEval(); renderHint(); renderAccuracy();
   showTab("analysis");
 }
@@ -1333,6 +1380,180 @@ function setAccRow(id, pct) {
   fill.style.width = pct + "%";
   pctEl.textContent = pct + "%";
 }
+
+/* ---------- game review ---------- */
+const reviewEl = $("review"), reviewTitle = $("reviewTitle"),
+      reviewYou = $("reviewYou"), reviewOpp = $("reviewOpp"),
+      reviewChart = $("reviewChart"), reviewClose = $("reviewClose");
+const KLASS_COLOR = {
+  brilliant: "#eeb5ff", best: "#7bdd6f", excellent: "#7fd6d9",
+  good: "#a9d77c", inaccuracy: "#f5c542", mistake: "#f59a3d", blunder: "#f0685f"
+};
+const KLASS_DOT = ["brilliant","best","excellent","good","inaccuracy","mistake","blunder"];
+
+// Average centipawn loss per move -> projected rating. Centipawn loss is the
+// direct measure of how much a side "gave away" versus full-strength Stockfish
+// (~what Chess.com calls your "best-move rate" is less stable). Single games
+// are noisy, so anchors below are a realistic monotonic prior and the app also
+// averages across all of a player's finished games (see the review pool).
+const ACL_ELO = [
+  [300,400],[260,500],[220,600],[185,700],[155,800],[130,900],[110,1000],
+  [95,1100],[82,1200],[70,1300],[60,1400],[52,1500],[45,1600],[38,1700],
+  [33,1800],[28,1900],[24,2000],[20,2100],[17,2200],[14,2300],[12,2400],
+  [10,2500],[8,2600],[6,2700],[5,2800]
+];
+function eloFromAcl(acl) {
+  if (acl == null) return null;
+  if (acl >= ACL_ELO[0][0]) return ACL_ELO[0][1];
+  for (let i = 0; i < ACL_ELO.length - 1; i++) {
+    const [a0, e0] = ACL_ELO[i], [a1, e1] = ACL_ELO[i + 1];
+    if (acl >= a1) return Math.round(e0 + (acl - a0) * (e1 - e0) / (a1 - a0));
+  }
+  return ACL_ELO[ACL_ELO.length - 1][1];
+}
+// Average centipawn loss for one side's moves in the current game.
+function sideAcl(color) {
+  let tot = 0, n = 0;
+  for (let i = 0; i < moveRows.length; i++) {
+    if ((i % 2 === 0 ? "w" : "b") !== color) continue;
+    const a = analysis[i];
+    if (!a || a.loss == null) continue;
+    tot += a.loss; n++;
+  }
+  return n ? tot / n : null;
+}
+// Eval (from side-to-move POV) normalized into a -1..1 advantage for the player.
+function reviewEval(i) {
+  // i cycles 0..n. For i < n use the eval of the position BEFORE move i
+  // (analysis[i].best), which is the strongest reference for that ply and is
+  // stored in side-to-move perspective; the terminal uses the mate score.
+  const fen = gameFens[i];
+  const to = fen.split(" ")[1];
+  let st;
+  if (i < moveRows.length) st = analysis[i] && analysis[i].best;
+  else st = terminalScore();
+  if (!st) return null;
+  const p = toPlayerPov(st, to, playerColor);
+  if (p.stype === "mate") return p.sval > 0 ? 1 : -1;
+  return Math.max(-1, Math.min(1, p.sval / 400));
+}
+function buildReviewChart() {
+  const n = moveRows.length;
+  if (!n) return "";
+  const es = [];
+  for (let i = 0; i <= n; i++) es.push(reviewEval(i));
+  const W = 600, H = 220, padL = 26, padR = 12, padT = 8, padB = 22;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const x = (i) => padL + (i / n) * iw;
+  const y = (v) => padT + (0.5 - v * 0.48) * ih;
+  let segs = "", dots = "";
+  for (let i = 0; i < n; i++) {
+    const mover = i % 2 === 0 ? "w" : "b";
+    // dot at the point AFTER move i, colored by that move / side's quality
+    const k = analysis[i] && analysis[i].klass;
+    const kc = k ? KLASS_COLOR[k] : "#8a8278";
+    dots += `<circle class="rev-dot" cx="${x(i + 1)}" cy="${y(es[i + 1])}" r="5" fill="${kc}"/>`;
+    const color = mover === playerColor ? "#efe6d8" : "#a9752f";
+    segs += `<line class="rev-seg" x1="${x(i)}" y1="${y(es[i])}" x2="${x(i + 1)}" y2="${y(es[i + 1])}" stroke="${color}"/>`;
+  }
+  // zero axis + a couple ticks
+  let axis = `<line class="rev-axis" x1="${padL}" y1="${y(0)}" x2="${padL + iw}" y2="${y(0)}"/>`;
+  for (let v of [-1, -0.5, 0, 0.5, 1]) {
+    const yy = y(v);
+    axis += `<line class="rev-axis" x1="${padL}" y1="${yy}" x2="${padL + iw}" y2="${yy}"/>`;
+  }
+  // move numbers under the axis
+  let mnums = "";
+  for (let i = 0; i <= n; i += 2) mnums += `<text x="${x(i)}" y="${H - 4}" font-size="10" fill="#a89a88">${Math.floor(i / 2)}</text>`;
+  // legend
+  let lgLegend = "";
+  for (const k of KLASS_DOT) {
+    const cnt = moveRows.reduce((a, r, i2) => a + (analysis[i2] && analysis[i2].klass === k ? 1 : 0), 0);
+    if (!cnt) continue;
+    lgLegend += `<span class="lg"><span class="lg-dot" style="background:${KLASS_COLOR[k]}"></span>${KCLASS[k].n} ×${cnt}</span>`;
+  }
+  return `<table class="revtable"><caption>Evaluation · side to move, from your view &bull; line height = advantage (max ±4 pawns)</caption>` +
+    `<svg class="rev-svg" viewBox="0 0 ${W} ${H}">${axis}${segs}${dots}${mnums}</svg></table>` +
+    `<div class="rev-legend">${lgLegend}</div>`;
+}
+function countBySide(color) {
+  const c = {};
+  for (let i = 0; i < moveRows.length; i++) {
+    if ((i % 2 === 0 ? "w" : "b") !== color) continue;
+    const k = analysis[i] && analysis[i].klass;
+    if (k) c[k] = (c[k] || 0) + 1;
+  }
+  return c;
+}
+/* Per-player review pool: every finished game adds that side's per-move
+   centipawn-loss to an aggregate bucket in localStorage, so the "projected
+   rating" reflects an average across many games (single games are far too
+   noisy to rate precisely) — the honest version of "understand the averages." */
+const POOL_KEY = "chessx.reviewpool";
+function poolGet() {
+  try { return JSON.parse(localStorage.getItem(POOL_KEY)) || { you: [], opp: [] }; }
+  catch (e) { return { you: [], opp: [] }; }
+}
+function poolPush(side, losses) {
+  if (!losses.length) return;
+  const p = poolGet();
+  p[side] = p[side].concat(losses).slice(-800);
+  try { localStorage.setItem(POOL_KEY, JSON.stringify(p)); } catch (e) {}
+}
+function poolAcl(side) {
+  const a = poolGet()[side];
+  if (!a.length) return null;
+  return a.reduce((x, y) => x + y, 0) / a.length;
+}
+
+function reviewCol(color, label, baseColor, configured) {
+  const acl = sideAcl(color);
+  const elo = eloFromAcl(acl);
+  const poolSide = color === baseColor ? "you" : "opp";
+  const pov = poolAcl(poolSide);
+  const povElo = pov != null ? eloFromAcl(pov) : null;
+  const acc = sideAccuracy(color);
+  const c = countBySide(color);
+  const cells = KLASS_DOT.map((k) =>
+    `<div class="rcell"><span class="lg-dot" style="background:${KLASS_COLOR[k]}"></span>${KCLASS[k].n}<span class="rcn">${c[k] || 0}</span></div>`
+  ).join("");
+  // Primary projected rating = measured from this game's moves (both sides).
+  // For the opponent we also show what it was CONFIGURED to play, so a clean
+  // slider that measures higher than its setting is still understandable.
+  const overall = (configured != null)
+    ? `<div class="rextra">set to <b>${configured}</b> · measured <b>${elo}</b> this game</div>`
+    : (povElo != null
+        ? `<div class="rextra">across games: <b>${povElo}</b> <span class="dim">(${poolGet()[poolSide].length} moves)</span></div>`
+        : `<div class="rextra">one game — estimate only</div>`);
+  return `<div class="rname">${label}</div>` +
+    `<div class="rgrid"><div class="rcell"><span>Accuracy</span><span class="rcn racc">${acc == null ? "—" : acc + "%"}</span></div>` +
+    `<div class="rcell"><span>Projected rating</span><span class="rcn relo">${elo == null ? "—" : elo}</span></div>` +
+    `<div class="rcell"><span>Avg cp loss</span><span class="rcn">${acl == null ? "—" : Math.round(acl) + "cp"}</span></div></div>` +
+    overall +
+    `<div class="rgrid">${cells}</div>`;
+}
+function openReview() {
+  if (gameOver && !analyzing && moveRows.length) {
+    reviewChart.innerHTML = `<div class="rev-chart">${buildReviewChart()}</div>`;
+    const pcol = playerColor; // the human's color
+    const oppCol = pcol === "w" ? "b" : "w";
+    const configured = !tester.isOn() ? effectiveElo() : null; // what the bot was set to
+    reviewYou.innerHTML = reviewCol(pcol, "You", pcol);
+    reviewOpp.innerHTML = reviewCol(oppCol, "Opponent", pcol, configured);
+    const away = playerColor === "w" ? "b" : "w", youCol = playerColor === "w" ? "w" : "b";
+    const youAcc = sideAccuracy(youCol), awayAcc = sideAccuracy(away);
+    let verdict = "Game review";
+    if (gameOver) {
+      if (chess.isCheckmate()) verdict = chess.turn() === playerColor ? "You lost by checkmate" : "You won by checkmate";
+      else verdict = "Draw";
+    }
+    reviewTitle.textContent = verdict;
+    reviewEl.classList.remove("hidden");
+  }
+}
+function closeReview() { reviewEl.classList.add("hidden"); }
+reviewClose.addEventListener("click", closeReview);
+$("accbar").addEventListener("click", openReview);
 
 function renderMoves() {
   let html = "", rowOpen = false;

@@ -522,6 +522,51 @@ textarea.textin { resize: vertical; font-family: inherit; }
 .botcard-proc { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
 @media (max-width: 560px) { .form-cols { grid-template-columns: 1fr; } }
 
+/* ---- game review ---- */
+.accbar { cursor: pointer; }
+.accbar:hover { box-shadow: 0 0 0 1px var(--accent) inset; }
+.review {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 85; width: min(680px, calc(100vw - 28px));
+  background: var(--panel); border: 1px solid var(--panel2); border-radius: 14px;
+  padding: 16px 18px; box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+  display: flex; flex-direction: column; gap: 12px; max-height: 92vh;
+}
+.review-head { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 1.05rem; color: var(--accent); }
+.review-chart {
+  background: var(--panel2); border-radius: 8px; padding: 8px 10px;
+}
+.review-chart .rev-svg { width: 100%; height: auto; display: block; }
+.review-chart .rev-seg { stroke-width: 1.4; }
+.review-chart .rev-dot { stroke: rgba(0,0,0,0.35); stroke-width: 0.4; }
+.review-chart .rev-axis { stroke: rgba(255,255,255,0.12); stroke-width: 0.4; }
+.review-chart .rev-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 0.72rem; color: var(--text-dim); }
+.review-chart .rev-legend .lg { display: inline-flex; align-items: center; gap: 5px; }
+.review-chart .lg-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.review-chart .revtable { width: 100%; border-spacing: 0; }
+.review-chart .rev-svg { width: 100%; height: auto; display: block; }
+.review-chart .rev-seg { stroke-width: 4; vector-effect: non-scaling-stroke; }
+.review-chart .rev-dot { stroke-width: 1; vector-effect: non-scaling-stroke; }
+.rcol .lg-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.rcol .racc { color: var(--accent); }
+.review-chart caption {
+  caption-side: top; font-size: 0.72rem; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.5px; padding-bottom: 6px; text-align: left;
+}
+.review-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.rcol { background: var(--panel2); border-radius: 10px; padding: 12px; }
+.rcol .rname { font-weight: 800; font-size: 0.95rem; }
+.rcol .racc { font-weight: 800; font-size: 1.7rem; line-height: 1.1; color: var(--good); }
+.rcol .rextra { font-size: 0.8rem; color: var(--text-dim); }
+.rcol .dim { opacity: 0.6; }
+.rcol .relo { font-weight: 700; color: var(--accent); font-size: 1rem; }
+.rgrid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px 10px; margin-top: 10px; font-size: 0.8rem;
+}
+.rgrid .rcell { display: flex; align-items: center; gap: 6px; }
+.rgrid .rcn { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+@media (max-width: 520px) { .review-cols { grid-template-columns: 1fr; } }
+
 /* ---- learn (second board) panel ---- */
 .learn {
   position: fixed; top: 14px; right: 14px; width: 340px; max-width: calc(100vw - 28px);
