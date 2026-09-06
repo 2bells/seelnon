@@ -5,6 +5,7 @@ import { explainMove } from "./learning.js";
 import { identifyOpening, OPENINGS } from "./openings.js";
 import { toShredderFen, randomStartFen } from "./chess960.js";
 import { createTester } from "./tester.js";
+import * as puzzles from "./puzzles.js";
 
 const $ = (id) => document.getElementById(id);
 const boardEl = $("board"), movesEl = $("moves"), analysisEl = $("analysis");
@@ -22,11 +23,17 @@ const spoilerBtn = $("spoiler"), spillockEl = $("spillock");
 const dangerBtn = $("dangerbtn");
 const learnEl = $("learn"), learnTitle = $("learnTitle"), learnBody = $("learnBody"),
       learnBoard = $("learnboard"), learnArrows = $("learnarrows"), learnClose = $("learnClose");
+const puzzBtn = $("puzzlesbtn"), puzzBar = $("puzzbar"), puzzStatus = $("puzzstatus"), puzzActs = $("puzzacts");
 
 let arrows = [];
 let arrowFrom = null;
 let spoilerOn = localStorage.getItem("chessx.spoiler") !== "off";
 let dangerOn = localStorage.getItem("chessx.danger") === "on";
+
+// Drawing annotations: right-click a square toggles a red "danger" X on it;
+// holding right-click and dragging draws an arrow. Left-click a marked square
+// clears it. Always on — no separate mode.
+let drawMarks = new Set();
 
 /* ---------- opponent (bots) ---------- */
 let userBots = loadBots();
@@ -291,6 +298,17 @@ let analysis = [];
 // (no flicker back to neutral) until a fresh evaluation for this position lands.
 let lastShownEval = null;
 
+// Puzzle-solving session: when puzzleMode is on, the board is set to a fixed
+// tactic and any move the player makes is checked against the puzzle solution;
+// the opponent replies with the scripted solution move instead of the engine.
+let puzzleMode = false;
+let curPuzzle = null;      // { id, fen, moves[], rating, themes }
+let puzzleStep = 0;        // next index into curPuzzle.moves to play
+let puzzleResult = null;   // "won" | "lost"
+let puzzleFailMsg = null;
+let puzzleStartIndex = 0;  // moveRows index of the puzzle's setup move (puzzle-relevant rows)
+let prevGame = null;       // snapshot of the game to restore on puzzle exit
+
 // Learn-panel replay: the Stockfish best continuation, clicked through on the
 // mini board. cur===0 shows the position after the played move; cur>=1 steps
 // into the engine line.
@@ -500,6 +518,7 @@ function render() {
   const last = viewIndex > 0 ? moveRows[viewIndex - 1] : null;
   const flip = playerColor === "b";
   const danger = dangerOn ? dangerSquares(gameFens[viewIndex]) : null;
+  const draw = viewIndex === gameFens.length - 1 ? drawMarks : null;
   renderCaptured(gameFens[viewIndex]);
   let html = "";
   for (let dr = 0; dr < 8; dr++) for (let dc = 0; dc < 8; dc++) {
@@ -509,9 +528,11 @@ function render() {
     const dark = (r + c) % 2 === 1, pc = pieces[r][c];
     const isLast = last && (sq === last.from || sq === last.to);
     const isSel = selected === sq, isTarget = legalTargets.includes(sq);
+    const isDraw = draw && draw.has(sq);
     let cls = "sq " + (dark ? "dark" : "light") + (isLast ? " last" : "") + (isSel ? " selected" : "") +
-      (danger && danger.has(sq) ? " danger" : "");
+      ((danger && danger.has(sq)) || isDraw ? " danger" : "");
     let inner = "";
+    if (isDraw) inner += '<div class="drawmark">✕</div>';
     if (isTarget) inner += '<div class="dot"></div>';
     if (pc) { const code = (pc === pc.toUpperCase() ? "w" : "b") + pc.toUpperCase();
       inner += `<span class="piece">${pieceMarkup(code)}</span>`; }
@@ -695,6 +716,12 @@ function endArrow(target) {
 }
 
 function onSquare(sq) {
+  // Left-click on a marked square clears that mark (annotation).
+  if (viewIndex === gameFens.length - 1 && drawMarks.has(sq)) {
+    drawMarks.delete(sq);
+    clearSel(); render();
+    return;
+  }
   if (!tester.isOn()) {
     if (!engineReady || thinking || analyzing || gameOver || !isLive()) { clearSel(); render(); return; }
   }
@@ -743,7 +770,8 @@ function playMove(from, to, prom) {
   gameFens.push(chess.fen());
   viewIndex = moveRows.length;
   clearSel(); render(); renderMoves(); renderAnalysis(); updateStatus(); renderResume();
-  if (tester.isOn()) tester.afterMove(); else afterPlayerMove();
+  if (puzzleMode) puzzleHandlePlayerMove(mv);
+  else if (tester.isOn()) tester.afterMove(); else afterPlayerMove();
 }
 function afterPlayerMove() {
   if (chess.isGameOver()) { gameOver = true; thinking = false; updateStatus(); renderResume(); finalizeAnalysis(); return; }
@@ -1102,7 +1130,10 @@ async function openLearn(idx) {
   const i = idx - 1;
   viewAt(idx);
   const row = moveRows[i];
-  const a = analysis[i];
+  // Ensure the move has real engine analysis (puzzle moves don't get analyzed
+  // during play) so the lesson below isn't blank.
+  let a = analysis[i];
+  if (!a) { try { a = await analyzeIndex(i); } catch (e) {} }
   const sans = moveRows.slice(0, idx).map((m) => m.san);
   const fen = gameFens[i];
   const best = a && a.best ? a.best : null;
@@ -1338,6 +1369,7 @@ function showTab(name) {
   movesEl.classList.toggle("hidden", toAnalysis);
   tabAnalysis.classList.toggle("active", toAnalysis);
   tabMoves.classList.toggle("active", !toAnalysis);
+  if (toAnalysis && puzzleMode) puzzleAnalyzeAll();
 }
 function terminalScore() {
   if (chess.isCheckmate()) return chess.turn() === "w" ? { stype: "mate", sval: -1 } : { stype: "mate", sval: 1 };
@@ -1639,6 +1671,15 @@ function renderHint() {
 
 /* ---------- status ---------- */
 function updateStatus() {
+  if (puzzleMode) {
+    if (puzzleResult === "won") { statusEl.textContent = "Puzzle solved — well done"; rewindBtn.classList.add("hidden"); return; }
+    if (puzzleResult === "lost") { statusEl.textContent = puzzleFailMsg || "Incorrect"; rewindBtn.classList.add("hidden"); return; }
+    if (!engineReady) { statusEl.textContent = "Starting opponent…"; rewindBtn.classList.add("hidden"); return; }
+    if (chess.turn() === playerColor) statusEl.textContent = chess.inCheck() ? "Your move — check!" : "Your move — find the tactic";
+    else statusEl.textContent = "Opponent replies…";
+    rewindBtn.classList.add("hidden");
+    return;
+  }
   if (!engineReady) { statusEl.textContent = "Starting opponent…"; rewindBtn.classList.add("hidden"); return; }
   if (gameOver) {
     if (chess.isCheckmate()) statusEl.textContent = chess.turn() === playerColor ? "Checkmate — you lost" : "Checkmate — you won";
@@ -1660,7 +1701,7 @@ function updateStatus() {
 // to take back. Hidden in test mode (which has its own Reset) and while the
 // engine is thinking or the game is over.
 function updateRewind() {
-  const on = !tester.isOn() && !gameOver && !thinking && !analyzing &&
+  const on = !tester.isOn() && !puzzleMode && !gameOver && !thinking && !analyzing &&
     isLive() && chess.turn() === playerColor && moveRows.length > 0;
   rewindBtn.classList.toggle("hidden", !on);
 }
@@ -1668,6 +1709,8 @@ function updateRewind() {
 /* ---------- controls ---------- */
 eloS.addEventListener("input", () => { eloV.textContent = eloS.value; if (engine) send(`setoption name UCI_Elo value ${eloS.value}`); renderOppHeader(); });
 newBtn.addEventListener("click", () => colorPick.classList.remove("hidden"));
+puzzBtn.addEventListener("click", () => puzzles.openMenu());
+puzzles.setStartHandler(startPuzzle);
 settingsBtn.addEventListener("click", () => menu.classList.toggle("hidden"));
 menuClose.addEventListener("click", () => menu.classList.add("hidden"));
 learnClose.addEventListener("click", () => learnEl.classList.add("hidden"));
@@ -1683,15 +1726,45 @@ $("pickw").addEventListener("click", () => { colorPick.classList.add("hidden"); 
 $("pickb").addEventListener("click", () => { colorPick.classList.add("hidden"); startGame("b"); });
 $("pickr").addEventListener("click", () => { colorPick.classList.add("hidden"); startGame(Math.random() < 0.5 ? "w" : "b"); });
 
-/* ---- arrows: right-click draws arrows (native context menu muted) ---- */
+/* ---- arrows + draw marks: right-click draws (tap marks, drag arrows) ---- */
+let rcDrag = null; // { x, y, from, moved }
 boardEl.addEventListener("contextmenu", (e) => e.preventDefault());
+function toggleMark(sq) {
+  if (drawMarks.has(sq)) drawMarks.delete(sq); else drawMarks.add(sq);
+  clearSel(); render();
+}
 boardEl.addEventListener("mousedown", (e) => {
-  if (e.button === 2) { e.preventDefault(); startArrow(squareAt(e.target)); }
+  if (e.button === 2) {
+    e.preventDefault();
+    const sq = squareAt(e.target);
+    rcDrag = { x: e.clientX, y: e.clientY, from: sq, moved: false };
+    if (sq) startArrow(sq);
+  }
 });
-boardEl.addEventListener("mousemove", (e) => updateArrowFocus(e.target));
-boardEl.addEventListener("mouseup", (e) => { if (e.button === 2) endArrow(e.target); });
+boardEl.addEventListener("mousemove", (e) => {
+  // rcDrag is only active while a right-button drag is in progress (set on
+  // button-2 mousedown), so treat real pointer movement as a drag regardless of
+  // the `button` field reported on mousemove.
+  if (rcDrag && rcDrag.from &&
+      Math.hypot(e.clientX - rcDrag.x, e.clientY - rcDrag.y) > 6) rcDrag.moved = true;
+  updateArrowFocus(e.target);
+});
+boardEl.addEventListener("mouseup", (e) => {
+  if (e.button !== 2 || !rcDrag) return;
+  const wasDrag = rcDrag.moved, from = rcDrag.from;
+  rcDrag = null;
+  if (from && wasDrag) { endArrow(e.target); return; }
+  // Quick right-click (no drag): toggle a mark on the square.
+  arrowFrom = null; drawPreview(null); drawArrows();
+  if (from) toggleMark(from);
+});
 boardEl.addEventListener("mouseleave", () => { if (arrowFrom) drawPreview(null); });
 clearArrBtn.addEventListener("click", () => { arrows = []; drawArrows(); });
+
+/* ---- draw (annotate) marks ---- */
+function clearDraw() {
+  if (drawMarks.size) { drawMarks.clear(); render(); }
+}
 
 /* ---- spoiler toggle ---- */
 function applySpoiler() {
@@ -1739,6 +1812,10 @@ applyChess960();
 function startGame(color) {
   if (tester.isOn()) tester.stop();
   cancelEngine();
+  clearDraw();
+  puzzleMode = false; curPuzzle = null; puzzleResult = null; puzzleFailMsg = null;
+  document.body.classList.remove("puzzling");
+  puzzBar.classList.add("hidden");
   if (procedural) { activeBot = makeProcedural(); brain = createBrain(activeBot); applyOpponent(); }
   gen++;
   playerColor = color;
@@ -1756,6 +1833,194 @@ function startGame(color) {
 }
 
 function newGame() { startGame(playerColor); }
+
+/* ---------- puzzle-solving session ---------- */
+function toMove(fen) { return new Chess(fen).turn(); }
+
+/* lichess puzzle formatting (authoritative, from the database docs):
+   - The stored FEN is the position BEFORE the opponent's move.
+   - Solution[0] is the opponent's (setup) move; the board you see is already
+     after it, so it is your turn.
+   - You play the side OPPOSITE the FEN's active color, and YOUR moves are the
+     ODD-indexed entries of the solution (index 1, 3, 5, …). The opponent's
+     replies are the even-indexed entries. */
+function applyScriptedUci(uci, record, silent) {
+  const m = uciToMove(uci);
+  let mv = null;
+  try { mv = m.promotion ? chess.move({ from: m.from, to: m.to, promotion: m.promotion }) : chess.move({ from: m.from, to: m.to }); }
+  catch (e) { return false; }
+  if (!mv) return false;
+  if (record) {
+    if (!silent) moveSound(mv);
+    moveRows.push({ from: mv.from, to: mv.to, san: mv.san, promotion: mv.promotion || null });
+    gameFens.push(chess.fen());
+    viewIndex = moveRows.length;
+  }
+  return true;
+}
+// Index (into the solution) of the player's final decisive move. If the
+// solution length is even the last entry is yours and is the winning move; if
+// it is odd the opponent has a forced reply after your final move.
+function playerLastIndex() {
+  const n = curPuzzle.moves.length;
+  return n % 2 === 1 ? n - 2 : n - 1;
+}
+
+function startPuzzle(p) {
+  cancelEngine();
+  clearDraw();
+  // Keep the current game so the user can return to it after solving. When
+  // hopping between puzzles, keep the original snapshot rather than the one
+  // from the puzzle before.
+  if (!puzzleMode) prevGame = testSnapshot();
+  // Player is the opposite of the FEN's active color; the FEN side's first
+  // solution move is the "setup" move by the opponent.
+  const fenSide = new Chess(p.fen).turn();
+  playerColor = fenSide === "w" ? "b" : "w";
+  engineColor = fenSide;
+  gameOver = false; analyzing = false; analysis = []; thinking = false;
+  arrows = []; arrowFrom = null; drawArrows();
+  clearSel(); promEl.classList.add("hidden"); pendingPromo = null;
+  puzzleMode = true;
+  curPuzzle = p;
+  puzzleResult = null;
+  puzzleFailMsg = null;
+  document.body.classList.add("puzzling");
+  showTab("moves");
+  // If this puzzle carries the game it was taken from, start from the opening
+  // position and replay the moves that led into the tactic so the move list
+  // shows the full game. Otherwise set the board straight to the tactic FEN.
+  const hasGame = Array.isArray(p.gameMoves) && p.gameMoves.length;
+  chess = hasGame ? new Chess() : new Chess(p.fen);
+  moveRows = []; gameFens = [chess.fen()]; viewIndex = 0;
+  if (hasGame) {
+    for (const u of p.gameMoves) applyScriptedUci(u, true, true);
+    viewIndex = moveRows.length;
+  }
+  // Index of the puzzle's own first move (the setup) within the move list, so
+  // analysis can target just the tactic rather than the whole game leading in.
+  puzzleStartIndex = hasGame ? moveRows.length : 0;
+  // Apply the opponent's setup move S[0] recorded, so the player sees it as
+  // the opponent's last move (highlighted on the board and in the move list) —
+  // it is now the player's turn.
+  applyScriptedUci(p.moves[0], true);
+  puzzleStep = 1; // the player's first move is the second entry (index 1)
+  renderAll();
+  renderPuzzleBar();
+}
+function exitPuzzle() {
+  cancelEngine();
+  puzzleMode = false; curPuzzle = null; puzzleResult = null; puzzleFailMsg = null;
+  document.body.classList.remove("puzzling");
+  puzzBar.classList.add("hidden");
+  if (prevGame) { const g = prevGame; prevGame = null; restoreTest(g); return; }
+  startGame(playerColor);
+}
+function renderPuzzleBar() {
+  puzzBar.classList.remove("hidden");
+  const sideWord = playerColor === "w" ? "White" : "Black";
+  puzzStatus.className = "puzzstatus";
+  const puzzDet = $("puzzdetails");
+  if (puzzDet) puzzDet.innerHTML = puzzleDetailHTML();
+  if (puzzleResult === "won") {
+    puzzStatus.textContent = "Solved! Well done";
+    puzzStatus.classList.add("won");
+  } else if (puzzleResult === "lost") {
+    puzzStatus.textContent = puzzleFailMsg || "Not quite";
+    puzzStatus.classList.add("lost");
+  } else {
+    puzzStatus.textContent = `You play ${sideWord}${curPuzzle.rating ? ` · ${curPuzzle.rating}` : ""}`;
+  }
+  let html = "";
+  if (puzzleResult === "won") html += `<button id="pznext" class="btn small">Next</button>`;
+  if (puzzleResult) html += `<button id="pzretry" class="btn small ghost">Retry</button>`;
+  html += `<button id="pzexit" class="btn small ghost">Exit</button>`;
+  puzzActs.innerHTML = html;
+  const nxt = $("pznext"); if (nxt) nxt.addEventListener("click", () => nextPuzzle());
+  const retry = $("pzretry"); if (retry) retry.addEventListener("click", () => startPuzzle(curPuzzle));
+  const exit = $("pzexit"); if (exit) exit.addEventListener("click", () => exitPuzzle());
+}
+function nextPuzzle() {
+  if (!curPuzzle) return;
+  const i = puzzles.catalog().findIndex((p) => p.id === curPuzzle.id);
+  const nxt = puzzles.getPuzzle(i === -1 ? 0 : Math.min(puzzles.catalog().length - 1, i + 1));
+  startPuzzle(nxt);
+}
+
+/* Human-readable names for lichess puzzle themes. */
+const PUZZLE_THEME_TXT = {
+  advantage: "advantage", long: "long", short: "short", veryLong: "very long",
+  oneMove: "one-mover", middlegame: "middlegame", opening: "opening", endgame: "endgame",
+  mate: "mate", mateIn1: "mate in 1", mateIn2: "mate in 2", mateIn3: "mate in 3",
+  fork: "fork", pin: "pin", skewer: "skewer", discoveredAttack: "discovered attack",
+  deflection: "deflection", attract: "attraction", attraction: "attraction",
+  hangingPiece: "hanging piece", trappedPiece: "trapped piece", sacrifice: "sacrifice",
+  backRankMate: "back-rank mate", smotheredMate: "smothered mate", doubleCheck: "double check",
+  exposedKing: "exposed king", castle: "castling", castling: "castling", enPassant: "en passant",
+  promotion: "promotion", demolishPawn: "pawn storm", clearance: "clearance",
+  capturingDefender: "capture defender", intermezzo: "zwischenzug", interference: "interference",
+  pullingPiece: "pull piece", quietMove: "quiet move", xRayAttack: "x-ray attack",
+  deflection: "deflection", kingAndPawnEndgame: "pawn endgame", knightEndgame: "knight endgame",
+  bishopEndgame: "bishop endgame", rookEndgame: "rook endgame", queenEndgame: "queen endgame",
+  pawnEndgame: "pawn endgame", rookVsMinorPieceEndgame: "rook vs minor endgame",
+  crushing: "crushing", master: "master game", masterVsMaster: "master vs master", superGM: "super GM",
+  anastasiaMate: "Anastasia's mate", andersenMate: "Andersen's mate", arabianMate: "Arabian mate",
+  balestraMate: "Balestra mate", blackburneMate: "Blackburne's mate", bodenMate: "Boden's mate",
+  corkscrewMate: "corkscrew mate", dovetailMate: "dovetail mate", doubleBishopMate: "double bishop mate",
+  hookMate: "hook mate", killBoxMate: "kill-box mate", triangleMate: "triangle mate",
+  tippyMate: "tippy mate", wallMate: "wall mate", sacrificedMate: "sacrificing mate",
+};
+function puzzleDetailHTML() {
+  if (!curPuzzle) return "";
+  const ch = [];
+  ch.push(`Rating <b>${curPuzzle.rating || "?"}</b>`);
+  const themes = String(curPuzzle.themes || "").trim().split(/\s+/).filter(Boolean);
+  const labels = themes.map((t) => PUZZLE_THEME_TXT[t] || t).slice(0, 7);
+  if (labels.length) ch.push(` ${labels.join(" · ")}`);
+  return ch.join("<span class=\"pzsep\">·</span>");
+}
+
+/* Compute real engine analysis for the puzzle's own moves (the setup plus the
+   solution) so the Analysis tab and move-click lessons are populated — puzzle
+   moves otherwise skip the normal post-move analysis path. */
+async function puzzleAnalyzeAll() {
+  if (analyzing) return;
+  analyzing = true;
+  renderAnalysis();
+  const n = moveRows.length;
+  for (let i = puzzleStartIndex; i < n; i++) if (!analysis[i]) { await analyzeIndex(i); renderAnalysis(); }
+  analyzing = false;
+  renderAnalysis();
+}
+function puzzleHandlePlayerMove(mv) {
+  const uci = mv.from + mv.to + (mv.promotion || "");
+  const expected = curPuzzle.moves[puzzleStep];
+  if (uci !== expected) {
+    const expectSan = uciToSan(gameFens[gameFens.length - 2], expected);
+    puzzleFailMsg = `Not quite — ${expectSan} was the move`;
+    puzzleResult = "lost";
+    updateStatus();
+    renderPuzzleBar();
+    return;
+  }
+  puzzleStep++;
+  if (puzzleStep - 1 === playerLastIndex()) { puzzleWon(); return; }
+  // The opponent replies with the next (even-indexed) scripted solution move.
+  setTimeout(() => applyPuzzleReply(curPuzzle.moves[puzzleStep]), 420);
+}
+function applyPuzzleReply(uci) {
+  if (!puzzleMode) return;
+  if (!applyScriptedUci(uci, true)) { puzzleFailMsg = "Board error — try again"; puzzleResult = "lost"; renderPuzzleBar(); return; }
+  puzzleStep++;
+  clearSel(); render(); renderMoves(); renderAnalysis(); updateStatus();
+  if (chess.isGameOver()) puzzleWon();
+  renderPuzzleBar();
+}
+function puzzleWon() {
+  puzzleResult = "won";
+  puzzles.markDone(curPuzzle.id);
+  updateStatus(); renderAll(); renderPuzzleBar();
+}
 
 /* The board's height (a square) should dictate the side panel's height. When
    the move/analysis list is longer than the board, the side must scroll
@@ -1996,6 +2261,9 @@ bindVal("botlocklen", "botlocklenv"); bindVal("botsloppylen", "botsloppylenv");
 // mode and when resetting it, to start (again) from the chosen position.
 function setWorking(fen) {
   cancelEngine(); gen++;
+  puzzleMode = false; curPuzzle = null; puzzleResult = null; puzzleFailMsg = null;
+  document.body.classList.remove("puzzling");
+  puzzBar.classList.add("hidden");
   chess = new Chess(fen);
   moveRows = []; gameFens = [chess.fen()]; viewIndex = 0;
   gameOver = false; analyzing = false; analysis = []; thinking = false;
@@ -2008,6 +2276,9 @@ function testSnapshot() {
 }
 function restoreTest(b) {
   cancelEngine(); gen++;
+  puzzleMode = false; curPuzzle = null; puzzleResult = null; puzzleFailMsg = null;
+  document.body.classList.remove("puzzling");
+  puzzBar.classList.add("hidden");
   chess = new Chess(b.fen);
   moveRows = b.moveRows; gameFens = b.gameFens; viewIndex = b.viewIndex;
   gameOver = b.gameOver; analysis = b.analysis; analyzing = false; thinking = false;
@@ -2050,6 +2321,7 @@ async function boot() {
   applyTheme();
   applyScale();
   buildMenu();
+  puzzles.buildMenu();
   renderMyElo();
   eloV.textContent = eloS.value;
   render(); renderMoves(); renderAnalysis(); renderResume(); renderEval(); renderHint(); updateStatus();

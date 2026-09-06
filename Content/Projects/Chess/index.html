@@ -23,6 +23,7 @@
     <button id="testtoggle" class="btn ghost testtoggle" title="Free-move test board">Test</button>
     <button id="testreset" class="btn ghost testreset hidden" title="Reset to the position test mode started from">Reset</button>
     <button id="newgame" class="btn">New game</button>
+    <button id="puzzlesbtn" class="btn ghost" title="Tactics puzzles">Puzzles</button>
     <button id="settings" class="btn ghost" title="Theme & settings">⚙</button>
   </header>
 
@@ -42,6 +43,11 @@
 
     <div class="side">
       <div id="botcard" class="botcard hidden"></div>
+      <div id="puzzbar" class="puzzbar hidden">
+        <div id="puzzstatus" class="puzzstatus"></div>
+        <div id="puzzacts" class="puzzacts"></div>
+        <div id="puzzdetails" class="puzzdetails"></div>
+      </div>
       <div id="status" class="status"><span id="statustext">Starting opponent…</span><button id="rewind" class="rewind hidden" title="Take back your last move">↶</button></div>
       <div id="liveline" class="liveline hidden"></div>
 
