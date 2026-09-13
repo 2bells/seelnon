@@ -56,13 +56,9 @@ export class GraphRenderer {
 
     this.initDOM();
     this.attachEvents();
-    this.state.subscribe((changeType) => {
-      if (changeType === 'value_change' || changeType === 'branch_value_change') {
-        return;
-      }
-      this.render();
-    });
+    this.setState(this.state);
 
+    // Rerender wires on any canvas/container layout change
     if (typeof ResizeObserver !== 'undefined' && this.container) {
       this.resizeObserver = new ResizeObserver(() => {
         this.cachePinPositions();
@@ -74,6 +70,17 @@ export class GraphRenderer {
     window.addEventListener('resize', () => {
       this.cachePinPositions();
       this.renderWires();
+    });
+  }
+
+  setState(state) {
+    if (this._stateUnsub) this._stateUnsub();
+    this.state = state;
+    this._stateUnsub = state.subscribe((changeType) => {
+      if (changeType === 'value_change' || changeType === 'branch_value_change') {
+        return;
+      }
+      this.render();
     });
   }
 

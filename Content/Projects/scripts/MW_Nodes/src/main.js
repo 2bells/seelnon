@@ -52,7 +52,18 @@ class MiliastraApp {
 
     window.updateZoomDropdown = (val) => {
       const zSel = document.getElementById('zoomSelect');
-      if (zSel && !document.activeElement.isSameNode(zSel)) zSel.value = `${Math.round(val * 100)}%`;
+      if (!zSel) return;
+      const pct = Math.round((val || 1) * 100);
+      const presets = Array.from(zSel.options)
+        .map(o => parseInt(o.value, 10))
+        .filter(n => !isNaN(n))
+        .sort((a, b) => a - b);
+      if (presets.length === 0) return;
+      let nearest = presets.reduce((a, b) => Math.abs(b - pct) < Math.abs(a - pct) ? b : a, presets[0]);
+      if (pct < presets[0]) nearest = presets[0];
+      if (pct > presets[presets.length - 1]) nearest = presets[presets.length - 1];
+      if (zSel.disabled) zSel.disabled = false;
+      zSel.value = String(nearest);
     };
 
     // Multi-graph tabs
@@ -66,7 +77,7 @@ class MiliastraApp {
 
   syncStateRefs() {
     const s = this.state;
-    this.renderer.state = s;
+    this.renderer.setState(s);
     this.library.state = s;
     this.quickSpawner.state = s;
     this.simulator.state = s;
@@ -205,9 +216,6 @@ class MiliastraApp {
           <button class="dock-btn" id="btnToggleConsole" title="Toggle Console & Logs">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </button>
-          <button class="dock-btn" id="btnZoomFit" title="Search nodes in this graph">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </button>
           <button class="dock-btn" id="btnAutoAlign" title="Snap Nodes to Grid">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/></svg>
           </button>
@@ -231,17 +239,17 @@ class MiliastraApp {
           </button>
           
           <div class="dock-zoom-selector">
-            <input id="zoomSelect" class="dock-zoom-input" value="100%" inputmode="decimal" title="Zoom — pick a preset or type a %" list="zoomLevels" />
-            <datalist id="zoomLevels">
-              <option value="25%"></option>
-              <option value="50%"></option>
-              <option value="75%"></option>
-              <option value="100%"></option>
-              <option value="125%"></option>
-              <option value="150%"></option>
-              <option value="200%"></option>
-              <option value="Zoom to Fit"></option>
-            </datalist>
+            <select id="zoomSelect" class="dock-zoom-input" title="Zoom level">
+              <option value="25">25%</option>
+              <option value="50">50%</option>
+              <option value="75">75%</option>
+              <option value="100" selected>100%</option>
+              <option value="150">150%</option>
+              <option value="200">200%</option>
+            </select>
+            <button class="dock-btn" id="btnZoomFit" title="Zoom to fit">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/><circle cx="11" cy="11" r="4"/></svg>
+            </button>
           </div>
 
           <button class="dock-btn dock-btn-sim" id="btnSimulate" title="Simulate Graph Execution">
@@ -321,33 +329,23 @@ class MiliastraApp {
   }
 
   initBottomToolbar() {
-    // Zoom control (editable input + preset datalist). "Zoom to Fit" is an option.
+    // Zoom control (preset dropdown) + separate "Zoom to Fit" button.
     const zoomSel = document.getElementById('zoomSelect');
-    const applyZoomValue = (raw) => {
-      const text = String(raw || '').trim();
-      if (/fit/i.test(text)) { this.zoomToFit(); return; }
-      const pct = parseInt(text, 10);
+    zoomSel.addEventListener('change', (e) => {
+      const pct = parseInt(e.target.value, 10);
       if (!isNaN(pct)) {
         this.state.zoom = pct / 100;
         this.renderer.render();
+        window.updateZoomDropdown(this.state.zoom);
       }
-    };
-    zoomSel.addEventListener('change', (e) => applyZoomValue(e.target.value));
-    zoomSel.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); applyZoomValue(e.target.value); zoomSel.blur(); }
-    });
-    zoomSel.addEventListener('input', () => {
-      const text = String(zoomSel.value || '').trim();
-      window.updateZoomDropdown(this.state.zoom); // keep a clean default display
     });
 
-    // Zoom to fit (kept accessible via the dropdown's "Zoom to Fit" option)
     this.zoomToFit = this.zoomToFit.bind(this);
-    this.initNodeSearch();
     document.getElementById('btnZoomFit').addEventListener('click', (e) => {
       e.stopPropagation();
-      this.toggleNodeSearch();
+      this.zoomToFit();
     });
+    this.initNodeSearch();
 
     // Wire style toggle
     document.getElementById('btnWireStyle').addEventListener('click', () => {
@@ -407,6 +405,7 @@ class MiliastraApp {
           const success = await GiaCodec.importGiaFile(file, this.state);
           if (success) {
             this.renderer.clearCache();
+            this.renderer.render();
             this.ide.syncFromGraph();
             this.renderGraphTabs();
             this.simulator.log(`Imported graph from "${file.name}" (${this.state.nodes.length} nodes).`, 'success');
@@ -435,6 +434,7 @@ class MiliastraApp {
           const success = await GiaCodec.importGiaFile(file, this.state);
           if (success) {
             this.renderer.clearCache();
+            this.renderer.render();
             this.ide.syncFromGraph();
             this.renderGraphTabs();
             this.ide.log(`✓ Imported '${file.name}' (${this.state.nodes.length} nodes, ${this.state.wires.length} wires).`, 'success');
@@ -644,6 +644,7 @@ class MiliastraApp {
       const ok = await GiaCodec.loadSampleGia(this.state);
       if (ok) {
         this.renderer.clearCache();
+        this.renderer.render();
         this.ide.syncFromGraph();
         this.renderGraphTabs();
         this.simulator.log(`Loaded 'garage.gia' with ${this.state.nodes.length} nodes and ${this.state.wires.length} wires.`, 'success');

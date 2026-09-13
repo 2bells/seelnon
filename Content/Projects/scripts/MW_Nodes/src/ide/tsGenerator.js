@@ -179,12 +179,12 @@ export class TsGenerator {
 
     if (id === 'flow_double_branch' || name === 'double branch') {
       const cond = this.cond(node, wires, varMap, ctx);
-      const yes = this.execTarget(node, wires, 'Yes');
-      const no = this.execTarget(node, wires, 'No');
+      const yes = this.execTargets(node, wires, 'Yes');
+      const no = this.execTargets(node, wires, 'No');
       let s = `${indent}if (${cond}) {\n`;
-      s += this.walkExec(yes, indent + '  ', byId, wires, varMap, visited, ctx);
+      for (const t of yes) s += this.walkExec(t, indent + '  ', byId, wires, varMap, visited, ctx);
       s += `${indent}} else {\n`;
-      s += this.walkExec(no, indent + '  ', byId, wires, varMap, visited, ctx);
+      for (const t of no) s += this.walkExec(t, indent + '  ', byId, wires, varMap, visited, ctx);
       s += `${indent}}\n`;
       s += this.walkContinuation(node, indent, byId, wires, varMap, visited, ctx);
       return s;
@@ -196,7 +196,9 @@ export class TsGenerator {
       let s = `${indent}switch (${cond}) {\n`;
       for (const { pin, target } of entries) {
         s += `${indent}  case '${pin}': {\n`;
-        s += this.walkExec(target, indent + '    ', byId, wires, varMap, visited, ctx);
+        for (const t of this.orderedTargets(node, wires, pin, target)) {
+          s += this.walkExec(t, indent + '    ', byId, wires, varMap, visited, ctx);
+        }
         s += `${indent}    break;\n${indent}  }\n`;
       }
       const dflt = this.execTarget(node, wires, 'Default');
@@ -209,10 +211,12 @@ export class TsGenerator {
       return s;
     }
 
-    // Regular execution node: imperative call, then follow the exec chain.
+    // Regular execution node: imperative call, then follow every parallel exec child in order.
     const call = this.call(node, wires, varMap, ctx);
     let out = `${indent}${call};\n`;
-    out += this.walkExec(this.execTarget(node, wires), indent, byId, wires, varMap, visited, ctx);
+    for (const t of this.execTargets(node, wires)) {
+      out += this.walkExec(t, indent, byId, wires, varMap, visited, ctx);
+    }
     return out;
   }
 
@@ -228,6 +232,19 @@ export class TsGenerator {
       (!excludePins || !excludePins.includes(ww.fromPin))
     );
     return w ? w.toNode : null;
+  }
+
+  // All outgoing exec targets for a node/pin, in .gia connection order (state.wires order).
+  // Parallel connections from one socket therefore execute sequentially, in order.
+  static execTargets(node, wires, pin) {
+    return wires
+      .filter(w => w.isExec && w.fromNode === node.id && (pin ? w.fromPin === pin : true))
+      .map(w => w.toNode);
+  }
+
+  // Re-derive the ordered target list for a branch pin given the known first target.
+  static orderedTargets(node, wires, pin, first) {
+    return this.execTargets(node, wires, pin);
   }
 
   static execBranchPins(node, wires) {
