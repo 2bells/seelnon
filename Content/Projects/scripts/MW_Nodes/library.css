@@ -1,0 +1,369 @@
+/* library.css - Miliastra Wonderland UI (split from the main stylesheet) */
+
+/* ================= FLOATING NODE LIBRARY ================= */
+.floating-library-slot {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 45;
+  pointer-events: none;
+}
+
+.node-library-panel {
+  width: 280px;
+  max-height: calc(100vh - 160px);
+  background: rgba(28, 32, 40, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid #333a4a;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.20);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.node-library-panel.minimized {
+  max-height: 38px;
+  height: 38px;
+}
+
+.node-library-panel.minimized .library-header {
+  border-bottom: none;
+}
+
+.node-library-panel.minimized .library-search-bar,
+.node-library-panel.minimized .library-sort-container,
+.node-library-panel.minimized .library-tree-container,
+.node-library-panel.minimized .library-filter-menu {
+  display: none !important;
+}
+
+.library-header {
+  height: 38px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #2d3444;
+}
+
+.library-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e7f2;
+}
+
+.lib-btn-collapse {
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.lib-btn-collapse:hover {
+  color: #ffffff;
+}
+
+.library-search-bar {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #181b22;
+  border-bottom: 1px solid #282f3d;
+}
+
+.search-icon {
+  color: #7b8599;
+  display: flex;
+}
+
+.library-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.library-search-input::placeholder {
+  color: #5c6475;
+}
+
+.filter-funnel-btn {
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  transition: color 0.15s;
+}
+
+.filter-funnel-btn:hover,
+.filter-funnel-btn.active {
+  color: #ffd269;
+}
+
+.library-sort-container {
+  padding: 6px 10px;
+  background: #14171e;
+  border-bottom: 1px solid #282f3d;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-control-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.sort-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6d778d;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sort-select {
+  flex: 1;
+  min-width: 0;
+  background: #1c202a;
+  border: 1px solid #2d3444;
+  border-radius: 4px;
+  color: #cbd1de;
+  font-size: 11px;
+  padding: 3px 5px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.sort-select:hover, .sort-select:focus {
+  border-color: #4a5568;
+  color: #ffffff;
+}
+
+.sort-select option {
+  background: #1c202a;
+  color: #e2e7f2;
+}
+
+.lib-highlight {
+  background: rgba(255, 210, 105, 0.3);
+  color: #ffd269;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.library-filter-menu {
+  position: absolute;
+  top: 80px;
+  right: 12px;
+  background: #1c202a;
+  border: 1px solid #333a4a;
+  border-radius: 6px;
+  padding: 6px 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  z-index: 60;
+  min-width: 190px;
+}
+
+.filter-item {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #cbd1de;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-item:hover, .filter-item.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.cat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.library-tree-container {
+  overflow-y: auto;
+  flex: 1;
+  padding: 6px 0;
+}
+
+.cat-tree-header {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  gap: 6px;
+  cursor: pointer;
+  color: #cbd2e0;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  margin: 0 6px;
+  transition: background 0.12s;
+}
+
+.cat-tree-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.cat-arrow {
+  display: flex;
+  transition: transform 0.15s;
+  color: #7b8599;
+}
+
+.cat-tree-header.expanded .cat-arrow {
+  transform: rotate(90deg);
+}
+
+.cat-icon-badge {
+  display: flex;
+  align-items: center;
+}
+
+.cat-name {
+  flex: 1;
+}
+
+.cat-count {
+  font-size: 11px;
+  color: #757e91;
+  font-family: monospace;
+}
+
+.cat-items-list {
+  padding-left: 20px;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-tree-header {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  gap: 6px;
+  cursor: pointer;
+  color: #8fa0b5;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  margin: 1px 0;
+  transition: background 0.12s, color 0.12s;
+  user-select: none;
+}
+
+.folder-tree-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.folder-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  color: #5d6b82;
+}
+
+.folder-tree-header.expanded .folder-arrow {
+  transform: rotate(90deg);
+  color: #8fa0b5;
+}
+
+.folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-count {
+  font-size: 10.5px;
+  color: #5d6b82;
+  font-family: monospace;
+}
+
+.folder-items-list {
+  padding-left: 14px;
+  padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 3px;
+}
+
+.library-node-item {
+  padding: 5px 8px;
+  border-radius: 4px;
+  color: #bac2d1;
+  font-size: 11.5px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.library-node-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.node-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.node-name-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-name-text mark {
+  background: #3e5a7d;
+  color: #ffffff;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.node-quick-add {
+  opacity: 0;
+  font-weight: bold;
+  font-size: 13px;
+  color: #7fa6d1;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: opacity 0.12s;
+}
+
+.library-node-item:hover .node-quick-add {
+  opacity: 1;
+}
+

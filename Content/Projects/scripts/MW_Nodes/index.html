@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Miliastra Wonderland Node Graph</title>
+    <meta name="description" content="High-performance replica of the Genshin Impact Miliastra Wonderland logic node graph system with real-time node search, wiring, and .gia integration foundation." />
+    <meta property="og:title" content="Miliastra Wonderland Node Graph" />
+    <meta property="og:description" content="High-performance replica of the Genshin Impact Miliastra Wonderland logic node graph system with real-time node search, wiring, and .gia integration foundation." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/theme.css" />
+    <link rel="stylesheet" href="/nodes.css" />
+    <link rel="stylesheet" href="/library.css" />
+    <link rel="stylesheet" href="/dock.css" />
+    <link rel="stylesheet" href="/signals.css" />
+    <link rel="stylesheet" href="/graphvars.css" />
+    <link rel="stylesheet" href="/src/ide/ide.css" />
+    <style>
+      /* Font safety net: keep app controls compact even if a stylesheet fails to load */
+      body, input, select, button, textarea {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+      }
+      .miliastra-node input, .miliastra-node select,
+      .miliastra-node .param-input, .miliastra-node .param-select,
+      .miliastra-node .param-badge-pill, .miliastra-node .vector-axis-input {
+        font-size: 12.5px !important;
+      }
+      .node-library-panel select, .floating-library-slot select,
+      .sort-select, .library-sort-container select {
+        font-size: 12px !important;
+      }
+      .miliastra-node input, .miliastra-node select {
+        font-size: 12px !important;
+      }
+    </style>
+    <script src="/src/ide/utils/protobufjs.min.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,410 @@
+/* theme.css - Miliastra Wonderland UI (split from the main stylesheet) */
+
+/* ==========================================================================
+   Miliastra Wonderland Node Graph System - Stylesheet
+   Pure CSS - Zero Bloat - Authentic Genshin Impact Miliastra Wonderland Aesthetic
+   ========================================================================== */
+
+:root {
+  --bg-main: #181b22;
+  --bg-canvas: #1e2129;
+  --bg-panel: #21252e;
+  --bg-node: #202225;
+  --bg-input: #161920;
+  --border-subtle: #2d3340;
+  --border-node: #323847;
+  --border-focus: #4b5568;
+  --text-main: #e6eaf2;
+  --text-muted: #8c95a8;
+  --text-dim: #5c6475;
+  --accent-gold: #e5c07b;
+  --accent-select: #e4a84f;
+  --accent-blue: #5b92c2;
+  
+  /* Category Colors */
+  --cat-event: #d9536d;
+  --cat-exec: #9fb343;
+  --cat-flow: #e57842;
+  --cat-query: #6373bf;
+  --cat-op: #3e8bb8;
+  --cat-comp: #8c63b8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, Cantarell, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background-color: var(--bg-canvas);
+}
+
+/* ================= TOP TITLE BAR ================= */
+.window-titlebar {
+  height: 38px;
+  background-color: #16181f;
+  border-bottom: 1px solid #232733;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  z-index: 50;
+  position: relative;
+}
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+}
+
+.game-logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.menu-item {
+  color: #c4cad6;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.window-dropdown-menu {
+  position: absolute;
+  top: 32px;
+  left: 36px;
+  background: #1c202a;
+  border: 1px solid #313847;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.20);
+  min-width: 210px;
+  padding: 6px 0;
+  z-index: 100;
+}
+
+.dropdown-item {
+  padding: 8px 16px;
+  color: #d1d6e2;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #2a303e;
+  margin: 4px 0;
+}
+
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.win-btn {
+  background: transparent;
+  border: none;
+  color: #8f97a8;
+  width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.win-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.win-btn.win-close:hover {
+  background: #e04545;
+  color: #ffffff;
+}
+
+/* ================= DOCUMENT TABS BAR ================= */
+.tabs-bar {
+  height: 38px;
+  background-color: #191c24;
+  border-bottom: 1px solid #282c38;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 4px;
+  z-index: 40;
+}
+
+.doc-tab {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 6px 6px 0 0;
+  color: #8c95a8;
+  font-size: 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+
+.doc-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #dbe0eb;
+}
+
+.doc-tab.active {
+  background-color: var(--bg-canvas);
+  color: #ffffff;
+  border: 1px solid #2e3342;
+  border-bottom-color: var(--bg-canvas);
+  font-weight: 500;
+}
+
+.tab-icon {
+  display: flex;
+  align-items: center;
+}
+
+.tab-close-btn {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #8a93a6;
+  padding: 2px;
+  border-radius: 3px;
+}
+
+.tab-close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.new-tab-btn {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 1px dashed #3c4354;
+  border-radius: 4px;
+  color: #8f97a8;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  transition: all 0.15s;
+}
+
+.new-tab-btn:hover {
+  border-color: #7b8599;
+  color: #ffffff;
+}
+
+.graph-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+
+.graph-tabs-scroll .active-graph-tab .tab-close-btn {
+  visibility: hidden;
+}
+
+.graph-tabs-scroll .active-graph-tab:hover .tab-close-btn {
+  visibility: visible;
+}
+
+/* Left-aligned TypeScript IDE button in the top bar */
+.ide-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  margin-right: 6px;
+  background: rgba(229, 192, 123, 0.07);
+  border: 1px solid rgba(229, 192, 123, 0.45);
+  border-radius: 5px;
+  color: #e5c07b;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex: none;
+}
+
+.ide-tab-btn:hover {
+  background: rgba(229, 192, 123, 0.14);
+  color: #ffd97a;
+  border-color: rgba(229, 192, 123, 0.7);
+}
+
+.ide-tab-btn.active {
+  background: rgba(229, 192, 123, 0.18);
+  color: #ffd97a;
+  border-color: rgba(229, 192, 123, 0.9);
+  box-shadow: 0 0 0 1px rgba(229, 192, 123, 0.25);
+}
+
+.ide-tab-icon {
+  display: flex;
+  align-items: center;
+}
+
+
+/* ================= NODE SEARCH (bottom dock) ================= */
+.node-search-box {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  max-width: 90vw;
+  background: #1b1f29;
+  border: 1px solid #2d3444;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  z-index: 90;
+}
+
+.node-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #181b24;
+  border: none;
+  border-bottom: 1px solid #2d3444;
+  color: #e6eaf2;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 9px 12px;
+  outline: none;
+}
+
+.node-search-results {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.node-search-item {
+  padding: 7px 12px;
+  font-size: 12.5px;
+  color: #c9d1e0;
+  cursor: pointer;
+  border-bottom: 1px solid #22273433;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-search-item:hover {
+  background: rgba(97, 175, 239, 0.12);
+  color: #ffffff;
+}
+
+.node-search-empty {
+  padding: 12px;
+  font-size: 12px;
+  color: #6d778d;
+  text-align: center;
+}
+
+/* ================= ZOOM INPUT (bottom dock) ================= */
+.dock-zoom-selector input.dock-zoom-input {
+  width: 64px;
+  box-sizing: border-box;
+  background: #161920;
+  border: 1px solid #2d3444;
+  border-radius: 4px;
+  color: #cbd1de;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: center;
+  padding: 3px 4px;
+  outline: none;
+}
+
+.dock-zoom-selector input.dock-zoom-input:focus {
+  border-color: #4a5568;
+  color: #ffffff;
+}
+
+/* ================= FONT SAFETY NET =================
+   Force a consistent, compact size on all data-entry controls so inherited
+   or environmental styles can never balloon them. */
+.miliastra-node input,
+.miliastra-node select,
+.miliastra-node .param-input,
+.miliastra-node .param-select,
+.miliastra-node .param-badge-pill,
+.miliastra-node .vector-axis-input,
+.node-library-panel select,
+.floating-library-slot select,
+.library-sort-container select,
+.library-sort-container input,
+.sort-select,
+.dock-zoom-selector input,
+.dock-zoom-selector select {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', sans-serif !important;
+  font-size: 12px !important;
+}
+
+.miliastra-node .param-input,
+.miliastra-node .param-select,
+.miliastra-node .param-badge-pill,
+.miliastra-node .vector-axis-input {
+  font-size: 12.5px !important;
+}
+
+.sort-select option,
+select option {
+  font-size: 12px;
+}

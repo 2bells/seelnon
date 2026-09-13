@@ -1,0 +1,845 @@
+/* signals.css - Miliastra Wonderland UI (split from the main stylesheet) */
+
+/* ================= NODE SIGNAL SELECTOR & DYNAMIC PINS ================= */
+.node-signal-selector {
+  margin: 3px 6px 5px 6px;
+  background: rgba(18, 22, 30, 0.9);
+  border: 1px solid #283142;
+  border-radius: 5px;
+  padding: 4px 6px;
+}
+
+.node-signal-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sig-selector-label-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #8c97ad;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.sig-selector-icon {
+  display: flex;
+  color: #e5c07b;
+}
+
+.sig-dropdown-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.sig-dropdown-trigger-btn {
+  width: 100%;
+  background: #141720;
+  border: 1px solid #333d4f;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  text-align: left;
+}
+
+.sig-dropdown-trigger-btn:hover {
+  background: #1e2433;
+  border-color: #4a5770;
+}
+
+.sig-dropdown-val {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #e5c07b;
+  font-weight: 600;
+}
+
+.sig-dropdown-arrow {
+  font-size: 8px;
+  color: #7b889e;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.sig-open-explorer-btn {
+  background: #1e2433;
+  border: 1px solid #364154;
+  border-radius: 4px;
+  color: #e5c07b;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.sig-open-explorer-btn:hover {
+  background: #2a3348;
+  border-color: #e5c07b;
+}
+
+.sig-node-empty-params {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #647087;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ================= CANVAS FLOATING SIGNAL PICKER POPUP ================= */
+.canvas-signal-picker-popup {
+  width: 260px;
+  background: #161922;
+  border: 1px solid #384257;
+  border-radius: 7px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.sig-picker-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #273042;
+  background: #12141c;
+}
+
+.sig-picker-search-icon {
+  font-size: 11px;
+  color: #6b778c;
+}
+
+.sig-picker-search-inp {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 11.5px;
+  outline: none;
+}
+
+.sig-picker-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.sig-picker-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  transition: background 0.1s;
+}
+
+.sig-picker-item:hover {
+  background: rgba(229, 192, 123, 0.15);
+  color: #ffffff;
+}
+
+.sig-picker-item.selected {
+  background: rgba(229, 192, 123, 0.25);
+  color: #e5c07b;
+  font-weight: 600;
+}
+
+.sig-picker-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sig-picker-param-count {
+  font-size: 10px;
+  color: #7b889e;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.sig-picker-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e5c07b;
+  margin-left: 4px;
+}
+
+.sig-picker-empty {
+  padding: 12px;
+  text-align: center;
+  color: #6b778c;
+  font-size: 11px;
+}
+
+.sig-picker-footer {
+  padding: 6px 8px;
+  border-top: 1px solid #273042;
+  background: #12141c;
+}
+
+.sig-picker-open-mgr-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed #3a465c;
+  color: #e5c07b;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.sig-picker-open-mgr-btn:hover {
+  background: rgba(229, 192, 123, 0.12);
+  border-color: #e5c07b;
+}
+
+/* ================= SERVER SIGNAL EXPLORER MODAL (AUTHENTIC MILIASTRA DESIGN) ================= */
+.signal-explorer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signal-explorer-card {
+  width: 660px;
+  max-width: 95vw;
+  height: 550px;
+  max-height: 92vh;
+  background: #20242e;
+  border: 1px solid #323947;
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: inherit;
+  user-select: none;
+}
+
+.sig-header {
+  height: 42px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #2b313f;
+  background: #1c2029;
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+}
+
+.sig-header:active {
+  cursor: grabbing;
+}
+
+.sig-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sig-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e2e8f0;
+}
+
+.sig-header-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #f1f5f9;
+  letter-spacing: 0.2px;
+}
+
+.sig-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sig-btn-icon {
+  background: transparent;
+  border: none;
+  color: #8c96a8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s, background 0.12s;
+}
+
+.sig-btn-icon:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.sig-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* --- Left Column: Search & Signal List --- */
+.sig-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  border-right: 1px solid #2b313f;
+  background: #1a1d25;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 12px 10px;
+  gap: 8px;
+}
+
+.sig-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  background: #151820;
+  border: 1px solid #2f3645;
+  border-radius: 4px;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.sig-search-icon {
+  color: #7d8799;
+  display: flex;
+  align-items: center;
+}
+
+.sig-search-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: #f1f5f9;
+  font-size: 12px;
+  outline: none;
+}
+
+.sig-search-input::placeholder {
+  color: #697487;
+}
+
+.sig-search-clear-btn {
+  background: transparent;
+  border: none;
+  color: #8c96a8;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px;
+  border-radius: 2px;
+}
+
+.sig-search-clear-btn:hover {
+  color: #ffffff;
+}
+
+.sig-list-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 2px;
+}
+
+.sig-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #c0cad8;
+  font-size: 12.5px;
+  font-weight: 400;
+  transition: background 0.1s, color 0.1s;
+  border: 1px solid transparent;
+}
+
+.sig-item:hover {
+  background: #252b37;
+  color: #f1f5f9;
+}
+
+.sig-item.selected {
+  background: #453c2f;
+  border-color: #5d4f36;
+  color: #f6eee2;
+  font-weight: 500;
+}
+
+.sig-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sig-item-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e5a93c;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.sig-add-signal-btn {
+  height: 32px;
+  width: 100%;
+  background: #282e3b;
+  border: 1px solid #384152;
+  border-radius: 4px;
+  color: #c4cad4;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.sig-add-signal-btn:hover {
+  background: #323a4a;
+  color: #ffffff;
+}
+
+/* --- Right Column: Details & Parameters --- */
+.sig-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: #20242e;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px 12px 18px;
+}
+
+.sig-content-header {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sig-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.sig-name-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #f1f5f9;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  outline: none;
+  width: 75%;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.sig-name-input:hover {
+  border-color: #384152;
+  background: #262c38;
+}
+
+.sig-name-input:focus {
+  border-color: #e5a93c;
+  background: #1e232d;
+}
+
+.sig-options-btn {
+  background: transparent;
+  border: none;
+  color: #8c96a8;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s, background 0.12s;
+}
+
+.sig-options-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sig-options-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #191c25;
+  border: 1px solid #333a4a;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  min-width: 140px;
+  z-index: 100;
+}
+
+.sig-menu-item {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #c2cad6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sig-menu-item:hover {
+  background: #252b38;
+  color: #ffffff;
+}
+
+.sig-menu-danger {
+  color: #e06c75;
+}
+
+.sig-menu-danger:hover {
+  background: rgba(224, 108, 117, 0.15);
+  color: #ff6b77;
+}
+
+.sig-menu-divider {
+  height: 1px;
+  background: #2b3240;
+  margin: 3px 0;
+}
+
+.sig-reference-row {
+  position: relative;
+}
+
+.sig-reference-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 0 4px;
+  color: #8a94a6;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.sig-reference-link:hover {
+  color: #cbd5e1;
+}
+
+.sig-ref-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a94a6;
+}
+
+.sig-ref-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  background: #191c25;
+  border: 1px solid #333a4a;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 8px;
+  z-index: 100;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.sig-ref-title {
+  font-size: 11px;
+  color: #7b889e;
+  margin-bottom: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sig-ref-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #c9d2df;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+
+.sig-ref-clickable {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sig-ref-clickable:hover {
+  background: rgba(229, 192, 123, 0.15);
+  color: #e5c07b;
+}
+
+.sig-ref-role {
+  font-weight: 600;
+  color: #98c379;
+}
+
+.sig-ref-id {
+  font-family: monospace;
+  font-size: 10.5px;
+  color: #7b889e;
+}
+
+/* Parameters Scroll & Rows */
+.sig-params-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+.sig-params-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sig-param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  width: 100%;
+}
+
+.sig-param-idx {
+  width: 24px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8c96a8;
+  flex-shrink: 0;
+}
+
+.sig-param-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  background: #282e3b;
+  border: 1px solid #373e4f;
+  border-radius: 4px;
+  padding: 0 10px;
+  color: #f1f5f9;
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.sig-param-input:focus {
+  border-color: #e5a93c;
+}
+
+.sig-type-select-wrap {
+  width: 135px;
+  flex-shrink: 0;
+  height: 32px;
+  position: relative;
+}
+
+.sig-param-select {
+  width: 100%;
+  height: 100%;
+  background: #282e3b;
+  border: 1px solid #373e4f;
+  border-radius: 4px;
+  padding: 0 24px 0 10px;
+  color: #f1f5f9;
+  font-size: 12.5px;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.sig-param-select:focus {
+  border-color: #e5a93c;
+}
+
+.sig-select-arrow {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  color: #8c96a8;
+  pointer-events: none;
+}
+
+.sig-param-del-btn {
+  position: absolute;
+  right: -20px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #8c96a8;
+  cursor: pointer;
+  font-size: 11px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+
+.sig-param-row:hover .sig-param-del-btn {
+  opacity: 1;
+}
+
+.sig-param-del-btn:hover {
+  color: #e06c75;
+  background: rgba(224, 108, 117, 0.15);
+}
+
+.sig-draft-param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.sig-add-param-btn {
+  width: 100%;
+  height: 32px;
+  background: #2b303c;
+  border: 1px solid #373e4e;
+  border-radius: 4px;
+  color: #c2cad6;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.sig-add-param-btn:hover {
+  background: #343b4c;
+  color: #ffffff;
+}
+
+.sig-empty-notice {
+  padding: 24px;
+  text-align: center;
+  color: #7b889e;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* --- Footer Action Bar --- */
+.sig-footer {
+  height: 56px;
+  background: #1a1d25;
+  border-top: 1px solid #2b313f;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.sig-footer-btn {
+  height: 34px;
+  border-radius: 17px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.sig-btn-clear {
+  background: #2b303d;
+  border: 1px solid #3c4556;
+  color: #e2e8f0;
+  padding: 0 22px;
+  font-weight: 500;
+}
+
+.sig-btn-clear:hover {
+  background: #363d4e;
+  color: #ffffff;
+}
+
+.sig-btn-apply {
+  background: #f3b749;
+  border: none;
+  color: #181b22;
+  padding: 0 26px;
+  font-weight: 600;
+}
+
+.sig-btn-apply:hover {
+  background: #ffc45e;
+}
+

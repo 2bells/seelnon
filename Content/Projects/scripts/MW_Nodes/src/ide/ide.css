@@ -1,0 +1,407 @@
+/**
+ * Miliastra Wonderland TypeScript IDE Stylesheet
+ * Dark brutalist IDE styling with built-in syntax highlighting and high-contrast UI
+ */
+
+.miliastra-ide-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #181A20;
+  color: #D8DEE9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+/* IDE Top Toolbar */
+.ide-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  background: #20232A;
+  border-bottom: 1px solid #2B303C;
+  padding: 0 10px;
+  gap: 8px;
+  user-select: none;
+  z-index: 10;
+}
+
+.ide-toolbar-left,
+.ide-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ide-view-mode-group {
+  display: flex;
+  background: #181A20;
+  border: 1px solid #323846;
+  border-radius: 4px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.ide-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: #8C96A8;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ide-mode-btn:hover {
+  color: #D8DEE9;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ide-mode-btn.active {
+  color: #E5C07B;
+  background: #282C34;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.ide-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  background: #282C34;
+  border: 1px solid #3A404E;
+  border-radius: 4px;
+  color: #C8D0DF;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ide-tool-btn:hover {
+  background: #323742;
+  border-color: #4B5365;
+  color: #FFFFFF;
+}
+
+.ide-tool-btn:active {
+  transform: translateY(1px);
+}
+
+.ide-tool-btn-primary {
+  background: #3B4B38;
+  border-color: #557250;
+  color: #98C379;
+}
+
+.ide-tool-btn-primary:hover {
+  background: #465B43;
+  border-color: #6C8E66;
+  color: #B5E894;
+}
+
+.ide-tool-btn-accent {
+  background: #463B2B;
+  border-color: #6D5B41;
+  color: #E5C07B;
+}
+
+.ide-tool-btn-accent:hover {
+  background: #554734;
+  border-color: #8E7654;
+  color: #F8D38D;
+}
+
+.ide-tool-divider {
+  width: 1px;
+  height: 18px;
+  background: #323846;
+  margin: 0 3px;
+}
+
+/* Main Split / Editor Area */
+.ide-workspace-split {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 66px); /* minus toolbar and status bar */
+  overflow: hidden;
+  position: relative;
+}
+
+.ide-editor-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  background: #1A1D24;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Code Editor Wrapper - Single Unified Scroll Container */
+.ide-editor-scroll-container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  background: #181A20;
+  align-items: flex-start;
+}
+
+/* Line Numbers Gutter - Sticky to left during horizontal scroll */
+.ide-line-numbers {
+  position: sticky;
+  left: 0;
+  top: 0;
+  min-width: 48px;
+  padding: 12px 10px 12px 0;
+  background: #16181D;
+  border-right: 1px solid #282C34;
+  color: #4B5263;
+  font-family: 'JetBrains Mono', 'Consolas', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: right;
+  user-select: none;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  z-index: 5;
+  align-self: stretch;
+}
+
+.ide-line-number {
+  height: 20px;
+  line-height: 20px;
+}
+
+/* Editor Input & Syntax Highlighting Overlays */
+.ide-code-surface {
+  position: relative;
+  flex: 1;
+  min-height: 100%;
+  height: auto;
+  min-width: 0;
+}
+
+/* Pre block sizes the surface to match content dimensions */
+.ide-pre-highlight {
+  position: relative;
+  display: block;
+  margin: 0;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  font-family: 'JetBrains Mono', 'Consolas', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  tab-size: 2;
+  white-space: pre;
+  word-wrap: normal;
+  pointer-events: none;
+  background: transparent;
+  color: #ABB2BF;
+  z-index: 1;
+  min-height: 100%;
+}
+
+.ide-pre-highlight code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Textarea stretches over surface with NO native scrollbars (single scroller) */
+.ide-code-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  font-family: 'JetBrains Mono', 'Consolas', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  tab-size: 2;
+  white-space: pre;
+  word-wrap: normal;
+  overflow: hidden !important;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #E5C07B;
+  resize: none;
+  z-index: 2;
+  -webkit-text-fill-color: transparent;
+}
+
+.ide-code-textarea::selection {
+  background: rgba(229, 192, 123, 0.25);
+}
+
+/* Custom Syntax Highlighting Tokens */
+.tok-com {
+  color: #5C6370;
+  font-style: italic;
+}
+
+.tok-punc {
+  color: #ABB2BF;
+}
+
+.tok-num {
+  color: #D19A66;
+}
+
+.tok-str {
+  color: #98C379;
+}
+
+.tok-op {
+  color: #56B6C2;
+}
+
+.tok-kw {
+  color: #C678DD;
+}
+
+.tok-type {
+  color: #61AFEF;
+}
+
+.tok-fn {
+  color: #61AFEF;
+}
+
+.tok-var {
+  color: #E06C75;
+}
+
+/* Bottom Output Drawer */
+.ide-bottom-drawer {
+  height: 120px;
+  background: #14161A;
+  border-top: 1px solid #2B303C;
+  display: flex;
+  flex-direction: column;
+}
+
+.ide-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 26px;
+  background: #1A1D24;
+  border-bottom: 1px solid #242933;
+  padding: 0 10px;
+}
+
+.ide-drawer-tabs {
+  display: flex;
+  gap: 12px;
+}
+
+.ide-drawer-tab {
+  font-size: 11px;
+  color: #7A8496;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 0;
+  border-bottom: 2px solid transparent;
+}
+
+.ide-drawer-tab.active {
+  color: #E5C07B;
+  border-bottom-color: #E5C07B;
+}
+
+.ide-drawer-body {
+  flex: 1;
+  padding: 8px 12px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 17px;
+  color: #9AA4B5;
+}
+
+.ide-log-line {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.ide-log-time {
+  color: #5C6370;
+}
+
+.ide-log-info {
+  color: #61AFEF;
+}
+
+.ide-log-success {
+  color: #98C379;
+}
+
+.ide-log-warn {
+  color: #E5C07B;
+}
+
+.ide-log-error {
+  color: #E06C75;
+}
+
+/* Status Bar */
+.ide-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  background: #16181D;
+  border-top: 1px solid #232731;
+  padding: 0 12px;
+  font-size: 11px;
+  color: #6C7688;
+  user-select: none;
+}
+
+.ide-status-left,
+.ide-status-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ide-status-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ide-badge-pill {
+  padding: 1px 6px;
+  background: #252A34;
+  border-radius: 3px;
+  color: #ABB2BF;
+  font-size: 10px;
+}
+
+.ide-badge-success {
+  background: #283726;
+  color: #98C379;
+}

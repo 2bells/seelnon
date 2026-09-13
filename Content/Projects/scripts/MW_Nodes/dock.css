@@ -1,0 +1,439 @@
+/* dock.css - Miliastra Wonderland UI (split from the main stylesheet) */
+
+/* ================= BOTTOM FLOATING TOOLBAR DOCK ================= */
+.bottom-dock-container {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  pointer-events: none;
+}
+
+.floating-toolbar {
+  background: rgba(25, 28, 36, 0.95);
+  backdrop-filter: blur(14px);
+  border: 1px solid #333a49;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.20);
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.dock-btn {
+  background: transparent;
+  border: none;
+  color: #9ea7b8;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dock-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.dock-btn.dock-btn-sim {
+  color: #8ae234;
+}
+
+.dock-btn.dock-btn-sim:hover {
+  background: rgba(138, 226, 52, 0.2);
+  color: #b4ff69;
+}
+
+.dock-zoom-selector select {
+  background: #191c24;
+  border: 1px solid #363d4e;
+  border-radius: 4px;
+  color: #c9d0df;
+  font-size: 11px;
+  padding: 4px 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* ================= QUICK SPAWNER POPUP ================= */
+.quick-spawner-modal {
+  position: absolute;
+  width: 320px;
+  max-height: 380px;
+  background: #1c202a;
+  border: 1px solid #363d4e;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.spawner-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #2b3240;
+  background: #181b22;
+}
+
+.spawner-search-icon {
+  color: #7b8599;
+  display: flex;
+}
+
+.spawner-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.spawner-esc-hint {
+  font-size: 10px;
+  color: #646d80;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.spawner-results {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px 0;
+}
+
+.spawner-item {
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.spawner-item:hover, .spawner-item.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.spawner-item-cat {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.spawner-item-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.spawner-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #e2e7f2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spawner-item-desc {
+  font-size: 11px;
+  color: #788296;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spawner-no-results {
+  padding: 18px;
+  text-align: center;
+  color: #788296;
+  font-size: 12px;
+}
+
+.spawner-categories-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px;
+}
+
+.spawner-category-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #363d4e;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.spawner-category-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #525c75;
+  transform: translateY(-1px);
+}
+
+.spawner-cat-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.spawner-cat-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.spawner-cat-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e7f2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spawner-cat-count {
+  font-size: 10px;
+  color: #788296;
+}
+
+.spawner-active-cat-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid #2b3240;
+  font-size: 12px;
+  color: #c5cdde;
+}
+
+.spawner-active-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.spawner-active-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spawner-cat-back-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #9da8be;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.spawner-cat-back-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+/* ================= CONSOLE DRAWER ================= */
+.console-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 180px;
+  background: #171920;
+  border-top: 1px solid #2b3140;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+}
+
+.console-header {
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #252a36;
+  background: #14161c;
+}
+
+.console-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #cbd2e0;
+}
+
+.console-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.console-clear-btn, .console-close-btn {
+  background: transparent;
+  border: none;
+  color: #7d8699;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.console-clear-btn:hover, .console-close-btn:hover {
+  color: #ffffff;
+}
+
+.console-logs-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.console-log-entry {
+  display: flex;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.log-time { color: #646d80; }
+.log-info { color: #cbd2e0; }
+.log-system { color: #61afef; }
+.log-event { color: #e57842; font-weight: bold; }
+.log-exec { color: #98c379; }
+.log-action { color: #e5c07b; }
+.log-branch { color: #c678dd; }
+.log-print { color: #56b6c2; font-style: italic; }
+.log-success { color: #98c379; font-weight: bold; }
+.log-warn { color: #e5c07b; }
+
+/* ================= HELP MODAL ================= */
+.help-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-modal-card {
+  width: 540px;
+  background: #1c202a;
+  border: 1px solid #363d4e;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.help-modal-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid #2b3240;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.help-modal-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.help-modal-close {
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.help-modal-close:hover {
+  color: #ffffff;
+}
+
+.help-modal-body {
+  padding: 16px 18px;
+  color: #cbd2e0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.help-modal-body h4 {
+  margin: 12px 0 6px 0;
+  color: #e5c07b;
+  font-size: 13px;
+}
+
+.help-modal-body ul {
+  padding-left: 18px;
+  margin-bottom: 8px;
+}
+
+.help-modal-body li {
+  margin-bottom: 4px;
+}
+
+.help-note {
+  margin-top: 14px;
+  padding: 8px 12px;
+  background: rgba(97, 175, 239, 0.1);
+  border-left: 3px solid #61afef;
+  font-size: 12px;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
