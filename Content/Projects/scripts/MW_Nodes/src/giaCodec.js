@@ -11,8 +11,8 @@ import { getNodeBlueprint, parseNodeBlueprintAndType, applyDataTypeToNode } from
 import { NODE_ID } from './ide/utils/MW-Node-Editor-Pack/node_data/node_id.js';
 import { signalsManager } from './signalsManager.js';
 
-const GIA_SCHEMA_URL = '/src/ide/utils/MW-Node-Editor-Pack/protobuf/gia.proto';
-const SAMPLE_GIA_URL = '/ref/gia/garage.gia';
+const GIA_SCHEMA_URL = './src/ide/utils/MW-Node-Editor-Pack/protobuf/gia.proto';
+const SAMPLE_GIA_URL = './ref/gia/garage.gia';
 
 // Lazy singleton for the protobuf Root, reused across all decode/encode calls.
 // Uses the locally-vendored protobufjs (window.protobuf), loaded from index.html.
