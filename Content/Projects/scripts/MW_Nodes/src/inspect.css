@@ -1,0 +1,922 @@
+/* ==========================================================================
+   NODE INSPECTOR MODAL & EXPLODED VIEW STYLES
+   Authentic brutalist dark theme matching Signals & Graph Explorer
+   ========================================================================== */
+
+.node-inspector-card {
+  width: 960px;
+  max-width: calc(100vw - 40px);
+  height: 680px;
+  max-height: calc(100vh - 60px);
+  background: #141721;
+  border: 1px solid #283144;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  user-select: none;
+}
+
+/* Header */
+.insp-header {
+  height: 48px;
+  background: #181c28;
+  border-bottom: 1px solid #252e3e;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.insp-header:active {
+  cursor: grabbing;
+}
+
+.insp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.insp-header-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #232b3b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.insp-header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.insp-header-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.insp-category-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.insp-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.insp-nav-btn {
+  background: #1e2432;
+  border: 1px solid #2e394d;
+  color: #94a3b8;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.12s ease;
+}
+
+.insp-nav-btn:hover:not(:disabled) {
+  background: #2b3549;
+  color: #ffffff;
+  border-color: #4a5a78;
+}
+
+.insp-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Header Search & Actions */
+.insp-header-center {
+  flex: 1;
+  max-width: 320px;
+  margin: 0 16px;
+  position: relative;
+}
+
+.insp-search-box {
+  position: relative;
+  width: 100%;
+}
+
+.insp-search-input {
+  width: 100%;
+  height: 30px;
+  background: #11141c;
+  border: 1px solid #283244;
+  border-radius: 4px;
+  padding: 0 28px 0 30px;
+  font-size: 12px;
+  color: #f1f5f9;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.insp-search-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+}
+
+.insp-search-icon {
+  position: absolute;
+  left: 9px;
+  top: 7px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.insp-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.insp-search-dropdown {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  width: 100%;
+  max-height: 240px;
+  background: #151824;
+  border: 1px solid #2e394d;
+  border-radius: 4px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.insp-search-item {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 12px;
+  color: #cbd5e1;
+  border-bottom: 1px solid #1e2433;
+}
+
+.insp-search-item:hover {
+  background: #222a3b;
+  color: #ffffff;
+}
+
+.insp-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insp-btn-icon {
+  background: #1e2432;
+  border: 1px solid #2e394d;
+  color: #94a3b8;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.insp-btn-icon:hover {
+  background: #2b3549;
+  color: #f1f5f9;
+  border-color: #4a5a78;
+}
+
+.insp-btn-icon.active-fav {
+  color: #f59e0b;
+  border-color: #f59e0b;
+  background: #2e2617;
+}
+
+.insp-close-btn:hover {
+  background: #4c1d24 !important;
+  color: #fca5a5 !important;
+  border-color: #7f1d1d !important;
+}
+
+/* Body Split Container */
+.insp-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  background: #12151e;
+}
+
+/* Left Pane: Exploded Interactive Diagram */
+.insp-diagram-pane {
+  flex: 1.1;
+  min-width: 0;
+  background: #11141c;
+  border-right: 1px solid #212938;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.insp-pane-header {
+  height: 34px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #161a24;
+  border-bottom: 1px solid #212836;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.insp-diagram-canvas {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: radial-gradient(#1c2230 1px, transparent 1px);
+  background-size: 16px 16px;
+  background-color: #0f121a;
+}
+
+/* The Exploded Node Structure */
+.exploded-node-wrapper {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+/* Exploded Node Box (Clickable Main Big Node) */
+.exploded-node-box {
+  background: #1b202d;
+  border: 1px solid #334057;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.exploded-node-box:hover {
+  border-color: #38bdf8;
+}
+
+.exploded-node-box.selected {
+  border-color: #38bdf8;
+  background: #1e2434;
+}
+
+.exploded-node-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  user-select: none;
+}
+
+.exploded-node-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.exploded-node-title {
+  font-size: 13px;
+  font-weight: 700;
+  flex: 1;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exploded-header-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Signal selector preview row */
+.exploded-signal-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #141824;
+  border-bottom: 1px solid #232c3c;
+}
+
+.exploded-signal-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #38bdf8;
+}
+
+.exploded-signal-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: #1c2333;
+  border: 1px solid #2d3b52;
+  color: #94a3b8;
+}
+
+/* Flow Connectors Row (Top Exec) */
+.exploded-flow-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #161a25;
+  border-bottom: 1px solid #232c3c;
+}
+
+.exploded-flow-in,
+.exploded-flow-out {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: all 0.12s;
+}
+
+.exploded-flow-in:hover,
+.exploded-flow-out:hover,
+.exploded-flow-in.selected,
+.exploded-flow-out.selected {
+  background: #252e40;
+  color: #ffffff;
+}
+
+.miliastra-exec-arrow {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Core Logic Processor Center */
+.exploded-core-body {
+  padding: 10px 14px;
+  background: #181d29;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exploded-core-chip {
+  background: #11141c;
+  border: 1px solid #263143;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.exploded-core-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #263042;
+  color: #38bdf8;
+}
+
+/* Connectors Exploded Section */
+.exploded-ports-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+.exploded-inputs-col,
+.exploded-outputs-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Exploded Port Item */
+.exploded-port-item {
+  background: #191e2b;
+  border: 1px solid #283347;
+  border-radius: 5px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+  position: relative;
+}
+
+.exploded-outputs-col .exploded-port-item {
+  flex-direction: row-reverse;
+}
+
+.exploded-port-item:hover {
+  background: #232c3d;
+  border-color: #4a5c7c;
+}
+
+.exploded-port-item.selected {
+  background: #222d42;
+  border-color: #38bdf8;
+}
+
+.exploded-port-socket {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  flex-shrink: 0;
+}
+
+.exploded-port-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.exploded-outputs-col .exploded-port-info {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.exploded-port-name {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exploded-port-type {
+  font-size: 10px;
+  font-family: monospace;
+  color: #94a3b8;
+}
+
+/* Right Pane: Direct Clean Specs Pane */
+.insp-specs-pane {
+  flex: 1.2;
+  min-width: 0;
+  background: #141722;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.insp-specs-topbar {
+  height: 38px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #161a24;
+  border-bottom: 1px solid #212836;
+  flex-shrink: 0;
+}
+
+.insp-cheatsheet-btn {
+  background: #1a202c;
+  border: 1px solid #2b3648;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.12s;
+  margin-left: auto;
+}
+
+.insp-cheatsheet-btn:hover {
+  background: #242e40;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.insp-specs-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Back Button */
+.insp-back-btn {
+  background: #1e2535;
+  border: 1px solid #2e3c54;
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.12s;
+}
+
+.insp-back-btn:hover {
+  background: #29344c;
+  color: #ffffff;
+  border-color: #4b658d;
+}
+
+/* Section Card (Clean container for Node Function & Connectors) */
+.insp-section-card {
+  background: #191d2a;
+  border: 1px solid #283244;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.insp-section-header {
+  padding: 8px 12px;
+  background: #1e2434;
+  border-bottom: 1px solid #263042;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.insp-section-body {
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+
+/* Node Functions Markdown/Text block */
+.insp-desc-text {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #d1d5db;
+}
+
+/* Direct Flat Pin Details (No double nested box inside box) */
+.insp-pin-flat-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insp-pin-flat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #232c3d;
+}
+
+.insp-pin-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.insp-pin-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.insp-pin-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.insp-pin-type-tag {
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.insp-pin-flat-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+
+.insp-pin-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.insp-pin-meta-item {
+  background: #181d2a;
+  border: 1px solid #252e3e;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.insp-pin-meta-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.insp-pin-meta-value {
+  font-size: 12px;
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.insp-pin-usage-box {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #bae6fd;
+  background: #101c2b;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid #1e3a5f;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Clean Connector Chips in Node Overview */
+.insp-connectors-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.insp-connector-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.insp-connector-chip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.insp-connector-chip {
+  background: #141824;
+  border: 1px solid #242e40;
+  border-radius: 4px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.insp-connector-chip:hover {
+  background: #1f2738;
+  border-color: #38bdf8;
+}
+
+.insp-connector-chip-name {
+  font-size: 11.5px;
+  color: #e2e8f0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.insp-connector-chip-type {
+  font-size: 10px;
+  font-family: monospace;
+  color: #94a3b8;
+}
+
+/* Data Types Cheatsheet Screen */
+.insp-cheatsheet-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.insp-cheatsheet-hero {
+  background: #111827;
+  border: 1px solid #1f2d42;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.insp-cheatsheet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.insp-cheatsheet-card {
+  background: #161a26;
+  border: 1px solid #273144;
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.insp-cheatsheet-card:hover {
+  background: #1d2333;
+  border-color: #475a7c;
+}
+
+.insp-cheatsheet-card.highlighted {
+  border-color: #38bdf8;
+  background: #1a2436;
+}
+
+.insp-cheatsheet-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.insp-cheatsheet-tag {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 12px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.insp-cheatsheet-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.insp-cheatsheet-desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.insp-cheatsheet-meta {
+  font-size: 10px;
+  font-family: monospace;
+  color: #64748b;
+  border-top: 1px solid #21293a;
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+/* Footer Action Bar */
+.insp-footer {
+  height: 44px;
+  background: #161a25;
+  border-top: 1px solid #232b3b;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.insp-footer-left {
+  font-size: 11.5px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insp-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insp-btn-spawn {
+  background: #1e3a2b;
+  border: 1px solid #2e6945;
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.12s;
+}
+
+.insp-btn-spawn:hover {
+  background: #2a523c;
+  color: #ffffff;
+  border-color: #4ade80;
+}
+
+.insp-btn-copy {
+  background: #212736;
+  border: 1px solid #333f54;
+  color: #cbd5e1;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.insp-btn-copy:hover {
+  background: #2d364a;
+  color: #ffffff;
+}

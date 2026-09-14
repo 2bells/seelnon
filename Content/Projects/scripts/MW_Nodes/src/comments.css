@@ -1,0 +1,827 @@
+/* ==========================================================================
+   src/comments.css - Notes, Comment Trays & Text Bubbles
+   Unreal Engine-inspired Comment Trays with Collapsible Organization,
+   Image-Parsing Text Bubbles, and Node Attachment Lines
+   Brutalist Design - Zero Bloat - Pure CSS
+   ========================================================================== */
+
+/* Canvas Layers */
+.comments-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1; /* Behind svgLayer (z-index 2) and nodesLayer (z-index 3) */
+}
+
+.notes-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 5; /* Above nodesLayer so notes & instructions are readable & interactive */
+}
+
+/* ==========================================================================
+   COMMENT TRAY (UNREAL ENGINE STYLE RECTANGLE)
+   ========================================================================== */
+
+.comment-tray {
+  position: absolute;
+  border-radius: 10px;
+  background-color: rgba(22, 26, 35, 0.72);
+  border: 1.5px solid rgba(82, 94, 116, 0.45);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  pointer-events: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* When commenting mode is active, allow interaction on trays */
+body.commenting-mode-active .comment-tray {
+  pointer-events: auto;
+}
+
+/* Even when commenting mode is off, allow collapse/expand toggle on the header */
+.comment-tray .comment-tray-collapse-btn {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Tray Hover & Selection */
+.comment-tray:hover {
+  border-color: rgba(136, 192, 208, 0.55);
+}
+
+.comment-tray.selected {
+  border-color: #88c0d0;
+  box-shadow: 0 0 0 1px #88c0d0, 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Header */
+.comment-tray-header {
+  height: 34px;
+  background-color: rgba(30, 35, 48, 0.88);
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
+  border-bottom: 1px solid rgba(82, 94, 116, 0.35);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  pointer-events: auto;
+  cursor: default;
+}
+
+body.commenting-mode-active .comment-tray-header {
+  cursor: grab;
+}
+
+body.commenting-mode-active .comment-tray-header:active {
+  cursor: grabbing;
+}
+
+.comment-tray-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #d8dee9;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.comment-tray-collapse-btn:hover {
+  background: rgba(136, 192, 208, 0.25);
+  border-color: #88c0d0;
+  color: #88c0d0;
+}
+
+.comment-tray-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #e5e9f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.comment-tray-title[contenteditable="true"] {
+  background: rgba(15, 18, 25, 0.85);
+  border: 1px solid #88c0d0;
+  cursor: text;
+}
+
+.comment-tray-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.comment-tray:hover .comment-tray-controls,
+body.commenting-mode-active .comment-tray-controls {
+  opacity: 1;
+}
+
+.comment-tray-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.comment-tray-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #eceff4;
+}
+
+.comment-tray-tool-btn.danger:hover {
+  background: rgba(217, 83, 109, 0.25);
+  color: #ff6b8b;
+}
+
+/* Color Palette Picker */
+.comment-color-palette {
+  position: absolute;
+  top: 34px;
+  right: 6px;
+  left: auto;
+  width: 116px;
+  box-sizing: border-box;
+  background: #21252e;
+  border: 1px solid #3c4456;
+  border-radius: 6px;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(4, 20px);
+  gap: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.comment-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: transform 0.1s, border-color 0.1s;
+}
+
+.comment-color-swatch:hover {
+  transform: scale(1.15);
+  border-color: #eceff4;
+}
+
+/* Body of Tray */
+.comment-tray-body {
+  flex: 1;
+  position: relative;
+  min-height: 40px;
+}
+
+/* Resize Grip */
+.comment-tray-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: se-resize;
+  pointer-events: auto;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.commenting-mode-active .comment-tray-resize-handle {
+  opacity: 0.75;
+}
+
+.comment-tray-resize-handle:hover {
+  opacity: 1;
+}
+
+.comment-tray-resize-handle::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #88c0d0;
+  border-bottom: 2px solid #88c0d0;
+}
+
+/* ==========================================================================
+   COLLAPSED TRAY (1 GIANT CLEAN SYNTHESIZED NODE)
+   ========================================================================== */
+
+.comment-tray.collapsed {
+  pointer-events: auto;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 0 0 1.5px rgba(136, 192, 208, 0.5);
+  background-color: #1a1e27;
+  border-color: #3b4252;
+  box-sizing: border-box;
+}
+
+.comment-tray.collapsed .comment-tray-header {
+  background: linear-gradient(90deg, rgba(38, 45, 62, 0.95), rgba(28, 33, 44, 0.95));
+  border-bottom: 1px solid rgba(136, 192, 208, 0.25);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.comment-tray-collapsed-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(136, 192, 208, 0.15);
+  color: #88c0d0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(136, 192, 208, 0.3);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.collapsed-tray-pins-grid {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 20px 16px 20px;
+  gap: 40px;
+  background: #191c24;
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
+  box-sizing: border-box;
+}
+
+.collapsed-pins-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.collapsed-pins-col.pins-in {
+  align-items: flex-start;
+  flex: 1;
+}
+
+.collapsed-pins-col.pins-out {
+  align-items: flex-end;
+  flex: 1;
+}
+
+.collapsed-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.collapsed-pin-label {
+  color: #c0caf5;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.collapsed-pin-source {
+  color: #636d83;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.collapsed-socket-in,
+.collapsed-socket-out {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.8px solid #538cc4;
+  background: #1a1e27;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.1s, background-color 0.1s;
+}
+
+.collapsed-socket-in:hover,
+.collapsed-socket-out:hover {
+  transform: scale(1.35);
+}
+
+.collapsed-socket-exec {
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+/* ==========================================================================
+   TEXT BUBBLES / NOTES (WITH IMAGE PARSING & NODE ATTACHMENT)
+   ========================================================================== */
+
+.note-bubble {
+  position: absolute;
+  pointer-events: auto;
+  border-radius: 8px;
+  background-color: #212631;
+  border: 1.5px solid #3c4456;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  user-select: text;
+  min-width: 180px;
+  min-height: 90px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.note-bubble:hover {
+  border-color: #5c6780;
+}
+
+.note-bubble.selected {
+  border-color: #e5c07b;
+  box-shadow: 0 0 0 1px #e5c07b, 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.note-bubble.attached {
+  border-left-width: 3.5px;
+  border-left-color: #e5c07b;
+}
+
+/* Minimized Note Bubble */
+.note-bubble.minimized {
+  min-height: unset;
+  height: 32px !important;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.note-bubble.minimized .note-bubble-body,
+.note-bubble.minimized .note-bubble-resize-handle {
+  display: none !important;
+}
+
+/* Header */
+.note-bubble-header {
+  position: relative;
+  height: 30px;
+  background-color: #282e3b;
+  border-top-left-radius: 7px;
+  border-top-right-radius: 7px;
+  border-bottom: 1px solid #343c4e;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  cursor: grab;
+  user-select: none;
+}
+
+.note-bubble-header:active {
+  cursor: grabbing;
+}
+
+/* Minimalist Pin Socket for Note Attachment (No glow, node color applied dynamically) */
+.note-pin-socket {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #8c95a8;
+  background: #1e222d;
+  flex-shrink: 0;
+  cursor: crosshair;
+  transition: transform 0.12s ease;
+  position: relative;
+  box-shadow: none !important;
+}
+
+.note-pin-socket:hover {
+  transform: scale(1.25);
+  box-shadow: none !important;
+}
+
+.note-pin-socket.connected {
+  box-shadow: none !important;
+}
+
+.note-bubble-icon {
+  width: 13px;
+  height: 13px;
+  color: #88c0d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.note-bubble-title {
+  flex: 1;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #d8dee9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 4px;
+  border-radius: 2px;
+  cursor: grab;
+  outline: none;
+  user-select: none;
+}
+
+body.commenting-mode-active .note-bubble-title {
+  cursor: text;
+}
+
+.note-bubble-title[contenteditable="true"] {
+  background: rgba(15, 18, 25, 0.85);
+  border: 1px solid #88c0d0;
+  cursor: text;
+  user-select: text;
+}
+
+.note-bubble-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.note-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.note-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #eceff4;
+}
+
+.note-tool-btn.danger:hover {
+  background: rgba(217, 83, 109, 0.25);
+  color: #ff6b8b;
+}
+
+/* Body / Content */
+.note-bubble-body {
+  flex: 1;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.note-bubble-textarea {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: #e5e9f0;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  user-select: text;
+}
+
+.note-bubble-content {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  color: #e5e9f0;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+  user-select: text;
+}
+
+.note-bubble-content p {
+  margin-bottom: 6px;
+}
+
+.note-bubble-content p:last-child {
+  margin-bottom: 0;
+}
+
+.note-bubble-content h1,
+.note-bubble-content h2,
+.note-bubble-content h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #88c0d0;
+  margin: 6px 0 3px 0;
+}
+
+.note-bubble-content code {
+  background: rgba(15, 18, 25, 0.6);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #e5c07b;
+}
+
+/* Image parsing inside note bubbles */
+.note-image-wrap {
+  margin: 6px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #14171e;
+  border: 1px solid #2e3440;
+  max-width: 100%;
+}
+
+.note-bubble-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  background: #11141b;
+  transition: transform 0.15s ease;
+}
+
+.note-bubble-img:hover {
+  cursor: pointer;
+}
+
+.note-bubble-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: #1c202a;
+  border-top: 1px solid #2d3444;
+  border-bottom-left-radius: 7px;
+  border-bottom-right-radius: 7px;
+  font-size: 11px;
+  min-height: 28px;
+}
+
+.note-bubble-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.note-image-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.note-image-url-input {
+  flex: 1;
+  background: #12151c;
+  border: 1px solid #3b4252;
+  border-radius: 3px;
+  color: #eceff4;
+  font-size: 11px;
+  padding: 3px 6px;
+  outline: none;
+  min-width: 0;
+}
+
+.note-image-url-input:focus {
+  border-color: #88c0d0;
+}
+
+.note-image-add-btn {
+  background: #3b4252;
+  border: none;
+  color: #eceff4;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.note-image-add-btn:hover {
+  background: #4c566a;
+  color: #88c0d0;
+}
+
+.note-image-cancel-btn {
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.note-image-cancel-btn:hover {
+  color: #ff6b8b;
+}
+
+.note-bubble-toolbar-btn {
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.note-bubble-toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #88c0d0;
+}
+
+.note-bubble-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+  pointer-events: auto;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.note-bubble-resize-handle:hover {
+  opacity: 1;
+}
+
+.note-bubble-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid #8c95a8;
+  border-bottom: 2px solid #8c95a8;
+}
+
+/* ==========================================================================
+   ATTACHMENT CONNECTOR LINES
+   ========================================================================== */
+
+.note-attachment-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10000px;
+  height: 10000px;
+  overflow: visible !important;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.note-attach-path {
+  fill: none;
+  stroke: #e5c07b;
+  stroke-width: 1.8;
+  stroke-dasharray: 4 4;
+  opacity: 0.8;
+}
+
+.note-drag-wire-preview {
+  fill: none;
+  stroke: #ffd787;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+  opacity: 0.9;
+}
+
+.miliastra-node.node-drop-highlight {
+  box-shadow: 0 0 0 2px #e5c07b, 0 8px 24px rgba(229, 192, 123, 0.35) !important;
+}
+
+/* ==========================================================================
+   COMMENTING MODE BANNER & PREVIEW RECTANGLE
+   ========================================================================== */
+
+.commenting-mode-banner {
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(22, 27, 36, 0.94);
+  border: 1px solid #88c0d0;
+  border-radius: 20px;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #eceff4;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+  animation: fadeInDown 0.2s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.commenting-mode-banner-badge {
+  background: #88c0d0;
+  color: #1a1e27;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.commenting-mode-banner-close {
+  background: transparent;
+  border: none;
+  color: #8c95a8;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+}
+
+.commenting-mode-banner-close:hover {
+  color: #eceff4;
+}
+
+/* Drag preview rectangle while user is drawing a tray */
+.comment-drag-preview {
+  position: absolute;
+  border: 1.8px dashed #88c0d0;
+  background: rgba(136, 192, 208, 0.12);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Active toolbar icon style */
+.dock-btn.commenting-active {
+  background: rgba(136, 192, 208, 0.25) !important;
+  color: #88c0d0 !important;
+  border: 1px solid #88c0d0 !important;
+  box-shadow: 0 0 10px rgba(136, 192, 208, 0.35);
+}
+
+/* Node pick mode cursor */
+body.is-picking-node-to-attach .miliastra-node {
+  cursor: pointer !important;
+  outline: 2px dashed #e5c07b;
+}
+
+body.is-picking-node-to-attach .miliastra-node:hover {
+  outline: 2px solid #e5c07b;
+  box-shadow: 0 0 14px rgba(229, 192, 123, 0.5);
+}

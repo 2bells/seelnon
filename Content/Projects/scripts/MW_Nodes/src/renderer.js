@@ -110,6 +110,11 @@ export class GraphRenderer {
     this.stage.className = 'canvas-stage';
     this.container.appendChild(this.stage);
 
+    // Comments layer (trays rendered behind wires and nodes)
+    this.commentsLayer = document.createElement('div');
+    this.commentsLayer.className = 'comments-layer';
+    this.stage.appendChild(this.commentsLayer);
+
     // SVG layer for wires
     this.svgLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.svgLayer.setAttribute('class', 'wires-svg');
@@ -125,6 +130,11 @@ export class GraphRenderer {
     this.nodesLayer = document.createElement('div');
     this.nodesLayer.className = 'nodes-layer';
     this.stage.appendChild(this.nodesLayer);
+
+    // Notes layer (text bubbles above nodes)
+    this.notesLayer = document.createElement('div');
+    this.notesLayer.className = 'notes-layer';
+    this.stage.appendChild(this.notesLayer);
 
     // Marquee selection element
     this.marqueeEl = document.createElement('div');
@@ -149,6 +159,9 @@ export class GraphRenderer {
     this.stage.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`;
     this.gridLayer.style.backgroundPosition = `${panX}px ${panY}px`;
     this.gridLayer.style.backgroundSize = `${24 * zoom}px ${24 * zoom}, ${120 * zoom}px ${120 * zoom}`;
+    if (window.miliastraCompositeManager && window.miliastraCompositeManager.isEditingComposite()) {
+      window.miliastraCompositeManager.renderStickingOutPins();
+    }
   }
 
   screenToCanvas(screenX, screenY) {
@@ -161,17 +174,30 @@ export class GraphRenderer {
   render() {
     this.updateTransform();
     this.renderNodes();
+    if (window.miliastraComments) {
+      window.miliastraComments.render();
+    }
     // Synchronously compute exact socket coordinates and render wires
     this.cachePinPositions();
     this.renderWires();
+
+    if (window.miliastraCompositeManager && window.miliastraCompositeManager.isEditingComposite()) {
+      window.miliastraCompositeManager.renderStickingOutPins();
+    }
 
     // Secondary pass on next animation frame to guarantee wire endpoints align after browser layout/reflow
     if (!this._renderRafPending) {
       this._renderRafPending = true;
       requestAnimationFrame(() => {
         this._renderRafPending = false;
+        if (window.miliastraComments) {
+          window.miliastraComments.render();
+        }
         this.cachePinPositions();
         this.renderWires();
+        if (window.miliastraCompositeManager && window.miliastraCompositeManager.isEditingComposite()) {
+          window.miliastraCompositeManager.renderStickingOutPins();
+        }
       });
     }
   }
@@ -204,10 +230,26 @@ export class GraphRenderer {
       } else {
         nodeEl.classList.remove('selected');
       }
+
+      // Hide node if it is collapsed inside any comment tray
+      const isHiddenInCollapsedTray = (this.state.comments || []).some(
+        c => c.collapsed && Array.isArray(c.collapsedNodeIds) && c.collapsedNodeIds.includes(node.id)
+      );
+      if (isHiddenInCollapsedTray) {
+        nodeEl.style.display = 'none';
+      } else {
+        nodeEl.style.display = '';
+      }
     }
   }
 
   createNodeElement(node) {
+    if (node.isComposite) {
+      const el = document.createElement('div');
+      this.populateCompositeNode(node, el);
+      return el;
+    }
+
     let bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
     if (!bp) {
       // Synthesize clean blueprint from node and connected wires so all sockets are in DOM
@@ -248,6 +290,14 @@ export class GraphRenderer {
     titleSpan.className = 'node-title';
     titleSpan.textContent = bp.name;
     header.appendChild(titleSpan);
+
+    // Double click header to inspect node
+    header.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      if (window.miliastraNodeInspector) {
+        window.miliastraNodeInspector.open(bp.id ? bp : node);
+      }
+    });
 
     // If node has a specialized data type (e.g. Equal Entity, Addition Float, Custom Var Entity), display clickable badge
     if (node.dataType) {
@@ -636,6 +686,20 @@ export class GraphRenderer {
   }
 
   updateNodeElement(node, el) {
+    if (node.isComposite) {
+      const titleEl = el.querySelector('.node-title');
+      if (titleEl && titleEl.textContent !== (node.name || 'Composite Node')) {
+        titleEl.textContent = node.name || 'Composite Node';
+      }
+      const pinsHash = (node.compositePins || []).map(p => `${p.id}:${p.name}:${p.type}:${p.direction}`).join('|');
+      if (el.dataset.pinsHash !== pinsHash) {
+        el.dataset.pinsHash = pinsHash;
+        el.innerHTML = '';
+        this.populateCompositeNode(node, el);
+      }
+      return;
+    }
+
     const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
     if (!bp) return;
 
@@ -671,6 +735,236 @@ export class GraphRenderer {
       outputsCol.innerHTML = '';
       this.populateNodePins(node, bp, inputsCol, outputsCol);
     }
+  }
+
+  populateCompositeNode(node, el) {
+    el.className = 'miliastra-node node-cat-composite';
+    el.dataset.nodeId = node.id;
+    const pinsHash = (node.compositePins || []).map(p => `${p.id}:${p.name}:${p.type}:${p.direction}`).join('|');
+    el.dataset.pinsHash = pinsHash;
+
+    // Direct double-click on composite node element opens it immediately
+    el.addEventListener('dblclick', (e) => {
+      if (e.target.closest('input, select, .param-gear, .param-remove-btn')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const pinEl = e.target.closest('.socket, .pin-exec, .pin-row');
+      const pinName = pinEl ? pinEl.dataset.pinName : null;
+      if (window.miliastraCompositeManager) {
+        window.miliastraCompositeManager.enterCompositeNode(node, pinName);
+      }
+    });
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'node-header';
+    header.style.backgroundColor = '#B8B8D0';
+    header.style.color = '#1A1D24';
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'node-icon';
+    iconSpan.innerHTML = this.getCategoryIconSVG('composite-tri');
+    header.appendChild(iconSpan);
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'node-title';
+    titleSpan.textContent = node.name || 'Composite Node';
+    titleSpan.style.color = '#1A1D24';
+    titleSpan.style.textShadow = 'none';
+    header.appendChild(titleSpan);
+
+    // Edit Subgraph button
+    const editSubBtn = document.createElement('button');
+    editSubBtn.className = 'node-type-badge composite-edit-btn';
+    editSubBtn.style.color = '#1A1D24';
+    editSubBtn.style.borderColor = 'rgba(26, 29, 36, 0.4)';
+    editSubBtn.style.backgroundColor = 'rgba(26, 29, 36, 0.15)';
+    editSubBtn.style.cursor = 'pointer';
+    editSubBtn.style.fontWeight = '700';
+    editSubBtn.style.display = 'inline-flex';
+    editSubBtn.style.alignItems = 'center';
+    editSubBtn.style.gap = '3px';
+    editSubBtn.textContent = 'Edit ⮞';
+    editSubBtn.title = 'Edit Composite Node (Double-click)';
+    editSubBtn.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
+    editSubBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.miliastraCompositeManager) {
+        window.miliastraCompositeManager.enterCompositeNode(node);
+      }
+    });
+    header.appendChild(editSubBtn);
+    el.appendChild(header);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'node-body';
+
+    const pins = node.compositePins || [];
+    const execIns = pins.filter(p => p.direction === 'input' && p.kind === 'exec');
+    const execOuts = pins.filter(p => p.direction === 'output' && p.kind === 'exec');
+
+    if (execIns.length > 0 || execOuts.length > 0) {
+      const execRow = document.createElement('div');
+      execRow.className = 'node-exec-row';
+
+      const inGroup = document.createElement('div');
+      inGroup.className = 'exec-in-group';
+      execIns.forEach(p => {
+        const pinEl = document.createElement('div');
+        pinEl.className = 'pin-exec pin-exec-in';
+        pinEl.dataset.nodeId = node.id;
+        pinEl.dataset.pinName = p.name;
+        pinEl.dataset.isExec = 'true';
+        pinEl.dataset.isOutput = 'false';
+        pinEl.title = `Execute Flow In (${p.name})`;
+        const isConn = this.state.wires.some(w => w.toNode === node.id && w.toPin === p.name);
+        pinEl.innerHTML = this.getExecArrowSVG('#FFFFFF', isConn);
+        inGroup.appendChild(pinEl);
+      });
+      execRow.appendChild(inGroup);
+
+      const outGroup = document.createElement('div');
+      outGroup.className = 'exec-out-group';
+      execOuts.forEach(p => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'exec-out-wrapper';
+        if (p.name && p.name !== 'execOut') {
+          const lbl = document.createElement('span');
+          lbl.className = 'exec-out-label';
+          lbl.textContent = p.name;
+          wrapper.appendChild(lbl);
+        }
+        const pinEl = document.createElement('div');
+        pinEl.className = 'pin-exec pin-exec-out';
+        pinEl.dataset.nodeId = node.id;
+        pinEl.dataset.pinName = p.name;
+        pinEl.dataset.isExec = 'true';
+        pinEl.dataset.isOutput = 'true';
+        pinEl.title = `Execute Flow Out (${p.name})`;
+        const isConn = this.state.wires.some(w => w.fromNode === node.id && w.fromPin === p.name);
+        pinEl.innerHTML = this.getExecArrowSVG('#FFFFFF', isConn);
+        wrapper.appendChild(pinEl);
+        outGroup.appendChild(wrapper);
+      });
+      execRow.appendChild(outGroup);
+      body.appendChild(execRow);
+    }
+
+    const dataIns = pins.filter(p => p.direction === 'input' && p.kind !== 'exec');
+    const dataOuts = pins.filter(p => p.direction === 'output' && p.kind !== 'exec');
+
+    if (dataIns.length > 0 || dataOuts.length > 0) {
+      const content = document.createElement('div');
+      content.className = 'node-content';
+
+      const inputsCol = document.createElement('div');
+      inputsCol.className = 'pins-col pins-in';
+
+      dataIns.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'param-row param-in-row';
+
+        const pType = p.type || 'generic';
+        const color = PIN_COLORS[pType] || PIN_COLORS.generic;
+
+        const leftGroup = document.createElement('div');
+        leftGroup.className = 'param-left';
+
+        const socket = document.createElement('div');
+        socket.className = 'socket socket-in';
+        socket.dataset.nodeId = node.id;
+        socket.dataset.pinName = p.name;
+        socket.dataset.pinType = pType;
+        socket.dataset.isOutput = 'false';
+        socket.dataset.isExec = 'false';
+
+        const isConn = this.state.wires.some(w => w.toNode === node.id && w.toPin === p.name);
+        if (isConn) {
+          socket.classList.add('connected');
+          socket.style.backgroundColor = color;
+          socket.style.borderColor = color;
+        } else {
+          socket.style.borderColor = color;
+          socket.style.backgroundColor = '#1a1e27';
+        }
+
+        const nameLabel = document.createElement('span');
+        nameLabel.className = 'param-name';
+        nameLabel.textContent = p.name;
+
+        leftGroup.appendChild(socket);
+        leftGroup.appendChild(nameLabel);
+        row.appendChild(leftGroup);
+
+        const rightWidget = document.createElement('div');
+        rightWidget.className = 'param-right';
+        if (!isConn) {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'param-input';
+          input.placeholder = p.hint || 'Input Value';
+          input.value = (node.inputValues && node.inputValues[p.name] !== undefined) ? node.inputValues[p.name] : '';
+          input.addEventListener('mousedown', e => e.stopPropagation());
+          input.addEventListener('input', e => {
+            this.state.setInputValue(node.id, p.name, e.target.value, false);
+          });
+          input.addEventListener('blur', () => {
+            this.state.setInputValue(node.id, p.name, input.value, true);
+          });
+          rightWidget.appendChild(input);
+        }
+        row.appendChild(rightWidget);
+
+        inputsCol.appendChild(row);
+      });
+
+      const outputsCol = document.createElement('div');
+      outputsCol.className = 'pins-col pins-out';
+
+      dataOuts.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'param-row param-out-row';
+
+        const pType = p.type || 'generic';
+        const color = PIN_COLORS[pType] || PIN_COLORS.generic;
+
+        const nameLabel = document.createElement('span');
+        nameLabel.className = 'param-name';
+        nameLabel.textContent = p.name;
+
+        const socket = document.createElement('div');
+        socket.className = 'socket socket-out';
+        socket.dataset.nodeId = node.id;
+        socket.dataset.pinName = p.name;
+        socket.dataset.pinType = pType;
+        socket.dataset.isOutput = 'true';
+        socket.dataset.isExec = 'false';
+
+        const isConn = this.state.wires.some(w => w.fromNode === node.id && w.fromPin === p.name);
+        if (isConn) {
+          socket.classList.add('connected');
+          socket.style.backgroundColor = color;
+          socket.style.borderColor = color;
+        } else {
+          socket.style.borderColor = color;
+          socket.style.backgroundColor = '#1a1e27';
+        }
+
+        row.appendChild(nameLabel);
+        row.appendChild(socket);
+        outputsCol.appendChild(row);
+      });
+
+      content.appendChild(inputsCol);
+      content.appendChild(outputsCol);
+      body.appendChild(content);
+    }
+
+    el.appendChild(body);
   }
 
   populateNodePins(node, bp, inputsCol, outputsCol) {
@@ -1793,6 +2087,11 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
         }
       }
     }
+
+    // 5. Let commentsManager cache socket positions for collapsed comment trays
+    if (window.miliastraComments) {
+      window.miliastraComments.cacheCollapsedSockets(this.pinCoords);
+    }
   }
 
   updateNodePinCoordinates(node) {
@@ -1816,7 +2115,24 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
       }
     }
 
+    // Identify collapsed comment trays to hide purely internal wires
+    const collapsedTrays = (this.state.comments || []).filter(c => c.collapsed);
+
     for (const wire of this.state.wires) {
+      // If both endpoints are inside the SAME collapsed comment tray, hide wire path
+      const isInternalCollapsed = collapsedTrays.some(tray => {
+        const set = new Set(tray.collapsedNodeIds || []);
+        return set.has(wire.fromNode) && set.has(wire.toNode);
+      });
+      if (isInternalCollapsed) {
+        const group = this.wireElements.get(wire.id);
+        if (group) {
+          group.hitbox.setAttribute('d', '');
+          group.path.setAttribute('d', '');
+        }
+        continue;
+      }
+
       const fromKey = `${wire.fromNode}::${wire.fromPin}`;
       const toKey = `${wire.toNode}::${wire.toPin}`;
       const p1 = this.pinCoords.get(fromKey);
@@ -2089,6 +2405,24 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
     const pinDirection = isOutput ? 'Output' : 'Input';
     const pinTypeLabel = isExec ? 'Exec Flow' : 'Parameter';
 
+    if (window.miliastraCompositeManager && window.miliastraCompositeManager.isEditingComposite()) {
+      listHtml += `
+        <div class="wire-menu-divider"></div>
+        <div class="wire-menu-item" data-action="set-composite-pin" style="color: #F2A93B; font-weight: 600;">
+          <span class="wire-menu-icon">❖</span>
+          <span>Set as Composite Node Pin</span>
+        </div>
+      `;
+    }
+
+    listHtml += `
+      <div class="wire-menu-divider"></div>
+      <div class="wire-menu-item" data-action="inspect-node" style="color: #38bdf8;">
+        <span class="wire-menu-icon">🔍</span>
+        <span>Inspect Node (${node.name})</span>
+      </div>
+    `;
+
     menu.innerHTML = `
       <div class="wire-menu-header">
         <div class="wire-menu-title">
@@ -2117,6 +2451,22 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
       const item = ev.target.closest('.wire-menu-item');
       if (!item) return;
       const action = item.dataset.action;
+
+      if (action === 'inspect-node') {
+        this.closePopups();
+        if (window.miliastraNodeInspector) {
+          window.miliastraNodeInspector.open(node);
+        }
+        return;
+      }
+
+      if (action === 'set-composite-pin') {
+        this.closePopups();
+        if (window.miliastraCompositeManager) {
+          window.miliastraCompositeManager.addExposedPin(nodeId, pinName, isOutput, isExec);
+        }
+        return;
+      }
 
       if (action === 'disconnect-single') {
         const wireId = item.dataset.wireId;
@@ -2350,8 +2700,116 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
       this.activeContextMenu.remove();
       this.activeContextMenu = null;
     }
-    const leftovers = document.querySelectorAll('.wire-context-menu, .pin-context-menu, .type-picker-popup');
+    const leftovers = document.querySelectorAll('.wire-context-menu, .pin-context-menu, .type-picker-popup, .composite-popup-menu');
     for (const el of leftovers) el.remove();
+  }
+
+  openNodeContextMenu(e) {
+    this.closePopups();
+    const selectedNodes = this.state.nodes.filter(n => this.state.selectedNodeIds.has(n.id));
+    if (selectedNodes.length === 0) return;
+
+    const hasComposite = selectedNodes.some(n => n.isComposite);
+
+    const menu = document.createElement('div');
+    menu.className = 'composite-popup-menu';
+    menu.style.left = `${Math.min(e.clientX, window.innerWidth - 240)}px`;
+    menu.style.top = `${Math.min(e.clientY, window.innerHeight - 280)}px`;
+
+    menu.innerHTML = `
+      ${hasComposite ? `
+        <div class="composite-popup-item" data-action="open-composite">
+          <span>Open Composite Node</span>
+          <span class="composite-popup-shortcut">Double-click</span>
+        </div>
+        <div class="composite-popup-divider"></div>
+      ` : ''}
+      <div class="composite-popup-item" data-action="delete">
+        <span>Delete</span>
+        <span class="composite-popup-shortcut">Delete</span>
+      </div>
+      <div class="composite-popup-item" data-action="cut">
+        <span>Cut</span>
+        <span class="composite-popup-shortcut">Ctrl+X</span>
+      </div>
+      <div class="composite-popup-item" data-action="copy">
+        <span>Copy</span>
+        <span class="composite-popup-shortcut">Ctrl+C</span>
+      </div>
+      <div class="composite-popup-item" data-action="disconnect">
+        <span>Disconnect Node Connection</span>
+        <span class="composite-popup-shortcut"></span>
+      </div>
+      <div class="composite-popup-item" data-action="notes">
+        <span>Notes</span>
+        <span class="composite-popup-shortcut"></span>
+      </div>
+      <div class="composite-popup-divider"></div>
+      <div class="composite-popup-item" data-action="generate-composite" style="font-weight: 600; color: #88C0D0;">
+        <span>Generate Composite Node</span>
+        <span class="composite-popup-shortcut">Ctrl+G</span>
+      </div>
+    `;
+
+    menu.addEventListener('mousedown', (ev) => ev.stopPropagation());
+    menu.addEventListener('click', (ev) => {
+      const item = ev.target.closest('.composite-popup-item');
+      if (!item) return;
+      const action = item.dataset.action;
+      this.closePopups();
+
+      if (action === 'open-composite') {
+        const compNode = selectedNodes.find(n => n.isComposite);
+        if (compNode && window.miliastraCompositeManager) {
+          window.miliastraCompositeManager.enterCompositeNode(compNode);
+        }
+      } else if (action === 'delete') {
+        if (typeof this.state.deleteSelected === 'function') {
+          this.state.deleteSelected();
+        } else {
+          this.state.removeSelected();
+        }
+        this.render();
+      } else if (action === 'copy') {
+        this.state.copySelected();
+      } else if (action === 'cut') {
+        if (typeof this.state.cutSelected === 'function') {
+          this.state.cutSelected();
+        } else {
+          this.state.copySelected();
+          this.state.removeSelected();
+        }
+        this.render();
+      } else if (action === 'disconnect') {
+        const selectedSet = new Set(this.state.selectedNodeIds);
+        this.state.wires = this.state.wires.filter(w => !selectedSet.has(w.fromNode) && !selectedSet.has(w.toNode));
+        this.state.notify('wires_change');
+        this.render();
+      } else if (action === 'notes') {
+        if (window.miliastraComments && selectedNodes[0]) {
+          const target = selectedNodes[0];
+          window.miliastraComments.addNote(
+            target.x + 20,
+            Math.max(20, target.y - 140),
+            'Note on ' + (target.name || 'node') + '...',
+            target.id
+          );
+        } else {
+          const noteText = prompt('Add comment / note to node:', selectedNodes[0].notes || '');
+          if (noteText !== null) {
+            selectedNodes[0].notes = noteText;
+            this.render();
+          }
+        }
+      } else if (action === 'generate-composite') {
+        if (window.miliastraCompositeManager) {
+          window.miliastraCompositeManager.createCompositeFromSelection(this.state);
+        }
+      }
+    });
+
+    document.body.appendChild(menu);
+    this.activeContextMenu = menu;
   }
 
   clearCache() {
@@ -2415,7 +2873,7 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
       }
 
       // Ignore left clicks on controls, popup menus, and wire hitboxes
-      if (e.target.closest('input, select, button, .param-gear, .param-remove-btn, .type-picker-popup, .wire-context-menu, .wire, .wire-hitbox')) {
+      if (e.target.closest('input, select, button, .composite-edit-btn, .composite-insp-panel, .param-gear, .param-remove-btn, .type-picker-popup, .wire-context-menu, .wire, .wire-hitbox')) {
         return;
       }
 
@@ -2446,7 +2904,13 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
           }
         }
         this.state.selectedWireIds.clear();
-        this.renderNodes();
+        this.nodeElements.forEach((nel, id) => {
+          if (this.state.selectedNodeIds.has(id)) {
+            nel.classList.add('selected');
+          } else {
+            nel.classList.remove('selected');
+          }
+        });
 
         // Start node drag
         this.draggedNodes = Array.from(this.state.selectedNodeIds).map(id => {
@@ -2455,6 +2919,11 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
         });
         this.nodeDragStart = { x: e.clientX, y: e.clientY };
         document.body.classList.add('is-dragging-node');
+        return;
+      }
+
+      // If commenting mode is active, handle tray drawing or note placement
+      if (window.miliastraComments && window.miliastraComments.handleCanvasMouseDown(e)) {
         return;
       }
 
@@ -2506,9 +2975,15 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
               nodeEl.style.transform = `translate3d(${n.x}px, ${n.y}px, 0)`;
             }
             this.updateNodePinCoordinates(n);
+            if (window.miliastraComments) {
+              window.miliastraComments.onNodeDragged(n);
+            }
           }
         }
         this.renderWires();
+        if (window.miliastraCompositeManager && window.miliastraCompositeManager.isEditingComposite()) {
+          window.miliastraCompositeManager.renderStickingOutPins(true);
+        }
         return;
       }
 
@@ -2585,6 +3060,9 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
         this.draggedNodes = null;
         this.cachePinPositions();
         this.state.saveSnapshot();
+        if (window.miliastraCompositeManager && window.miliastraCompositeManager.isEditingComposite()) {
+          window.miliastraCompositeManager.renderStickingOutPins(false);
+        }
       }
 
       if (this.isBoxSelecting) {
@@ -2617,10 +3095,56 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
         this.openPinContextMenu(nodeId, pinName, isOutput, isExec, e);
         return;
       }
+
+      // Node right click: context menu (Cut, Copy, Delete, Disconnect, Generate Composite Node)
+      const nodeEl = e.target.closest('.miliastra-node');
+      if (nodeEl) {
+        e.stopPropagation();
+        const nodeId = nodeEl.dataset.nodeId;
+        if (!this.state.selectedNodeIds.has(nodeId)) {
+          this.state.selectedNodeIds.clear();
+          this.state.selectedNodeIds.add(nodeId);
+          this.render();
+        }
+        this.openNodeContextMenu(e);
+        return;
+      }
+    });
+
+    // Double-click to open composite nodes or pins
+    this.container.addEventListener('dblclick', (e) => {
+      if (e.target.closest('input, select, .param-gear, .param-remove-btn')) return;
+      const compNodeEl = e.target.closest('.node-cat-composite, .miliastra-node');
+      if (compNodeEl) {
+        const nodeId = compNodeEl.dataset.nodeId;
+        const targetNode = this.state.nodes.find(n => n.id === nodeId);
+        if (targetNode && targetNode.isComposite && window.miliastraCompositeManager) {
+          e.preventDefault();
+          e.stopPropagation();
+          const pinEl = e.target.closest('.socket, .pin-exec, .pin-row');
+          const pinName = pinEl ? pinEl.dataset.pinName : null;
+          window.miliastraCompositeManager.enterCompositeNode(targetNode, pinName);
+        }
+      }
     });
 
     // Mouse wheel zoom (hardware-accelerated, zero DOM rebuild overhead)
     this.container.addEventListener('wheel', (e) => {
+      // Priority scrolling for notes: if hovering over a note that has scrollable content, scroll it instead of zooming
+      const noteEl = e.target.closest('.note-bubble');
+      if (noteEl) {
+        const scrollTarget = e.target.closest('.note-bubble-textarea, .note-bubble-content, .note-bubble-body') || noteEl.querySelector('.note-bubble-body, .note-bubble-content, .note-bubble-textarea');
+        if (scrollTarget && scrollTarget.scrollHeight > scrollTarget.clientHeight + 2) {
+          const canScrollDown = e.deltaY > 0 && (scrollTarget.scrollTop + scrollTarget.clientHeight < scrollTarget.scrollHeight - 1);
+          const canScrollUp = e.deltaY < 0 && (scrollTarget.scrollTop > 1);
+          if (canScrollDown || canScrollUp) {
+            scrollTarget.scrollTop += e.deltaY;
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
       e.preventDefault();
       const rect = this.container.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -2739,6 +3263,9 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
 
   getCategoryIconSVG(type) {
     switch (type) {
+      case 'composite-tri':
+      case 'composite':
+        return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2.8"/><circle cx="6.5" cy="17.5" r="2.8"/><circle cx="17.5" cy="17.5" r="2.8"/><line x1="12" y1="5" x2="6.5" y2="17.5" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="5" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="1.8"/><line x1="6.5" y1="17.5" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="1.8"/></svg>`;
       case 'cycle-arrows':
         return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19"/><polyline points="2.5 22 2.5 16 8.5 16"/></svg>`;
       case 'flow-snake':

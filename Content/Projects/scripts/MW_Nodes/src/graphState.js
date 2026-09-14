@@ -3,14 +3,16 @@
  * Handles node instances, wires, connections, undo/redo history, and selection.
  */
 
-import { getNodeBlueprint, parseNodeBlueprintAndType, applyDataTypeToNode, CATEGORIES } from './nodesData.js';
+import { getNodeBlueprint, parseNodeBlueprintAndType, applyDataTypeToNode, CATEGORIES, registerCustomCompositeNode } from './nodesData.js';
 import { signalsManager, getPinTypeFromSignalType } from './signalsManager.js';
 
 let nextNodeId = 1;
 let nextWireId = 1;
 
 export class GraphState {
-  constructor(name = 'Open_Garage', type = 'Server') {
+  constructor(name = 'Open_Garage', type = 'Server', id = null) {
+    this.id = id || ('graph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+    this.folderId = 'root';
     this.name = name;
     this.type = type; // 'Server' or 'Client'
     this.nodes = [];
@@ -36,6 +38,10 @@ export class GraphState {
       { id: 'var_3', name: 'Damage', type: 'float', defaultValue: '0.0', value: '0.0' }
     ];
 
+    // Comment Trays and Text Bubble Notes
+    this.comments = []; // [{ id, title, x, y, width, height, collapsed, color, collapsedNodeIds }]
+    this.notes = [];    // [{ id, text, x, y, width, height, attachedNodeId, attachedOffset, color, isMinimized, isEditing }]
+
     // Subscribe to global signal updates
     this.signalUnsub = signalsManager.subscribe((event, data) => {
       this.notify('signals_changed');
@@ -54,15 +60,20 @@ export class GraphState {
   }
 
   // Serializable snapshot used for local persistence (localStorage cache) and
-  // for rebuilding a graph without losing nodes/wires/variables.
+  // for rebuilding a graph without losing nodes/wires/variables/comments/notes.
   toJSON() {
     return {
       version: 1,
+      id: this.id,
+      folderId: this.folderId || 'root',
       name: this.name,
       type: this.type,
       nodes: this.nodes,
       wires: this.wires,
       nodeGraphVariables: this.nodeGraphVariables,
+      comments: this.comments || [],
+      notes: this.notes || [],
+      signals: signalsManager.serialize(),
       panX: this.panX,
       panY: this.panY,
       zoom: this.zoom
@@ -70,10 +81,22 @@ export class GraphState {
   }
 
   static fromJSON(obj) {
-    const g = new GraphState((obj && obj.name) || 'Noda', (obj && obj.type) || 'Server');
-    if (obj && Array.isArray(obj.nodes)) g.nodes = obj.nodes;
+    const g = new GraphState((obj && obj.name) || 'Noda', (obj && obj.type) || 'Server', (obj && obj.id) || null);
+    if (obj && obj.folderId) g.folderId = obj.folderId;
+    if (obj && Array.isArray(obj.nodes)) {
+      g.nodes = obj.nodes;
+      // Auto-register any custom composite nodes into registry
+      g.nodes.forEach(n => {
+        if (n && n.isComposite && n.name && n.name !== 'Create Composite Node') {
+          registerCustomCompositeNode(n, true);
+        }
+      });
+    }
     if (obj && Array.isArray(obj.wires)) g.wires = obj.wires;
     if (obj && Array.isArray(obj.nodeGraphVariables)) g.nodeGraphVariables = obj.nodeGraphVariables;
+    if (obj && Array.isArray(obj.comments)) g.comments = obj.comments;
+    if (obj && Array.isArray(obj.notes)) g.notes = obj.notes;
+    if (obj && obj.signals && Array.isArray(obj.signals)) signalsManager.deserialize(obj.signals);
     if (obj && typeof obj.panX === 'number') g.panX = obj.panX;
     if (obj && typeof obj.panY === 'number') g.panY = obj.panY;
     if (obj && typeof obj.zoom === 'number') g.zoom = obj.zoom;
@@ -88,7 +111,9 @@ export class GraphState {
     const snap = JSON.stringify({
       nodes: this.nodes,
       wires: this.wires,
-      nodeGraphVariables: this.nodeGraphVariables
+      nodeGraphVariables: this.nodeGraphVariables,
+      comments: this.comments || [],
+      notes: this.notes || []
     });
     this.history.push(snap);
     if (this.history.length > 50) this.history.shift();
@@ -104,6 +129,8 @@ export class GraphState {
       if (snap.nodeGraphVariables) {
         this.nodeGraphVariables = snap.nodeGraphVariables;
       }
+      this.comments = snap.comments || [];
+      this.notes = snap.notes || [];
       this.selectedNodeIds.clear();
       this.selectedWireIds.clear();
       this.notify('undo');
@@ -121,6 +148,8 @@ export class GraphState {
       if (snap.nodeGraphVariables) {
         this.nodeGraphVariables = snap.nodeGraphVariables;
       }
+      this.comments = snap.comments || [];
+      this.notes = snap.notes || [];
       this.selectedNodeIds.clear();
       this.selectedWireIds.clear();
       this.notify('redo');
@@ -236,7 +265,88 @@ export class GraphState {
     const bp = parsed.blueprint || getNodeBlueprint(blueprintId);
     if (!bp) return null;
 
-    const id = `node_${Date.now()}_${nextNodeId++}`;
+    // Specialized Composite Node creation (blank or custom composite node like "Test")
+    if (bp.category === 'composite' || bp.id === 'composite_node' || bp.isComposite || customData.isComposite) {
+      const compId = `node_comp_${Date.now()}_${nextNodeId++}`;
+      const starterId = `node_starter_${Date.now()}_1`;
+      
+      const isCustomBp = bp.isComposite && bp.compositePins && bp.compositePins.length > 0;
+      const initialPins = customData.compositePins 
+        ? JSON.parse(JSON.stringify(customData.compositePins))
+        : (isCustomBp ? JSON.parse(JSON.stringify(bp.compositePins)) : [
+          {
+            id: 'pin_in_1',
+            index: 1,
+            direction: 'input',
+            kind: 'exec',
+            type: 'exec',
+            name: 'execIn',
+            originalName: 'execIn',
+            hint: '',
+            targetNodeId: starterId,
+            targetPinName: 'execIn',
+            mergedTargets: []
+          },
+          {
+            id: 'pin_out_1',
+            index: 1,
+            direction: 'output',
+            kind: 'exec',
+            type: 'exec',
+            name: 'Yes',
+            originalName: 'Yes',
+            hint: '',
+            targetNodeId: starterId,
+            targetPinName: 'Yes',
+            mergedTargets: []
+          }
+        ]);
+
+      const initialSubgraph = customData.subgraph 
+        ? JSON.parse(JSON.stringify(customData.subgraph))
+        : (isCustomBp && bp.subgraph ? JSON.parse(JSON.stringify(bp.subgraph)) : {
+          nodes: [
+            {
+              id: starterId,
+              name: 'Double Branch',
+              blueprintId: 'double_branch',
+              category: 'flow',
+              x: 180,
+              y: 140,
+              inputValues: {}
+            }
+          ],
+          wires: []
+        });
+
+      const compInstance = {
+        id: compId,
+        blueprintId: bp.id || 'composite_node',
+        name: customData.name || bp.name || 'Create Composite Node',
+        category: 'composite',
+        isComposite: true,
+        compositeCategory: customData.compositeCategory || bp.compositeCategory || 'Uncategorized Tab',
+        compositePins: initialPins,
+        subgraph: initialSubgraph,
+        x: Math.round(x),
+        y: Math.round(y),
+        inputValues: customData.inputValues || {}
+      };
+
+      // Register custom composite definition so it stays known
+      if (compInstance.name && compInstance.name !== 'Create Composite Node') {
+        registerCustomCompositeNode(compInstance, true);
+      }
+
+      this.nodes.push(compInstance);
+      this.saveSnapshot();
+      this.notify('node_add');
+      return compInstance;
+    }
+
+    const id = (customData && customData.id && !this.nodes.some(n => n.id === customData.id))
+      ? customData.id
+      : `node_${Date.now()}_${nextNodeId++}`;
     const inputValues = {};
     if (bp.inputs) {
       for (const inp of bp.inputs) {
@@ -313,16 +423,27 @@ export class GraphState {
   }
 
   removeNode(nodeId) {
+    const affectedTgtNodes = new Set();
+    this.wires.forEach(w => {
+      if (w.fromNode === nodeId && !w.isExec) affectedTgtNodes.add(w.toNode);
+    });
     this.nodes = this.nodes.filter(n => n.id !== nodeId);
     // Remove attached wires
     this.wires = this.wires.filter(w => w.fromNode !== nodeId && w.toNode !== nodeId);
     this.selectedNodeIds.delete(nodeId);
+    affectedTgtNodes.forEach(tn => this.refreshNodePinTypes(tn));
     this.saveSnapshot();
     this.notify('node_remove');
   }
 
   removeSelected() {
     if (this.selectedNodeIds.size === 0 && this.selectedWireIds.size === 0) return;
+    const affectedTgtNodes = new Set();
+    this.wires.forEach(w => {
+      if ((this.selectedWireIds.has(w.id) || this.selectedNodeIds.has(w.fromNode)) && !w.isExec) {
+        affectedTgtNodes.add(w.toNode);
+      }
+    });
     this.nodes = this.nodes.filter(n => !this.selectedNodeIds.has(n.id));
     this.wires = this.wires.filter(w => 
       !this.selectedWireIds.has(w.id) &&
@@ -331,6 +452,7 @@ export class GraphState {
     );
     this.selectedNodeIds.clear();
     this.selectedWireIds.clear();
+    affectedTgtNodes.forEach(tn => this.refreshNodePinTypes(tn));
     this.saveSnapshot();
     this.notify('selection_removed');
   }
@@ -521,10 +643,57 @@ export class GraphState {
   }
 
   removeWire(wireId) {
+    const wire = this.wires.find(w => w.id === wireId);
     this.wires = this.wires.filter(w => w.id !== wireId);
     this.selectedWireIds.delete(wireId);
+    if (wire && !wire.isExec) {
+      this.refreshNodePinTypes(wire.toNode);
+    }
     this.saveSnapshot();
     this.notify('wire_remove');
+  }
+
+  refreshNodePinTypes(nodeId) {
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+    if (!bp) return;
+
+    const isPairOp = ['op_equal', 'op_not_equal', 'op_greater_than', 'op_less_than',
+      'op_greater_than_or_equal_to', 'op_less_than_or_equal_to',
+      'op_addition', 'op_subtraction', 'op_multiplication', 'op_division',
+      'op_modulo_operation', 'op_exponentiation', 'op_take_larger', 'op_take_smaller']
+      .includes(bp.id);
+
+    if (isPairOp) {
+      const inWires = this.wires.filter(w => !w.isExec && w.toNode === nodeId);
+      let detectedType = null;
+      for (const w of inWires) {
+        const srcType = this.getPinType(w.fromNode, w.fromPin, 'generic');
+        if (srcType && srcType !== 'generic') {
+          detectedType = srcType;
+          break;
+        }
+      }
+      if (detectedType) {
+        if (!node.pinTypes) node.pinTypes = {};
+        (bp.inputs || []).forEach(inp => {
+          if (inp.hasGear || inp.type === 'generic') node.pinTypes[inp.name] = detectedType;
+        });
+        (bp.outputs || []).forEach(out => {
+          if (out.hasGear || out.type === 'generic') node.pinTypes[out.name] = detectedType;
+        });
+      } else {
+        if (node.pinTypes) {
+          (bp.inputs || []).forEach(inp => {
+            if (inp.hasGear || inp.type === 'generic') delete node.pinTypes[inp.name];
+          });
+          (bp.outputs || []).forEach(out => {
+            if (out.hasGear || out.type === 'generic') delete node.pinTypes[out.name];
+          });
+        }
+      }
+    }
   }
 
   setInputValue(nodeId, pinName, value, triggerNotify = true) {
@@ -846,24 +1015,40 @@ export class GraphState {
     // Data Wire: Get Node Graph Variable (Attacked) -> Set Node Graph Variable (Attacked)
     this.addWire(nGetVarAttacked.id, 'Variable Value', nSetVarAttacked.id, 'Variable Value', false);
 
+    // Default starter Comment Tray & Instructions Note Bubble
+    this.comments = [
+      {
+        id: 'comment_door_actuation',
+        title: 'Door Actuation & State Evaluation',
+        x: 40,
+        y: 40,
+        width: 1080,
+        height: 480,
+        collapsed: false,
+        color: 'slate',
+        collapsedNodeIds: []
+      }
+    ];
+
+    this.notes = [
+      {
+        id: 'note_welcome',
+        text: '### Node Graph Notes & Instructions\n- Click the **comment icon** in the bottom dock or press **[C]** to toggle **Commenting Mode**.\n- In commenting mode:\n  - **Drag on empty space** to draw a rectangular **Comment Tray**.\n  - **Click anywhere** to place an instruction **Note Bubble**.\n- Trays support **Collapsing** into a single clean node with sticking-out pins!\n- Notes support full Markdown and image URLs: `https://...`',
+        x: 1140,
+        y: 50,
+        width: 270,
+        height: 220,
+        attachedNodeId: nEqual.id,
+        attachedOffset: { x: 310, y: -200 },
+        color: '#88C0D0',
+        isMinimized: false,
+        isEditing: false
+      }
+    ];
+
     this.history = [];
     this.saveSnapshot();
     this.notify('scene_reset');
-  }
-
-  toJSON() {
-    return {
-      version: '7.0.0.47194594',
-      name: this.name,
-      type: this.type,
-      nodes: this.nodes,
-      wires: this.wires,
-      panX: this.panX,
-      panY: this.panY,
-      zoom: this.zoom,
-      signals: signalsManager.serialize(),
-      nodeGraphVariables: this.nodeGraphVariables
-    };
   }
 
   fromJSON(data) {
@@ -880,6 +1065,16 @@ export class GraphState {
     }
     if (data.nodeGraphVariables && Array.isArray(data.nodeGraphVariables)) {
       this.nodeGraphVariables = data.nodeGraphVariables;
+    }
+    if (data.comments && Array.isArray(data.comments)) {
+      this.comments = data.comments;
+    } else {
+      this.comments = [];
+    }
+    if (data.notes && Array.isArray(data.notes)) {
+      this.notes = data.notes;
+    } else {
+      this.notes = [];
     }
     this.selectedNodeIds.clear();
     this.selectedWireIds.clear();

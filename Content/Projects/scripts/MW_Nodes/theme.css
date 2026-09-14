@@ -67,7 +67,7 @@ body, html {
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
-  z-index: 50;
+  z-index: 999;
   position: relative;
 }
 
@@ -102,15 +102,15 @@ body, html {
 
 .window-dropdown-menu {
   position: absolute;
-  top: 32px;
+  top: 34px;
   left: 36px;
   background: #1c202a;
   border: 1px solid #313847;
   border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.20);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
   min-width: 210px;
   padding: 6px 0;
-  z-index: 100;
+  z-index: 10000;
 }
 
 .dropdown-item {

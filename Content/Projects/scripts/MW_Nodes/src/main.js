@@ -12,11 +12,17 @@ import { GiaCodec } from './giaCodec.js';
 import { MiliastraIde } from './ide/ide.js';
 import { SignalExplorer } from './signalExplorer.js';
 import { NodeGraphVariablesWindow } from './nodeGraphVariables.js';
+import { graphStorage } from './storage/indexdb.js';
+import { NodeGraphExplorer } from './storage/graphExplorer.js';
+import { CompositeNodeManager } from './compositeNode.js';
+import { NodeInspector } from './nodeInspector.js';
+import { CommentsManager } from './commentsManager.js';
 
 class MiliastraApp {
   constructor() {
     this.appRoot = document.getElementById('app');
-    this.state = new GraphState('Open_Garage', 'Server');
+    this.state = new GraphState('Open_Garage', 'Server', 'graph_open_garage');
+    this.state.folderId = 'f_stages';
     this.initLayout();
     this.renderer = new GraphRenderer(this.canvasContainer, this.state);
     this.library = new NodeLibrary(this.libraryContainer, this.state, this.renderer);
@@ -33,12 +39,32 @@ class MiliastraApp {
     this.nodeGraphVars = new NodeGraphVariablesWindow(this.state, this.renderer);
     window.miliastraNodeGraphVars = this.nodeGraphVars;
 
+    this.graphExplorer = new NodeGraphExplorer(this);
+    window.miliastraGraphExplorer = this.graphExplorer;
+
+    this.compositeManager = new CompositeNodeManager(this);
+    window.miliastraCompositeManager = this.compositeManager;
+
+    this.nodeInspector = new NodeInspector(this);
+    window.miliastraNodeInspector = this.nodeInspector;
+
+    this.commentsManager = new CommentsManager(this);
+    window.miliastraComments = this.commentsManager;
+
     window.addEventListener('open_signal_explorer', (e) => {
       this.signalExplorer.open(e.detail?.signalName);
     });
 
     window.addEventListener('open_node_graph_vars', (e) => {
       this.nodeGraphVars.open(e.detail?.varName);
+    });
+
+    window.addEventListener('open_graph_explorer', (e) => {
+      this.graphExplorer.open(e.detail?.folderId);
+    });
+
+    window.addEventListener('open_node_inspector', (e) => {
+      this.nodeInspector.open(e.detail?.node || e.detail?.blueprintId);
     });
 
     this.initBottomToolbar();
@@ -60,6 +86,27 @@ class MiliastraApp {
       this.state.loadDefaultGenshinScene();
     }
     this.renderer.render();
+
+    // Sync any custom composite nodes across all loaded graphs into the library
+    if (this.library) {
+      this.library.syncStateCompositeNodes();
+      this.library.updateCategoryOptions();
+      this.library.renderList();
+    }
+
+    // Initialize IndexedDB in the background and ensure active graphs are persisted
+    graphStorage.init().then(async () => {
+      if (this.state) {
+        if (!this.state.id) this.state.id = 'graph_open_garage';
+        if (!this.state.folderId) this.state.folderId = 'f_stages';
+        await graphStorage.saveGraph(this.state, this.state.folderId);
+      }
+      if (Array.isArray(this.graphs)) {
+        for (const g of this.graphs) {
+          await graphStorage.saveGraph(g, g.folderId || 'root');
+        }
+      }
+    }).catch(err => console.warn('IndexedDB startup sync error:', err));
 
     window.updateZoomDropdown = (val) => {
       const zSel = document.getElementById('zoomSelect');
@@ -96,9 +143,19 @@ class MiliastraApp {
     this.ide.attachState?.(s);
     this.signalExplorer.state = s;
     this.nodeGraphVars.state = s;
+    if (this.commentsManager) {
+      this.commentsManager.state = s;
+    }
+    if (this.graphExplorer && this.graphExplorer.isOpen) {
+      this.graphExplorer.updateFooter();
+      this.graphExplorer.renderContent();
+    }
   }
 
   switchToGraph(g) {
+    if (this.compositeManager && this.compositeManager.isEditingComposite()) {
+      this.compositeManager.exitCompositeNode();
+    }
     this.state = g;
     this.syncStateRefs();
     const tabIde = document.getElementById('tabIdeView');
@@ -110,16 +167,18 @@ class MiliastraApp {
     this.renderGraphTabs();
   }
 
-  addNewGraph(name) {
+  addNewGraph(name, folderId = 'root') {
     const base = name || 'Node_Graph';
     let n = base;
     let k = 1;
     while (this.graphs.some(g => g.name === n)) { n = `${base}_${k++}`; }
     const g = new GraphState(n, 'Server');
+    g.folderId = folderId || 'root';
     this.graphs.push(g);
     this.attachPersist(g);
     this.switchToGraph(g);
     this.persistGraphs();
+    graphStorage.saveGraph(g, g.folderId).catch(() => {});
   }
 
   // Keep the local cache updated whenever the graph (or any graph) changes.
@@ -137,6 +196,12 @@ class MiliastraApp {
         localStorage.setItem('miliastra.graphs', JSON.stringify(data));
       } catch (err) {
         /* storage full / unavailable — non-fatal */
+      }
+      // Also write each open graph to IndexedDB
+      if (Array.isArray(this.graphs)) {
+        this.graphs.forEach(g => {
+          graphStorage.saveGraph(g, g.folderId || 'root').catch(() => {});
+        });
       }
     }, 350);
   }
@@ -170,6 +235,7 @@ class MiliastraApp {
     } else {
       this.renderGraphTabs();
     }
+    this.persistGraphs();
   }
 
   renderGraphTabs() {
@@ -177,8 +243,9 @@ class MiliastraApp {
     if (!el) return;
     el.innerHTML = '';
     this.graphs.forEach((g, i) => {
+      const isCurrent = g === this.state;
       const tab = document.createElement('div');
-      tab.className = 'doc-tab active-graph-tab' + (g === this.state ? ' active' : '');
+      tab.className = 'doc-tab active-graph-tab' + (isCurrent ? ' active' : '');
       tab.title = g.name;
       tab.innerHTML = `
         <span class="tab-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="#98C379"><path d="M4 4h7v7H4zM13 13h7v7h-7z" fill="currentColor"/><path d="M14 7h4v4M10 17H6v-4" stroke="currentColor" stroke-width="2"/></svg></span>
@@ -202,8 +269,34 @@ class MiliastraApp {
       });
       el.appendChild(tab);
     });
+
+    // If currently editing a composite node subgraph, display a composite tab with close button
+    if (this.compositeManager && this.compositeManager.isEditingComposite()) {
+      const compNode = this.compositeManager.activeCompositeNode;
+      const compTab = document.createElement('div');
+      compTab.className = 'doc-tab active-graph-tab active composite-graph-tab';
+      compTab.title = `Composite Subgraph: ${compNode.name}`;
+      compTab.innerHTML = `
+        <span class="tab-icon" style="color:#88C0D0;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 4h7v7H4zM13 13h7v7h-7z"/></svg>
+        </span>
+        <span class="tab-title" style="color:#ECEFF4;font-weight:600;">${this.esc(compNode.name)} (Composite)</span>
+        <span class="tab-close-btn" title="Exit Composite Editor (Esc)">✕</span>`;
+      compTab.querySelector('.tab-close-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.compositeManager.exitCompositeNode();
+      });
+      el.appendChild(compTab);
+    }
+
     const t = document.getElementById('activeGraphTitle');
-    if (t) t.textContent = `${this.state.name} (Nodes)`;
+    if (t) {
+      if (this.compositeManager && this.compositeManager.isEditingComposite()) {
+        t.textContent = `${this.compositeManager.activeCompositeNode.name} (Composite)`;
+      } else {
+        t.textContent = `${this.state.name} (Nodes)`;
+      }
+    }
   }
 
   initLayout() {
@@ -218,10 +311,23 @@ class MiliastraApp {
             </svg>
           </div>
           <div class="menu-item" id="menuWindowBtn">Window</div>
+          <div class="menu-item" id="menuExplorerBtn">Explorer</div>
+          <div class="menu-item" id="menuCompositeBtn" title="Composite Nodes Menu">Composite ▾</div>
           <div class="menu-item" id="menuHelpBtn">Help</div>
           
+          <div class="window-dropdown-menu" id="compositeDropdown" style="display:none; left: 160px; min-width: 260px;">
+            <div class="dropdown-item" id="menuEditCompositeNode" style="color: #88C0D0; font-weight: 600;">✎ Edit Composite Node</div>
+            <div class="dropdown-item" id="menuGroupToComposite">⚏ Create Composite from Selection (Ctrl+G)</div>
+            <div class="dropdown-item" id="menuNewBlankComposite">+ Create Blank Composite Node</div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" id="menuExitCompositeEditor">◀ Exit to Main Graph (Esc)</div>
+          </div>
+
           <div class="window-dropdown-menu" id="windowDropdown" style="display:none;">
+            <div class="dropdown-item" id="menuNodeExplorer">Node Graph Explorer...</div>
+            <div class="dropdown-item" id="menuInspectNode" style="color: #38bdf8; font-weight: 600;">Inspect Node (Exploded View)...</div>
             <div class="dropdown-item" id="menuNewGraph">New Graph</div>
+            <div class="dropdown-item" id="menuCreateComposite" style="color: #88C0D0; font-weight: 600;">Create Composite Node (Ctrl+G)</div>
             <div class="dropdown-item" id="menuNodeGraphVars">Node Graph Variables...</div>
             <div class="dropdown-item" id="menuSignalExplorer">Server Signal Explorer (Signals)...</div>
             <div class="dropdown-item" id="menuImportGia">Import .gia Asset...</div>
@@ -274,17 +380,24 @@ class MiliastraApp {
           <div class="node-search-results" id="nodeSearchResults"></div>
         </div>
         <div class="floating-toolbar">
-          <button class="dock-btn" id="btnStepReset" title="Reset Flow / Simulator">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="19 20 9 12 19 4"/><rect x="5" y="4" width="2" height="16"/></svg>
-          </button>
-          <button class="dock-btn" id="btnToggleConsole" title="Toggle Console & Logs">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <button class="dock-btn dock-btn-comments" id="btnToggleComments" title="Notes & Comments Mode (C)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
           </button>
           <button class="dock-btn" id="btnAutoAlign" title="Snap Nodes to Grid">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/></svg>
           </button>
           <button class="dock-btn" id="btnWireStyle" title="Toggle Wire Style (Curved / Orthogonal)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c4-8 8-8 12 0s8 8 12 0"/></svg>
+          </button>
+
+          <button class="dock-btn dock-btn-explorer" id="btnOpenExplorer" title="Node Graph Explorer (Folders & Storage)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              <line x1="12" y1="11" x2="12" y2="17"/>
+              <line x1="9" y1="14" x2="15" y2="14"/>
+            </svg>
           </button>
 
           <button class="dock-btn dock-btn-signals" id="btnOpenSignals" title="Server Signal Explorer (Signals)">
@@ -299,6 +412,28 @@ class MiliastraApp {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor"/>
               <path d="M7 8h10M7 12h6M7 16h10" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <button class="dock-btn dock-btn-composite" id="btnCreateComposite" title="Create / Open Composite Node (Ctrl+G)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <circle cx="12" cy="5" r="2.8"/>
+              <circle cx="6.5" cy="17.5" r="2.8"/>
+              <circle cx="17.5" cy="17.5" r="2.8"/>
+              <line x1="12" y1="5" x2="6.5" y2="17.5" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="12" y1="5" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="6.5" y1="17.5" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </button>
+
+          <button class="dock-btn" id="btnOpenInspector" title="Inspect Node (Exploded Blueprint View)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/>
+              <circle cx="12" cy="12" r="3"/>
+              <line x1="12" y1="3" x2="12" y2="6"/>
+              <line x1="12" y1="18" x2="12" y2="21"/>
+              <line x1="3" y1="12" x2="6" y2="12"/>
+              <line x1="18" y1="12" x2="21" y2="12"/>
             </svg>
           </button>
           
@@ -429,12 +564,15 @@ class MiliastraApp {
       this.simulator.runSimulation();
     });
 
-    // Reset step
-    document.getElementById('btnStepReset').addEventListener('click', () => {
-      this.state.loadDefaultGenshinScene();
-      this.renderer.render();
-      this.simulator.log('Reset graph to default Miliastra Wonderland state.', 'info');
-    });
+    // Notes & Comments Mode Toggle
+    const btnToggleComments = document.getElementById('btnToggleComments');
+    if (btnToggleComments) {
+      btnToggleComments.addEventListener('click', () => {
+        if (this.commentsManager) {
+          this.commentsManager.toggleCommentingMode();
+        }
+      });
+    }
 
     // Undo / Redo
     document.getElementById('btnUndo').addEventListener('click', () => {
@@ -511,11 +649,6 @@ class MiliastraApp {
       }
     });
 
-    // Toggle console
-    document.getElementById('btnToggleConsole').addEventListener('click', () => {
-      this.toggleConsoleDrawer();
-    });
-
     // Open Signal Explorer from toolbar
     document.getElementById('btnOpenSignals').addEventListener('click', () => {
       this.signalExplorer.open();
@@ -525,6 +658,19 @@ class MiliastraApp {
     document.getElementById('btnOpenVariables').addEventListener('click', () => {
       this.nodeGraphVars.toggle();
     });
+
+    // Open Node Inspector from toolbar
+    const btnOpenInsp = document.getElementById('btnOpenInspector');
+    if (btnOpenInsp) {
+      btnOpenInsp.addEventListener('click', () => {
+        let targetNode = null;
+        if (this.state.selectedNodeIds && this.state.selectedNodeIds.size > 0) {
+          const selId = Array.from(this.state.selectedNodeIds)[0];
+          targetNode = this.state.nodes.find(n => n.id === selId);
+        }
+        this.nodeInspector.open(targetNode);
+      });
+    }
   }
 
   // Snap each node to the nearest grid point, keeping the existing layout shape.
@@ -679,15 +825,189 @@ class MiliastraApp {
   initWindowMenu() {
     const winBtn = document.getElementById('menuWindowBtn');
     const dropdown = document.getElementById('windowDropdown');
+    const compTopBtn = document.getElementById('menuCompositeBtn');
+    const compDropdown = document.getElementById('compositeDropdown');
+
+    const closeAllTopDropdowns = () => {
+      if (dropdown) dropdown.style.display = 'none';
+      if (compDropdown) compDropdown.style.display = 'none';
+    };
 
     winBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      const willOpen = dropdown.style.display === 'none';
+      closeAllTopDropdowns();
+      if (willOpen) {
+        dropdown.style.display = 'block';
+      }
     });
 
     window.addEventListener('click', () => {
-      dropdown.style.display = 'none';
+      closeAllTopDropdowns();
     });
+
+    const explorerBtn = document.getElementById('menuExplorerBtn');
+    if (explorerBtn) {
+      explorerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllTopDropdowns();
+        this.graphExplorer.toggle();
+      });
+    }
+
+    const menuNodeExp = document.getElementById('menuNodeExplorer');
+    if (menuNodeExp) {
+      menuNodeExp.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        this.graphExplorer.open();
+      });
+    }
+
+    const menuInsp = document.getElementById('menuInspectNode');
+    if (menuInsp) {
+      menuInsp.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        let targetNode = null;
+        if (this.state.selectedNodeIds && this.state.selectedNodeIds.size > 0) {
+          const selId = Array.from(this.state.selectedNodeIds)[0];
+          targetNode = this.state.nodes.find(n => n.id === selId);
+        }
+        this.nodeInspector.open(targetNode);
+      });
+    }
+
+    const dockExp = document.getElementById('btnOpenExplorer');
+    if (dockExp) {
+      dockExp.addEventListener('click', () => {
+        this.graphExplorer.toggle();
+      });
+    }
+
+    const handleCreateComposite = () => {
+      if (this.state.selectedNodeIds && this.state.selectedNodeIds.size > 0) {
+        // If a single composite node is selected, open it!
+        if (this.state.selectedNodeIds.size === 1) {
+          const selId = Array.from(this.state.selectedNodeIds)[0];
+          const node = this.state.nodes.find(n => n.id === selId);
+          if (node && node.isComposite) {
+            this.compositeManager.enterCompositeNode(node);
+            return;
+          }
+        }
+        this.compositeManager.createCompositeFromSelection(this.state);
+        this.renderer.render();
+      } else {
+        handleCreateBlankComposite(false);
+      }
+    };
+
+    const handleCreateBlankComposite = (autoOpen = false) => {
+      const rect = this.canvasContainer.getBoundingClientRect();
+      const center = this.renderer.screenToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      const compNode = this.compositeManager.createBlankCompositeNode(Math.round(center.x) - 100, Math.round(center.y) - 60, 'Composite Group');
+      this.state.nodes.push(compNode);
+      this.state.selectedNodeIds.clear();
+      this.state.selectedNodeIds.add(compNode.id);
+      this.state.notify('node_created');
+      this.renderer.render();
+      this.simulator.log(`Created new Composite Node: "${compNode.name}". Double-click to open.`, 'success');
+      if (autoOpen) {
+        this.compositeManager.enterCompositeNode(compNode);
+      }
+    };
+
+    if (compTopBtn && compDropdown) {
+      compTopBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = compDropdown.style.display === 'none';
+        closeAllTopDropdowns();
+
+        if (willOpen) {
+          // Update dropdown item labels based on current context before opening
+          const editItem = document.getElementById('menuEditCompositeNode');
+          const selectedCompNode = this.state.nodes.find(n => n.isComposite && this.state.selectedNodeIds.has(n.id));
+          const firstCompNode = selectedCompNode || this.state.nodes.find(n => n.isComposite);
+
+          if (editItem) {
+            if (this.compositeManager && this.compositeManager.isEditingComposite()) {
+              editItem.textContent = `✎ Already Editing: ${this.compositeManager.activeCompositeNode.name}`;
+              editItem.style.opacity = '0.6';
+            } else if (firstCompNode) {
+              editItem.textContent = `✎ Edit Composite Node: "${firstCompNode.name}"`;
+              editItem.style.opacity = '1';
+            } else {
+              editItem.textContent = `✎ Edit Composite Node (None on canvas - click to create)`;
+              editItem.style.opacity = '0.8';
+            }
+          }
+
+          const exitItem = document.getElementById('menuExitCompositeEditor');
+          if (exitItem) {
+            exitItem.style.display = (this.compositeManager && this.compositeManager.isEditingComposite()) ? 'flex' : 'none';
+          }
+
+          compDropdown.style.display = 'block';
+        }
+      });
+    }
+
+    const editCompBtn = document.getElementById('menuEditCompositeNode');
+    if (editCompBtn) {
+      editCompBtn.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        if (this.compositeManager && this.compositeManager.isEditingComposite()) return;
+        let targetComp = this.state.nodes.find(n => n.isComposite && this.state.selectedNodeIds.has(n.id));
+        if (!targetComp) {
+          targetComp = this.state.nodes.find(n => n.isComposite);
+        }
+        if (targetComp) {
+          this.compositeManager.enterCompositeNode(targetComp);
+        } else {
+          handleCreateBlankComposite(true);
+        }
+      });
+    }
+
+    const groupCompBtn = document.getElementById('menuGroupToComposite');
+    if (groupCompBtn) {
+      groupCompBtn.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        handleCreateComposite();
+      });
+    }
+
+    const newBlankCompBtn = document.getElementById('menuNewBlankComposite');
+    if (newBlankCompBtn) {
+      newBlankCompBtn.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        handleCreateBlankComposite(false);
+      });
+    }
+
+    const exitCompBtn = document.getElementById('menuExitCompositeEditor');
+    if (exitCompBtn) {
+      exitCompBtn.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        if (this.compositeManager && this.compositeManager.isEditingComposite()) {
+          this.compositeManager.exitCompositeNode();
+        }
+      });
+    }
+
+    const compMenuBtn = document.getElementById('menuCreateComposite');
+    if (compMenuBtn) {
+      compMenuBtn.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        handleCreateComposite();
+      });
+    }
+
+    const dockCompBtn = document.getElementById('btnCreateComposite');
+    if (dockCompBtn) {
+      dockCompBtn.addEventListener('click', () => {
+        handleCreateComposite();
+      });
+    }
 
     document.getElementById('menuNewGraph').addEventListener('click', async () => {
       const name = await this.promptGraphName();
@@ -913,6 +1233,62 @@ class MiliastraApp {
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         GiaCodec.exportToFile(this.state, 'gia');
+      }
+      // Create Composite Node: Ctrl+G
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (this.state.selectedNodeIds.size > 0) {
+          this.compositeManager.createCompositeFromSelection(this.state);
+          this.renderer.render();
+        } else {
+          const targetPos = this.renderer.lastMouseCanvasPos || { x: 300, y: 300 };
+          const compNode = this.compositeManager.createBlankCompositeNode(targetPos.x, targetPos.y, 'Composite Group');
+          this.state.nodes.push(compNode);
+          this.state.selectedNodeIds.clear();
+          this.state.selectedNodeIds.add(compNode.id);
+          this.state.notify('node_created');
+          this.renderer.render();
+          if (this.simulator) {
+            this.simulator.log(`Created Composite Node: "${compNode.name}" (Ctrl+G). Double-click to open.`, 'success');
+          }
+        }
+      }
+      // Toggle Notes & Comments Mode: 'C' key without modifier
+      else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'c') {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        const activeTag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable ||
+            activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || document.activeElement?.isContentEditable) {
+          return;
+        }
+        if (this.commentsManager) {
+          e.preventDefault();
+          this.commentsManager.toggleCommentingMode();
+        }
+      }
+      // Escape key: exit comments mode, cancel merge mode or exit composite node
+      else if (e.key === 'Escape') {
+        if (this.commentsManager && this.commentsManager.commentMode) {
+          this.commentsManager.setCommentingMode(false);
+          return;
+        }
+        if (this.compositeManager && this.compositeManager.isEditingComposite()) {
+          if (this.compositeManager.mergeMode) {
+            this.compositeManager.cancelMergeMode();
+          } else {
+            this.compositeManager.exitCompositeNode();
+          }
+        }
+      }
+      // Enter key: open selected composite node
+      else if (e.key === 'Enter' && !e.target.closest('input, textarea, select')) {
+        if (!this.compositeManager || !this.compositeManager.isEditingComposite()) {
+          const compNode = this.state.nodes.find(n => n.isComposite && this.state.selectedNodeIds.has(n.id));
+          if (compNode) {
+            e.preventDefault();
+            this.compositeManager.enterCompositeNode(compNode);
+          }
+        }
       }
     });
   }

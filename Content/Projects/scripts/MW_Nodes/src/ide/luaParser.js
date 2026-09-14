@@ -203,7 +203,11 @@ class _LuaParser {
   }
   dataOutputPin(node) {
     const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
-    if (bp && Array.isArray(bp.outputs) && bp.outputs.length) return bp.outputs[0].name;
+    if (bp && Array.isArray(bp.outputs) && bp.outputs.length) {
+      const preferred = bp.outputs.find(o => o.name === 'Result' || o.name === 'Value');
+      if (preferred) return preferred.name;
+      return bp.outputs[0].name;
+    }
     return 'Value';
   }
   placeData(n) { n.x = 80; n.y = this.y; this.y += 180; }
@@ -266,6 +270,22 @@ class _LuaParser {
 
   argToValue(group) {
     if (!group || group.length === 0) return { isLit: true, value: '' };
+    group = group.filter(t => t.t !== 'ln');
+    if (group.length === 0) return { isLit: true, value: '' };
+
+    while (group.length >= 2 && group[0].t === '(' && group[group.length - 1].t === ')') {
+      let d = 0;
+      let matched = true;
+      for (let k = 0; k < group.length - 1; k++) {
+        if (group[k].t === '(') d++;
+        else if (group[k].t === ')') d--;
+        if (d === 0) { matched = false; break; }
+      }
+      if (matched) group = group.slice(1, -1);
+      else break;
+    }
+    if (group.length === 0) return { isLit: true, value: '' };
+
     if (group[0].t === '{') {
       const nums = group.filter(t => t.t === 'num').map(t => Number(t.v) || 0);
       return { isLit: true, value: `(${nums.join(',')})` };
@@ -288,6 +308,10 @@ class _LuaParser {
     if (t.t === 'str') return { isLit: true, value: t.v };
     if (t.t === 'num') return { isLit: true, value: t.v };
     if (t.t === 'id') {
+      const lv = t.v.toLowerCase();
+      if (lv === 'true' || lv === 'false') {
+        return { isLit: true, value: lv };
+      }
       const ev = this.varToEvent.get(t.v);
       if (ev) return { isEvent: true, evId: ev.evId, pin: ev.pin };
       const nd = this.varToNode.get(t.v);
@@ -313,20 +337,22 @@ class _LuaParser {
   }
 
   coerce(node, pin, raw) {
-    // Raw Lua booleans should always land as graph bools (1/0), regardless of
-    // whether the pin carries a typed bool in the blueprint (some toggles like
-    // Trigger Event values arrive as bare true/false from the user).
     const s0 = String(raw ?? '').trim().toLowerCase();
-    if (s0 === 'true') return '1';
-    if (s0 === 'false') return '0';
     const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
-    let type = null;
+    let inp = null;
     if (bp && Array.isArray(bp.inputs)) {
-      const inp = bp.inputs.find(i => i.name === pin);
-      if (inp && inp.type) type = inp.type;
+      inp = bp.inputs.find(i => i.name === pin);
     }
-    if (type === 'bool') {
-      return (s0 === '1' || s0 === 'yes' || s0 === 'on') ? '1' : '0';
+    const isBool = (inp && inp.type === 'bool') || (node.pinTypes && node.pinTypes[pin] === 'bool') || s0 === 'true' || s0 === 'false';
+    if (isBool) {
+      const isTruthy = s0 === '1' || s0 === 'true' || s0 === 'yes' || s0 === 'on';
+      if (inp?.options && inp.options.includes('True') && inp.options.includes('False')) {
+        return isTruthy ? 'True' : 'False';
+      }
+      if (inp?.options && inp.options.includes('Yes') && inp.options.includes('No')) {
+        return isTruthy ? 'Yes' : 'No';
+      }
+      return isTruthy ? 'True' : 'False';
     }
     return raw;
   }
@@ -497,9 +523,9 @@ class _LuaParser {
     if (eq >= 0) return this.parseMultiBranch(cond, eq);
 
     const node = this.makeNode('flow_double_branch', 'Double Branch', 'flow');
-    this.applyControl(node, cond, 'Condition');
     const id = this.readNodeId();
     if (id && !this.takenIds.has(id)) { node.id = id; this.takenIds.add(id); }
+    this.applyControl(node, cond, 'Condition');
     this.placeFlow(node);
     this.nodes.push(node);
 

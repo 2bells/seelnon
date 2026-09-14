@@ -11,7 +11,9 @@
 
 .node-library-panel {
   width: 280px;
-  max-height: calc(100vh - 160px);
+  height: calc(100vh - 140px);
+  min-height: 360px;
+  max-height: calc(100vh - 140px);
   background: rgba(28, 32, 40, 0.95);
   backdrop-filter: blur(12px);
   border: 1px solid #333a4a;
@@ -20,13 +22,13 @@
   display: flex;
   flex-direction: column;
   pointer-events: auto;
-  transition: all 0.2s ease;
   overflow: hidden;
 }
 
 .node-library-panel.minimized {
-  max-height: 38px;
-  height: 38px;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
 }
 
 .node-library-panel.minimized .library-header {
@@ -365,5 +367,54 @@
 
 .library-node-item:hover .node-quick-add {
   opacity: 1;
+}
+
+/* Favorited node indicator (yellow/orange subtle outline around circle) */
+.node-bullet.favorited-bullet {
+  box-shadow: 0 0 0 1.5px #f5a723, 0 0 4px rgba(245, 167, 35, 0.45);
+}
+
+/* Right-click context menu in library */
+.lib-context-menu {
+  position: fixed;
+  background: #1c202a;
+  border: 1px solid #363d4e;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
+  padding: 4px 0;
+  z-index: 10000;
+  min-width: 170px;
+}
+
+.lib-context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: #cbd1de;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  user-select: none;
+}
+
+.lib-context-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.lib-context-item.item-fav {
+  color: #f5a723;
+}
+
+.lib-context-item.item-fav:hover {
+  background: rgba(245, 167, 35, 0.12);
+  color: #ffd066;
+}
+
+.lib-context-divider {
+  height: 1px;
+  background: #2b3242;
+  margin: 3px 0;
 }
 

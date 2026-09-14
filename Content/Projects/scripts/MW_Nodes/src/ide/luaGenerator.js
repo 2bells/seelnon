@@ -52,7 +52,10 @@ function fnName(n) {
 
 function shortLiteral(v) {
   if (v == null) return "''";
-  const s = String(v);
+  const s = String(v).trim();
+  const lower = s.toLowerCase();
+  if (lower === 'true' || lower === 'yes' || lower === 'on') return 'true';
+  if (lower === 'false' || lower === 'no' || lower === 'off') return 'false';
   if (/^-?[0-9]+(\.[0-9]+)?$/.test(s)) return s;
   return `'${s.replace(/'/g, "\\'")}'`;
 }
@@ -305,7 +308,12 @@ class _LuaGen {
       return this.call(this.byId.get(w.fromNode)) || 'true';
     }
     const lit = node.inputValues?.['Condition'] ?? node.inputValues?.['Control Expression'];
-    if (lit != null) return shortLiteral(lit);
+    if (lit != null) {
+      const s = String(lit).trim().toLowerCase();
+      if (s === 'true' || s === '1' || s === 'yes' || s === 'on') return 'true';
+      if (s === 'false' || s === '0' || s === 'no' || s === 'off') return 'false';
+      return shortLiteral(lit);
+    }
     return 'true';
   }
 
@@ -398,6 +406,8 @@ class _LuaGen {
     if (type === 'bool' || (node.pinTypes && node.pinTypes[p] === 'bool')) return this.boolLit(val);
     if (type === 'vector3' || (node.pinTypes && node.pinTypes[p] === 'vector3')) return this.vec3Lit(val);
     if (type === 'string') return this.strLit(val);
+    const s = String(val ?? '').trim().toLowerCase();
+    if (s === 'true' || s === 'false') return s;
     return this.literal(val);
   }
 

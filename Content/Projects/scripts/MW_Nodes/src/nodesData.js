@@ -71,9 +71,9 @@ export const CATEGORIES = {
   composite: {
     id: 'composite',
     name: 'Composite Node',
-    count: 2,
-    headerColor: '#8C63B8', // Purple
-    accentColor: '#8C63B8',
+    count: 3,
+    headerColor: '#B8B8D0', // Lavender periwinkle-grey from Miliastra
+    accentColor: '#B8B8D0',
     iconType: 'composite-tri'
   }
 };
@@ -116,54 +116,158 @@ export const DATA_TYPES = [
   { id: 'prefab_id', label: 'Prefab ID', color: PIN_COLORS.prefab_id, desc: 'Object prefab asset ID' }
 ];
 
-export const COMPOSITE_NODES = [
+export const BASE_COMPOSITE_NODES = [
   {
-    id: 'comp_subgraph',
-    name: 'Composite Node',
+    id: 'composite_node',
+    name: 'Create Composite Node',
     category: 'composite',
-    folder: 'Subgraphs',
-    description: 'Encapsulated sub-graph logic container.',
+    folder: 'Composite Nodes',
+    description: 'Blank encapsulated composite node group with customizable pins.',
     execIn: true,
     execOut: true,
-    inputs: [
-      { name: 'In Data', type: 'generic' }
-    ],
-    outputs: [
-      { name: 'Out Data', type: 'generic' }
-    ]
-  },
-  {
-    id: 'comp_macro',
-    name: 'Custom Macro Node',
-    category: 'composite',
-    folder: 'Macros',
-    description: 'Reusable macro logic block.',
-    execIn: true,
-    execOut: true,
-    inputs: [
-      { name: 'Params', type: 'generic' }
-    ],
-    outputs: [
-      { name: 'Result', type: 'generic' }
-    ]
+    inputs: [],
+    outputs: []
   }
 ];
 
-export const NODE_REGISTRY = [
-  ...ALL_SERVER_NODES,
-  ...COMPOSITE_NODES
-];
+const customCompositeMap = new Map();
+
+export function loadSavedCustomComposites() {
+  try {
+    const raw = localStorage.getItem('miliastra.compositeDefinitions');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        arr.forEach(c => {
+          if (c && c.name && c.name !== 'Create Composite Node') {
+            registerCustomCompositeNode(c, false);
+          }
+        });
+      }
+    }
+  } catch (e) {}
+}
+
+export function saveCustomComposites() {
+  try {
+    const unique = getCustomCompositeNodes();
+    localStorage.setItem('miliastra.compositeDefinitions', JSON.stringify(unique));
+  } catch (e) {}
+}
+
+export function registerCustomCompositeNode(comp, persist = true) {
+  if (!comp || !comp.name) return null;
+  // Don't duplicate the base creator node
+  if (comp.name === 'Create Composite Node' && !comp.compositePins) return null;
+
+  const id = comp.blueprintId && comp.blueprintId.startsWith('comp_custom_') 
+    ? comp.blueprintId 
+    : (comp.id && comp.id.startsWith('comp_custom_') ? comp.id : ('comp_custom_' + comp.name.toLowerCase().replace(/[^a-z0-9_]/g, '_')));
+  
+  const inPins = (comp.compositePins || []).filter(p => p.direction === 'input');
+  const outPins = (comp.compositePins || []).filter(p => p.direction === 'output');
+
+  const hasExecIn = inPins.some(p => p.kind === 'exec');
+  const hasExecOut = outPins.some(p => p.kind === 'exec');
+
+  const inputs = inPins.filter(p => p.kind !== 'exec').map(p => ({
+    name: p.name || `Input ${p.index}`,
+    type: p.type || 'generic',
+    hint: p.hint || ''
+  }));
+
+  const outputs = outPins.filter(p => p.kind !== 'exec').map(p => ({
+    name: p.name || `Output ${p.index}`,
+    type: p.type || 'generic',
+    hint: p.hint || ''
+  }));
+
+  const entry = {
+    id: id,
+    name: comp.name,
+    category: 'composite',
+    folder: comp.compositeCategory || 'Custom Subgraphs',
+    description: comp.description || `Composite Subgraph (${inPins.length} in, ${outPins.length} out)`,
+    isComposite: true,
+    compositeCategory: comp.compositeCategory || 'Uncategorized Tab',
+    compositePins: JSON.parse(JSON.stringify(comp.compositePins || [])),
+    subgraph: JSON.parse(JSON.stringify(comp.subgraph || { nodes: [], wires: [] })),
+    execIn: hasExecIn,
+    execOut: hasExecOut,
+    inputs: inputs,
+    outputs: outputs
+  };
+
+  customCompositeMap.set(id, entry);
+  customCompositeMap.set(comp.name.toLowerCase().trim(), entry);
+
+  updateCompositeCount();
+  if (persist) {
+    saveCustomComposites();
+  }
+  return entry;
+}
+
+export function unregisterCustomCompositeNode(idOrName) {
+  if (!idOrName) return;
+  const target = String(idOrName).toLowerCase().trim();
+  const found = customCompositeMap.get(idOrName) || customCompositeMap.get(target);
+  if (found) {
+    customCompositeMap.delete(found.id);
+    customCompositeMap.delete(found.name.toLowerCase().trim());
+  }
+  updateCompositeCount();
+  saveCustomComposites();
+}
+
+export function getCustomCompositeNodes() {
+  const seen = new Set();
+  const list = [];
+  for (const item of customCompositeMap.values()) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      list.push(item);
+    }
+  }
+  return list;
+}
+
+export function getAllCompositeNodes() {
+  return [...BASE_COMPOSITE_NODES, ...getCustomCompositeNodes()];
+}
+
+export function updateCompositeCount() {
+  CATEGORIES.composite.count = getAllCompositeNodes().length;
+}
+
+export function getAllNodes() {
+  return [...ALL_SERVER_NODES, ...getAllCompositeNodes()];
+}
+
+// Initial load of custom composites
+loadSavedCustomComposites();
+updateCompositeCount();
+
+export const COMPOSITE_NODES = getAllCompositeNodes();
+
+export const NODE_REGISTRY = getAllNodes();
 
 // Helper to look up a node blueprint by ID or Name (resilient matching)
 export function getNodeBlueprint(idOrName) {
   if (!idOrName) return null;
   const target = String(idOrName).toLowerCase().trim();
-  let found = NODE_REGISTRY.find(n => n.id === idOrName || (n.name && n.name.toLowerCase() === target));
+
+  // Check custom composite nodes first
+  if (customCompositeMap.has(idOrName)) return customCompositeMap.get(idOrName);
+  if (customCompositeMap.has(target)) return customCompositeMap.get(target);
+
+  const all = getAllNodes();
+  let found = all.find(n => n.id === idOrName || (n.name && n.name.toLowerCase() === target));
   if (found) return found;
 
   // Normalized matching (removes slashes, underscores, hyphens, and whitespace)
   const norm = target.replace(/[\/\-_\s]/g, '');
-  found = NODE_REGISTRY.find(n => {
+  found = all.find(n => {
     const nNorm = n.name ? n.name.replace(/[\/\-_\s]/g, '').toLowerCase() : '';
     const idNorm = n.id ? n.id.replace(/[\/\-_\s]/g, '').toLowerCase() : '';
     return nNorm === norm || idNorm === norm || idNorm.endsWith(norm) || norm.endsWith(idNorm);

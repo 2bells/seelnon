@@ -3,7 +3,7 @@
  * Instant keyboard-driven popup menu to search & place nodes directly at the mouse cursor.
  */
 
-import { NODE_REGISTRY, CATEGORIES } from './nodesData.js';
+import { getAllNodes, CATEGORIES } from './nodesData.js';
 
 function parseFolderNumber(folderStr) {
   if (!folderStr) return null;
@@ -35,6 +35,7 @@ export class QuickSpawner {
     this.spawnCanvasY = 0;
     this.pendingWireConnection = null;
     this.selectedIndex = 0;
+    this.selectedCategoryIndex = 0;
     this.filteredResults = [];
     this.selectedCategory = null;
 
@@ -70,6 +71,56 @@ export class QuickSpawner {
     });
 
     this.input.addEventListener('keydown', (e) => {
+      const query = this.input.value.trim();
+      const isCategoriesView = !this.selectedCategory && !query;
+      const categoriesList = Object.values(CATEGORIES);
+
+      if (isCategoriesView) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          this.selectedCategoryIndex = (this.selectedCategoryIndex + 2) % categoriesList.length;
+          this.highlightSelectedCategory();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          this.selectedCategoryIndex = (this.selectedCategoryIndex - 2 + categoriesList.length) % categoriesList.length;
+          this.highlightSelectedCategory();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          this.selectedCategoryIndex = (this.selectedCategoryIndex + 1) % categoriesList.length;
+          this.highlightSelectedCategory();
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.selectedCategoryIndex = (this.selectedCategoryIndex - 1 + categoriesList.length) % categoriesList.length;
+          this.highlightSelectedCategory();
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          const step = e.shiftKey ? -1 : 1;
+          this.selectedCategoryIndex = (this.selectedCategoryIndex + step + categoriesList.length) % categoriesList.length;
+          this.highlightSelectedCategory();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const chosenCat = categoriesList[this.selectedCategoryIndex];
+          if (chosenCat) {
+            this.selectedCategory = chosenCat.id;
+            this.selectedIndex = 0;
+            this.input.focus();
+            this.updateResults();
+          }
+        } else if (e.key === 'Escape') {
+          this.close();
+        }
+        return;
+      }
+
+      if (e.key === 'Backspace' && !query && this.selectedCategory) {
+        // Return to categories view on backspace in empty query
+        this.selectedCategory = null;
+        this.selectedCategoryIndex = 0;
+        this.selectedIndex = 0;
+        this.updateResults();
+        return;
+      }
+
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         if (this.filteredResults.length > 0) {
@@ -88,7 +139,13 @@ export class QuickSpawner {
           this.spawnNode(this.filteredResults[this.selectedIndex]);
         }
       } else if (e.key === 'Escape') {
-        this.close();
+        if (this.selectedCategory) {
+          this.selectedCategory = null;
+          this.selectedCategoryIndex = 0;
+          this.updateResults();
+        } else {
+          this.close();
+        }
       }
     });
 
@@ -100,7 +157,16 @@ export class QuickSpawner {
 
     // Spacebar to open quick spawner at current cursor
     window.addEventListener('keydown', (e) => {
-      if (e.key === ' ' && !this.isOpen && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA' && !e.target.closest('.ide-container')) {
+      if (e.key === ' ' && !this.isOpen) {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        const activeTag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable ||
+            activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || document.activeElement?.isContentEditable ||
+            e.target.closest('.ide-container') || document.activeElement?.closest('.ide-container') ||
+            e.target.closest('.comment-tray') || document.activeElement?.closest('.comment-tray') ||
+            e.target.closest('.note-bubble') || document.activeElement?.closest('.note-bubble')) {
+          return;
+        }
         e.preventDefault();
         const rect = this.renderer.container.getBoundingClientRect();
         const screenX = Math.max(rect.left + 50, Math.min(rect.right - 350, window.lastMouseX || (rect.left + rect.width / 2)));
@@ -122,6 +188,7 @@ export class QuickSpawner {
     this.spawnCanvasY = canvasY;
     this.pendingWireConnection = pendingWire;
     this.selectedCategory = null;
+    this.selectedCategoryIndex = 0;
 
     // Position modal safely inside viewport
     const modalW = 340;
@@ -142,6 +209,7 @@ export class QuickSpawner {
 
     this.input.value = '';
     this.selectedIndex = 0;
+    this.selectedCategoryIndex = 0;
     this.updateResults();
 
     setTimeout(() => {
@@ -161,7 +229,7 @@ export class QuickSpawner {
 
   updateResults() {
     const query = this.input.value.trim().toLowerCase();
-    let results = NODE_REGISTRY;
+    let results = getAllNodes();
 
     // Filter compatible nodes if dragging wire
     if (this.pendingWireConnection) {
@@ -206,9 +274,11 @@ export class QuickSpawner {
       const grid = document.createElement('div');
       grid.className = 'spawner-categories-grid';
 
-      Object.values(CATEGORIES).forEach(cat => {
+      const catList = Object.values(CATEGORIES);
+      catList.forEach((cat, idx) => {
         const card = document.createElement('div');
-        card.className = 'spawner-category-card';
+        card.className = `spawner-category-card ${idx === this.selectedCategoryIndex ? 'active' : ''}`;
+        card.dataset.index = idx;
         card.style.borderColor = cat.headerColor + '44';
         card.innerHTML = `
           <div class="spawner-cat-indicator" style="background:${cat.headerColor}"></div>
@@ -217,8 +287,13 @@ export class QuickSpawner {
             <span class="spawner-cat-count">${cat.count} nodes</span>
           </div>
         `;
+        card.addEventListener('mouseenter', () => {
+          this.selectedCategoryIndex = idx;
+          this.highlightSelectedCategory();
+        });
         card.addEventListener('click', () => {
           this.selectedCategory = cat.id;
+          this.selectedIndex = 0;
           this.input.focus();
           this.updateResults();
         });
@@ -226,6 +301,7 @@ export class QuickSpawner {
       });
 
       this.resultsList.appendChild(grid);
+      this.scrollToSelectedCategory();
       return;
     }
 
@@ -242,6 +318,7 @@ export class QuickSpawner {
         bar.querySelector('.spawner-cat-back-btn').addEventListener('click', (e) => {
           e.stopPropagation();
           this.selectedCategory = null;
+          this.selectedCategoryIndex = 0;
           this.input.value = '';
           this.input.focus();
           this.updateResults();
@@ -287,6 +364,25 @@ export class QuickSpawner {
     });
 
     this.scrollToSelected();
+  }
+
+  highlightSelectedCategory() {
+    const cards = this.resultsList.querySelectorAll('.spawner-category-card');
+    cards.forEach((card, idx) => {
+      if (idx === this.selectedCategoryIndex) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    });
+    this.scrollToSelectedCategory();
+  }
+
+  scrollToSelectedCategory() {
+    const active = this.resultsList.querySelector('.spawner-category-card.active');
+    if (active) {
+      active.scrollIntoView({ block: 'nearest' });
+    }
   }
 
   highlightSelected() {

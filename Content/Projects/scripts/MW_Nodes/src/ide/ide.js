@@ -458,6 +458,7 @@ export class MiliastraIde {
           idMap.set(pn.id, existing.id);
         } else {
           const custom = {
+            id: pn.id,
             inputValues: pn.inputValues || {},
             dataType: pn.dataType,
           };
@@ -480,16 +481,98 @@ export class MiliastraIde {
         }
       }
 
-      // 2) Wires: only ADD edges the code expresses (addWire dedups). Never drop
-      //    existing wires — positional Lua args aren't a faithful delete signal.
-      //    (Additive-only: removals are graph-driven in the canvas, or on Reset.)
-      const edgeKey = w => `${w.fromNode}|${w.fromPin}|${w.toNode}|${w.toPin}|${w.isExec ? 1 : 0}`;
-      for (const w of parsed.wires) {
-        const fn = idMap.get(w.fromNode) ?? w.fromNode;
-        const tn = idMap.get(w.toNode) ?? w.toNode;
-        const k = `${fn}|${w.fromPin}|${tn}|${w.toPin}|${w.isExec ? 1 : 0}`;
-        const exists = state.wires.some(x => edgeKey(x) === k);
-        if (!exists) state.addWire(fn, w.fromPin, tn, w.toPin, w.isExec);
+      // 2) Wires: Lua code is the primary source of truth for the statements it controls.
+      // - If code wires an input pin to a variable, connect that wire and remove any conflicting wire.
+      // - If code specifies a literal or leaves an input pin unwired, remove any incoming data wire to that pin.
+      // - If code changes execution flow or drops a branch statement, remove stale exec wires from that pin.
+      const desiredWires = (parsed.wires || []).map(w => ({
+        fromNode: idMap.get(w.fromNode) ?? w.fromNode,
+        fromPin: w.fromPin,
+        toNode: idMap.get(w.toNode) ?? w.toNode,
+        toPin: w.toPin,
+        isExec: !!w.isExec
+      }));
+
+      const codeNodeIds = new Set(parsed.nodes.map(pn => idMap.get(pn.id) ?? pn.id));
+
+      for (const pn of parsed.nodes) {
+        const nodeId = idMap.get(pn.id) ?? pn.id;
+        const node = state.nodes.find(n => n.id === nodeId);
+        if (!node) continue;
+        const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+
+        // A) Data input pins governed by this node in the code
+        const inputPins = new Set();
+        if (bp && Array.isArray(bp.inputs)) {
+          bp.inputs.forEach(i => inputPins.add(i.name));
+        }
+        if (node.customInputs && Array.isArray(node.customInputs)) {
+          node.customInputs.forEach(c => c && c.name && inputPins.add(c.name));
+        }
+        if (bp?.id === 'flow_double_branch') inputPins.add('Condition');
+        if (bp?.id === 'flow_multiple_branches') inputPins.add('Control Expression');
+        if (pn.inputValues) {
+          Object.keys(pn.inputValues).forEach(k => inputPins.add(k));
+        }
+
+        for (const pinName of inputPins) {
+          const desiredWire = desiredWires.find(w => !w.isExec && w.toNode === nodeId && w.toPin === pinName);
+          if (desiredWire) {
+            state.wires = state.wires.filter(w => {
+              if (!w.isExec && w.toNode === nodeId && w.toPin === pinName) {
+                return w.fromNode === desiredWire.fromNode && w.fromPin === desiredWire.fromPin;
+              }
+              return true;
+            });
+          } else {
+            state.wires = state.wires.filter(w => !(w.toNode === nodeId && w.toPin === pinName && !w.isExec));
+          }
+        }
+
+        // B) Exec output pins governed by this node in the code
+        const execOutPins = new Set();
+        if (bp?.id === 'flow_double_branch') {
+          execOutPins.add('Yes');
+          execOutPins.add('No');
+        } else if (bp?.id === 'flow_multiple_branches') {
+          const branches = node.dynamicBranches || ['Branch 0', 'Branch 1', 'Branch 2', 'Default'];
+          branches.forEach(b => execOutPins.add(b));
+        } else if (node.category === 'event' || bp?.execOut === true) {
+          execOutPins.add('execOut');
+        } else if (Array.isArray(bp?.execOut)) {
+          bp.execOut.forEach(p => execOutPins.add(p));
+        }
+
+        for (const outPin of execOutPins) {
+          const desiredExec = desiredWires.find(w => w.isExec && w.fromNode === nodeId && w.fromPin === outPin);
+          if (desiredExec) {
+            state.wires = state.wires.filter(w => {
+              if (w.isExec && w.fromNode === nodeId && w.fromPin === outPin) {
+                return w.toNode === desiredExec.toNode && w.toPin === desiredExec.toPin;
+              }
+              return true;
+            });
+          } else {
+            state.wires = state.wires.filter(w => !(w.fromNode === nodeId && w.fromPin === outPin && w.isExec));
+          }
+        }
+      }
+
+      // C) Add all desired wires that don't already exist
+      for (const w of desiredWires) {
+        const exists = state.wires.some(x =>
+          x.fromNode === w.fromNode && x.fromPin === w.fromPin &&
+          x.toNode === w.toNode && x.toPin === w.toPin &&
+          !!x.isExec === w.isExec
+        );
+        if (!exists) {
+          state.addWire(w.fromNode, w.fromPin, w.toNode, w.toPin, w.isExec);
+        }
+      }
+
+      // D) Re-evaluate dynamic pin types for any affected nodes
+      for (const nodeId of codeNodeIds) {
+        state.refreshNodePinTypes?.(nodeId);
       }
     } catch (err) {
       this.log(`✗ could not apply code → graph: ${err.message}`, 'error');

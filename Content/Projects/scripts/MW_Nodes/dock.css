@@ -211,9 +211,11 @@
   transition: all 0.15s ease;
 }
 
-.spawner-category-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #525c75;
+.spawner-category-card:hover,
+.spawner-category-card.active {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: #e5c07b !important;
+  box-shadow: 0 0 0 1px rgba(229, 192, 123, 0.6), 0 4px 12px rgba(0, 0, 0, 0.35);
   transform: translateY(-1px);
 }
 
@@ -464,3 +466,57 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+
+/* Inline "name your node graph" prompt */
+.graph-name-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 13, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.graph-name-modal {
+  width: min(360px, 90vw);
+  background: #1e2530;
+  border: 1px solid #3b4252;
+  border-radius: 8px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.graph-name-title {
+  color: #e5c07b;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.graph-name-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #14181f;
+  color: #e6e6e6;
+  border: 1px solid #3b4252;
+  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+}
+.graph-name-input:focus { border-color: #98c379; }
+.graph-name-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.gn-btn {
+  border: none;
+  border-radius: 5px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.gn-ok { background: #98c379; color: #1b1f26; font-weight: 600; }
+.gn-ok:hover { background: #b0d78f; }
+.gn-cancel { background: #3b4252; color: #c8ccd4; }
+.gn-cancel:hover { background: #4c5566; }

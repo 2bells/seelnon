@@ -3,7 +3,7 @@
  * Right-side dockable panel with high-speed search, category trees, sorting container, and drag & drop.
  */
 
-import { CATEGORIES, NODE_REGISTRY, getNodeBlueprint } from './nodesData.js';
+import { CATEGORIES, getAllNodes, getAllCompositeNodes, getNodeBlueprint, registerCustomCompositeNode } from './nodesData.js';
 
 export class NodeLibrary {
   constructor(container, graphState, renderer) {
@@ -15,13 +15,18 @@ export class NodeLibrary {
     this.selectedCategory = 'all';
     this.sortOrder = 'default';
 
-    this.expandedCategories = new Set(['execution', 'event', 'flow', 'query', 'operation']);
+    this.favorites = this.loadFavorites();
+    this.activeContextMenu = null;
+
+    this.expandedCategories = new Set(['execution', 'event', 'flow', 'query', 'operation', 'composite']);
     this.expandedFolders = new Set([
       'execution:I. Common Nodes',
       'event:I. Custom Variables',
       'flow:I. General',
       'operation:I. General',
-      'query:I. General'
+      'query:I. General',
+      'composite:Composite Nodes',
+      'composite:Custom Subgraphs'
     ]);
 
     // Track explicit user collapse/expand overrides (persisting during active search)
@@ -32,6 +37,81 @@ export class NodeLibrary {
 
     this.initDOM();
     this.renderList();
+
+    // Auto-sync with state changes (e.g. composite nodes created/renamed)
+    if (this.state && this.state.subscribe) {
+      this.state.subscribe(() => {
+        this.syncStateCompositeNodes();
+      });
+    }
+  }
+
+  syncStateCompositeNodes() {
+    if (!this.state || !Array.isArray(this.state.nodes)) return;
+    let hasCompositeChanges = false;
+    this.state.nodes.forEach(n => {
+      if (n && n.isComposite && n.name && n.name !== 'Create Composite Node') {
+        registerCustomCompositeNode(n, true);
+        hasCompositeChanges = true;
+      }
+    });
+    if (hasCompositeChanges) {
+      this.updateCategoryOptions();
+      this.renderList();
+    }
+  }
+
+  loadFavorites() {
+    try {
+      const raw = localStorage.getItem('miliastra.favoriteNodes');
+      if (raw) {
+        return new Set(JSON.parse(raw));
+      }
+    } catch (e) {}
+    // Clean initial set without fake mock data
+    return new Set();
+  }
+
+  saveFavorites() {
+    try {
+      localStorage.setItem('miliastra.favoriteNodes', JSON.stringify([...this.favorites]));
+    } catch (e) {}
+  }
+
+  isFavorite(nodeId) {
+    return this.favorites.has(nodeId);
+  }
+
+  getFavoriteNodes() {
+    const all = getAllNodes();
+    return all.filter(n => this.favorites.has(n.id) || this.favorites.has(n.name));
+  }
+
+  toggleFavorite(nodeId) {
+    if (this.favorites.has(nodeId)) {
+      this.favorites.delete(nodeId);
+    } else {
+      this.favorites.add(nodeId);
+    }
+    this.saveFavorites();
+    this.updateCategoryOptions();
+    this.renderList();
+  }
+
+  updateCategoryOptions() {
+    const categorySelect = this.panel?.querySelector('#libCategorySelect');
+    if (!categorySelect) return;
+    const currentVal = this.selectedCategory;
+    const all = getAllNodes();
+    const favCount = this.getFavoriteNodes().length;
+    categorySelect.innerHTML = `
+      <option value="all">All (${all.length})</option>
+      <option value="favorites">★ Favorites (${favCount})</option>
+      ${Object.values(CATEGORIES).map(c => `
+        <option value="${c.id}">${c.name} (${c.count})</option>
+      `).join('')}
+    `;
+    categorySelect.value = currentVal;
   }
 
   initDOM() {
@@ -68,11 +148,14 @@ export class NodeLibrary {
     this.sortContainer = document.createElement('div');
     this.sortContainer.className = 'library-sort-container';
     this.sortContainer.id = 'libSortContainer';
+    const all = getAllNodes();
+    const favCount = this.getFavoriteNodes().length;
     this.sortContainer.innerHTML = `
       <div class="sort-control-group">
         <label class="sort-label" for="libCategorySelect">Cat</label>
         <select class="sort-select" id="libCategorySelect" title="Filter by node category">
-          <option value="all">All (${NODE_REGISTRY.length})</option>
+          <option value="all">All (${all.length})</option>
+          <option value="favorites">★ Favorites (${favCount})</option>
           ${Object.values(CATEGORIES).map(c => `
             <option value="${c.id}">${c.name} (${c.count})</option>
           `).join('')}
@@ -161,7 +244,52 @@ export class NodeLibrary {
   renderList() {
     this.treeContainer.innerHTML = '';
 
+    // If "Favorites" category filter is active, render flat list with no sub-categories/folders
+    if (this.selectedCategory === 'favorites') {
+      let favNodes = this.getFavoriteNodes();
+
+      if (this.searchTerm) {
+        favNodes = favNodes.filter(n => {
+          const name = String(n.name || '').toLowerCase();
+          const folder = String(n.folder || '').toLowerCase();
+          const desc = String(n.description || '').toLowerCase();
+          return name.includes(this.searchTerm) || folder.includes(this.searchTerm) || desc.includes(this.searchTerm);
+        });
+      }
+
+      if (this.sortOrder === 'name-asc') {
+        favNodes.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      } else if (this.sortOrder === 'name-desc') {
+        favNodes.sort((a, b) => String(b.name || '').localeCompare(String(a.name || '')));
+      }
+
+      if (favNodes.length === 0) {
+        const emptyNotice = document.createElement('div');
+        emptyNotice.style.cssText = 'padding: 28px 14px; text-align: center; color: #788296; font-size: 11.5px; line-height: 1.6;';
+        emptyNotice.innerHTML = `
+          <div style="font-size: 16px; margin-bottom: 6px; color: #f5a723;">★</div>
+          <div>No favorited nodes yet.</div>
+          <div style="color:#5c6475; font-size: 10.5px; margin-top: 4px;">Right-click any node in the library to add it to Favorites.</div>
+        `;
+        this.treeContainer.appendChild(emptyNotice);
+        return;
+      }
+
+      const flatList = document.createElement('div');
+      flatList.style.cssText = 'padding: 4px 6px; display: flex; flex-direction: column; gap: 2px;';
+
+      for (const node of favNodes) {
+        const cat = CATEGORIES[node.category] || CATEGORIES.execution;
+        const itemEl = this.createNodeItemElement(node, cat);
+        flatList.appendChild(itemEl);
+      }
+
+      this.treeContainer.appendChild(flatList);
+      return;
+    }
+
     const categories = Object.values(CATEGORIES);
+    const allNodes = getAllNodes();
 
     for (const cat of categories) {
       if (this.selectedCategory !== 'all' && this.selectedCategory !== cat.id) {
@@ -169,7 +297,7 @@ export class NodeLibrary {
       }
 
       // Filter nodes in this category
-      let nodes = NODE_REGISTRY.filter(n => n.category === cat.id);
+      let nodes = allNodes.filter(n => n.category === cat.id);
       if (this.searchTerm) {
         nodes = nodes.filter(n => {
           const name = String(n.name || '').toLowerCase();
@@ -317,8 +445,13 @@ export class NodeLibrary {
     itemEl.dataset.blueprintId = node.id;
     itemEl.title = node.description || node.name;
 
+    const isFav = this.isFavorite(node.id);
+    // When favorite is selected as a filter, do not show the outline because all nodes are favorited there
+    const showFavOutline = isFav && this.selectedCategory !== 'favorites';
+    const bulletClass = `node-bullet ${showFavOutline ? 'favorited-bullet' : ''}`;
+
     itemEl.innerHTML = `
-      <span class="node-bullet" style="background:${cat.headerColor}"></span>
+      <span class="${bulletClass}" style="background:${cat.headerColor}"></span>
       <span class="node-name-text">${this.highlightMatch(node.name, this.searchTerm)}</span>
       <span class="node-quick-add" title="Add to center of graph">+</span>
     `;
@@ -329,6 +462,13 @@ export class NodeLibrary {
         e.stopPropagation();
       }
       this.spawnNodeNearCenter(node.id);
+    });
+
+    // Right-click context menu to favorite / inspect
+    itemEl.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.showContextMenu(e.clientX, e.clientY, node);
     });
 
     // Drag setup
@@ -342,6 +482,77 @@ export class NodeLibrary {
     });
 
     return itemEl;
+  }
+
+  showContextMenu(x, y, node) {
+    this.hideContextMenu();
+
+    const isFav = this.isFavorite(node.id);
+    const menu = document.createElement('div');
+    menu.className = 'lib-context-menu';
+    menu.id = 'libNodeContextMenu';
+
+    menu.innerHTML = `
+      <div class="lib-context-item item-fav" id="ctxToggleFav">
+        <span style="font-size: 13px;">${isFav ? '★' : '☆'}</span>
+        <span>${isFav ? 'Remove from Favorites' : 'Add to Favorites'}</span>
+      </div>
+      <div class="lib-context-divider"></div>
+      <div class="lib-context-item" id="ctxInspectNode">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Inspect Node</span>
+      </div>
+    `;
+
+    menu.style.left = `${Math.min(x, window.innerWidth - 190)}px`;
+    menu.style.top = `${Math.min(y, window.innerHeight - 90)}px`;
+
+    document.body.appendChild(menu);
+    this.activeContextMenu = menu;
+
+    menu.querySelector('#ctxToggleFav').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleFavorite(node.id);
+      this.hideContextMenu();
+    });
+
+    menu.querySelector('#ctxInspectNode').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hideContextMenu();
+      if (window.miliastraNodeInspector) {
+        window.miliastraNodeInspector.open(node);
+      } else {
+        window.dispatchEvent(new CustomEvent('open_node_inspector', { detail: { node } }));
+      }
+    });
+
+    const closeHandler = (e) => {
+      if (!menu.contains(e.target)) {
+        this.hideContextMenu();
+        window.removeEventListener('mousedown', closeHandler);
+        window.removeEventListener('keydown', keyHandler);
+      }
+    };
+
+    const keyHandler = (e) => {
+      if (e.key === 'Escape') {
+        this.hideContextMenu();
+        window.removeEventListener('mousedown', closeHandler);
+        window.removeEventListener('keydown', keyHandler);
+      }
+    };
+
+    setTimeout(() => {
+      window.addEventListener('mousedown', closeHandler);
+      window.addEventListener('keydown', keyHandler);
+    }, 10);
+  }
+
+  hideContextMenu() {
+    if (this.activeContextMenu) {
+      this.activeContextMenu.remove();
+      this.activeContextMenu = null;
+    }
   }
 
   highlightMatch(text, query) {
