@@ -9,7 +9,33 @@
  *                    `switch (...) { case 'Branch 0': { ...; break; } default: { ...; break; } }`
  */
 
-import { getNodeBlueprint } from '../nodesData.js';
+import { getNodeBlueprint, NODE_REGISTRY } from '../nodesData.js';
+import { signalsManager } from '../signalsManager.js';
+
+function toCamelCase(str) {
+  if (!str) return '';
+  return str
+    .replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase())
+    .replace(/^[A-Z]/, chr => chr.toLowerCase());
+}
+
+// Reverse index from emitted camelCase fn -> real node blueprint, so any node
+// the generator serializes (division, hPLoss, setNodeGraphVariable, ...) comes
+// back as its true node instead of a throwaway `parsed_*` stub.
+let REVERSE_INDEX = null;
+function resolveNode(fn) {
+  if (FN_NODE[fn]) return FN_NODE[fn];
+  if (!REVERSE_INDEX) {
+    REVERSE_INDEX = new Map();
+    (NODE_REGISTRY || []).forEach(bp => {
+      const key = toCamelCase(bp.name);
+      if (key && !REVERSE_INDEX.has(key)) {
+        REVERSE_INDEX.set(key, { name: bp.name, id: bp.id, cat: bp.category });
+      }
+    });
+  }
+  return REVERSE_INDEX.get(fn) || null;
+}
 
 // fn -> { name (pretty lookup), id (fallback), cat }
 const FN_NODE = {
@@ -59,6 +85,9 @@ class _TsParser {
     this.LX = 420;
     this.LY = 260;
     this.dataCol = 0;
+    // id → already created node / uniqueness guard (enables pasting code as copies)
+    this.takenIds = new Set();
+    this.idNode = new Map();
   }
 
   run() {
@@ -79,6 +108,8 @@ class _TsParser {
       const evNode = this.makeEventNode(eventName);
       evNode.x = 60;
       evNode.y = 260;
+      const hdrAnn = bodySrc.match(/^\s*\/\/\s*#([^\s]+)/);
+      if (hdrAnn && !this.takenIds.has(hdrAnn[1])) { evNode.id = hdrAnn[1]; this.takenIds.add(hdrAnn[1]); }
       this.nodes.push(evNode);
 
       this.varToNode = new Map();
@@ -93,6 +124,16 @@ class _TsParser {
       const block = this.parseBlock();
       if (block.first) this.connectExec(evNode, block.first);
     }
+
+    // Drop duplicate wire edges. Node-level id-dedup lives in the reconcile step
+    // (so pasted code can create copies), not here.
+    const seenW = new Set();
+    this.wires = this.wires.filter(w => {
+      const k = `${w.fromNode}|${w.fromPin}|${w.toNode}|${w.toPin}|${w.isExec}`;
+      if (seenW.has(k)) return false;
+      seenW.add(k);
+      return true;
+    });
 
     return { name, type: 'Server', nodes: this.nodes, wires: this.wires };
   }
@@ -125,7 +166,7 @@ class _TsParser {
     while (i < n) {
       const c = src[i];
       if (isWs(c)) { i++; continue; }
-      if (c === '/' && src[i + 1] === '/') { while (i < n && src[i] !== '\n') i++; continue; }
+      if (c === '/' && src[i + 1] === '/') { let s = ''; i += 2; while (i < n && src[i] !== '\n') { s += src[i]; i++; } toks.push({ t: 'lncomment', v: s }); continue; }
       if (c === '/' && src[i + 1] === '*') {
         i += 2;
         while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
@@ -143,18 +184,18 @@ class _TsParser {
         toks.push({ t: 'str', v: s });
         continue;
       }
-      if (isId(c)) {
-        let s = ''; while (i < n && isId(src[i])) { s += src[i]; i++; }
-        toks.push({ t: 'id', v: s });
-        continue;
-      }
-      if ('(){[]};,:.' .includes(c)) { toks.push({ t: c }); i++; continue; }
       if (c === '-' || c === '+' || /[0-9]/.test(c)) {
         let s = c; i++;
         while (i < n && (/[0-9]/.test(src[i]) || src[i] === '.')) { s += src[i]; i++; }
         toks.push({ t: 'num', v: s });
         continue;
       }
+      if (isId(c)) {
+        let s = ''; while (i < n && isId(src[i])) { s += src[i]; i++; }
+        toks.push({ t: 'id', v: s });
+        continue;
+      }
+      if ('(){[]};,:.' .includes(c)) { toks.push({ t: c }); i++; continue; }
       i++;
     }
     return toks;
@@ -164,6 +205,17 @@ class _TsParser {
 
   nextNodeId() { return `node_parsed_${this.nodeCounter++}`; }
   nextWireId() { return `wire_${this.wireCounter++}`; }
+
+  // Reads a trailing `// #<id>` annotation already positioned at the cursor.
+  readTrailingNodeId() {
+    const tk = this.T[this.i];
+    if (tk && tk.t === 'lncomment') {
+      this.i++;
+      const m = tk.v.match(/[@#]([A-Za-z0-9_:.\-]+)/);
+      return m ? m[1] : null;
+    }
+    return null;
+  }
 
   makeNode(id, name, cat) {
     const bp = getNodeBlueprint(id) || getNodeBlueprint(name) || null;
@@ -293,16 +345,44 @@ class _TsParser {
 
   applyInputs(node, groups) {
     const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name) || null;
-    const isSignal = node.blueprintId === 'exec_send_signal';
-    groups.forEach((group, idx) => {
-      // Signal nodes: their inputs are dynamic signal params; the name is arg 0.
-      let pin = null;
-      if (isSignal) {
-        pin = idx === 0 ? 'Signal Name' : null;
-        if (pin === null) return;
-      } else {
-        pin = (bp && Array.isArray(bp.inputs) && idx < bp.inputs.length) ? bp.inputs[idx].name : `param_${idx}`;
+    const isSignal = node.blueprintId === 'exec_send_signal' || node.blueprintId === 'event_monitor_signal';
+
+    // Signal nodes: arg 0 is the signal name, remaining args are payload params.
+    if (isSignal) {
+      const nameV = this.argToValue(groups[0] || []);
+      const sigName = nameV.isLit ? String(nameV.value) : '';
+      node.inputValues['Signal Name'] = sigName;
+      node.signalName = sigName;
+
+      // Restore the payload params from the registered signal definition.
+      const signalDef = signalsManager.getSignal(sigName);
+      const params = (signalDef && signalDef.params) || [];
+      node.customInputs = params.map(p => ({ name: p.name, type: p.type }));
+
+      for (let i = 1; i < groups.length; i++) {
+        const param = params[i - 1];
+        if (!param) break;
+        const v = this.argToValue(groups[i]);
+        if (v.isVar && v.node) {
+          this.wires.push({
+            id: this.nextWireId(),
+            fromNode: v.node.id,
+            fromPin: v.fromPin || this.dataOutputPin(v.node),
+            toNode: node.id,
+            toPin: param.name,
+            isExec: false
+          });
+        } else {
+          node.inputValues[param.name] = param.type === 'bool'
+            ? ((String(v.value).trim().toLowerCase() === 'true' || String(v.value) === '1') ? '1' : '0')
+            : v.value;
+        }
       }
+      return;
+    }
+
+    groups.forEach((group, idx) => {
+      const pin = this.pinNameForIndex(node, bp, idx);
       const v = this.argToValue(group);
       if (v.isVar && v.node) {
         this.wires.push({
@@ -314,9 +394,37 @@ class _TsParser {
           isExec: false
         });
       } else {
-        node.inputValues[pin] = v.value;
+        node.inputValues[pin] = this.coerceForPin(node, bp, pin, v.value);
       }
     });
+  }
+
+  // Normalize a read-back literal to the pin's type (bools → '1'/'0') so true/false
+  // passed as strings in code still flip the graph boolean correctly.
+  coerceForPin(node, bp, pin, raw) {
+    let type = null;
+    if (bp && Array.isArray(bp.inputs)) {
+      const inp = bp.inputs.find(i => i.name === pin);
+      if (inp && inp.type) type = inp.type;
+    }
+    if (type === 'bool') {
+      const s = String(raw).trim().toLowerCase();
+      return (s === '1' || s === 'true' || s === 'yes' || s === 'on') ? '1' : '0';
+    }
+    return raw;
+  }
+
+  // Resolve an argument index to a real pin name: blueprint inputs first, then
+  // dynamic inputs, falling back to a positional `param_<idx>` for hand-written
+  // excess args (these are ignored by the reconcile merge so they don't inflate
+  // the graph node).
+  pinNameForIndex(node, bp, idx) {
+    if (bp && Array.isArray(bp.inputs) && idx < bp.inputs.length) return bp.inputs[idx].name;
+    const offset = (bp && Array.isArray(bp.inputs)) ? bp.inputs.length : 0;
+    if (Array.isArray(node.dynamicInputs) && idx - offset < node.dynamicInputs.length) {
+      return String(node.dynamicInputs[idx - offset]);
+    }
+    return `param_${idx}`;
   }
 
   applyControlexpr(node, groups, pin) {
@@ -352,9 +460,11 @@ class _TsParser {
       if (tk.t === 'id' && tk.v === 'gsts') {
         const { fn, groups } = this.readGstsCall();
         if (this.T[this.i]?.t === ';') this.i++;
+        const ann = this.readTrailingNodeId();
         if (fn) {
-          const ent = FN_NODE[fn] || { name: fn, id: 'exec_' + fn, cat: 'execution' };
+          const ent = resolveNode(fn) || { name: fn, id: 'exec_' + fn, cat: 'execution' };
           const node = this.makeNode(ent.id, ent.name, ent.cat);
+          if (ann && !this.takenIds.has(ann)) { node.id = ann; this.takenIds.add(ann); }
           this.applyInputs(node, groups);
           this.placeFlow(node);
           this.nodes.push(node);
@@ -385,10 +495,20 @@ class _TsParser {
     }
     const { fn, groups } = this.readGstsCall();
     if (toks[this.i]?.t === ';') this.i++;
+    const ann = this.readTrailingNodeId();
     if (!fn) return null;
 
-    const ent = FN_NODE[fn] || { name: fn, id: 'parsed_' + fn, cat: 'operation' };
+    // Shared data node emitted in multiple handlers → reuse the first occurrence
+    // so the graph keeps ONE node wired to every handler that uses it.
+    if (ann && this.idNode.has(ann)) {
+      const prev = this.idNode.get(ann);
+      this.varToNode.set(name, prev);
+      return prev;
+    }
+
+    const ent = resolveNode(fn) || { name: fn, id: 'parsed_' + fn, cat: 'operation' };
     const node = this.makeNode(ent.id, ent.name, ent.cat);
+    if (ann) { node.id = ann; this.takenIds.add(ann); this.idNode.set(ann, node); }
     this.applyInputs(node, groups);
     this.placeData(node);
     this.nodes.push(node);
@@ -412,8 +532,10 @@ class _TsParser {
     const cond = toks.slice(cStart, ci);
     this.i = ci + 1;
     if (toks[this.i]?.t === '{') this.i++;
+    const branchAnn = this.readTrailingNodeId();
 
     const branch = this.makeNode('flow_double_branch', 'Double Branch', 'flow');
+    if (branchAnn && !this.takenIds.has(branchAnn)) { branch.id = branchAnn; this.takenIds.add(branchAnn); }
     this.placeFlow(branch);
     this.nodes.push(branch);
     this.applyControlexpr(branch, [cond], 'Condition');
@@ -450,8 +572,10 @@ class _TsParser {
     const cond = toks.slice(cStart, ci);
     this.i = ci + 1;
     if (toks[this.i]?.t === '{') this.i++;
+    const swAnn = this.readTrailingNodeId();
 
     const sw = this.makeNode('flow_multiple_branches', 'Multiple Branches', 'flow');
+    if (swAnn && !this.takenIds.has(swAnn)) { sw.id = swAnn; this.takenIds.add(swAnn); }
     this.placeFlow(sw);
     this.nodes.push(sw);
     this.applyControlexpr(sw, [cond], 'Control Expression');

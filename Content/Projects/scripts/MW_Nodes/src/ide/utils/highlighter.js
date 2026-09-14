@@ -114,3 +114,68 @@ export function highlightTs(code) {
   html += renderPlain(code.slice(idx));
   return html;
 }
+
+const LUA_KEYWORDS = new Set([
+  'local', 'function', 'end', 'if', 'then', 'else', 'elseif', 'for', 'while',
+  'do', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until'
+]);
+
+const LUA_RE = new RegExp(
+  '(' +
+    '--[^\\n]*' +
+  ')|(' +
+    "'(?:\\\\.|[^'\\\\\\n])*'|\"(?:\\\\.|[^\"\\\\\\n])*\"" +
+  ')|(' +
+    '\\b\\d+(?:\\.\\d+)?\\b' +
+  ')|(' +
+    '\\b(?:local|function|end|if|then|else|elseif|for|while|do|return|in|and|or|not|require|repeat|until|nil|true|false)\\b' +
+  ')|(' +
+    '[A-Za-z_][\\w]*' +
+  ')',
+  'g'
+);
+
+// Comments may carry a machine "stamp" (`-- @id`). Render the `@id` bit as a
+// faint meta token so it reads as book-keeping, not as something to edit.
+function renderLuaComment(text) {
+  const m = /@([A-Za-z0-9_:.\-]+)/.exec(text);
+  if (!m) return `<span class="tok-com">${esc(text)}</span>`;
+  const before = text.slice(0, m.index);
+  const id = m[0];
+  const after = text.slice(m.index + m[0].length);
+  return (
+    (before ? `<span class="tok-com">${esc(before)}</span>` : '') +
+    `<span class="tok-meta">${esc(id)}</span>` +
+    (after ? `<span class="tok-com">${esc(after)}</span>` : '')
+  );
+}
+
+function classifyLuaIdent(word, nextChar) {
+  if (LUA_KEYWORDS.has(word)) return 'tok-kw';
+  if (nextChar === '(') return 'tok-fn';
+  return 'tok-var';
+}
+
+export function highlightLua(code) {
+  let html = '';
+  let idx = 0;
+  LUA_RE.lastIndex = 0;
+  let m;
+  while ((m = LUA_RE.exec(code)) !== null) {
+    html += renderPlain(code.slice(idx, m.index));
+    const com = m[1];
+    if (com) { html += renderLuaComment(com); idx = m.index + com.length; continue; }
+    const str = m[2];
+    if (str) { html += `<span class="tok-str">${esc(str)}</span>`; idx = m.index + str.length; continue; }
+    const num = m[3];
+    if (num) { html += `<span class="tok-num">${esc(num)}</span>`; idx = m.index + num.length; continue; }
+    const kw = m[4];
+    if (kw) { html += `<span class="tok-kw">${esc(kw)}</span>`; idx = m.index + kw.length; continue; }
+    const ident = m[5];
+    const next = code[m.index + ident.length] || '';
+    html += `<span class="${classifyLuaIdent(ident, next)}">${esc(ident)}</span>`;
+    idx = m.index + ident.length;
+  }
+  html += renderPlain(code.slice(idx));
+  return html;
+}

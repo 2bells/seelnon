@@ -191,10 +191,10 @@
 /* Editor Input & Syntax Highlighting Overlays */
 .ide-code-surface {
   position: relative;
-  flex: 1;
-  min-height: 100%;
+  flex: 1 1 auto;
+  min-width: max-content;
+  min-height: max-content;
   height: auto;
-  min-width: 0;
 }
 
 /* Pre block sizes the surface to match content dimensions */
@@ -215,6 +215,8 @@
   color: #ABB2BF;
   z-index: 1;
   min-height: 100%;
+  width: max-content;
+  min-width: 100%;
 }
 
 .ide-pre-highlight code {
@@ -223,13 +225,28 @@
   line-height: inherit;
 }
 
+/* Force pixel-identical monospace metrics on BOTH the highlighted layer and the
+   transparent input, and kill any letter-spacing, so caret and glyphs can never
+   drift horizontally (a single per-glyph mismatch causes the growing 1.x offset). */
+.ide-code-textarea,
+.ide-pre-highlight,
+.ide-pre-highlight code {
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', 'Liberation Mono', monospace !important;
+  font-size: 13px !important;
+  line-height: 20px !important;
+  letter-spacing: 0 !important;
+  text-rendering: auto;
+}
+
 /* Textarea stretches over surface with NO native scrollbars (single scroller) */
 .ide-code-textarea {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
   margin: 0;
   padding: 12px 16px;
   box-sizing: border-box;
@@ -291,6 +308,22 @@
 .tok-var {
   color: #E06C75;
 }
+
+/* Machine book-keeping stamps (`-- @id`): faint, so they read as background
+   plumbing rather than code the user is expected to edit. */
+.tok-meta {
+  color: var(--tok-meta, #3E4451);
+  background: rgba(97, 175, 239, 0.06);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Mirror status pill (● in sync / ▲ edited / ! can't read back) */
+.ide-mirror-ok .mirror-dot { color: #98C379; }
+.ide-mirror-dirty .mirror-dot { color: #E5C07B; font-weight: bold; }
+.ide-mirror-dirty { color: #E5C07B; }
+.ide-mirror-bad .mirror-dot { color: #E06C75; }
+.ide-mirror-bad { color: #E06C75; }
 
 /* Bottom Output Drawer */
 .ide-bottom-drawer {

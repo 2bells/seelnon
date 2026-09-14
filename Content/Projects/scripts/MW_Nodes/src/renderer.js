@@ -6,6 +6,18 @@
 import { getNodeBlueprint, CATEGORIES, PIN_COLORS, DATA_TYPES } from './nodesData.js';
 import { signalsManager, getPinTypeFromSignalType } from './signalsManager.js';
 
+function normalizeBool(val) {
+  const s = String(val).trim().toLowerCase();
+  if (s === '1' || s === 'true' || s === 'yes' || s === 'on') return 'True';
+  if (s === '0' || s === 'false' || s === 'no' || s === 'off') return 'False';
+  return s;
+}
+function optionsAreBooleans(opts) {
+  const truthy = new Set(['True', 'true', 'Yes', 'yes', '1', 'On', 'on']);
+  const falsy = new Set(['False', 'false', 'No', 'no', '0', 'Off', 'off']);
+  return opts.length === 2 && truthy.has(opts[0]) && falsy.has(opts[1]);
+}
+
 export class GraphRenderer {
   constructor(canvasContainer, graphState) {
     this.container = canvasContainer;
@@ -779,7 +791,7 @@ export class GraphRenderer {
 
     } else if (bp.id === 'exec_send_signal') {
       // Dynamic Input Parameters for Send Signal node based on selected Signal
-      const currentSigName = node.inputValues?.['Signal Name'] || node.signalName || 'HC_Weapon';
+      const currentSigName = node.inputValues?.['Signal Name'] || node.signalName || '';
       const signalDef = signalsManager.getSignal(currentSigName);
       let signalParams = signalDef ? (signalDef.params || []) : [];
       if (signalParams.length === 0 && Array.isArray(node.customInputs) && node.customInputs.length > 0) {
@@ -1055,7 +1067,8 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
               optEl.value = opt;
               optEl.textContent = opt;
               const cur = node.inputValues[inp.name] !== undefined ? String(node.inputValues[inp.name]) : 'No';
-              if (cur === opt || (cur === 'False' && opt === 'No') || (cur === 'True' && opt === 'Yes')) {
+              if (cur === opt || (cur === 'False' && opt === 'No') || (cur === 'True' && opt === 'Yes') ||
+                  (cur === '0' && opt === 'No') || (cur === '1' && opt === 'Yes')) {
                 optEl.selected = true;
               }
               select.appendChild(optEl);
@@ -1068,6 +1081,7 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
             const currentVarName = node.inputValues?.['Variable Name'] || '';
             const varDef = currentVarName ? this.state.getNodeGraphVariableByName(currentVarName) : null;
             const isBool = varDef ? varDef.type === 'bool' : (pinType === 'bool');
+            if (isBool && node.pinTypes) node.pinTypes['Variable Value'] = 'bool';
 
             if (isBool) {
               const select = document.createElement('select');
@@ -1113,11 +1127,16 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
             select.addEventListener('mousedown', (e) => e.stopPropagation());
             select.addEventListener('click', (e) => e.stopPropagation());
             const opts = inp.options || (inp.name === 'Sort By' ? ['Ascending', 'Descending'] : ['Default', 'Option 1']);
+            const boolOpts = optionsAreBooleans(opts);
+            let curSel = node.inputValues[inp.name];
+            if (boolOpts && curSel !== undefined && curSel !== opts[0] && curSel !== opts[1]) {
+              curSel = normalizeBool(curSel) === 'True' ? opts[0] : opts[1];
+            }
             for (const opt of opts) {
               const optEl = document.createElement('option');
               optEl.value = opt;
               optEl.textContent = opt;
-              if ((node.inputValues[inp.name] || opts[0]) === opt) optEl.selected = true;
+              if ((curSel || opts[0]) === opt) optEl.selected = true;
               select.appendChild(optEl);
             }
             select.addEventListener('change', (e) => {
@@ -1274,7 +1293,7 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
 
     // Dynamic Output Parameters for Monitor Signal node based on selected Signal
     if (bp.id === 'event_monitor_signal') {
-      const currentSigName = node.inputValues?.['Signal Name'] || node.signalName || 'HC_Weapon';
+      const currentSigName = node.inputValues?.['Signal Name'] || node.signalName || '';
       const signalDef = signalsManager.getSignal(currentSigName);
       let signalParams = signalDef ? (signalDef.params || []) : [];
       if (signalParams.length === 0 && Array.isArray(node.customOutputs) && node.customOutputs.length > 0) {
@@ -1341,7 +1360,7 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
 
   populateSignalSelector(node, bp, container) {
     container.innerHTML = '';
-    const currentSigName = node.inputValues?.['Signal Name'] || 'HC_Weapon';
+    const currentSigName = node.inputValues?.['Signal Name'] || '';
 
     const row = document.createElement('div');
     row.className = 'node-signal-selector-row';
@@ -1369,7 +1388,7 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
     dropBtn.className = 'sig-dropdown-trigger-btn';
     dropBtn.title = 'Select or search signal';
     dropBtn.innerHTML = `
-      <span class="sig-dropdown-val">${currentSigName}</span>
+      <span class="sig-dropdown-val">${currentSigName || 'No Signal'}</span>
       <span class="sig-dropdown-arrow">▼</span>
     `;
 
@@ -1452,7 +1471,7 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
       filtered.forEach(s => {
         const item = document.createElement('div');
         item.className = 'sig-picker-item';
-        if (s.name === (node.inputValues['Signal Name'] || 'HC_Weapon')) {
+        if (s.name === (node.inputValues['Signal Name'] || '')) {
           item.classList.add('selected');
         }
 
@@ -1476,7 +1495,11 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
 
         item.addEventListener('click', (e) => {
           e.stopPropagation();
-          node.inputValues['Signal Name'] = s.name;
+          if (this.state && typeof this.state.setSignalNode === 'function') {
+            this.state.setSignalNode(node.id, s.name);
+          } else {
+            node.inputValues['Signal Name'] = s.name;
+          }
           popup.remove();
           this.state.saveSnapshot();
           this.render();
@@ -2683,7 +2706,8 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
         const toNode = drag.isOutput ? targetNodeId : drag.nodeId;
         const toPin = drag.isOutput ? targetPinName : drag.pinName;
 
-        this.state.addWire(fromNode, fromPin, toNode, toPin, drag.isExec);
+        const added = this.state.addWire(fromNode, fromPin, toNode, toPin, drag.isExec);
+        if (added) this.render();
         return;
       }
     } else {

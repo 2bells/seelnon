@@ -53,6 +53,33 @@ export class GraphState {
     }
   }
 
+  // Serializable snapshot used for local persistence (localStorage cache) and
+  // for rebuilding a graph without losing nodes/wires/variables.
+  toJSON() {
+    return {
+      version: 1,
+      name: this.name,
+      type: this.type,
+      nodes: this.nodes,
+      wires: this.wires,
+      nodeGraphVariables: this.nodeGraphVariables,
+      panX: this.panX,
+      panY: this.panY,
+      zoom: this.zoom
+    };
+  }
+
+  static fromJSON(obj) {
+    const g = new GraphState((obj && obj.name) || 'Noda', (obj && obj.type) || 'Server');
+    if (obj && Array.isArray(obj.nodes)) g.nodes = obj.nodes;
+    if (obj && Array.isArray(obj.wires)) g.wires = obj.wires;
+    if (obj && Array.isArray(obj.nodeGraphVariables)) g.nodeGraphVariables = obj.nodeGraphVariables;
+    if (obj && typeof obj.panX === 'number') g.panX = obj.panX;
+    if (obj && typeof obj.panY === 'number') g.panY = obj.panY;
+    if (obj && typeof obj.zoom === 'number') g.zoom = obj.zoom;
+    return g;
+  }
+
   saveSnapshot() {
     // Truncate future if branching
     if (this.historyIndex < this.history.length - 1) {
@@ -229,6 +256,7 @@ export class GraphState {
       y: Math.round(y),
       inputValues: { ...inputValues, ...customData.inputValues },
       pinTypes: { ...(customData.pinTypes || {}) },
+      varName: customData.varName || null,
       dynamicInputs: customData.dynamicInputs || (bp.canAddDynamicInputs ? ['0'] : []),
       dynamicBranches: customData.dynamicBranches || (bp.canAddDynamicBranches ? ['Branch 0', 'Branch 1', 'Branch 2', 'Default'] : null),
       branchValues: customData.branchValues || {},
@@ -242,7 +270,7 @@ export class GraphState {
     // Default signal name for signal nodes if not explicitly specified
     if (bp.id === 'event_monitor_signal' || bp.id === 'exec_send_signal') {
       if (!nodeInstance.inputValues['Signal Name']) {
-        nodeInstance.inputValues['Signal Name'] = 'HC_Weapon';
+        nodeInstance.inputValues['Signal Name'] = '';
       }
     }
 
@@ -250,6 +278,38 @@ export class GraphState {
     this.saveSnapshot();
     this.notify('node_add');
     return nodeInstance;
+  }
+
+  // Change which signal a Monitor/Send node is bound to. Swapping signals must
+  // not leave "ghost" data wires behind: outputs that the new signal no longer
+  // exposes (e.g. HC_Shot's Origin/Damage after switching to HC_Reload) are
+  // auto-disconnected so stale pins don't leak into the other signal.
+  setSignalNode(nodeId, signalName) {
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    const prev = node.inputValues?.['Signal Name'] ?? node.signalName;
+    if (prev === signalName) return;
+
+    node.inputValues = node.inputValues || {};
+    node.inputValues['Signal Name'] = signalName || '';
+    node.signalName = signalName || '';
+
+    // Allowed output pins for the new signal: the blueprint's fixed outputs plus
+    // the signal's own payload params.
+    const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+    const allowed = new Set((bp && bp.outputs || []).map(o => o.name));
+    const def = signalName ? signalsManager.getSignal(signalName) : null;
+    if (def && Array.isArray(def.params)) def.params.forEach(p => allowed.add(p.name));
+
+    for (const w of [...this.wires]) {
+      // Only prune DATA wires leaving this signal node to pins it no longer has.
+      if (w.fromNode === nodeId && !w.isExec && !allowed.has(w.fromPin)) {
+        this.removeWire(w.id);
+      }
+    }
+
+    this.saveSnapshot();
+    this.notify('signal_changed');
   }
 
   removeNode(nodeId) {
@@ -393,7 +453,12 @@ export class GraphState {
       }
     }
 
-    // Auto-propagate pin data type from source to target if target is generic or configurable
+    // Type-matching on data wires. Rules (matching the game):
+    //  - A socket with a fixed concrete type rejects a source of a different type
+    //    (int can't feed a float socket, and vice versa).
+    //  - A Generic socket accepts any source and inherits the source's type.
+    //  - For Equal / comparison / arithmetic nodes the two inputs always share one
+    //    type and change together (both are set to the incoming source type).
     if (!isExec) {
       const srcNode = this.nodes.find(n => n.id === fromNode);
       const tgtNode = this.nodes.find(n => n.id === toNode);
@@ -410,39 +475,31 @@ export class GraphState {
         }
 
         if (srcType && srcType !== 'generic') {
-          let canAdapt = false;
           const tgtCurrentType = this.getPinType(toNode, toPin, 'generic');
-          if (tgtCurrentType === 'generic') canAdapt = true;
 
-          if (tgtBp) {
-            if (['op_equal', 'op_not_equal', 'op_addition', 'op_subtraction', 'op_multiplication', 'op_division'].includes(tgtBp.id)) {
-              canAdapt = true;
-            }
-            if (tgtBp.inputs) {
-              const inpDef = tgtBp.inputs.find(i => i.name === toPin);
-              if (inpDef && (inpDef.hasGear || inpDef.type === 'generic')) {
-                canAdapt = true;
-              }
-            }
-            if (toPin === 'Control Expression') {
-              canAdapt = true;
-            }
+          // A concrete (non-generic) target socket only accepts a matching source.
+          if (tgtCurrentType !== 'generic' && tgtCurrentType !== srcType) {
+            return null; // reject mismatched concrete types
           }
 
-          if (canAdapt) {
-            if (!tgtNode.pinTypes) tgtNode.pinTypes = {};
-            tgtNode.pinTypes[toPin] = srcType;
+          const isPairOp =
+            tgtBp && ['op_equal', 'op_not_equal', 'op_greater_than', 'op_less_than',
+              'op_greater_than_or_equal_to', 'op_less_than_or_equal_to',
+              'op_addition', 'op_subtraction', 'op_multiplication', 'op_division',
+              'op_modulo_operation', 'op_exponentiation', 'op_take_larger', 'op_take_smaller']
+              .includes(tgtBp.id);
 
-            if (tgtBp && ['op_equal', 'op_not_equal', 'op_greater_than', 'op_less_than', 'op_greater_than_or_equal_to', 'op_less_than_or_equal_to'].includes(tgtBp.id)) {
-              tgtNode.pinTypes['Input 1'] = srcType;
-              tgtNode.pinTypes['Input 2'] = srcType;
-            } else if (tgtBp && ['op_addition', 'op_subtraction', 'op_multiplication', 'op_division'].includes(tgtBp.id)) {
-              if (['int', 'float', 'generic'].includes(srcType)) {
-                tgtNode.pinTypes['Input 1'] = srcType;
-                tgtNode.pinTypes['Input 2'] = srcType;
-                tgtNode.pinTypes['Result'] = srcType;
-              }
-            }
+          if (!tgtNode.pinTypes) tgtNode.pinTypes = {};
+          tgtNode.pinTypes[toPin] = srcType;
+
+          // Equal / comparison / arithmetic: both inputs (and Result) change together.
+          if (isPairOp) {
+            (tgtBp.inputs || []).forEach(inp => {
+              if (inp.hasGear || inp.type === 'generic') tgtNode.pinTypes[inp.name] = srcType;
+            });
+            (tgtBp.outputs || []).forEach(out => {
+              if (out.hasGear || out.type === 'generic') tgtNode.pinTypes[out.name] = srcType;
+            });
           }
         }
       }
@@ -714,7 +771,7 @@ export class GraphState {
 
     // 1. Event Node: Monitor Signal (Matching [img 1])
     const nMonitor = this.createNode('event_monitor_signal', 50, 150, {
-      inputValues: { 'Signal Name': 'Strike' }
+      inputValues: { 'Signal Name': 'HC_Shot' }
     });
 
     // 2. Flow Control: Double Branch 1 (Matching [img 1])

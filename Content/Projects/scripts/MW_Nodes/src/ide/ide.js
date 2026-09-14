@@ -1,12 +1,22 @@
 /**
- * Miliastra Wonderland TypeScript IDE
+ * Miliastra Wonderland interactive mirror (Lua-flavoured code ⇄ node graph)
  * Integrated development environment powered by genshin-ts
  */
 
-import { TsGenerator } from './tsGenerator.js';
-import { TsParser } from './tsParser.js';
+import { LuaGenerator } from './luaGenerator.js';
+import { LuaParser } from './luaParser.js';
 import { GiaCodec } from '../giaCodec.js';
-import { highlightTs } from './utils/highlighter.js';
+import { highlightLua } from './utils/highlighter.js';
+import { getNodeBlueprint } from '../nodesData.js';
+
+const THE_LANG = {
+  label: 'Lua',
+  badge: 'lua-interactive',
+  engine: 'Miliastra · interactive mirror',
+  generate: g => LuaGenerator.generate(g),
+  parse: c => LuaParser.parse(c),
+  highlight: c => highlightLua(c),
+};
 
 export class MiliastraIde {
   /**
@@ -21,15 +31,30 @@ export class MiliastraIde {
     this.viewMode = 'nodes'; // 'nodes' | 'code' | 'split'
     this.code = '';
     this.activeLogTab = 'compiler';
+    this.codeDirty = false;      // user is editing the code textarea
+    this.applyingFromCode = false; // currently pushing code edits into the graph
 
     this.initDom();
     this.bindEvents();
+    this.attachState(this.state);
     this.syncFromGraph();
+    this.setMirrorState('synced');
+  }
 
-    // Subscribe to graph changes to keep code synchronized
-    this.state.subscribe((changeType) => {
-      if (this.viewMode === 'code' || this.viewMode === 'split') {
+  // Subscribe to whichever GraphState is currently active. The IDE must follow
+  // graph switches (switchToGraph swaps `this.state`), so we tear the old
+  // subscription down and re-arm it against the new state — otherwise graph
+  // edits (picking a signal, flipping a value) never reach the Lua view.
+  attachState(state) {
+    if (state === this._state) return;
+    if (this._unsub) { try { this._unsub(); } catch (_) {} }
+    this._state = state;
+    this.state = state;
+    this._unsub = state.subscribe((changeType) => {
+      if ((this.viewMode === 'code' || this.viewMode === 'split') && !this.applyingFromCode) {
         this.syncFromGraph();
+        this.codeDirty = false;
+        this.setMirrorState('synced');
       }
     });
   }
@@ -49,7 +74,7 @@ export class MiliastraIde {
               <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M4 4h7v7H4zM13 13h7v7h-7z"/><path d="M14 7h4v4M10 17H6v-4" stroke="currentColor" stroke-width="2"/></svg>
               <span>Graph</span>
             </button>
-            <button class="ide-mode-btn" id="btnModeCode" title="TypeScript Code IDE View">
+            <button class="ide-mode-btn" id="btnModeCode" title="Lua-flavoured Code View">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               <span>Code</span>
             </button>
@@ -61,14 +86,9 @@ export class MiliastraIde {
 
           <div class="ide-tool-divider"></div>
 
-          <button class="ide-tool-btn ide-tool-btn-accent" id="btnSyncToNodes" title="Apply TypeScript edits to visual nodes">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-            <span>Sync to Nodes</span>
-          </button>
-
-          <button class="ide-tool-btn ide-tool-btn-primary" id="btnCompileTs" title="Validate and compile with genshin-ts">
+          <button class="ide-tool-btn ide-tool-btn-primary" id="btnCompileTs" title="Validate & mirror back to the node graph (Lua)">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            <span>Compile (gsts)</span>
+            <span>Check (Lua)</span>
           </button>
         </div>
 
@@ -83,7 +103,7 @@ export class MiliastraIde {
             <span>Export .gia</span>
           </button>
 
-          <button class="ide-tool-btn" id="btnCopyCode" title="Copy TypeScript Code">
+          <button class="ide-tool-btn" id="btnCopyCode" title="Copy the Lua mirror to clipboard">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Copy</span>
           </button>
@@ -96,7 +116,7 @@ export class MiliastraIde {
           <div class="ide-editor-scroll-container" id="ideScrollContainer">
             <div class="ide-line-numbers" id="ideLineNumbers">1</div>
             <div class="ide-code-surface">
-              <pre class="ide-pre-highlight"><code class="language-typescript" id="ideHighlightCode"></code></pre>
+              <pre class="ide-pre-highlight"><code class="language-lua" id="ideHighlightCode"></code></pre>
               <textarea class="ide-code-textarea" id="ideTextarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
             </div>
           </div>
@@ -108,12 +128,12 @@ export class MiliastraIde {
                 <div class="ide-drawer-tab active" id="tabCompilerLogs">Compiler Output</div>
                 <div class="ide-drawer-tab" id="tabGraphStats">Graph Diagnostics</div>
               </div>
-              <span style="font-size:10px; color:#5C6370;">genshin-ts v0.2.2</span>
+              <span style="font-size:10px; color:#5C6370;">Miliastra · interactive · Lua</span>
             </div>
             <div class="ide-drawer-body" id="ideDrawerLogs">
               <div class="ide-log-line">
                 <span class="ide-log-time">[${new Date().toLocaleTimeString()}]</span>
-                <span class="ide-log-success">genshin-ts compiler bridge ready. GIA protobuf schema v1.5.0 initialized.</span>
+                <span class="ide-log-success">interactive mirror ready — nodes ⇄ Lua, one model, in step.</span>
               </div>
             </div>
           </div>
@@ -125,7 +145,7 @@ export class MiliastraIde {
         <div class="ide-status-left">
           <div class="ide-status-item">
             <span>Target:</span>
-            <span class="ide-badge-pill ide-badge-success">Miliastra .gia</span>
+            <span class="ide-badge-pill ide-badge-success">interactive mirror</span>
           </div>
           <div class="ide-status-item">
             <span>Graph:</span>
@@ -138,9 +158,10 @@ export class MiliastraIde {
         </div>
 
         <div class="ide-status-right">
+          <div class="ide-status-item" id="ideMirrorState"><span class="mirror-dot">●</span> in sync</div>
           <div class="ide-status-item" id="ideCursorPos">Ln 1, Col 1</div>
           <div class="ide-status-item">
-            <span class="ide-badge-pill">TypeScript</span>
+            <span class="ide-badge-pill">Lua</span>
           </div>
         </div>
       </div>
@@ -170,11 +191,14 @@ export class MiliastraIde {
     btnCode.addEventListener('click', () => this.setViewMode('code'));
     btnSplit.addEventListener('click', () => this.setViewMode('split'));
 
-    // Textarea Input & Caret Following
+    // Textarea Input — highlight only. The graph does NOT change per keystroke;
+    // edits are mirrored back only when the user presses Check (checkMirror).
     this.textarea.addEventListener('input', () => {
       this.updateHighlighting();
       this.updateLineNumbers();
       this.ensureCursorVisible();
+      this.codeDirty = true;
+      this.setMirrorState('edited');
     });
 
     // Guard against internal textarea scroll by directing delta to scroll container
@@ -196,8 +220,13 @@ export class MiliastraIde {
       this.ensureCursorVisible();
     });
 
-    // Tab Key Handling (insert 2 spaces instead of losing focus)
+    // Tab Key Handling (insert 2 spaces instead of losing focus) + Ctrl/Cmd+Enter = Check (Lua)
     this.textarea.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        this.checkMirror();
+        return;
+      }
       if (e.key === 'Tab') {
         e.preventDefault();
         const start = this.textarea.selectionStart;
@@ -211,14 +240,9 @@ export class MiliastraIde {
       }
     });
 
-    // Sync to Nodes
-    this.element.querySelector('#btnSyncToNodes').addEventListener('click', () => {
-      this.syncToGraph();
-    });
-
-    // Compile (gsts)
+    // Check (Lua) — the ONLY moment user edits are mirrored back to the graph.
     this.element.querySelector('#btnCompileTs').addEventListener('click', () => {
-      this.compileWithGenshinTs();
+      this.checkMirror();
     });
 
     // Import .gia (open file picker for any .gia or .json file)
@@ -244,7 +268,7 @@ export class MiliastraIde {
     // Copy Code
     this.element.querySelector('#btnCopyCode').addEventListener('click', () => {
       navigator.clipboard.writeText(this.textarea.value).then(() => {
-        this.log('TypeScript code copied to clipboard.', 'info');
+        this.log('Lua mirror copied to clipboard.', 'info');
       });
     });
 
@@ -317,12 +341,12 @@ export class MiliastraIde {
 
   updateHighlighting() {
     const code = this.textarea.value;
-    const highlighted = highlightTs(code);
+    const highlighted = THE_LANG.highlight(code);
     this.highlightCode.innerHTML = highlighted + (code.endsWith('\n') ? ' \n' : '');
   }
 
   syncFromGraph() {
-    const code = TsGenerator.generate(this.state);
+    const code = THE_LANG.generate(this.state);
     this.textarea.value = code;
     this.updateHighlighting();
     this.updateLineNumbers();
@@ -335,39 +359,214 @@ export class MiliastraIde {
     if (countEl) countEl.textContent = this.state.nodes.length;
   }
 
-  syncToGraph() {
-    const code = this.textarea.value;
+  scheduleApplyFromCode() {
+    clearTimeout(this._applyTimer);
+    this._applyTimer = setTimeout(() => this.applyFromCode(), 500);
+  }
+
+  applyFromCode() {
+    this.codeDirty = false;
+    // Snapshot so a single bad edit can roll back inside this object instead of
+    // corrupting the whole visual graph.
+    const before = JSON.stringify({ nodes: this.state.nodes, wires: this.state.wires });
     try {
-      const parsed = TsParser.parse(code);
-      this.state.fromJSON(parsed);
+      this.reconcileFromCode();
+    } catch (err) {
+      try {
+        const snap = JSON.parse(before);
+        this.state.nodes = snap.nodes;
+        this.state.wires = snap.wires;
+      } catch (_) { /* keep whatever is left */ }
+      this.log(`Apply rolled back (${err.message})`, 'error');
+    }
+    this.renderAllGraph();
+  }
+
+  renderAllGraph() {
+    if (!this.renderer) return;
+    try {
       this.renderer.render();
-      this.log(`Successfully synced ${parsed.nodes.length} nodes and ${parsed.wires.length} wires from TypeScript to canvas!`, 'success');
+      requestAnimationFrame(() => {
+        try { this.renderer.cachePinPositions?.(); this.renderer.renderWires?.(); } catch (_) {}
+      });
+    } catch (err) {
+      console.warn('render error:', err);
+    }
+  }
+
+  // A visible cascade position (stage coords) for newly-created-from-code nodes.
+  spawnPoint() {
+    const s = this.state;
+    let cx = 200, cy = 120;
+    const el = this.renderer && this.renderer.container;
+    if (el) {
+      try {
+        const r = el.getBoundingClientRect();
+        if (r.width > 10 && r.height > 10) {
+          cx = (r.width / 2 - (s.panX || 0)) / (s.zoom || 1);
+          cy = (r.height / 2 - (s.panY || 0)) / (s.zoom || 1);
+        }
+      } catch (_) {}
+    }
+    this._spawnCascade = ((this._spawnCascade || 0) + 1) % 6;
+    const off = this._spawnCascade;
+    return {
+      x: Math.round(cx - 90 + (off % 3) * 30),
+      y: Math.round(cy - 40 + Math.floor(off / 3) * 30)
+    };
+  }
+
+  /**
+   * Non-destructive code → graph. Parses the editor buffer, then reconciles it
+   * against the live graph *by stable node id* (the `-- @id` stamps / the id
+   * "background process" you see in the code).
+   *
+   * It is ADDITIVE-ONLY: the code can UPDATE nodes it names in place and ADD
+   * brand-new nodes and links. It NEVER removes existing nodes or wires on its
+   * own — the textual mirror can't name every data pin (Lua args are
+   * positional), so a subtractive diff would "unplug" pins and then orphan the
+   * nodes (exactly the nuking you saw). Removals stay graph-driven: delete a
+   * node on the canvas and the next sync drops it from the code.
+   */
+  reconcileFromCode() {
+    const code = this.textarea.value;
+    let parsed;
+    try {
+      parsed = THE_LANG.parse(code);
     } catch (err) {
       this.log(`Parse error: ${err.message}`, 'error');
+      return;
     }
-  }
+    if (!parsed || !Array.isArray(parsed.nodes)) return;
 
-  async compileWithGenshinTs() {
-    this.log('Compiling graph logic with genshin-ts...', 'info');
+    const state = this.state;
+    this.applyingFromCode = true;
     try {
-      const resp = await fetch('/api/gia/compile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tsCode: this.textarea.value, name: this.state.name })
-      });
+      const curById = new Map(state.nodes.map(n => [n.id, n]));
+      const idMap = new Map(); // parsed node id -> final graph id
 
-      if (resp.ok) {
-        const result = await resp.json();
-        this.log(`✓ Compilation Succeeded! IR validation passed for '${this.state.name}'.`, 'success');
-        this.log(`Nodes: ${this.state.nodes.length} | Wires: ${this.state.wires.length} | Ready for .gia injection`, 'info');
-      } else {
-        // Fallback local check
-        this.log(`✓ Code syntax verified. ${this.state.nodes.length} visual nodes active.`, 'success');
+      // 1) Nodes: update-in-place every node the code contains; create brand-new
+      //    nodes for statements the code adds. Never replaces the arrays, and
+      //    never deletes a node the code didn't mention.
+      const seen = new Set();
+      for (const pn of parsed.nodes) {
+        if (seen.has(pn.id)) continue;
+        seen.add(pn.id);
+        const existing = curById.get(pn.id);
+        if (existing) {
+          this.mergeNodeFromCode(existing, pn);
+          idMap.set(pn.id, existing.id);
+        } else {
+          const custom = {
+            inputValues: pn.inputValues || {},
+            dataType: pn.dataType,
+          };
+          if (pn.varName) custom.varName = pn.varName;
+          if (pn.customInputs) custom.customInputs = pn.customInputs;
+          if (pn.signalName !== undefined) custom.signalName = pn.signalName;
+          const pos = this.spawnPoint();
+          const node = state.createNode(pn.blueprintId || pn.name, pos.x, pos.y, custom);
+          if (node) {
+            idMap.set(pn.id, node.id);
+          } else {
+            // Unresolvable blueprint (hand-written fn not in the registry): keep the
+            // parsed node verbatim so wiring and the code stay consistent.
+            pn.id = `node_parsed_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+            state.nodes.push(pn);
+            state.saveSnapshot?.();
+            state.notify?.('node_add');
+            idMap.set(pn.id, pn.id);
+          }
+        }
       }
-    } catch (e) {
-      this.log(`Compilation check: Syntax verified locally. (${this.state.nodes.length} nodes, ${this.state.wires.length} wires)`, 'success');
+
+      // 2) Wires: only ADD edges the code expresses (addWire dedups). Never drop
+      //    existing wires — positional Lua args aren't a faithful delete signal.
+      //    (Additive-only: removals are graph-driven in the canvas, or on Reset.)
+      const edgeKey = w => `${w.fromNode}|${w.fromPin}|${w.toNode}|${w.toPin}|${w.isExec ? 1 : 0}`;
+      for (const w of parsed.wires) {
+        const fn = idMap.get(w.fromNode) ?? w.fromNode;
+        const tn = idMap.get(w.toNode) ?? w.toNode;
+        const k = `${fn}|${w.fromPin}|${tn}|${w.toPin}|${w.isExec ? 1 : 0}`;
+        const exists = state.wires.some(x => edgeKey(x) === k);
+        if (!exists) state.addWire(fn, w.fromPin, tn, w.toPin, w.isExec);
+      }
+    } catch (err) {
+      this.log(`✗ could not apply code → graph: ${err.message}`, 'error');
+    } finally {
+      this.applyingFromCode = false;
     }
   }
+
+  // Carry the code-specified fields onto an existing node without disturbing
+  // its position or any pin the code didn't mention (preserves true/false, etc.).
+  // inputValues are normalized to the node's *real* pin set, so untouched pins
+  // keep their values while stray `param_N` keys can never accumulate.
+  mergeNodeFromCode(existing, pn) {
+    const pnVals = pn.inputValues || {};
+    // Additive merge: keep every key the graph node already carries (e.g. a
+    // Monitor Signal's dynamic `Signal Name`, cached toggles) and layer the
+    // code's values on top. Only what the code expressed is applied; nothing is
+    // ever dropped. (A whitelist here was silently wiping monitor signal names —
+    // their blueprint has empty `inputs`, so `Signal Name` isn't a blueprinted pin.)
+    const next = Object.assign({}, existing.inputValues || {}, pnVals);
+    existing.inputValues = next;
+
+    if (pn.dataType !== undefined && pn.dataType !== null) existing.dataType = pn.dataType;
+    if (pn.varName) existing.varName = pn.varName;
+    if (pn.customInputs && Array.isArray(pn.customInputs)) existing.customInputs = pn.customInputs;
+    if (pn.signalName !== undefined) existing.signalName = pn.signalName;
+  }
+
+  // Legacy alias — now non-destructive (apply on demand instead of full rebuild).
+  syncToGraph() {
+    this.applyFromCode();
+  }
+
+  // The "gate": user edits are mirrored back only here, on demand. Validate the
+// Lua against the live graph, log the diff, then reconcile IN PLACE (by id)
+// and regenerate clean Lua so both views are lock-step again.
+checkMirror() {
+  this.log('Checking Lua mirror against the node graph…', 'info');
+  let parsed;
+  try {
+    parsed = THE_LANG.parse(this.textarea.value);
+  } catch (err) {
+    this.log(`✗ Lua could not be read back: ${err.message}`, 'error');
+    this.setMirrorState('bad');
+    return;
+  }
+  if (!parsed || !Array.isArray(parsed.nodes)) {
+    this.log('✗ no handler found — drop a "when …" node or add utils.on(…)', 'error');
+    this.setMirrorState('bad');
+    return;
+  }
+  const preserved = parsed.nodes.filter(pn => this.state.nodes.some(n => n.id === pn.id)).length;
+  const added = parsed.nodes.length - preserved;
+  this.log(`✓ read back ${parsed.nodes.length} node(s) & ${parsed.wires.length} link(s) — ${preserved} kept, ${Math.max(0, added)} added`, 'success');
+
+  this.applyFromCode();          // reconcile the graph in place
+  this.codeDirty = false;
+  this.setMirrorState('synced');
+  this.syncFromGraph();          // regenerate clean, now-lock-step code
+  this.log('↻ one model ⇄ two views · nodes and code are in step', 'info');
+}
+
+// Live status pill: ● in sync   △ edited — press Check to mirror.
+setMirrorState(state) {
+  const el = this.element.querySelector('#ideMirrorState');
+  if (!el) return;
+  if (state === 'edited') {
+    el.className = 'ide-status-item ide-mirror-dirty';
+    el.innerHTML = '<span class="mirror-dot">▲</span> edited — press Check';
+  } else if (state === 'bad') {
+    el.className = 'ide-status-item ide-mirror-bad';
+    el.innerHTML = '<span class="mirror-dot">!</span> can’t read back';
+  } else {
+    el.className = 'ide-status-item ide-mirror-ok';
+    el.innerHTML = '<span class="mirror-dot">●</span> in sync';
+  }
+}
 
   async loadGarageSample() {
     this.log('Loading authentic sample garage.gia...', 'info');

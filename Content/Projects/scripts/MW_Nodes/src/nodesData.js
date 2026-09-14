@@ -307,10 +307,13 @@ export function applyDataTypeToNode(nodeInstance, blueprint, dataType) {
     nodeInstance.pinTypes['Input 1'] = dataType;
     nodeInstance.pinTypes['Input 2'] = dataType;
   }
-  // 2. Comparison operations (Greater Than, Less Than, etc.)
+  // 2. Comparison operations (Greater Than, Less Than, etc.) — the two inputs
+  // always share one data type and change together. Pins are named per blueprint
+  // (Left Value / Right Value), not the hardcoded Input 1 / Input 2.
   else if (bpId.startsWith('op_greater') || bpId.startsWith('op_less')) {
-    nodeInstance.pinTypes['Input 1'] = dataType;
-    nodeInstance.pinTypes['Input 2'] = dataType;
+    (blueprint.inputs || []).forEach(inp => {
+      if (inp.hasGear || inp.type === 'generic') nodeInstance.pinTypes[inp.name] = dataType;
+    });
   }
   // 3. Math / Arithmetic operations (Addition, Subtraction, Multiplication, Division, Modulo, Exponentiation)
   else if (
@@ -323,9 +326,12 @@ export function applyDataTypeToNode(nodeInstance, blueprint, dataType) {
     bpId.startsWith('op_take_larger') ||
     bpId.startsWith('op_take_smaller')
   ) {
-    nodeInstance.pinTypes['Input 1'] = dataType;
-    nodeInstance.pinTypes['Input 2'] = dataType;
-    nodeInstance.pinTypes['Result'] = dataType;
+    (blueprint.inputs || []).forEach(inp => {
+      if (inp.hasGear || inp.type === 'generic') nodeInstance.pinTypes[inp.name] = dataType;
+    });
+    (blueprint.outputs || []).forEach(out => {
+      if (out.hasGear || out.type === 'generic') nodeInstance.pinTypes[out.name] = dataType;
+    });
   }
   // 4. Custom Variables & Node Graph Variables
   else if (bpId.includes('custom_var') || bpId.includes('node_graph_var')) {

@@ -4,6 +4,8 @@
  * nested control flow (if/else, switch, call sequences) — not a flat node list.
  */
 
+import { getNodeBlueprint } from '../nodesData.js';
+
 const METHOD_MAP = {
   'when tab is selected': { event: 'whenTabIsSelected' },
   'when tab selected': { event: 'whenTabIsSelected' },
@@ -69,7 +71,7 @@ export class TsGenerator {
       const ctx = { eventId: evNode.id, eventVarMap: new Map() };
 
       code += `// Event: ${evNode.name}\n`;
-      code += `g.server({ name: '${graphName}' }).on('${eventName}', (${param}) => {\n`;
+      code += `g.server({ name: '${graphName}' }).on('${eventName}', (${param}) => { // #${evNode.id}\n`;
       code += this.emitBody(evNode, byId, wires, usedData, param, eventOutPins, ctx);
       code += `});\n\n`;
     });
@@ -152,7 +154,7 @@ export class TsGenerator {
       const fn = mapping?.fn || this.toCamelCase(node.name);
       const vn = `${this.safeVar(fn) || 'value'}_${vc++}`;
       varMap.set(id, vn);
-      out += `${indent}const ${vn} = gsts.f.${fn}(${this.args(node, wires, varMap, ctx)});\n`;
+      out += `${indent}const ${vn} = gsts.f.${fn}(${this.args(node, wires, varMap, ctx)}); // #${id}\n`;
     }
     if (dataOrder.length) out += `\n`;
 
@@ -181,7 +183,7 @@ export class TsGenerator {
       const cond = this.cond(node, wires, varMap, ctx);
       const yes = this.execTargets(node, wires, 'Yes');
       const no = this.execTargets(node, wires, 'No');
-      let s = `${indent}if (${cond}) {\n`;
+      let s = `${indent}if (${cond}) { // #${node.id}\n`;
       for (const t of yes) s += this.walkExec(t, indent + '  ', byId, wires, varMap, visited, ctx);
       s += `${indent}} else {\n`;
       for (const t of no) s += this.walkExec(t, indent + '  ', byId, wires, varMap, visited, ctx);
@@ -193,7 +195,7 @@ export class TsGenerator {
     if (id === 'flow_multiple_branches' || name === 'multiple branches') {
       const cond = this.cond(node, wires, varMap, ctx);
       const entries = this.execBranchPins(node, wires).filter(e => e.pin !== 'Default');
-      let s = `${indent}switch (${cond}) {\n`;
+      let s = `${indent}switch (${cond}) { // #${node.id}\n`;
       for (const { pin, target } of entries) {
         s += `${indent}  case '${pin}': {\n`;
         for (const t of this.orderedTargets(node, wires, pin, target)) {
@@ -213,7 +215,7 @@ export class TsGenerator {
 
     // Regular execution node: imperative call, then follow every parallel exec child in order.
     const call = this.call(node, wires, varMap, ctx);
-    let out = `${indent}${call};\n`;
+    let out = `${indent}${call}; // #${node.id}\n`;
     for (const t of this.execTargets(node, wires)) {
       out += this.walkExec(t, indent, byId, wires, varMap, visited, ctx);
     }
@@ -275,20 +277,97 @@ export class TsGenerator {
   }
 
   static args(node, wires, varMap, ctx) {
+    const iv = node.inputValues || {};
+    const isSignal = node.blueprintId === 'exec_send_signal' || node.blueprintId === 'event_monitor_signal';
+
+    // Emit only *known* input pins, in blueprint order — never stray keys left
+    // over from previous code↔graph cycles (prevents pin inflation on nodes like
+    // Activate/Disable Tab that gain spurious `param_N` entries).
+    const pinDefs = this.knownPins(node);
+    let orderedKeys;
+    if (isSignal) {
+      const nameKeys = [];
+      const sigName = iv['Signal Name'] ?? node.signalName;
+      pinDefs.forEach(p => { if (p !== 'Signal Name') nameKeys.push(p); });
+      if (iv['Signal Name'] === undefined && sigName != null) {
+        orderedKeys = [['__signalName__', sigName], ...nameKeys.map(p => [p, iv[p]])];
+      } else {
+        orderedKeys = [['Signal Name', iv['Signal Name']], ...nameKeys.map(p => [p, iv[p]])];
+      }
+    } else {
+      orderedKeys = pinDefs.map(p => [p, iv[p]]);
+    }
+
     const args = [];
-    Object.keys(node.inputValues || {}).forEach(p => {
-      const w = wires.find(ww => !ww.isExec && ww.toNode === node.id && ww.toPin === p);
+    orderedKeys.forEach(([p, val]) => {
+      const w = wires.find(ww => !ww.isExec && ww.toNode === node.id && ww.toPin === p && p !== '__signalName__');
       if (w && ctx && w.fromNode === ctx.eventId) { args.push(ctx.eventVarMap.get(w.fromPin) ?? 'event'); return; }
       if (w && varMap.has(w.fromNode)) { args.push(varMap.get(w.fromNode)); return; }
-      args.push(this.literal(node.inputValues[p]));
+      // Always emit every known pin (falling back to its default), so boolean
+      // and numeric inputs are always present & editable instead of vanishing.
+      // Values are emitted type-aware: bools stay 0/1, strings stay quoted.
+      args.push(this.renderValue(node, p, val !== undefined ? val : this.defaultValueForPin(node, p)));
     });
     return args.join(', ');
   }
 
+  static inputType(node, p) {
+    const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+    if (bp && Array.isArray(bp.inputs)) {
+      const inp = bp.inputs.find(i => i.name === p);
+      if (inp && inp.type) return inp.type;
+    }
+    return null;
+  }
+
+  static renderValue(node, p, val) {
+    const type = this.inputType(node, p);
+    if (type === 'bool') return this.boolLit(val);
+    if (type === 'string') return JSON.stringify(String(val == null ? '' : val));
+    return this.literal(val);
+  }
+
+  static boolLit(v) {
+    const s = String(v).trim().toLowerCase();
+    return (s === '1' || s === 'true' || s === 'yes' || s === 'on') ? '1' : '0';
+  }
+
+  static defaultValueForPin(node, p) {
+    const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+    if (bp && Array.isArray(bp.inputs)) {
+      const inp = bp.inputs.find(i => i.name === p);
+      if (inp && inp.defaultVal !== undefined) return inp.defaultVal;
+    }
+    return '';
+  }
+
+  // Authoritative pin list for a node: blueprint inputs + dynamic inputs, in order.
+  static knownPins(node) {
+    const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+    const pins = [];
+    const seen = new Set();
+    if (bp && Array.isArray(bp.inputs)) {
+      for (const inp of bp.inputs) {
+        if (!seen.has(inp.name)) { seen.add(inp.name); pins.push(inp.name); }
+      }
+    }
+    if (Array.isArray(node.dynamicInputs)) {
+      for (const d of node.dynamicInputs) {
+        const p = String(d);
+        if (!seen.has(p)) { seen.add(p); pins.push(p); }
+      }
+    }
+    return pins;
+  }
+
   static literal(val) {
     if (val == null || val === '') return '0';
-    if (val === true || val === 'True' || val === '1' || val === 1) return '1';
-    if (val === false || val === 'False' || val === '0' || val === 0) return '0';
+    if (val === true || val === 'True' || val === 'true' || val === 'Yes' || val === '1' || val === 1) return '1';
+    if (val === false || val === 'False' || val === 'false' || val === 'No' || val === '0' || val === 0) return '0';
+    // Object-form vector (from .gia or the graph): emit as { x, y, z }.
+    if (typeof val === 'object' && val !== null && (val.x !== undefined)) {
+      return `{ x: ${Number(val.x) || 0}, y: ${Number(val.y) || 0}, z: ${Number(val.z) || 0 } }`;
+    }
     if (typeof val === 'string' && val.startsWith('(') && val.endsWith(')')) {
       const parts = val.slice(1, -1).split(',').map(s => Number(s.trim()) || 0);
       return `{ x: ${parts[0] || 0}, y: ${parts[1] || 0}, z: ${parts[2] || 0} }`;

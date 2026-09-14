@@ -52,14 +52,6 @@ export class SignalsManager {
     // Initial global signals matching Miliastra Wonderland (as shown in the user's screenshot)
     this.signals = [
       {
-        name: 'Ramlethal_Weapon',
-        params: [
-          { id: 'p_1', name: 'Damage', type: 'float' },
-          { id: 'p_2', name: 'Hit_Type', type: 'int' }
-        ],
-        hasDot: false
-      },
-      {
         name: 'P1_P2',
         params: [
           { id: 'p_1', name: 'Player_Index', type: 'int' },
@@ -81,49 +73,20 @@ export class SignalsManager {
           { id: 'p_1', name: 'Ammo_Count', type: 'int' }
         ],
         hasDot: false
-      },
-      {
-        name: 'HC_Weapon',
-        params: [
-          { id: 'p_1', name: 'Locaiton', type: 'vec3' },
-          { id: 'p_2', name: 'Light', type: 'bool' },
-          { id: 'p_3', name: 'Heavy', type: 'bool' },
-          { id: 'p_4', name: 'Parry', type: 'bool' },
-          { id: 'p_5', name: 'Block_Counter', type: 'bool' },
-          { id: 'p_6', name: 'Combo', type: 'bool' }
-        ],
-        hasDot: false
-      },
-      {
-        name: '(1)',
-        params: [
-          { id: 'p_1', name: 'Trigger_Code', type: 'int' }
-        ],
-        hasDot: true
-      },
-      {
-        name: '(2)',
-        params: [
-          { id: 'p_1', name: 'Target_Entity', type: 'entity' }
-        ],
-        hasDot: true
-      },
-      {
-        name: '(3)',
-        params: [
-          { id: 'p_1', name: 'Active', type: 'bool' }
-        ],
-        hasDot: true
-      },
-      {
-        name: 'Strike',
-        params: [
-          { id: 'p_1', name: 'Target_Entity', type: 'entity' },
-          { id: 'p_2', name: 'Hit_Power', type: 'float' }
-        ],
-        hasDot: false
       }
     ];
+  }
+
+  // Used when a .gia / import carries signals that must become brand-new entries.
+  // Name collisions are resolved with the classic trailing '_2', '_3', etc.
+  importSignals(signalDefs) {
+    const created = [];
+    (signalDefs || []).forEach(def => {
+      if (!def || !def.name) return;
+      const added = this.addSignal(def.name, def.params || []);
+      created.push(added);
+    });
+    return created;
   }
 
   subscribe(callback) {
@@ -195,9 +158,9 @@ export class SignalsManager {
       finalName = `Signal_${idx}`;
     }
 
-    // Prevent name collisions
+    // Prevent name collisions with the classic trailing '_2', '_3', ...
     if (this.hasSignal(finalName)) {
-      let idx = 1;
+      let idx = 2;
       while (this.hasSignal(`${finalName}_${idx}`)) {
         idx++;
       }

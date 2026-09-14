@@ -46,8 +46,19 @@ class MiliastraApp {
     this.initKeyboardShortcuts();
     this.initWindowMenu();
 
-    // Load authentic default scene from screenshots!
-    this.state.loadDefaultGenshinScene();
+    // Local persistence: restore graphs saved in the cache, then keep them in sync.
+    this.restorePersistedGraphs();
+    if (Array.isArray(this.graphs)) {
+      this.graphs.forEach(g => this.attachPersist(g));
+    }
+    window.addEventListener('beforeunload', () => this.persistGraphs());
+
+    // Load authentic default scene from screenshots! (unless a saved session exists)
+    if (this.restoredGraphs) {
+      this.simulator.log(`Restored ${this.restoredGraphs} saved node graph(s) from cache.`, 'info');
+    } else {
+      this.state.loadDefaultGenshinScene();
+    }
     this.renderer.render();
 
     window.updateZoomDropdown = (val) => {
@@ -82,6 +93,7 @@ class MiliastraApp {
     this.quickSpawner.state = s;
     this.simulator.state = s;
     this.ide.state = s;
+    this.ide.attachState?.(s);
     this.signalExplorer.state = s;
     this.nodeGraphVars.state = s;
   }
@@ -105,7 +117,48 @@ class MiliastraApp {
     while (this.graphs.some(g => g.name === n)) { n = `${base}_${k++}`; }
     const g = new GraphState(n, 'Server');
     this.graphs.push(g);
+    this.attachPersist(g);
     this.switchToGraph(g);
+    this.persistGraphs();
+  }
+
+  // Keep the local cache updated whenever the graph (or any graph) changes.
+  attachPersist(g) {
+    if (!g || g.__persisted) return;
+    g.__persisted = true;
+    g.subscribe(() => this.persistGraphs());
+  }
+
+  persistGraphs() {
+    clearTimeout(this.__persistTimer);
+    this.__persistTimer = setTimeout(() => {
+      try {
+        const data = (this.graphs || []).map(g => g.toJSON());
+        localStorage.setItem('miliastra.graphs', JSON.stringify(data));
+      } catch (err) {
+        /* storage full / unavailable — non-fatal */
+      }
+    }, 350);
+  }
+
+  restorePersistedGraphs() {
+    this.restoredGraphs = 0;
+    try {
+      const raw = localStorage.getItem('miliastra.graphs');
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr) || arr.length === 0) return;
+      const loaded = arr.map(o => GraphState.fromJSON(o)).filter(Boolean);
+      if (loaded.length > 0) {
+        this.graphs = loaded;
+        this.state = loaded[0];
+        this.syncStateRefs();
+        this.restoredGraphs = loaded.length;
+        this.renderGraphTabs();
+      }
+    } catch (err) {
+      // Bad/wrong-era cache — ignore and start fresh.
+    }
   }
 
   closeGraph(idx) {
@@ -136,6 +189,17 @@ class MiliastraApp {
         this.closeGraph(i);
       });
       tab.addEventListener('click', () => this.switchToGraph(this.graphs[i]));
+      tab.addEventListener('dblclick', async (e) => {
+        if (e.target.closest('.tab-close-btn')) return;
+        const g = this.graphs[i];
+        const name = await this.promptGraphName(g.name);
+        if (name) {
+          g.name = name;
+          this.switchToGraph(g);
+          this.persistGraphs();
+          this.simulator.log(`Renamed graph to '${name}'.`, 'info');
+        }
+      });
       el.appendChild(tab);
     });
     const t = document.getElementById('activeGraphTitle');
@@ -625,9 +689,11 @@ class MiliastraApp {
       dropdown.style.display = 'none';
     });
 
-    document.getElementById('menuNewGraph').addEventListener('click', () => {
-      this.addNewGraph('New_Node_Graph');
-      this.simulator.log('Created a new node graph.', 'success');
+    document.getElementById('menuNewGraph').addEventListener('click', async () => {
+      const name = await this.promptGraphName();
+      if (name == null) return; // cancelled
+      this.addNewGraph(name);
+      this.simulator.log(`Created a new node graph: ${name}.`, 'success');
     });
 
     document.getElementById('menuNodeGraphVars').addEventListener('click', () => {
@@ -716,10 +782,60 @@ class MiliastraApp {
 
     // The dynamic graph tabs (in #graphTabs) are bound in renderGraphTabs().
 
-    document.getElementById('btnNewTab').addEventListener('click', () => {
-      this.addNewGraph('New_Node_Graph');
-      this.simulator.log('Created a new node graph.', 'success');
+    document.getElementById('btnNewTab').addEventListener('click', async () => {
+      const name = await this.promptGraphName();
+      if (name == null) return;
+      this.addNewGraph(name);
+      this.simulator.log(`Created a new node graph: ${name}.`, 'success');
     });
+  }
+
+  // A small styled inline prompt for naming a node graph. Resolves the trimmed
+  // name, or null if the user dismisses it; defaults to the given/New Node Graph.
+  promptGraphName(initial = '') {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'graph-name-overlay';
+      overlay.innerHTML = `
+        <div class="graph-name-modal">
+          <div class="graph-name-title">Name your node graph</div>
+          <input class="graph-name-input" type="text" maxlength="64" autocomplete="off" spellcheck="false" value="${this.esc(initial)}" placeholder="e.g. Enemy_AI / Garage_Door" />
+          <div class="graph-name-actions">
+            <button class="gn-btn gn-cancel" type="button">Cancel</button>
+            <button class="gn-btn gn-ok" type="button">Create</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const input = overlay.querySelector('.graph-name-input');
+      const done = (val) => {
+        overlay.remove();
+        resolve(val);
+      };
+      overlay.querySelector('.gn-cancel').addEventListener('click', () => done(null));
+      overlay.querySelector('.gn-ok').addEventListener('click', () => {
+        const v = input.value.trim() || 'New_Node_Graph';
+        done(this.ensureUniqueGraphName(v));
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const v = input.value.trim() || 'New_Node_Graph';
+          done(this.ensureUniqueGraphName(v));
+        } else if (e.key === 'Escape') {
+          done(null);
+        }
+      });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) done(null);
+      });
+      setTimeout(() => input.focus(), 0);
+    });
+  }
+
+  ensureUniqueGraphName(base) {
+    let n = base;
+    let k = 1;
+    while (this.graphs.some(g => g.name === n)) { n = `${base}_${k++}`; }
+    return n;
   }
 
   initKeyboardShortcuts() {

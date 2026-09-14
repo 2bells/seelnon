@@ -17,7 +17,7 @@ export class SignalExplorer {
 
     // Working draft of signals (cloned on open to support Clear Changes / Apply Changes)
     this.draftSignals = [];
-    this.selectedSignalName = 'HC_Weapon';
+    this.selectedSignalName = '';
     this.searchQuery = '';
     this.hasPendingChanges = false;
 
@@ -652,6 +652,9 @@ export class SignalExplorer {
   }
 
   applyChanges() {
+    // Applying counts as saved: clear the unsaved-changes dots.
+    (this.draftSignals || []).forEach(s => { s.hasDot = false; });
+
     // Commit draft signals to signalsManager
     signalsManager.deserialize(this.draftSignals);
 
@@ -695,6 +698,8 @@ export class SignalExplorer {
     }
 
     this.hasPendingChanges = false;
-    this.close();
+
+    // Keep the window open, just clear the unsaved-changes dots in the sidebar.
+    this.renderSidebar();
   }
 }

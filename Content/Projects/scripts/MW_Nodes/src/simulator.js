@@ -195,7 +195,7 @@ export class GraphSimulator {
       await this.stepExec(node.id, 'Loop Complete');
     }
     else if (node.blueprintId === 'exec_send_signal') {
-      const sigName = node.inputValues['Signal Name'] || 'HC_Weapon';
+      const sigName = node.inputValues['Signal Name'] || '';
       const sigDef = signalsManager.getSignal(sigName);
       const payload = {};
       if (sigDef && sigDef.params) {
@@ -211,7 +211,7 @@ export class GraphSimulator {
       // Trigger any Monitor Signal nodes in the graph listening to this signal
       const monitorNodes = this.state.nodes.filter(n => 
         n.blueprintId === 'event_monitor_signal' && 
-        (n.inputValues['Signal Name'] || 'HC_Weapon') === sigName
+        (n.inputValues['Signal Name'] || '') === sigName
       );
 
       for (const mNode of monitorNodes) {

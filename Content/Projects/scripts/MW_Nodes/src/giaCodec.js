@@ -7,7 +7,7 @@
  * No server, no injection, no .gil integration.
  */
 
-import { getNodeBlueprint, parseNodeBlueprintAndType, applyDataTypeToNode } from './nodesData.js';
+import { getNodeBlueprint, parseNodeBlueprintAndType, applyDataTypeToNode, NODE_REGISTRY } from './nodesData.js';
 import { NODE_ID } from './ide/utils/MW-Node-Editor-Pack/node_data/node_id.js';
 import { signalsManager } from './signalsManager.js';
 
@@ -36,6 +36,20 @@ function getProtoRoot() {
 
 // Numeric GIA node id -> best readable key (e.g. Equal__Entity). Build once.
 let reverseNodeIdMap = null;
+// A parallel map for the app's own blueprints (query_get_… / exec_… / op_…) that
+// don't exist in the real game's NODE_ID table. We hand them a stable synthetic
+// id so a graph we encode round-trips cleanly back through OUR decoder.
+let localNodeIdMap = null;
+function getLocalNodeIdMap() {
+  if (!localNodeIdMap) {
+    localNodeIdMap = new Map();
+    let i = 0;
+    (NODE_REGISTRY || []).forEach(bp => {
+      if (bp && bp.id && !localNodeIdMap.has(bp.id)) localNodeIdMap.set(bp.id, 1050000 + (++i));
+    });
+  }
+  return localNodeIdMap;
+}
 function getReverseNodeIdMap() {
   if (!reverseNodeIdMap) {
     reverseNodeIdMap = {};
@@ -44,6 +58,12 @@ function getReverseNodeIdMap() {
       if (!reverseNodeIdMap[id]) reverseNodeIdMap[id] = [];
       reverseNodeIdMap[id].push(key);
     }
+    // Merge our synthetic app-blueprint ids so decode resolves them by blueprintId.
+    const localReverse = {};
+    for (const [bpId, id] of getLocalNodeIdMap()) {
+      localReverse[id] = [bpId];
+    }
+    Object.assign(reverseNodeIdMap, localReverse);
   }
   return reverseNodeIdMap;
 }
@@ -59,6 +79,153 @@ function mapVarType(vt) {
     20: 'config_id', 21: 'prefab_id'
   };
   return map[vt] || 'generic';
+}
+
+function normalizeBoolValue(val) {
+  const s = String(val).trim().toLowerCase();
+  if (s === '1' || s === 'true' || s === 'yes' || s === 'on') return 'True';
+  if (s === '0' || s === 'false' || s === 'no' || s === 'off') return 'False';
+  if (s === '') return '';
+  return val;
+}
+
+// App data-type -> GIA VarType enum value.
+const APP_TYPE_CODE = {
+  entity: 1, guid: 2, 'config_id': 20, 'prefab_id': 21,
+  int: 3, bool: 4, float: 5, string: 6, list: 8, dict: 27,
+  'vector3': 12, enum: 14, faction: 17, generic: 0
+};
+function typeCode(type) {
+  const t = (type == null ? 'generic' : String(type)).toLowerCase();
+  return APP_TYPE_CODE[t] != null ? APP_TYPE_CODE[t] : 0;
+}
+// Build a game-shaped VarBase for a literal pin value, or null when empty.
+// Mirrors the shape seen in genuine .gia files: the oneof value plus
+// `alreadySetVal` and an `itemType` describing the declared data type.
+function valueItemType(code) {
+  return { classBase: 1, typeServer: { type: code, kind: 0 } };
+}
+
+// Some node templates order their input pins differently than our Editor blueprints.
+// Provide the game-template slot for each input by name; anything not listed uses
+// its blueprint array position. (Observed from real in-game .gia exports.)
+const GAME_INPUT_SLOTS = {
+  exec_create_prefab: [
+    'Prefab ID', 'Location', 'Rotate', 'Owner Entity', 'Level', 'Overwrite Level', 'Unit Tag Index List'
+  ]
+};
+function gameInputSlot(bpId, inpName, fallback) {
+  const list = GAME_INPUT_SLOTS[bpId];
+  if (!list) return fallback;
+  const i = list.indexOf(inpName);
+  return i >= 0 ? i : fallback;
+}
+// The game numbers data outputs by blueprint position (Addition Result -> 0). Any
+// template needing a custom output order can be added here like GAME_INPUT_SLOTS.
+function gameOutputSlot(bpId, outName, fallback) {
+  return fallback;
+}
+function baseValue(type, valStr) {
+  if (valStr == null) return null;
+  const s = String(valStr);
+  const t = (type == null ? 'generic' : String(type)).toLowerCase();
+  if (s === '' && t !== 'string') return null;
+  const code = typeCode(t);
+  switch (t) {
+    case 'bool': {
+      const b = normalizeBoolValue(s);
+      if (b === '') return null;
+      return { class: 6, alreadySetVal: true, itemType: valueItemType(code), bEnum: { val: (b === 'True' ? 1 : 0) } };
+    }
+    case 'int': {
+      const n = parseInt(s, 10);
+      if (!isFinite(n)) return null;
+      return { class: 2, alreadySetVal: true, itemType: valueItemType(code), bInt: { val: n } };
+    }
+    case 'float': {
+      const n = parseFloat(s);
+      if (!isFinite(n)) return null;
+      return { class: 4, alreadySetVal: true, itemType: valueItemType(code), bFloat: { val: n } };
+    }
+    case 'vector3': {
+      let x = 0, y = 0, z = 0;
+      if (s.startsWith('(') && s.endsWith(')')) {
+        const p = s.slice(1, -1).split(',').map(v => parseFloat(v) || 0);
+        x = p[0] || 0; y = p[1] || 0; z = p[2] || 0;
+      }
+      return { class: 7, alreadySetVal: true, itemType: valueItemType(code), bVector: { val: { x, y, z } } };
+    }
+    case 'entity':
+    case 'guid':
+    case 'config_id':
+    case 'prefab_id':
+    case 'faction':
+      if (!isNaN(Number(s))) {
+        return { class: 1, alreadySetVal: true, itemType: valueItemType(code), bId: { val: Number(s) } };
+      }
+      return { class: 5, alreadySetVal: true, itemType: valueItemType(code), bString: { val: s } };
+    default:
+      return { class: 5, alreadySetVal: true, itemType: valueItemType(code), bString: { val: s } };
+  }
+}
+
+// A literal number on a numeric input pin: the game wraps it as a "concrete"
+// (reflective) value — class 10000 -> bConcreteValue with indexOfConcrete 5 for
+// Int, and the nested IntBaseValue carrying the number (this is the "= 1" case).
+function concreteNumericValue(num) {
+  return {
+    class: 10000,
+    alreadySetVal: true,
+    bConcreteValue: {
+      indexOfConcrete: 5,
+      value: { class: 2, alreadySetVal: true, itemType: valueItemType(3), bInt: { val: num } }
+    }
+  };
+}
+
+// Decide the value written onto an *input pin*. The declared pin type is
+// authoritative: asset ids / floats / vectors / strings / bools stay as plain Base
+// values (matching real files). Only declared `int` (and truly generic numeric)
+// literals use the game's "concrete/reflective" wrapper.
+function inputPinValue(blueprintType, existingVal) {
+  const raw = existingVal == null ? '' : String(existingVal);
+  const t = (blueprintType == null ? 'generic' : String(blueprintType)).toLowerCase();
+  const isConcreteNum = (t === 'int' || t === 'generic') && /^-?(\d+|\d*\.\d+)$/.test(raw.trim()) && raw.trim() !== '';
+  if (isConcreteNum) {
+    const n = parseFloat(raw);
+    if (Number.isInteger(n) && !raw.trim().includes('.')) return concreteNumericValue(n);
+    return {
+      class: 10000, alreadySetVal: true,
+      bConcreteValue: { indexOfConcrete: 5, value: { class: 4, alreadySetVal: true, itemType: valueItemType(5), bFloat: { val: n } } }
+    };
+  }
+  return baseValue(blueprintType, raw);
+}
+
+const DATATYPE_SUFFIX = {
+  int: 'Int', float: 'Float', string: 'Str', bool: 'Bool', entity: 'Entity',
+  guid: 'GUID', 'vector3': 'Vec', faction: 'Faction', 'config_id': 'Config',
+  'prefab_id': 'Prefab', list: 'List', dict: 'Dict', enum: 'Enum', generic: 'Generic'
+};
+
+// Index of a producer node's output pin by name (used to address data wires).
+function outputIndexFor(node, pinName) {
+  if (!node) return 0;
+  const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+  // The game's Monitor Signal composite exposes its runtime value on output index 3
+  // (Pin_Path), behind the two Entity / GUID event-source outputs. Anything wired out
+  // of a monitor that isn't a named source is that runtime value.
+  if (node.blueprintId === 'event_monitor_signal') {
+    const named = ['Event Source Entity', 'Event Source GUID', 'Signal Source Entity'];
+    const i = named.indexOf(pinName);
+    return i >= 0 ? i : 3;
+  }
+  const outs = (bp && bp.outputs) || [];
+  const isSig = node.blueprintId === 'event_monitor_signal' || node.blueprintId === 'exec_send_signal';
+  const customOuts = (isSig && Array.isArray(node.customOutputs)) ? node.customOutputs : [];
+  const all = customOuts.length ? outs.concat(customOuts) : outs;
+  const i = all.findIndex(o => o.name === pinName);
+  return i >= 0 ? i : 0;
 }
 
 export class GiaCodec {
@@ -150,10 +317,22 @@ export class GiaCodec {
       graphState.zoom = 1;
     }
 
+    const sigRename = new Map();
     if (payload.signals && Array.isArray(payload.signals)) {
-      payload.signals.forEach(s => {
-        if (s && s.name) {
-          signalsManager.registerSignal(s.name, s.params);
+      const created = signalsManager.importSignals(payload.signals);
+      payload.signals.forEach((s, i) => {
+        if (!s || !s.name) return;
+        const finalName = created[i] && created[i].name;
+        if (finalName && finalName !== s.name) sigRename.set(s.name, finalName);
+      });
+    }
+
+    if (Array.isArray(payload.nodeGraphVariables)) {
+      // Bring across the .gia's Node Graph Variables as brand-new variables
+      // (name collisions get the trailing '_2' from addNodeGraphVariable).
+      payload.nodeGraphVariables.forEach(v => {
+        if (v && v.name) {
+          graphState.addNodeGraphVariable(v.name, v.type, v.defaultValue || v.value || '');
         }
       });
     }
@@ -188,6 +367,16 @@ export class GiaCodec {
 
       if (bp && dataType) {
         applyDataTypeToNode(nodeObj, bp, dataType);
+      }
+
+      // Point signal nodes at the freshly imported (possibly name-suffixed) signal.
+      if (nodeObj.inputValues?.['Signal Name'] && sigRename.has(nodeObj.inputValues['Signal Name'])) {
+        const finalName = sigRename.get(nodeObj.inputValues['Signal Name']);
+        nodeObj.inputValues['Signal Name'] = finalName;
+        nodeObj.signalName = finalName;
+      } else if (nodeObj.signalName && sigRename.has(nodeObj.signalName)) {
+        nodeObj.signalName = sigRename.get(nodeObj.signalName);
+        if (nodeObj.inputValues) nodeObj.inputValues['Signal Name'] = nodeObj.signalName;
       }
 
       return nodeObj;
@@ -335,6 +524,7 @@ export class GiaCodec {
 
       const inputValues = {};
       let detectedSignalName = '';
+      const dynamicInputKeys = [];
 
       (rn.pins || []).forEach(p => {
         const kind = p.i1?.kind;
@@ -350,6 +540,17 @@ export class GiaCodec {
           else if (p.value.bVector?.val) {
             const v = p.value.bVector.val;
             val = `(${v.x || 0}, ${v.y || 0}, ${v.z || 0})`;
+          } else if (p.value.bConcreteValue) {
+            // Numeric literals are stored inside the concrete/reflective wrapper.
+            const cv = p.value.bConcreteValue.value;
+            if (cv?.bInt?.val !== undefined) val = String(cv.bInt.val);
+            else if (cv?.bFloat?.val !== undefined) val = String(cv.bFloat.val);
+            else if (cv?.bString?.val !== undefined) val = cv.bString.val;
+            else if (cv?.bEnum?.val !== undefined) val = String(cv.bEnum.val);
+            else if (cv?.bVector?.val) {
+              const v = cv.bVector.val;
+              val = `(${v.x || 0}, ${v.y || 0}, ${v.z || 0})`;
+            }
           }
         }
 
@@ -360,12 +561,26 @@ export class GiaCodec {
         }
 
         if (kind === 3) {
+          let inputType = null;
+          let inputName = null;
           if (customInputs && customInputs[pIdx]) {
-            inputValues[customInputs[pIdx].name] = val;
+            inputType = customInputs[pIdx].type;
+            inputName = customInputs[pIdx].name;
           } else if (bp && bp.inputs && bp.inputs[pIdx]) {
-            inputValues[bp.inputs[pIdx].name] = val;
+            inputType = bp.inputs[pIdx].type;
+            inputName = bp.inputs[pIdx].name;
           } else {
-            inputValues[`param_${pIdx}`] = val;
+            inputName = `param_${pIdx}`;
+          }
+          // Booleans surface as raw 0/1 (or Yes/No / True/False); normalize to True/False.
+          const assignVal = inputType === 'bool' ? normalizeBoolValue(val) : val;
+          // For dynamic-input nodes (Assembly List etc.) every kind:3 pin is one list
+          // element, so we rebuild `.dynamicInputs` and key the value by element index.
+          if (bp?.canAddDynamicInputs && bp?.id === 'op_assembly_list') {
+            dynamicInputKeys.push(String(pIdx));
+            inputValues[String(pIdx)] = assignVal;
+          } else {
+            inputValues[inputName] = assignVal;
           }
         }
       });
@@ -406,6 +621,10 @@ export class GiaCodec {
         inputValues,
         rawNode: rn
       };
+
+      if (dynamicInputKeys.length > 0) {
+        nodeInstance.dynamicInputs = dynamicInputKeys.sort((a, b) => Number(a) - Number(b));
+      }
 
       if (detectedSignalName) {
         nodeInstance.signalName = detectedSignalName;
@@ -511,13 +730,56 @@ export class GiaCodec {
       });
     });
 
+    // Collect the signals actually referenced by Send/Monitor Signal nodes in this
+    // graph (e.g. "Spawn Grass" with an int Points_Set payload). These are the
+    // meaningful signals the .gia carries, so importing registers them.
+    const nodeSignalsByName = {};
+    stateNodes.forEach(n => {
+      if (n.blueprintId !== 'event_monitor_signal' && n.blueprintId !== 'exec_send_signal') return;
+      const sigName = n.signalName || n.inputValues?.['Signal Name'];
+      if (!sigName) return;
+      let params;
+      if (n.blueprintId === 'event_monitor_signal') {
+        // Monitor Signal payload variables surface as output sockets beyond the 3 base outputs.
+        const base = new Set(['Event Source Entity', 'Event Source GUID', 'Signal Source Entity']);
+        params = (n.customOutputs || []).filter(p => !base.has(p.name)).map(p => ({ name: p.name, type: p.type }));
+      } else {
+        // Send Signal payload variables surface as its custom inputs.
+        params = (n.customInputs || []).map(p => ({ name: p.name, type: p.type }));
+      }
+      if (!nodeSignalsByName[sigName]) {
+        nodeSignalsByName[sigName] = { name: sigName, params };
+      }
+    });
+    const nodeSignals = Object.values(nodeSignalsByName);
+
+    // Prefer the node-referenced signals; fall back to accessory-derived defs.
+    const importedSignals = nodeSignals.length > 0 ? nodeSignals : signals;
+
+    // Read the graph's variables (round-trip for node graph variables).
+    const graphNodeGraph = graphUnit?.graph?.inner?.graph;
+    const importedGraphVars = ((graphNodeGraph && graphNodeGraph.graphValues) || []).map(gv => {
+      let value = '';
+      const v = gv.values;
+      if (v) {
+        if (v.bString?.val !== undefined) value = v.bString.val;
+        else if (v.bInt?.val !== undefined) value = String(v.bInt.val);
+        else if (v.bFloat?.val !== undefined) value = String(v.bFloat.val);
+        else if (v.bEnum?.val !== undefined) value = v.bEnum.val ? 'True' : 'False';
+        else if (v.bVector?.val) value = `(${v.bVector.val.x || 0}, ${v.bVector.val.y || 0}, ${v.bVector.val.z || 0})`;
+        else if (v.bId?.val !== undefined) value = String(v.bId.val);
+      }
+      return { name: gv.name, type: mapVarType(gv.type), defaultValue: value, value };
+    });
+
     return {
       graph: {
         name: graphName,
         type: 'Server',
         nodes: stateNodes,
         wires: stateWires,
-        signals,
+        signals: importedSignals,
+        nodeGraphVariables: importedGraphVars,
         rawGiaAst: ast
       }
     };
@@ -583,6 +845,15 @@ export class GiaCodec {
     const bytes = await this._buildGiaBinary(graphState);
     const blob = new Blob([bytes], { type: 'application/octet-stream' });
 
+    const skipped = this._lastSkipped || [];
+    if (skipped.length) {
+      console.warn(
+        `[gia] Skipped ${skipped.length} node(s) with no game template (omitted from .gia): ` +
+        skipped.join(', ') +
+        ' — these app-only nodes do not exist in Miliastra Wonderland, so they can\'t be encoded. Only real game nodes are exported.'
+      );
+    }
+
     const filename = `${(graphState.name || 'Open_Garage').replace(/[^\w\- ]/g, '') || 'Open_Garage'}.gia`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -595,45 +866,404 @@ export class GiaCodec {
   }
 
   /**
+   * Build a genuine .gia binary from the CURRENT GraphState — encoding the
+   * actual nodes, pin values, wires, signals and graph variables into the
+   * protobuf structure. (Replaces the old behaviour of cloning garage.gia.)
+   */
+  static _graphStateToAst(graphState) {
+    const stateNodes = graphState.nodes || [];
+    const wires = graphState.wires || [];
+
+    // Canonical signal composite accessories. The Miliastra game emits the three
+    // standard composite defs (Monitor Signal / Send Signal / Send Signal to Server
+    // Node Graph) crosslinked by relatedIds whenever a signal node is used. All
+    // signal nodes then reference the matching composite by id; the actual signal
+    // to (monitor|send) is carried on the node's own kind:5 param pin.
+    const accessories = [];
+    const MON_ID = 0x60000001;
+    const SEND_ID = 0x60000002;
+    const SEND_SRV_ID = 0x60000003;
+    const usesMonitor = stateNodes.some(n => n.blueprintId === 'event_monitor_signal');
+    const usesSend = stateNodes.some(n => n.blueprintId === 'exec_send_signal');
+    const auditor = new Set();
+    // The game always references the complete composite "family" (Monitor + Send +
+    // Send-to-Server) as siblings via relatedIds. A lone Monitor composite gets
+    // dropped because its family is incomplete.
+    if (usesMonitor || usesSend) {
+      auditor.add(MON_ID);
+      auditor.add(SEND_ID);
+      auditor.add(SEND_SRV_ID);
+    }
+
+    // Signal node -> the composite id it instantiates.
+    const sigAccFor = n => {
+      if (n.blueprintId === 'event_monitor_signal') return { id: MON_ID, label: 'Monitor Signal' };
+      if (n.blueprintId === 'exec_send_signal') return { id: SEND_ID, label: 'Send Signal' };
+      return null;
+    };
+
+    // Resolve a node to real game template ids. `real:false` means it's an
+    // app-only blueprint with no counterpart in the game — writing a fabricated
+    // id corrupts the target, so such nodes are skipped during export.
+    const nodeIdNumbers = (n) => {
+      // Signal (Monitor/Send) nodes are addressed by their composite accessory id —
+      // both genericId and concreteId carry it (as in real .gia files).
+      if (isSignalNode(n)) {
+        const acc = sigAccFor(n);
+        if (!acc) return { generic: null, concrete: null, real: false };
+        return { generic: acc.id, concrete: acc.id, real: true };
+      }
+      const bp = getNodeBlueprint(n.blueprintId) || getNodeBlueprint(n.name);
+      const baseKey = (n.name || bp?.name || bp?.id || 'Node').replace(/[^A-Za-z0-9]+/g, '_');
+      let dataType = n.dataType || (n.pinTypes && n.pinTypes['Result']) || null;
+      let concrete = null, generic = null;
+      if (dataType && DATATYPE_SUFFIX[dataType]) {
+        concrete = NODE_ID[`${baseKey}__${DATATYPE_SUFFIX[dataType]}`] ?? null;
+      }
+      generic = NODE_ID[`${baseKey}__Generic`] ?? NODE_ID[baseKey] ?? concrete ?? null;
+      let real = generic != null;
+      if (!concrete) concrete = generic;
+      if (generic == null) { generic = concrete; }
+      return { generic, concrete, real };
+    };
+    const isSignalNode = (n) => n.blueprintId === 'event_monitor_signal' || n.blueprintId === 'exec_send_signal';
+
+    // Two passes: first resolve which nodes are real & keepable, then index.
+    let kept = [];
+    this._lastSkipped = [];
+    stateNodes.forEach(n => {
+      const nums = nodeIdNumbers(n);
+      if (nums.real && nums.generic != null) {
+        kept.push({ n, nums });
+      } else {
+        this._lastSkipped.push(n.name || n.blueprintId || 'unknown');
+      }
+    });
+    const nodeIndex = new Map();
+    kept.forEach((k, i) => nodeIndex.set(k.n.id, i + 1));   // game uses 1-based node indices
+    const stateNodesKept = kept.map(k => k.n);
+    const keptNums = new Map();
+    kept.forEach(k => keptNums.set(k.n.id, k.nums));
+    // Only wires between kept nodes survive.
+    const keptWires = wires.filter(w => nodeIndex.has(w.fromNode) && nodeIndex.has(w.toNode));
+
+    const byIdKept = new Map();
+    stateNodesKept.forEach(n => byIdKept.set(n.id, n));
+
+    const graphNodes = stateNodesKept.map((n, mi) => {
+      const { generic, concrete } = keptNums.get(n.id);
+      const bp = getNodeBlueprint(n.blueprintId) || getNodeBlueprint(n.name);
+      const isSig = isSignalNode(n);
+
+      const pins = [];
+      const pin = (i1, extra) => Object.assign({
+        i1: { kind: i1[0], index: i1[1] },
+        i2: { kind: i1[0], index: i1[1] },
+        type: 0
+      }, extra);
+
+      // Event source nodes ("the red ones") only carry the exec outflow — no input
+      // or output pins (matches real .gia files exactly). Signal (monitor/send)
+      // nodes are NOT bare events: they additionally carry their composite signal.
+      const isEvent = !isSig && ((n.category || '') === 'event' || (n.blueprintId || '').startsWith('event_'));
+
+      // Signal / Send nodes bind to a signal via a composite (kind:5) param pin that
+      // carries the signal name as a string (the game template requires the pin to
+      // exist). We export that value EMPTY: the node and its composite accessory are
+      // kept so it survives round-trip, but the signal name is blanked out. We can't
+      // wire real .gil signal references from the app (ids/references don't match our
+      // app-side signals, and a fabricated one "nukes" the node), so the user re-assigns
+      // the signal in the editor after importing.
+      if (isSig) {
+        pins.push(pin([5, 0], {
+          value: { class: 5, alreadySetVal: true, itemType: valueItemType(6), bString: { val: '' } }
+        }));
+      }
+
+      // Input parameters (data inputs). Wires on an input surface as connects.
+      if (!isEvent) {
+        const inputs = (bp && bp.inputs) || [];
+        // Assembly List's only declared input (`0~99`) is a stand-in for its dynamic
+        // element pins, which are exported separately below — don't double-emit it.
+        const skipStatic = bp?.id === 'op_assembly_list';
+        const allIns = skipStatic ? [] : ((isSig && bp?.id === 'exec_send_signal' && Array.isArray(n.customInputs)) ? inputs.concat(n.customInputs) : inputs);
+        allIns.forEach((inp, i) => {
+          const connWires = keptWires.filter(w => !w.isExec && w.toNode === n.id && w.toPin === inp.name);
+          // Resolve the input's data type: use the connected producer's output type,
+          // else infer a numeric literal, else the blueprint default.
+          let resolvedType = inp.type || 'generic';
+          if (connWires.length > 0) {
+            // Resolve the connected producer's ACTUAL output type — first from the
+            // node's configured pin type (the game writes the concrete type, e.g. an
+            // Addition that gears its Result to ""), else from the blueprint output.
+            const fromN = byIdKept.get(connWires[0].fromNode);
+            const fromBp = (fromN && (getNodeBlueprint(fromN.blueprintId) || getNodeBlueprint(fromN.name))) || null;
+            let fromType = fromN && fromN.pinTypes && fromN.pinTypes[connWires[0].fromPin];
+            if (fromType && fromType !== 'generic') {
+              resolvedType = fromType;
+            } else {
+              const out = fromBp && fromBp.outputs ? fromBp.outputs.find(o => o.name === connWires[0].fromPin) : null;
+              if (out && out.type) resolvedType = out.type;
+            }
+          } else if (resolvedType === 'generic' || resolvedType === '') {
+            // Only infer a numeric literal type when the interface truly is generic/
+            // untyped — never override a declared asset type (prefab_id etc.).
+            const lit = n.inputValues?.[inp.name] != null ? String(n.inputValues[inp.name]) : '';
+            if (/^-?\d+$/.test(lit.trim())) resolvedType = 'int';
+            else if (/^-?\d*\.\d+$/.test(lit.trim())) resolvedType = 'float';
+          }
+          const p = pin([3, gameInputSlot(bp?.id, inp.name, i)], { type: typeCode(resolvedType) });
+          if (connWires.length === 0) {
+            const raw = n.inputValues?.[inp.name] != null ? n.inputValues[inp.name] : inp.defaultVal;
+            const val = inputPinValue(resolvedType, raw);
+            if (val) p.value = val;
+          } else {
+            p.connects = connWires.map(w => {
+              const prodOut = outputIndexFor(byIdKept.get(w.fromNode), w.fromPin);
+              const conn = { kind: 4, index: prodOut };
+              const c = { id: nodeIndex.get(w.fromNode), connect: conn, connect2: conn };
+              return c;
+            });
+            // Real files also carry a placeholder value on wired inputs (a concrete
+            // zero with alreadySetVal:false) so the slot is declared but unused.
+            if (resolvedType === 'int' || resolvedType === 'float' || resolvedType === 'generic') {
+              const num = 0;
+              p.value = {
+                class: 10000,
+                alreadySetVal: false,
+                bConcreteValue: {
+                  indexOfConcrete: 5,
+                  value: { class: resolvedType === 'float' ? 4 : 2, alreadySetVal: false, itemType: valueItemType(resolvedType === 'float' ? 5 : 3), bInt: { val: num } }
+                }
+              };
+            }
+          }
+          pins.push(p);
+        });
+
+        // Data output pins (kind:4). The game's .gia carries a kind:4 pin per data
+        // output, declaring the output's concrete data type (its type code + a value
+        // slot). Nodes whose output type is generic/gear (e.g. Addition Result,
+        // Get Custom Variable Value) draw their concrete type from the pin — without
+        // it the game doesn't know the node's data type and any output wire upstream
+        // is rejected, so the type and connection are lost. We emit a matching pin
+        // for every data output, typed from the node's configured pin type.
+        (bp?.outputs || []).forEach((out, oi) => {
+          // The game only carries a kind:4 data-output pin for outputs whose type is
+          // generic/gear (e.g. Addition Result, Get Variable Value), where the pin
+          // declares the node's concrete data type. Fixed-type outputs (Equal Result =
+          // bool, Get Random Result = int, Self Entity) get no k4 pin in real .gia files.
+          const isGear = out.type === 'generic' || out.hasGear;
+          if (!isGear) return;
+          const outType = n.pinTypes?.[out.name] || out.type || 'generic';
+          const p = pin([4, gameOutputSlot(bp?.id, out.name, oi)], { type: typeCode(outType) });
+          if (outType === 'int' || outType === 'float' || outType === 'generic') {
+            const isFl = outType === 'float';
+            p.value = {
+              class: 10000,
+              alreadySetVal: false,
+              bConcreteValue: {
+                indexOfConcrete: 5,
+                value: { class: isFl ? 4 : 2, alreadySetVal: false, itemType: valueItemType(isFl ? 5 : 3), bInt: { val: 0 } }
+              }
+            };
+          }
+          pins.push(p);
+        });
+        const dynKeys = Array.isArray(n.dynamicInputs) ? n.dynamicInputs : (bp?.canAddDynamicInputs ? ['0'] : []);
+        if (bp?.canAddDynamicInputs && bp?.id === 'op_assembly_list') {
+          // Element type: the gear on any element / the node datatype / the List pin.
+          const elemType = n.pinTypes?.[dynKeys[0] || '0'] || n.dataType || n.pinTypes?.['List'] || 'generic';
+          const tCode = typeCode(elemType);
+          dynKeys.forEach((key, k) => {
+            const connWires = keptWires.filter(w => !w.isExec && w.toNode === n.id && w.toPin === key);
+            const p = pin([3, k], { type: tCode });
+            if (connWires.length === 0) {
+              const raw = n.inputValues?.[key] != null ? n.inputValues[key] : '';
+              const val = inputPinValue(elemType, raw);
+              if (val) p.value = val;
+            } else {
+              p.connects = connWires.map(w => {
+                const prodOut = outputIndexFor(byIdKept.get(w.fromNode), w.fromPin);
+                const conn = { kind: 4, index: prodOut };
+                return { id: nodeIndex.get(w.fromNode), connect: conn, connect2: conn };
+              });
+            }
+            pins.push(p);
+          });
+        }
+
+        // Multiple Branches: the diagram's template also carries the branch indices as
+        // a second input (kind:3 index:1, type list) — without it the imported node
+        // shows only the orphaned Default/ghost wire and no branch pins.
+        if ((bp?.id === 'flow_multiple_branches' || (n.name || '').toLowerCase() === 'multiple branches')) {
+          const names = (bp && Array.isArray(bp.execOut)) ? bp.execOut.map(o => o.name) : ['Branch 0', 'Branch 1', 'Default'];
+          const branchCount = Math.max(names.length - 1, 0); // all but Default
+          if (branchCount > 0) {
+            pins.push(pin([3, 1], {
+              type: 8,
+              value: {
+                class: 10000, alreadySetVal: true,
+                bConcreteValue: {
+                  indexOfConcrete: 0,
+                  value: {
+                    class: 10002, alreadySetVal: true, itemType: valueItemType(8),
+                    bArray: {
+                      entries: Array.from({ length: branchCount }, (_, k) =>
+                        ({ class: 2, alreadySetVal: true, itemType: valueItemType(3), bInt: { val: k } })
+                      )
+                    }
+                  }
+                }
+              }
+            }));
+          }
+        }
+      }
+
+      // Exec outflow — carries exec wires as connects on the sender.
+      const outExecWires = keptWires.filter(w => w.isExec && w.fromNode === n.id);
+      if (outExecWires.length > 0) {
+        const byPin = new Map();
+        outExecWires.forEach(w => {
+          if (!byPin.has(w.fromPin)) byPin.set(w.fromPin, []);
+          byPin.get(w.fromPin).push(w);
+        });
+        // Resolve each exec branch to its game outflow index. Double Branch uses
+        // Yes=0 / No=1; Multiple Branches uses Branch N = N and Default = last slot.
+        const isDouble = bp?.id === 'flow_double_branch' || (n.name || '').toLowerCase() === 'double branch';
+        const isMulti = bp?.id === 'flow_multiple_branches' || (n.name || '').toLowerCase() === 'multiple branches';
+        let outflowIndexForPin = () => 0;
+        if (isDouble) outflowIndexForPin = (pinName) => (pinName === 'Yes' ? 0 : 1);
+        else if (isMulti) {
+          // In-game Multiple Branches numbering: Default = 0, then the user-made
+          // branches follow as 1,2,3... So our "Branch 0/1/2" live at slots 1/2/3.
+          outflowIndexForPin = (pinName) => {
+            if (pinName === 'Default') return 0;
+            const m = /^Branch\s*(\d+)$/i.exec(pinName || '');
+            return m ? parseInt(m[1], 10) + 1 : 0;
+          };
+        }
+        for (const [pinName, group] of byPin) {
+          const s = outflowIndexForPin(pinName) || 0;
+          pins.push(pin([2, s], {
+            connects: group.map(w => {
+              const conn = { kind: 1, index: 0 };
+              return { id: nodeIndex.get(w.toNode), connect: conn, connect2: conn };
+            })
+          }));
+        }
+      }
+
+      const nodeObj = {
+        nodeIndex: mi + 1,
+        genericId: { class: 10001, type: 20000, kind: 22000, nodeId: generic },
+        x: Math.round(n.x || 0),
+        y: Math.round(n.y || 0),
+        pins,
+        usingStruct: []
+      };
+      if (concrete != null) nodeObj.concreteId = { class: 10001, type: 20000, kind: 22000, nodeId: concrete };
+      return nodeObj;
+    });
+
+    const accessoryIds = [...auditor];
+    // Graph wrapper (mirrors the real unit: packed id, related unit refs).
+    const graphUnit = {
+      name: graphState.name || 'Exported_Graph',
+      id: { class: 5, type: 0, id: 1073741824 + 4 },
+      relatedIds: accessoryIds.map(i => ({ class: 0, type: 0, id: i })),
+      which: 9,
+      graph: {
+        inner: {
+          graph: {
+            name: graphState.name || 'Exported_Graph',
+            id: { class: 10000, type: 20000, kind: 21001, id: 1073741824 + 4 },
+            nodes: graphNodes,
+            graphValues: [],
+            comments: [],
+            compositePins: []
+          }
+        }
+      }
+    };
+
+    // Accessories (signal composite defs) — mirror the game's canonical templates.
+    if (auditor.size > 0) {
+      const related = accessoryIds;
+      const addAcc = (id, label, which, kind, pins) => {
+        accessories.push({
+          name: label,
+          id: { class: 23, type: 0, id },
+          relatedIds: related.filter(o => o !== id).map(i => ({ class: 23, type: 0, id: i })),
+          which,
+          compositeDef: {
+            inner: {
+              def: {
+                name: label,
+                description: '',
+                inflows: pins.inflow || [],
+                outflows: pins.outflow || [],
+                inputs: pins.input || [],
+                outputs: pins.output || [],
+                id: {
+                  genericId: { class: 10001, type: kind, kind: 22001, id },
+                  concreteId: { class: 10001, type: kind, kind: 22000, id },
+                  graphId: { class: 0, type: 0, kind: 0, id: 0 }
+                },
+                type: { kind: which === 12 ? 1002 : 1001 },
+                xxx: 1
+              }
+            }
+          }
+        });
+      };
+      // Monitor Signal template (which:12, server composite)
+      if (auditor.has(MON_ID)) {
+        addAcc(MON_ID, 'Monitor Signal', 12, 20000, {
+          outflow: [{ name: '', visible: true, index: { kind: 2, index: 0 }, description: '', pinIndex: 209 }],
+          output: [
+            { name: 'Event Source Entity', visible: true, index: { kind: 4, index: 0 }, type: { class: 0, type1: 1, type2: 1, valueId: null }, pinIndex: 211 },
+            { name: 'Event Source GUID',   visible: true, index: { kind: 4, index: 1 }, type: { class: 1, type1: 2, type2: 2, valueId: null }, pinIndex: 212 },
+            { name: 'Signal Source Entity', visible: true, index: { kind: 4, index: 2 }, type: { class: 0, type1: 1, type2: 1, valueId: null }, pinIndex: 213 },
+            { name: 'Pick_Path', visible: true, index: { kind: 4, index: 3 }, type: { class: 2, type1: 3, type2: 3, valueId: null }, pinIndex: 214 }
+          ]
+        });
+      }
+      // Send Signal — which:14 (client composite), inflow + outflow + one Pick_Path input.
+      if (auditor.has(SEND_ID)) {
+        addAcc(SEND_ID, 'Send Signal', 14, 20002, {
+          inflow: [{ name: '', visible: true, index: { kind: 1, index: 0 }, description: '', pinIndex: 205 }],
+          outflow: [{ name: '', visible: true, index: { kind: 2, index: 0 }, description: '', pinIndex: 206 }],
+          input: [{ name: 'Pick_Path', visible: true, index: { kind: 3, index: 0 }, type: { class: 2, type1: 3, type2: 3, valueId: null }, pinIndex: 208 }]
+        });
+      }
+      // Send Signal to Server Node Graph (one-way, composer style).
+      if (auditor.has(SEND_SRV_ID)) {
+        addAcc(SEND_SRV_ID, 'Send Signal to Server Node Graph', 14, 20002, {
+          inflow: [{ name: '', visible: true, index: { kind: 1, index: 0 }, description: '', pinIndex: 215 }],
+          outflow: [{ name: '', visible: true, index: { kind: 2, index: 0 }, description: '', pinIndex: 216 }],
+          input: [{ name: 'Pick_Path', visible: true, index: { kind: 3, index: 0 }, type: { class: 2, type1: 3, type2: 3, valueId: null }, pinIndex: 219 }]
+        });
+      }
+    }
+
+    return {
+      filePath: `704602757-1789383177-1073741915-\\${(graphState.name || 'Exported_Graph').replace(/[^\w-]/g, '_')}.gia`,
+      gameVersion: '7.0.0',
+      graph: graphUnit,
+      accessories
+    };
+  }
+
+  /**
    * Rebuild a valid .gia binary from the current GraphState.
    */
   static async _buildGiaBinary(graphState) {
     const root = await getProtoRoot();
     const Type = root.lookupType('Root');
 
-    let ast;
-    if (graphState.rawGiaAst) {
-      // Update coordinates and name on the loaded structural baseline
-      ast = JSON.parse(JSON.stringify(graphState.rawGiaAst));
-      ast.graph.name = graphState.name || 'Imported_Graph';
-      const nodes = ast.graph?.graph?.inner?.graph?.nodes || [];
-      const suffixMap = {
-        'int': 'Int', 'float': 'Float', 'string': 'Str', 'bool': 'Bool',
-        'entity': 'Entity', 'guid': 'GUID', 'vector3': 'Vec', 'faction': 'Faction',
-        'config_id': 'Config', 'prefab_id': 'Prefab'
-      };
-      nodes.forEach(rn => {
-        const matching = graphState.nodes?.find(n => n.giaIndex === rn.nodeIndex || n.name === rn.name);
-        if (matching) {
-          rn.x = matching.x;
-          rn.y = matching.y;
-          if (matching.dataType && NODE_ID) {
-            const normBase = (matching.name || '').replace(/\s+/g, '_');
-            const suffix = suffixMap[matching.dataType] || matching.dataType;
-            const key = `${normBase}__${suffix}`;
-            if (NODE_ID[key] && rn.concreteId) {
-              rn.concreteId.nodeId = NODE_ID[key];
-            }
-          }
-        }
-      });
-    } else {
-      // No baseline: start from the sample structure to produce a valid Root.
-      const baseSample = await this._sampleAst();
-      ast = JSON.parse(JSON.stringify(baseSample));
-      ast.graph.name = graphState.name || 'Exported_Graph';
-      ast.graph.graph.inner.graph.name = graphState.name || 'Exported_Graph';
-    }
+    const ast = this._graphStateToAst(graphState);
 
     const msg = Type.fromObject(ast);
     const payload = Type.encode(msg).finish();
