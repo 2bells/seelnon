@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixel GIA</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Pixel &rarr; GIA</h1>
+      <p class="sub">draw 16&times;16, inject as colored text into the box</p>
+    </header>
+
+    <main class="stage">
+      <div class="board">
+        <canvas id="grid" width="288" height="288"></canvas>
+        <div class="board-ctl">
+          <label class="lim">grid
+            <select id="size">
+              <option value="16">16×16</option>
+              <option value="20">20×20</option>
+              <option value="24">24×24</option>
+              <option value="28">28×28</option>
+              <option value="30" selected>30×30</option>
+              <option value="32">32×32</option>
+              <option value="64">64×64</option>
+              <option value="128">128×128</option>
+            </select>
+          </label>
+          <label class="lim">font size <input id="font" type="number" value="10" min="1" max="72" /></label>
+          <div class="palette" id="palette"></div>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="tools">
+          <button class="tool" id="erase">eraser</button>
+          <button class="tool" id="clear">clear</button>
+        </div>
+        <div class="tabs" id="tabs"></div>
+        <label class="field">
+          <span class="lbl">ASCII <em>(one text box per color tab — no color tags)</em></span>
+          <div class="tabbody">
+            <textarea id="out" rows="9" readonly spellcheck="false"></textarea>
+            <button class="tool" id="copy">copy</button>
+          </div>
+        </label>
+        <div class="meter">
+          <span id="len"></span>
+          <label class="lim">limit <input id="limit" type="number" value="1000" min="1" /></label>
+          <label class="lim">blank
+            <select id="blank">
+              <option value="space">space</option>
+              <option value="full" selected>full-width</option>
+              <option value="block">bg block</option>
+            </select>
+          </label>
+          <label class="lim" id="bgwrap" hidden>bg <input id="bg" type="color" value="#000000" /></label>
+        </div>
+        <div class="controls">
+          <button class="go" id="go">Build .gia</button>
+          <a class="dl" id="dl" download="pixel.gia" hidden>download .gia</a>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
