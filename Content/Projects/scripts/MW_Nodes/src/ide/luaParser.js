@@ -154,24 +154,45 @@ class _LuaParser {
   nextWireId() { return `wire_${this._n++}`; }
 
   makeEventNode(evName) {
-    const isSig = evName && evName !== 'no_signal' && signalsManager && signalsManager.getSignal && !!signalsManager.getSignal(evName);
+    const cleanEv = (evName || '').trim();
+    const isNoSig = !cleanEv || cleanEv === 'no_signal' || cleanEv === 'Monitor Signal' || cleanEv === 'monitorSignal';
     let typeId = 'event_custom';
-    let pretty = evName ? evName.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim() : 'Event';
+    let pretty = cleanEv ? cleanEv.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim() : 'Event';
     let iv = {};
-    if (evName === 'no_signal') {
-      // A Monitor Signal node whose signal isn't set yet — keep it a monitor,
-      // just with an empty selection ("No Signal").
-      typeId = 'event_monitor_signal';
-      pretty = 'Monitor Signal (no signal)';
-      iv['Signal Name'] = '';
-    } else if (isSig) {
+
+    if (isNoSig) {
       typeId = 'event_monitor_signal';
       pretty = 'Monitor Signal';
-      iv['Signal Name'] = evName;
+      iv['Signal Name'] = '';
+    } else if (signalsManager && signalsManager.getSignal && signalsManager.getSignal(cleanEv)) {
+      typeId = 'event_monitor_signal';
+      pretty = 'Monitor Signal';
+      iv['Signal Name'] = cleanEv;
+    } else {
+      // Check if it's a known built-in event
+      const bp = getNodeBlueprint(`event_${cleanEv}`) || getNodeBlueprint(cleanEv);
+      if (bp && bp.category === 'event') {
+        typeId = bp.id;
+        pretty = bp.name;
+      } else {
+        // Any custom event in Lua is treated as a Signal monitor
+        typeId = 'event_monitor_signal';
+        pretty = 'Monitor Signal';
+        iv['Signal Name'] = cleanEv;
+        if (signalsManager && signalsManager.registerSignal) {
+          signalsManager.registerSignal(cleanEv, []);
+        }
+      }
     }
     const node = this.makeNode(typeId, pretty, 'event');
     node.inputValues = iv;
-    if (typeId === 'event_monitor_signal') node.signalName = evName === 'no_signal' ? '' : evName;
+    if (typeId === 'event_monitor_signal') {
+      node.signalName = isNoSig ? '' : cleanEv;
+      const sigDef = (signalsManager && signalsManager.getSignal) ? signalsManager.getSignal(cleanEv) : null;
+      if (sigDef && Array.isArray(sigDef.params) && sigDef.params.length > 0) {
+        node.customOutputs = sigDef.params.map(p => ({ name: p.name, type: p.type || 'int' }));
+      }
+    }
     return node;
   }
 
@@ -426,7 +447,22 @@ class _LuaParser {
           const m = T[j + 1].v.match(/@\S+\s*([^\r\n]+)/);
           if (m) pin = m[1].replace(/[()]/g, '').trim();
         }
-        this.varToEvent.set(name, { evId: this.currentEventId(), pin: pin || 'Value' });
+        const curEvId = this.currentEventId();
+        this.varToEvent.set(name, { evId: curEvId, pin: pin || 'Value' });
+
+        const evNode = this.nodes.find(n => n.id === curEvId);
+        if (evNode && (evNode.blueprintId === 'event_monitor_signal' || evNode.name === 'Monitor Signal')) {
+          const builtin = ['Event Source Entity', 'Event Source GUID', 'Signal Source Entity'];
+          if (pin && !builtin.includes(pin)) {
+            if (!Array.isArray(evNode.customOutputs)) evNode.customOutputs = [];
+            if (!evNode.customOutputs.some(o => o.name === pin)) {
+              evNode.customOutputs.push({ name: pin, type: 'int' });
+            }
+            if (evNode.signalName && signalsManager && signalsManager.registerSignal) {
+              signalsManager.registerSignal(evNode.signalName, [{ name: pin, type: 'int' }]);
+            }
+          }
+        }
         i = j + 2;
         continue;
       }

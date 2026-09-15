@@ -96,7 +96,28 @@ export const PIN_COLORS = {
   config_id: '#D49B55',
   faction: '#54C5D0',
   prefab_id: '#9B51E0',
-  local_var: '#4A90E2'
+  local_var: '#4A90E2',
+  // Specific typed list colors (match their element types)
+  'int list': '#4A90E2',
+  'int_list': '#4A90E2',
+  'float list': '#50E3C2',
+  'float_list': '#50E3C2',
+  'string list': '#F5A623',
+  'string_list': '#F5A623',
+  'bool list': '#FF7474',
+  'bool_list': '#FF7474',
+  'entity list': '#B8E986',
+  'entity_list': '#B8E986',
+  'guid list': '#9013FE',
+  'guid_list': '#9013FE',
+  'vector3 list': '#F8E71C',
+  'vector3_list': '#F8E71C',
+  'config_id list': '#D49B55',
+  'config_id_list': '#D49B55',
+  'prefab_id list': '#9B51E0',
+  'prefab_id_list': '#9B51E0',
+  'faction list': '#54C5D0',
+  'faction_list': '#54C5D0'
 };
 
 export const DATA_TYPES = [
@@ -109,6 +130,16 @@ export const DATA_TYPES = [
   { id: 'guid', label: 'GUID', color: PIN_COLORS.guid, desc: 'Unique entity identifier' },
   { id: 'vector3', label: '3D Vector', color: PIN_COLORS.vector3, desc: '3-axis vector (X, Y, Z)' },
   { id: 'list', label: 'List', color: PIN_COLORS.list, desc: 'Ordered array of elements' },
+  { id: 'int list', label: 'Integer List', color: PIN_COLORS.int, desc: 'List of Integers' },
+  { id: 'float list', label: 'Floating Point List', color: PIN_COLORS.float, desc: 'List of Floating Point Numbers' },
+  { id: 'string list', label: 'String List', color: PIN_COLORS.string, desc: 'List of Strings' },
+  { id: 'bool list', label: 'Boolean List', color: PIN_COLORS.bool, desc: 'List of Booleans' },
+  { id: 'entity list', label: 'Entity List', color: PIN_COLORS.entity, desc: 'List of Entities' },
+  { id: 'guid list', label: 'GUID List', color: PIN_COLORS.guid, desc: 'List of GUID identifiers' },
+  { id: 'vector3 list', label: '3D Vector List', color: PIN_COLORS.vector3, desc: 'List of 3D Vectors' },
+  { id: 'config_id list', label: 'Config ID List', color: PIN_COLORS.config_id, desc: 'List of Config IDs' },
+  { id: 'prefab_id list', label: 'Prefab ID List', color: PIN_COLORS.prefab_id, desc: 'List of Prefab IDs' },
+  { id: 'faction list', label: 'Faction List', color: PIN_COLORS.faction, desc: 'List of Factions' },
   { id: 'dict', label: 'Dictionary', color: PIN_COLORS.dict, desc: 'Key-value map' },
   { id: 'enum', label: 'Enumeration', color: PIN_COLORS.enum, desc: 'Predefined named state' },
   { id: 'config_id', label: 'Config ID', color: PIN_COLORS.config_id, desc: 'Configuration index' },
@@ -437,7 +468,32 @@ export function applyDataTypeToNode(nodeInstance, blueprint, dataType) {
       if (out.hasGear || out.type === 'generic') nodeInstance.pinTypes[out.name] = dataType;
     });
   }
-  // 4. Custom Variables & Node Graph Variables
+  // 4. List Assembly (Assembly List) — all dynamic elements share the element data type, and output is the matching list type
+  else if (bpId === 'op_assembly_list' || bpId.includes('assembly_list')) {
+    const elemType = dataType.replace(/\s+list$/i, '').trim() || 'generic';
+    nodeInstance.dataType = elemType;
+    const dynamicKeys = nodeInstance.dynamicInputs || ['0'];
+    dynamicKeys.forEach(k => {
+      nodeInstance.pinTypes[k] = elemType;
+    });
+    nodeInstance.pinTypes['0~99'] = elemType;
+    nodeInstance.pinTypes['List'] = elemType === 'generic' ? 'list' : `${elemType} list`;
+  }
+  // 5. List Sorting & List Manipulation
+  else if (bpId === 'exec_list_sorting' || bpId === 'list_sorting' || bpId.includes('list_sorting')) {
+    const elemType = dataType.replace(/\s+list$/i, '').trim() || 'generic';
+    nodeInstance.dataType = elemType;
+    nodeInstance.pinTypes['List'] = elemType === 'generic' ? 'list' : `${elemType} list`;
+    nodeInstance.pinTypes['Sorted List'] = elemType === 'generic' ? 'list' : `${elemType} list`;
+  }
+  // 6. List Iteration Loop
+  else if (bpId.includes('list_iteration_loop') || bpId === 'exec_list_iteration_loop') {
+    const elemType = dataType.replace(/\s+list$/i, '').trim() || 'generic';
+    nodeInstance.dataType = elemType === 'generic' ? null : elemType;
+    nodeInstance.pinTypes['List'] = elemType === 'generic' ? 'list' : `${elemType} list`;
+    nodeInstance.pinTypes['Value'] = elemType;
+  }
+  // 7. Custom Variables & Node Graph Variables
   else if (bpId.includes('custom_var') || bpId.includes('node_graph_var')) {
     if (blueprint.inputs?.some(i => i.name === 'Variable Value') || nodeInstance.pinTypes['Variable Value'] !== undefined) {
       nodeInstance.pinTypes['Variable Value'] = dataType;
@@ -450,18 +506,18 @@ export function applyDataTypeToNode(nodeInstance, blueprint, dataType) {
       nodeInstance.pinTypes['Post-Change Value'] = dataType;
     }
   }
-  // 5. Local Variables
+  // 8. Local Variables
   else if (bpId === 'exec_set_local_var') {
     nodeInstance.pinTypes['Value'] = dataType;
   } else if (bpId === 'query_get_local_variable') {
     nodeInstance.pinTypes['Initial Value'] = dataType;
     nodeInstance.pinTypes['Value'] = dataType;
   }
-  // 6. Flow Multiple Branches
+  // 9. Flow Multiple Branches
   else if (bpId === 'flow_multiple_branches') {
     nodeInstance.pinTypes['Control Expression'] = dataType;
   }
-  // 7. Generic pins with hasGear or generic types
+  // 10. Generic pins with hasGear or generic types
   else {
     (blueprint.inputs || []).forEach(inp => {
       if (inp.hasGear || inp.type === 'generic') {

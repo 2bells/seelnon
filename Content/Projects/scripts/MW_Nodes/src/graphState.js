@@ -591,6 +591,8 @@ export class GraphState {
         let srcType = 'generic';
         if (srcNode.pinTypes && srcNode.pinTypes[fromPin]) {
           srcType = srcNode.pinTypes[fromPin];
+        } else if (srcBp?.id === 'op_assembly_list' && fromPin === 'List') {
+          srcType = srcNode.pinTypes?.['List'] || (srcNode.dataType ? `${srcNode.dataType} list` : 'generic list');
         } else if (srcBp && srcBp.outputs) {
           const outDef = srcBp.outputs.find(o => o.name === fromPin);
           if (outDef && outDef.type) srcType = outDef.type;
@@ -598,11 +600,24 @@ export class GraphState {
 
         if (srcType && srcType !== 'generic') {
           const tgtCurrentType = this.getPinType(toNode, toPin, 'generic');
+          const tgtInDef = (tgtBp?.inputs || []).find(i => i.name === toPin);
+          const isTgtGeneric = tgtCurrentType === 'generic' || 
+                                tgtInDef?.type === 'generic' || 
+                                tgtInDef?.hasGear === true || 
+                                (tgtCurrentType === 'list' && srcType.endsWith('list')) || 
+                                (tgtInDef?.type === 'list' && srcType.endsWith('list')) || 
+                                (tgtBp?.id === 'op_assembly_list') || 
+                                (tgtBp?.id === 'exec_list_sorting') || 
+                                (tgtBp?.id === 'exec_list_iteration_loop') ||
+                                (tgtBp?.id === 'exec_concatenate_list');
 
           // A concrete (non-generic) target socket only accepts a matching source.
-          if (tgtCurrentType !== 'generic' && tgtCurrentType !== srcType) {
+          if (!isTgtGeneric && tgtCurrentType !== 'generic' && tgtCurrentType !== srcType) {
             return null; // reject mismatched concrete types
           }
+
+          if (!tgtNode.pinTypes) tgtNode.pinTypes = {};
+          tgtNode.pinTypes[toPin] = srcType;
 
           const isPairOp =
             tgtBp && ['op_equal', 'op_not_equal', 'op_greater_than', 'op_less_than',
@@ -611,17 +626,46 @@ export class GraphState {
               'op_modulo_operation', 'op_exponentiation', 'op_take_larger', 'op_take_smaller']
               .includes(tgtBp.id);
 
-          if (!tgtNode.pinTypes) tgtNode.pinTypes = {};
-          tgtNode.pinTypes[toPin] = srcType;
+          const isLoopOp = tgtBp && (tgtBp.id === 'exec_list_iteration_loop' || tgtBp.id.includes('list_iteration_loop'));
+          const isSortOp = tgtBp && (tgtBp.id === 'exec_list_sorting' || tgtBp.id.includes('list_sorting'));
+          const isConcatOp = tgtBp && (tgtBp.id === 'exec_concatenate_list' || tgtBp.id.includes('concatenate_list'));
+          const isAssemblyOp = tgtBp && (tgtBp.id === 'op_assembly_list' || tgtBp.id.includes('assembly_list'));
 
-          // Equal / comparison / arithmetic: both inputs (and Result) change together.
+          // 1. Equal / comparison / arithmetic: both inputs (and Result) change together.
           if (isPairOp) {
-            (tgtBp.inputs || []).forEach(inp => {
-              if (inp.hasGear || inp.type === 'generic') tgtNode.pinTypes[inp.name] = srcType;
-            });
-            (tgtBp.outputs || []).forEach(out => {
-              if (out.hasGear || out.type === 'generic') tgtNode.pinTypes[out.name] = srcType;
-            });
+            tgtNode.dataType = srcType;
+            applyDataTypeToNode(tgtNode, tgtBp, srcType);
+          } 
+          // 2. Assembly List dynamic slots
+          else if (isAssemblyOp) {
+            const elemType = srcType.replace(/\s+list$/i, '').trim() || srcType;
+            tgtNode.dataType = elemType;
+            applyDataTypeToNode(tgtNode, tgtBp, elemType);
+          }
+          // 3. List Sorting
+          else if (isSortOp && (toPin === 'List' || toPin === 'Sorted List')) {
+            const listType = srcType.endsWith('list') ? srcType : `${srcType} list`;
+            const elemType = srcType.replace(/\s+list$/i, '').trim();
+            tgtNode.dataType = elemType;
+            tgtNode.pinTypes['List'] = listType;
+            tgtNode.pinTypes['Sorted List'] = listType;
+          }
+          // 4. List Iteration Loop
+          else if (isLoopOp && toPin === 'List') {
+            const listType = srcType.endsWith('list') ? srcType : `${srcType} list`;
+            const elemType = srcType.replace(/\s+list$/i, '').trim() || 'generic';
+            tgtNode.dataType = elemType === 'generic' ? null : elemType;
+            tgtNode.pinTypes['List'] = listType;
+            tgtNode.pinTypes['Value'] = elemType;
+          }
+          // 5. Concatenate List
+          else if (isConcatOp) {
+            const listType = srcType.endsWith('list') ? srcType : `${srcType} list`;
+            const elemType = srcType.replace(/\s+list$/i, '').trim();
+            tgtNode.dataType = elemType;
+            tgtNode.pinTypes['Target List'] = listType;
+            tgtNode.pinTypes['List'] = listType;
+            tgtNode.pinTypes['Combined List'] = listType;
           }
         }
       }
@@ -665,6 +709,8 @@ export class GraphState {
       'op_modulo_operation', 'op_exponentiation', 'op_take_larger', 'op_take_smaller']
       .includes(bp.id);
 
+    const isLoopOp = bp.id === 'exec_list_iteration_loop' || bp.id.includes('list_iteration_loop');
+
     if (isPairOp) {
       const inWires = this.wires.filter(w => !w.isExec && w.toNode === nodeId);
       let detectedType = null;
@@ -691,6 +737,24 @@ export class GraphState {
           (bp.outputs || []).forEach(out => {
             if (out.hasGear || out.type === 'generic') delete node.pinTypes[out.name];
           });
+        }
+      }
+    } else if (isLoopOp) {
+      const listWire = this.wires.find(w => !w.isExec && w.toNode === nodeId && w.toPin === 'List');
+      if (listWire) {
+        const srcType = this.getPinType(listWire.fromNode, listWire.fromPin, 'generic');
+        if (srcType && srcType !== 'generic') {
+          if (!node.pinTypes) node.pinTypes = {};
+          node.pinTypes['List'] = srcType;
+          const elemType = srcType.replace(/\s+list$/i, '').trim() || 'generic';
+          node.dataType = elemType === 'generic' ? null : elemType;
+          node.pinTypes['Value'] = elemType;
+        }
+      } else {
+        if (node.pinTypes) {
+          node.pinTypes['List'] = 'list';
+          node.pinTypes['Value'] = 'generic';
+          node.dataType = null;
         }
       }
     }
@@ -771,21 +835,36 @@ export class GraphState {
     }
 
     const lowerName = String(pinName || '').toLowerCase();
-    const isListInput = lowerName === 'list' || lowerName.includes('list') || lowerName.includes('target list') || lowerName.includes('input list') || lowerName.includes('iteration list') || lowerName.includes('weight list') || lowerName.includes('id list');
-    if (isListInput) {
+    const isListPin = lowerName === 'list' || lowerName === 'sorted list' || lowerName.includes('list') || lowerName.includes('target list') || lowerName.includes('input list') || lowerName.includes('iteration list') || lowerName.includes('weight list') || lowerName.includes('id list');
+    if (isListPin && node && node.dataType && node.dataType !== 'generic') {
+      return `${node.dataType} list`;
+    }
+    if (isListPin && defaultType === 'generic') {
       return 'list';
     }
     if (node) {
       const bp = getNodeBlueprint(node.blueprintId);
       if (bp) {
+        if (bp.id === 'exec_list_iteration_loop' || bp.id.includes('list_iteration_loop')) {
+          if (pinName === 'Value') {
+            return (node.dataType && node.dataType !== 'generic') ? node.dataType : 'generic';
+          }
+          if (pinName === 'List') {
+            return (node.dataType && node.dataType !== 'generic') ? `${node.dataType} list` : 'list';
+          }
+        }
         const inp = (bp.inputs || []).find(i => i.name === pinName);
         if (inp && inp.type) {
-          if (inp.type === 'list' || isListInput) return 'list';
+          if (inp.type === 'list' || isListPin) {
+            return (node.dataType && node.dataType !== 'generic') ? `${node.dataType} list` : 'list';
+          }
           return inp.type;
         }
         const out = (bp.outputs || []).find(o => o.name === pinName);
         if (out && out.type) {
-          if (out.type === 'list' || isListInput) return 'list';
+          if (out.type === 'list' || isListPin) {
+            return (node.dataType && node.dataType !== 'generic') ? `${node.dataType} list` : 'list';
+          }
           return out.type;
         }
       }
@@ -801,6 +880,16 @@ export class GraphState {
     const nextIdx = `${node.dynamicInputs.length}`;
     node.dynamicInputs.push(nextIdx);
     node.inputValues[nextIdx] = '';
+
+    // Inherit and enforce node/list data type for ALL dynamic input slots
+    const currentElemType = (node.dataType || (node.pinTypes && node.pinTypes['0']) || 'generic').replace(/\s+list$/i, '').trim();
+    if (!node.pinTypes) node.pinTypes = {};
+    node.dynamicInputs.forEach(k => {
+      node.pinTypes[k] = currentElemType;
+    });
+    node.pinTypes['0~99'] = currentElemType;
+    node.pinTypes['List'] = currentElemType === 'generic' ? 'list' : `${currentElemType} list`;
+
     this.saveSnapshot();
     this.notify('dynamic_input_add');
   }
@@ -812,6 +901,7 @@ export class GraphState {
     // Remove wire attached to this input pin
     this.wires = this.wires.filter(w => !(w.toNode === nodeId && w.toPin === inputName));
     delete node.inputValues[inputName];
+    if (node.pinTypes) delete node.pinTypes[inputName];
 
     // Remove and re-index remaining
     const idx = node.dynamicInputs.indexOf(inputName);
@@ -820,12 +910,15 @@ export class GraphState {
     }
     // Re-index remaining inputs sequentially: 0, 1, 2...
     const newInputValues = {};
+    const newPinTypes = {};
+    const currentElemType = node.dataType || 'generic';
     const oldWires = [...this.wires];
     const newDynamic = [];
     node.dynamicInputs.forEach((oldKey, i) => {
       const newKey = `${i}`;
       newDynamic.push(newKey);
       newInputValues[newKey] = node.inputValues[oldKey] || '';
+      newPinTypes[newKey] = (node.pinTypes && node.pinTypes[oldKey]) || currentElemType;
       // Rewire if needed
       for (const w of oldWires) {
         if (w.toNode === nodeId && w.toPin === oldKey) {
@@ -835,6 +928,7 @@ export class GraphState {
     });
     node.dynamicInputs = newDynamic;
     node.inputValues = { ...node.inputValues, ...newInputValues };
+    node.pinTypes = { ...node.pinTypes, ...newPinTypes };
     this.saveSnapshot();
     this.notify('dynamic_input_remove');
   }

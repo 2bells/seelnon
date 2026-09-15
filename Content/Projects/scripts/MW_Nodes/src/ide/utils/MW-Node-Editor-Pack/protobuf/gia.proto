@@ -33,6 +33,7 @@ message GraphUnit {
     BooleanFilter = 10;
     Skills = 11;
     CompositeGraph = 12;
+    SendSignalComposite = 14;
     StatusNode = 22;
     ClassNode = 23;
     StructureDefinition = 29;
@@ -101,18 +102,35 @@ message CompositeDef {
     string description = 4;
     int32 pinIndex = 8;
   }
+  message SignalPinDef {
+    string name = 1;
+    optional bool visible = 2;
+    optional NodePin.Index index = 3;
+    optional VarBase value = 4;
+    optional NodePin.Index clientExecNode = 5;
+    optional int32 pinIndex = 8;
+  }
   message Type {
     enum Kind {
       Unknown = 0;
       Composite = 1000;
+      SendSignal = 1001;
+      MonitorSignal = 1002;
       Assembly = 1003;
       Split = 1004;
       Modify = 1005;
     }
     message Id { int64 id = 1; }
+    message SignalRef {
+      string name = 1;
+      NodeGraph.Id relatedId1 = 2;
+      NodeGraph.Id relatedId2 = 3;
+    }
 
     Kind kind = 1;
     oneof parent {
+      SignalRef sendSignalRef = 101;
+      SignalRef monitorSignalRef = 102;
       Id assemble = 104;
       Id split = 105;
       Id modify = 106;
@@ -125,11 +143,13 @@ message CompositeDef {
   repeated ControlFlow outflows = 101;
   repeated ParameterFlow inputs = 102;
   repeated ParameterFlow outputs = 103;
+  repeated SignalPinDef signalPins = 106;
   Type type = 107;
 
   string name = 200;
   string description = 201;
   int32 xxx = 203;
+  optional int32 signalVersion = 204;
 }
 
 message NodeGraph {
@@ -319,6 +339,7 @@ message VarBase {
     Unknown = 0;
     IdBase = 1;
     IntBase = 2;
+    BoolBase = 3;
     FloatBase = 4;
     StringBase = 5;
     EnumBase = 6;

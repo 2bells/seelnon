@@ -194,9 +194,14 @@ export class NodeLibrary {
       this.renderList();
     });
 
-    // Keyboard shortcut '/' to focus search
+    // Keyboard shortcut '/' to focus search (only when not typing in any input)
     window.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement !== searchInput) {
+      const active = document.activeElement;
+      const tag = active ? active.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || active?.isContentEditable) {
+        return;
+      }
+      if (e.key === '/' && active !== searchInput) {
         e.preventDefault();
         searchInput.focus();
         searchInput.select();

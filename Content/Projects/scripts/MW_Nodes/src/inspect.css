@@ -8,29 +8,30 @@
   max-width: calc(100vw - 40px);
   height: 680px;
   max-height: calc(100vh - 60px);
-  background: #141721;
-  border: 1px solid #283144;
+  background: #20242e;
+  border: 1px solid #323947;
   border-radius: 8px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   color: #e2e8f0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: inherit;
   user-select: none;
 }
 
 /* Header */
 .insp-header {
   height: 48px;
-  background: #181c28;
-  border-bottom: 1px solid #252e3e;
-  display: flex;
+  background: #1c2029;
+  border-bottom: 1px solid #2b313f;
+  display: grid;
+  grid-template-columns: 1.1fr 1.2fr;
   align-items: center;
-  justify-content: space-between;
   padding: 0 16px;
   cursor: grab;
   flex-shrink: 0;
+  gap: 16px;
 }
 
 .insp-header:active {
@@ -44,15 +45,20 @@
   min-width: 0;
 }
 
+.insp-header-right-col {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 16px;
+  min-width: 0;
+}
+
 .insp-header-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: #232b3b;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #38bdf8;
+  color: #e2e8f0;
   flex-shrink: 0;
 }
 
@@ -142,8 +148,8 @@
 }
 
 .insp-search-input:focus {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+  border-color: #e5a93c;
+  box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.25);
 }
 
 .insp-search-icon {
@@ -238,15 +244,15 @@
   flex: 1;
   display: flex;
   min-height: 0;
-  background: #12151e;
+  background: #20242e;
 }
 
 /* Left Pane: Exploded Interactive Diagram */
 .insp-diagram-pane {
   flex: 1.1;
   min-width: 0;
-  background: #11141c;
-  border-right: 1px solid #212938;
+  background: #1a1d25;
+  border-right: 1px solid #2b313f;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -258,13 +264,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #161a24;
-  border-bottom: 1px solid #212836;
+  background: #1c2029;
+  border-bottom: 1px solid #2b313f;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #64748b;
+  color: #8c96a8;
   flex-shrink: 0;
 }
 
@@ -272,15 +278,15 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px 16px;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   position: relative;
-  background: radial-gradient(#1c2230 1px, transparent 1px);
+  background: radial-gradient(#262c38 1px, transparent 1px);
   background-size: 16px 16px;
-  background-color: #0f121a;
+  background-color: #171a22;
 }
 
 /* The Exploded Node Structure */
@@ -295,8 +301,8 @@
 
 /* Exploded Node Box (Clickable Main Big Node) */
 .exploded-node-box {
-  background: #1b202d;
-  border: 1px solid #334057;
+  background: #1e222d;
+  border: 1px solid #323947;
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -306,12 +312,13 @@
 }
 
 .exploded-node-box:hover {
-  border-color: #38bdf8;
+  border-color: #e5a93c;
 }
 
 .exploded-node-box.selected {
-  border-color: #38bdf8;
-  background: #1e2434;
+  border-color: #e5a93c;
+  background: #453c2f;
+  color: #f6eee2;
 }
 
 .exploded-node-header {
@@ -529,7 +536,7 @@
 .insp-specs-pane {
   flex: 1.2;
   min-width: 0;
-  background: #141722;
+  background: #20242e;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -712,11 +719,11 @@
 .insp-pin-usage-box {
   font-size: 12px;
   line-height: 1.5;
-  color: #bae6fd;
-  background: #101c2b;
+  color: #e2e8f0;
+  background: #1c2029;
   padding: 10px 12px;
   border-radius: 4px;
-  border: 1px solid #1e3a5f;
+  border: 1px solid #323947;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -758,8 +765,8 @@
 }
 
 .insp-connector-chip:hover {
-  background: #1f2738;
-  border-color: #38bdf8;
+  background: #282e3b;
+  border-color: #e5a93c;
 }
 
 .insp-connector-chip-name {
@@ -861,8 +868,8 @@
 /* Footer Action Bar */
 .insp-footer {
   height: 44px;
-  background: #161a25;
-  border-top: 1px solid #232b3b;
+  background: #1c2029;
+  border-top: 1px solid #2b313f;
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -872,7 +879,7 @@
 
 .insp-footer-left {
   font-size: 11.5px;
-  color: #64748b;
+  color: #8c96a8;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -884,13 +891,13 @@
   gap: 8px;
 }
 
-.insp-btn-spawn {
-  background: #1e3a2b;
-  border: 1px solid #2e6945;
-  color: #86efac;
+.insp-footer-btn {
+  background: #282e3b;
+  border: 1px solid #384152;
+  color: #c4cad4;
   font-size: 12px;
-  font-weight: 600;
-  padding: 5px 14px;
+  font-weight: 500;
+  padding: 6px 14px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -899,24 +906,20 @@
   transition: all 0.12s;
 }
 
-.insp-btn-spawn:hover {
-  background: #2a523c;
+.insp-footer-btn:hover {
+  background: #323a4a;
   color: #ffffff;
-  border-color: #4ade80;
 }
 
-.insp-btn-copy {
-  background: #212736;
-  border: 1px solid #333f54;
-  color: #cbd5e1;
-  font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.12s;
+.insp-btn-apply {
+  background: #e5a93c;
+  border: 1px solid #e5a93c;
+  color: #111111;
+  font-weight: 600;
 }
 
-.insp-btn-copy:hover {
-  background: #2d364a;
-  color: #ffffff;
+.insp-btn-apply:hover {
+  background: #f1b852;
+  border-color: #f1b852;
+  color: #000000;
 }

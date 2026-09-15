@@ -50,7 +50,28 @@ export class MiliastraIde {
     if (this._unsub) { try { this._unsub(); } catch (_) {} }
     this._state = state;
     this.state = state;
+
+    if (!this._hasBlurSyncListener) {
+      this._hasBlurSyncListener = true;
+      document.addEventListener('focusout', (e) => {
+        if (this._pendingIdeSync) {
+          this._pendingIdeSync = false;
+          if ((this.viewMode === 'code' || this.viewMode === 'split') && !this.applyingFromCode) {
+            this.syncFromGraph();
+            this.codeDirty = false;
+            this.setMirrorState('synced');
+          }
+        }
+      });
+    }
+
     this._unsub = state.subscribe((changeType) => {
+      // If user is currently typing in an input box, wait until they blur (deselect) before syncing IDE
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+        this._pendingIdeSync = true;
+        return;
+      }
       if ((this.viewMode === 'code' || this.viewMode === 'split') && !this.applyingFromCode) {
         this.syncFromGraph();
         this.codeDirty = false;

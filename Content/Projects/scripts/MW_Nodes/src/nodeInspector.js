@@ -386,47 +386,46 @@ export class NodeInspector {
             <span class="insp-header-title" id="inspHeaderTitle">Inspect Node</span>
             <span class="insp-category-badge" id="inspCategoryBadge" style="background:#4a6b46;">EVENT</span>
           </div>
-          <div class="insp-header-nav">
-            <button class="insp-nav-btn" id="inspPrevNodeBtn" title="Previous Node in Library">◀</button>
-            <button class="insp-nav-btn" id="inspNextNodeBtn" title="Next Node in Library">▶</button>
-          </div>
         </div>
 
-        <!-- Center Quick Search -->
-        <div class="insp-header-center">
-          <div class="insp-search-box">
-            <span class="insp-search-icon">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <!-- Right Header Column (Aligned with Right Half) -->
+        <div class="insp-header-right-col">
+          <!-- Center Quick Search -->
+          <div class="insp-header-center">
+            <div class="insp-search-box">
+              <span class="insp-search-icon">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </span>
+              <input type="text" class="insp-search-input" id="inspSearchInput" placeholder="Jump to node blueprint..." autocomplete="off" />
+              <button class="insp-search-clear" id="inspSearchClear" style="display:none;">✕</button>
+              <div class="insp-search-dropdown" id="inspSearchDropdown" style="display:none;"></div>
+            </div>
+          </div>
+
+          <!-- Header Actions: [ℹ Data Types Reference] [★ Favorite] [✕ Close] -->
+          <div class="insp-header-actions">
+            <button class="insp-btn-icon" id="inspCheatsheetBtn" title="Data Types Reference">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
               </svg>
-            </span>
-            <input type="text" class="insp-search-input" id="inspSearchInput" placeholder="Jump to node blueprint..." autocomplete="off" />
-            <button class="insp-search-clear" id="inspSearchClear" style="display:none;">✕</button>
-            <div class="insp-search-dropdown" id="inspSearchDropdown" style="display:none;"></div>
+            </button>
+            <button class="insp-btn-icon" id="inspFavBtn" title="Favorite this Node">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+            <button class="insp-btn-icon insp-close-btn" id="inspCloseBtn" title="Close Inspector (Esc)">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           </div>
-        </div>
-
-        <!-- Header Actions: [ℹ Data Types Reference] [★ Favorite] [✕ Close] -->
-        <div class="insp-header-actions">
-          <button class="insp-btn-icon" id="inspCheatsheetBtn" title="Data Types Reference">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="16" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-          </button>
-          <button class="insp-btn-icon" id="inspFavBtn" title="Favorite this Node">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-          </button>
-          <button class="insp-btn-icon insp-close-btn" id="inspCloseBtn" title="Close Inspector (Esc)">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -444,6 +443,21 @@ export class NodeInspector {
           <div class="insp-specs-scroll" id="inspSpecsScroll">
             <!-- Content rendered directly here without nested frames -->
           </div>
+        </div>
+      </div>
+
+      <!-- Footer Action Bar -->
+      <div class="insp-footer">
+        <div class="insp-footer-left">
+          <div style="display:flex;align-items:center;gap:4px;margin-right:8px;">
+            <button class="insp-nav-btn" id="inspPrevNodeBtn" title="Previous Node in Library">◀</button>
+            <button class="insp-nav-btn" id="inspNextNodeBtn" title="Next Node in Library">▶</button>
+          </div>
+          <span>Miliastra Node Blueprint Architecture</span>
+        </div>
+        <div class="insp-footer-actions">
+          <button class="insp-footer-btn" id="inspCloseFooterBtn">Close</button>
+          <button class="insp-footer-btn insp-btn-apply" id="inspSpawnNodeBtn">Spawn Node to Graph</button>
         </div>
       </div>
     `;
@@ -487,8 +501,48 @@ export class NodeInspector {
       this.bringToFront();
     });
 
-    // Close button
+    // Close buttons
     this.card.querySelector('#inspCloseBtn').addEventListener('click', () => {
+      this.close();
+    });
+    this.card.querySelector('#inspCloseFooterBtn').addEventListener('click', () => {
+      this.close();
+    });
+
+    // Spawn node button
+    this.card.querySelector('#inspSpawnNodeBtn').addEventListener('click', () => {
+      if (!this.activeBlueprint) return;
+      const bp = this.activeBlueprint;
+      const gs = this.app?.graphState;
+      if (gs) {
+        const vpW = window.innerWidth;
+        const vpH = window.innerHeight;
+        const spawnX = (-gs.panX + vpW / 2) / gs.zoom;
+        const spawnY = (-gs.panY + vpH / 2) / gs.zoom;
+
+        const newNode = {
+          id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          blueprintId: bp.id,
+          name: bp.name,
+          category: bp.category,
+          x: spawnX,
+          y: spawnY,
+          inputs: (bp.inputs || []).map(i => ({ name: i.name, type: i.type, value: i.defaultVal !== undefined ? i.defaultVal : '' })),
+          outputs: (bp.outputs || []).map(o => ({ name: o.name, type: o.type })),
+          execIn: bp.execIn,
+          execOut: bp.execOut,
+          inputValues: {}
+        };
+
+        gs.nodes.push(newNode);
+        gs.selectedNodeIds.clear();
+        gs.selectedNodeIds.add(newNode.id);
+        gs.saveSnapshot();
+
+        if (this.app?.renderer) {
+          this.app.renderer.render();
+        }
+      }
       this.close();
     });
 
@@ -530,8 +584,23 @@ export class NodeInspector {
     const searchInput = this.card.querySelector('#inspSearchInput');
     const searchClear = this.card.querySelector('#inspSearchClear');
     const searchDropdown = this.card.querySelector('#inspSearchDropdown');
+    let selectedSearchIndex = -1;
+
+    const updateSearchSelection = (items) => {
+      items.forEach((item, idx) => {
+        if (idx === selectedSearchIndex) {
+          item.style.background = '#282e3b';
+          item.style.color = '#ffffff';
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.style.background = '';
+          item.style.color = '#cbd5e1';
+        }
+      });
+    };
 
     searchInput.addEventListener('input', () => {
+      selectedSearchIndex = -1;
       const q = searchInput.value.trim().toLowerCase();
       searchClear.style.display = q ? 'block' : 'none';
       if (!q) {
@@ -546,17 +615,17 @@ export class NodeInspector {
       ).slice(0, 15);
 
       if (matches.length === 0) {
-        searchDropdown.innerHTML = '<div style="padding:8px 12px;font-size:11px;color:#64748b;">No matching blueprints</div>';
+        searchDropdown.innerHTML = '<div style="padding:8px 12px;font-size:11px;color:#8c96a8;">No matching blueprints</div>';
       } else {
-        searchDropdown.innerHTML = matches.map(m => {
+        searchDropdown.innerHTML = matches.map((m, idx) => {
           const cat = CATEGORIES[m.category] || { name: 'Node', headerColor: '#4a6b46' };
           return `
-            <div class="insp-search-item" data-id="${m.id}">
-              <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+            <div class="insp-search-item" data-id="${m.id}" data-index="${idx}" style="display:flex;align-items:center;justify-content:space-between;white-space:nowrap;padding:7px 10px;">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden;">
                 <span style="width:6px;height:6px;border-radius:50%;background:${cat.headerColor};flex-shrink:0;"></span>
-                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.name}</span>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e8f0;font-weight:500;">${m.name}</span>
               </div>
-              <span style="font-size:10px;color:#64748b;font-family:monospace;">${m.folder || ''}</span>
+              <span style="font-size:10px;color:#8c96a8;font-family:monospace;flex-shrink:0;margin-left:12px;white-space:nowrap;">${m.folder || cat.name || ''}</span>
             </div>
           `;
         }).join('');
@@ -572,6 +641,30 @@ export class NodeInspector {
         });
       }
       searchDropdown.style.display = 'block';
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      const items = searchDropdown.querySelectorAll('.insp-search-item');
+      if (!items.length || searchDropdown.style.display === 'none') return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedSearchIndex = Math.min(selectedSearchIndex + 1, items.length - 1);
+        updateSearchSelection(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedSearchIndex = Math.max(selectedSearchIndex - 1, 0);
+        updateSearchSelection(items);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedSearchIndex >= 0 && items[selectedSearchIndex]) {
+          items[selectedSearchIndex].click();
+        } else if (items.length > 0) {
+          items[0].click();
+        }
+      } else if (e.key === 'Escape') {
+        searchDropdown.style.display = 'none';
+      }
     });
 
     searchClear.addEventListener('click', () => {
@@ -901,125 +994,34 @@ export class NodeInspector {
     const scroll = this.card.querySelector('#inspSpecsScroll');
     scroll.innerHTML = '';
 
-    // 1. Node Function & Description
+    // Clean Flat Node Function Overview (Styled like pin details)
     const descSection = document.createElement('div');
-    descSection.className = 'insp-section-card';
+    descSection.className = 'insp-pin-flat-view';
     descSection.innerHTML = `
-      <div class="insp-section-header">
-        <span>Node Function</span>
-        <span style="font-size:10.5px;color:#818cf8;">Category: ${cat.name}</span>
+      <div class="insp-pin-flat-header">
+        <div class="insp-pin-identity">
+          <span class="insp-pin-dot" style="background:${cat.headerColor};"></span>
+          <span class="insp-pin-name">Node Function</span>
+        </div>
+        <span class="insp-pin-type-tag" style="color:${cat.headerColor};">[${cat.name}]</span>
       </div>
-      <div class="insp-section-body">
-        <div class="insp-desc-text">${bp.description || 'Executes logic node operations within the Miliastra graph architecture.'}</div>
+
+      <div class="insp-pin-flat-desc">
+        ${bp.description || 'Executes logic node operations within the Miliastra graph architecture.'}
       </div>
-    `;
-    scroll.appendChild(descSection);
 
-    // 2. Connectors Summary
-    const inputPins = bp.inputs || [];
-    const outputPins = bp.outputs || [];
-
-    const connectorsSection = document.createElement('div');
-    connectorsSection.className = 'insp-section-card';
-    connectorsSection.innerHTML = `
-      <div class="insp-section-header">
-        <span>Available Connectors</span>
-        <span style="font-size:10.5px;color:#94a3b8;">${inputPins.length + outputPins.length + (bp.execIn ? 1 : 0) + (bp.execOut ? 1 : 0)} Total</span>
-      </div>
-      <div class="insp-section-body">
-        <div class="insp-connectors-overview-grid">
-          <!-- Inputs Column -->
-          <div>
-            <div class="insp-connector-group-title">Inputs (${inputPins.length + (bp.execIn ? 1 : 0)})</div>
-            <div class="insp-connector-chip-list">
-              ${bp.execIn ? `
-                <div class="insp-connector-chip" data-pin-key="exec_in">
-                  <span class="insp-connector-chip-name">
-                    <span style="width:6px;height:6px;border-radius:50%;background:#ffffff;"></span>
-                    <span>Exec In</span>
-                  </span>
-                  <span class="insp-connector-chip-type">[flow]</span>
-                </div>
-              ` : ''}
-              ${inputPins.map((p, idx) => {
-                const pinKey = `in_${idx}_${p.name}`;
-                const pinColor = PIN_COLORS[p.type] || PIN_COLORS.generic;
-                return `
-                  <div class="insp-connector-chip" data-pin-key="${pinKey}">
-                    <span class="insp-connector-chip-name">
-                      <span style="width:6px;height:6px;border-radius:50%;background:${pinColor};"></span>
-                      <span>${p.name}</span>
-                    </span>
-                    <span class="insp-connector-chip-type" style="color:${pinColor};">[${p.type || 'generic'}]</span>
-                  </div>
-                `;
-              }).join('')}
-              ${!bp.execIn && inputPins.length === 0 ? '<div style="font-size:11px;color:#556277;">No inputs</div>' : ''}
-            </div>
-          </div>
-
-          <!-- Outputs Column -->
-          <div>
-            <div class="insp-connector-group-title">Outputs (${outputPins.length + (bp.execOut ? 1 : 0)})</div>
-            <div class="insp-connector-chip-list">
-              ${bp.execOut ? `
-                <div class="insp-connector-chip" data-pin-key="exec_out">
-                  <span class="insp-connector-chip-name">
-                    <span style="width:6px;height:6px;border-radius:50%;background:#ffffff;"></span>
-                    <span>Exec Out</span>
-                  </span>
-                  <span class="insp-connector-chip-type">[flow]</span>
-                </div>
-              ` : ''}
-              ${outputPins.map((p, idx) => {
-                const pinKey = `out_${idx}_${p.name}`;
-                const pinColor = PIN_COLORS[p.type] || PIN_COLORS.generic;
-                return `
-                  <div class="insp-connector-chip" data-pin-key="${pinKey}">
-                    <span class="insp-connector-chip-name">
-                      <span style="width:6px;height:6px;border-radius:50%;background:${pinColor};"></span>
-                      <span>${p.name}</span>
-                    </span>
-                    <span class="insp-connector-chip-type" style="color:${pinColor};">[${p.type || 'generic'}]</span>
-                  </div>
-                `;
-              }).join('')}
-              ${!bp.execOut && outputPins.length === 0 ? '<div style="font-size:11px;color:#556277;">No outputs</div>' : ''}
-            </div>
-          </div>
+      <div class="insp-pin-meta-grid">
+        <div class="insp-pin-meta-item">
+          <div class="insp-pin-meta-label">Node Category</div>
+          <div class="insp-pin-meta-value" style="color:${cat.headerColor};">${cat.name}</div>
+        </div>
+        <div class="insp-pin-meta-item">
+          <div class="insp-pin-meta-label">Execution Type</div>
+          <div class="insp-pin-meta-value">${bp.execIn || bp.execOut ? 'Execution Flow' : 'Pure Function'}</div>
         </div>
       </div>
     `;
-
-    // Connect clicks on chips
-    connectorsSection.querySelectorAll('.insp-connector-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const pinKey = chip.dataset.pinKey;
-        if (pinKey === 'exec_in') {
-          const doc = extrapolatePinDoc('Execution In', 'exec', 'input', bp);
-          this.showPinDetails('exec_in', doc, PIN_COLORS.exec, 'Flow Pulse');
-        } else if (pinKey === 'exec_out') {
-          const doc = extrapolatePinDoc('Execution Out', 'exec', 'output', bp);
-          this.showPinDetails('exec_out', doc, PIN_COLORS.exec, 'Flow Signal');
-        } else if (pinKey.startsWith('in_')) {
-          const idx = parseInt(pinKey.split('_')[1], 10);
-          const p = inputPins[idx];
-          if (p) {
-            const doc = extrapolatePinDoc(p.name, p.type, 'input', bp);
-            this.showPinDetails(pinKey, doc, PIN_COLORS[p.type] || PIN_COLORS.generic, p.defaultVal !== undefined ? `Default: ${p.defaultVal || '0'}` : null);
-          }
-        } else if (pinKey.startsWith('out_')) {
-          const idx = parseInt(pinKey.split('_')[1], 10);
-          const p = outputPins[idx];
-          if (p) {
-            const doc = extrapolatePinDoc(p.name, p.type, 'output', bp);
-            this.showPinDetails(pinKey, doc, PIN_COLORS[p.type] || PIN_COLORS.generic, 'Computed Value');
-          }
-        }
-      });
-    });
-
-    scroll.appendChild(connectorsSection);
+    scroll.appendChild(descSection);
   }
 
   /**

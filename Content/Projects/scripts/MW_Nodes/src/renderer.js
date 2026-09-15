@@ -299,8 +299,10 @@ export class GraphRenderer {
       }
     });
 
-    // If node has a specialized data type (e.g. Equal Entity, Addition Float, Custom Var Entity), display clickable badge
-    if (node.dataType) {
+    // If node has a specialized data type or can add dynamic inputs, display clickable badge
+    const currentDataType = node.dataType || (bp.canAddDynamicInputs ? 'generic' : null);
+    if (currentDataType) {
+      if (!node.dataType && bp.canAddDynamicInputs) node.dataType = 'generic';
       const typeBadge = document.createElement('span');
       typeBadge.className = 'node-type-badge';
       const color = PIN_COLORS[node.dataType] || '#50E3C2';
@@ -728,12 +730,81 @@ export class GraphRenderer {
       }
     }
 
+    const header = el.querySelector('.node-header');
+    if (header) {
+      const currentDataType = node.dataType || (bp.canAddDynamicInputs ? 'generic' : null);
+      let typeBadge = header.querySelector('.node-type-badge:not(.composite-edit-btn)');
+      if (currentDataType) {
+        if (!node.dataType && bp.canAddDynamicInputs) node.dataType = 'generic';
+        const dtObj = DATA_TYPES.find(d => d.id === node.dataType);
+        const labelText = dtObj ? dtObj.label : node.dataType;
+        const color = PIN_COLORS[node.dataType] || '#50E3C2';
+        if (!typeBadge) {
+          typeBadge = document.createElement('span');
+          typeBadge.className = 'node-type-badge';
+          typeBadge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openNodeTypePicker(typeBadge, node);
+          });
+          header.appendChild(typeBadge);
+        }
+        typeBadge.style.color = color;
+        typeBadge.style.backgroundColor = `${color}22`;
+        typeBadge.style.borderColor = `${color}55`;
+        typeBadge.textContent = labelText;
+        typeBadge.title = `Specialized Type: ${labelText} (Click to change)`;
+      } else if (typeBadge) {
+        typeBadge.remove();
+      }
+    }
+
     const inputsCol = el.querySelector('.pins-in');
     const outputsCol = el.querySelector('.pins-out');
     if (inputsCol && outputsCol) {
-      inputsCol.innerHTML = '';
-      outputsCol.innerHTML = '';
-      this.populateNodePins(node, bp, inputsCol, outputsCol);
+      // If user is currently typing in an input inside this node, preserve focus and do not destroy DOM!
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      const isTyping = (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || document.activeElement?.isContentEditable);
+      if (el.contains(document.activeElement) && isTyping) {
+        return;
+      }
+
+      // Check if pin structure or wire connections to this node changed
+      const connectedWires = this.state.wires
+        .filter(w => w.toNode === node.id || w.fromNode === node.id)
+        .map(w => `${w.fromNode}:${w.fromPin}->${w.toNode}:${w.toPin}`)
+        .sort().join('|');
+      const typesSig = JSON.stringify(node.pinTypes || {});
+      const dynamicSig = bp.canAddDynamicInputs ? (node.dynamicInputs || []).join(',') : '';
+      const isSigNodeCheck = bp.id === 'event_monitor_signal' || bp.id === 'exec_send_signal' || bp.isSignalNode;
+      const sigName = isSigNodeCheck ? (node.inputValues?.['Signal Name'] || node.signalName || '') : '';
+      const dataTypeSig = node.dataType || '';
+      const pinsSig = `${connectedWires}#${typesSig}#${dynamicSig}#${sigName}#${dataTypeSig}`;
+
+      if (el.dataset.pinsSig !== pinsSig) {
+        el.dataset.pinsSig = pinsSig;
+        inputsCol.innerHTML = '';
+        outputsCol.innerHTML = '';
+        this.populateNodePins(node, bp, inputsCol, outputsCol);
+      } else {
+        this.syncNodeInputValuesToDom(node, el);
+      }
+    }
+  }
+
+  syncNodeInputValuesToDom(node, el) {
+    if (!node || !el) return;
+    const inputs = el.querySelectorAll('.param-input, .param-select');
+    for (const inp of inputs) {
+      if (inp === document.activeElement) continue;
+      const pinRow = inp.closest('.pin-row');
+      const pinName = pinRow ? pinRow.dataset.pinName : null;
+      if (!pinName) continue;
+      if (inp.classList.contains('vector-axis-input')) continue;
+      if (node.inputValues && node.inputValues[pinName] !== undefined) {
+        if (inp.value !== String(node.inputValues[pinName])) {
+          inp.value = node.inputValues[pinName];
+        }
+      }
     }
   }
 
@@ -1078,6 +1149,9 @@ export class GraphRenderer {
       addElementBtn.title = 'Add dynamic list element';
       addElementBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+          document.activeElement.blur();
+        }
         this.state.addDynamicInput(node.id);
         this.render();
       });
@@ -1186,20 +1260,27 @@ export class GraphRenderer {
                 const axisInput = document.createElement('input');
                 axisInput.type = 'text';
                 axisInput.className = 'param-input vector-axis-input';
-                const axisColor = axis === 'X' ? '#E05353' : (axis === 'Y' ? '#4CD964' : '#5B92C2');
-axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; font-size: 12.5px; border-bottom: 2px solid ${axisColor};`;
+                const axisColor = axis === 'X' ? '#EF4444' : (axis === 'Y' ? '#22C55E' : '#3B82F6');
+                const axisBg = axis === 'X' ? 'rgba(239, 68, 68, 0.18)' : (axis === 'Y' ? 'rgba(34, 197, 94, 0.18)' : 'rgba(59, 130, 246, 0.18)');
+                axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; font-size: 11.5px; font-family: monospace; font-weight: bold; background: ${axisBg}; border: 1px solid ${axisColor}; border-radius: 3px; color: #FFFFFF; outline: none;`;
                 const axisVal = currentVec[axis.toLowerCase()];
                 axisInput.value = (axisVal !== undefined) ? axisVal : 0;
-                axisInput.title = `${param.name} - ${axis} Axis`;
+                axisInput.title = `${param.name} (${axis} Axis)`;
 
                 axisInput.addEventListener('mousedown', (e) => e.stopPropagation());
                 axisInput.addEventListener('click', (e) => e.stopPropagation());
+                axisInput.addEventListener('focus', () => {
+                  axisInput.style.borderColor = '#FFFFFF';
+                  axisInput.style.boxShadow = `0 0 5px ${axisColor}`;
+                });
                 axisInput.addEventListener('input', (e) => {
                   currentVec[axis.toLowerCase()] = e.target.value;
                   const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
                   this.state.setInputValue(node.id, param.name, valStr, false);
                 });
                 axisInput.addEventListener('blur', () => {
+                  axisInput.style.borderColor = axisColor;
+                  axisInput.style.boxShadow = 'none';
                   const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
                   this.state.setInputValue(node.id, param.name, valStr, true);
                 });
@@ -1423,6 +1504,10 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
             const opts = inp.options || (inp.name === 'Sort By' ? ['Ascending', 'Descending'] : ['Default', 'Option 1']);
             const boolOpts = optionsAreBooleans(opts);
             let curSel = node.inputValues[inp.name];
+            if (inp.name === 'Sort By') {
+              if (curSel === '600' || curSel === 600) curSel = 'Ascending';
+              else if (curSel === '601' || curSel === 601) curSel = 'Descending';
+            }
             if (boolOpts && curSel !== undefined && curSel !== opts[0] && curSel !== opts[1]) {
               curSel = normalizeBool(curSel) === 'True' ? opts[0] : opts[1];
             }
@@ -1480,20 +1565,27 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
               const axisInput = document.createElement('input');
               axisInput.type = 'text';
               axisInput.className = 'param-input vector-axis-input';
-              const axisColor = axis === 'X' ? '#E05353' : (axis === 'Y' ? '#4CD964' : '#5B92C2');
-              axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; font-size: 11px; border-bottom: 2px solid ${axisColor};`;
+              const axisColor = axis === 'X' ? '#EF4444' : (axis === 'Y' ? '#22C55E' : '#3B82F6');
+              const axisBg = axis === 'X' ? 'rgba(239, 68, 68, 0.18)' : (axis === 'Y' ? 'rgba(34, 197, 94, 0.18)' : 'rgba(59, 130, 246, 0.18)');
+              axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; font-size: 11px; font-family: monospace; font-weight: bold; background: ${axisBg}; border: 1px solid ${axisColor}; border-radius: 3px; color: #FFFFFF; outline: none;`;
               const axisVal = currentVec[axis.toLowerCase()];
               axisInput.value = (axisVal !== undefined) ? axisVal : 0;
-              axisInput.title = `${inp.name} - ${axis} Axis`;
+              axisInput.title = `${inp.name} (${axis} Axis)`;
 
               axisInput.addEventListener('mousedown', (e) => e.stopPropagation());
               axisInput.addEventListener('click', (e) => e.stopPropagation());
+              axisInput.addEventListener('focus', () => {
+                axisInput.style.borderColor = '#FFFFFF';
+                axisInput.style.boxShadow = `0 0 5px ${axisColor}`;
+              });
               axisInput.addEventListener('input', (e) => {
                 currentVec[axis.toLowerCase()] = e.target.value;
                 const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
                 this.state.setInputValue(node.id, inp.name, valStr, false);
               });
               axisInput.addEventListener('blur', () => {
+                axisInput.style.borderColor = axisColor;
+                axisInput.style.boxShadow = 'none';
                 const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
                 this.state.setInputValue(node.id, inp.name, valStr, true);
               });
@@ -1532,9 +1624,8 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
 
       const outType = this.state.getPinType(node.id, out.name, out.type);
       const lowerOutName = String(out.name || '').toLowerCase();
-      const isListOut = outType === 'list' || out.type === 'list' || lowerOutName === 'list' || lowerOutName.includes('list') || lowerOutName.includes('id list') || lowerOutName.includes('target list');
-      const effectiveOutType = isListOut ? 'list' : outType;
-      const outColor = PIN_COLORS[effectiveOutType] || PIN_COLORS.generic;
+      const isListOut = outType === 'list' || outType.endsWith(' list') || out.type === 'list' || lowerOutName === 'list' || lowerOutName.includes('list');
+      const outColor = PIN_COLORS[outType] || PIN_COLORS[outType?.replace(/\s+list$/i, '')] || (isListOut ? (PIN_COLORS.list || '#00D2B4') : PIN_COLORS.generic);
 
       const outLeft = document.createElement('div');
       outLeft.className = 'param-out-left';
@@ -2506,6 +2597,8 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
     popup.className = 'type-picker-popup';
 
     const currentType = this.state.getPinType(node.id, pinName, 'generic');
+    const isListPin = (!isInput && (pinName === 'List' || pinName.toLowerCase().endsWith('list') || node.blueprintId === 'op_assembly_list' || node.blueprintId === 'exec_list_sorting')) ||
+                      (isInput && (pinName === 'List' || pinName.toLowerCase().endsWith('list') || node.blueprintId === 'exec_list_sorting' || node.blueprintId === 'exec_list_iteration_loop'));
 
     popup.innerHTML = `
       <div class="type-picker-header">
@@ -2526,7 +2619,8 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
     const renderList = (filter = '') => {
       listEl.innerHTML = '';
       const filterLower = String(filter || '').toLowerCase();
-      const filtered = DATA_TYPES.filter(t => {
+      const basePool = isListPin ? DATA_TYPES.filter(t => t.id === 'list' || t.id.endsWith(' list')) : DATA_TYPES;
+      const filtered = basePool.filter(t => {
         if (!t) return false;
         const label = String(t.label || t.id || '').toLowerCase();
         const id = String(t.id || '').toLowerCase();
@@ -3130,19 +3224,16 @@ axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; fo
 
     // Mouse wheel zoom (hardware-accelerated, zero DOM rebuild overhead)
     this.container.addEventListener('wheel', (e) => {
-      // Priority scrolling for notes: if hovering over a note that has scrollable content, scroll it instead of zooming
-      const noteEl = e.target.closest('.note-bubble');
+      // Priority scrolling for notes and comment trays: in both edit and preview modes, scroll note content and lock canvas zooming
+      const noteEl = e.target.closest('.note-bubble, .comment-tray');
       if (noteEl) {
-        const scrollTarget = e.target.closest('.note-bubble-textarea, .note-bubble-content, .note-bubble-body') || noteEl.querySelector('.note-bubble-body, .note-bubble-content, .note-bubble-textarea');
-        if (scrollTarget && scrollTarget.scrollHeight > scrollTarget.clientHeight + 2) {
-          const canScrollDown = e.deltaY > 0 && (scrollTarget.scrollTop + scrollTarget.clientHeight < scrollTarget.scrollHeight - 1);
-          const canScrollUp = e.deltaY < 0 && (scrollTarget.scrollTop > 1);
-          if (canScrollDown || canScrollUp) {
-            scrollTarget.scrollTop += e.deltaY;
-            e.preventDefault();
-            return;
-          }
+        const scrollTarget = e.target.closest('.note-bubble-textarea, .note-bubble-content, .note-bubble-body, .comment-tray-body') ||
+                             noteEl.querySelector('.note-bubble-body, .note-bubble-content, .note-bubble-textarea, .comment-tray-body');
+        if (scrollTarget) {
+          scrollTarget.scrollTop += e.deltaY;
         }
+        e.preventDefault();
+        return;
       }
 
       e.preventDefault();

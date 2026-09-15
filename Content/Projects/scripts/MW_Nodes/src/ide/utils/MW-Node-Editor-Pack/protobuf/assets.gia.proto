@@ -1,0 +1,282 @@
+syntax = "proto3";
+
+message Float {
+    float value = 1;
+}
+
+message FloatList {
+    repeated float value = 1;
+}
+
+message Id {
+    uint32 value = 1;
+}
+
+message IdList {
+    repeated uint32 value = 1;
+}
+
+message Int32 {
+    int32 value = 1;
+}
+
+message Int32List {
+    repeated int32 value = 1;
+}
+
+message String {
+    string value = 1;
+}
+
+message StringList {
+    repeated string value = 1;
+}
+
+message Vector3 {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message RectTransform {
+    Vector3 scale = 501;
+    Vector2 anchor_min = 502; // anchor bottom-left
+    Vector2 anchor_max = 503; // anchor top-right
+    Vector2 offset = 504;
+    Vector2 size = 505;
+    Vector2 pivot = 506;
+
+    message Vector2 {
+        float x = 501;
+        float y = 502;
+    }
+}
+
+message Wrapper {
+    message String {
+        string value = 501;
+    }
+
+    message Int32 {
+        int32 value = 501;
+    }
+
+    message Guid {
+        uint32 value = 501;
+    }
+
+    message GuidList {
+        repeated uint32 value = 501;
+    }
+}
+
+message AssetInfo {
+    reserved 1;
+    AssetSpecialType special_type = 2;
+    AssetCategory category = 3;
+    uint32 guid = 4;
+
+    enum AssetSpecialType {
+        UNKNOWN      = 0;
+        DEFAULT      = 1;
+        NODE_GRAPH   = 5;
+        COMPOSITE    = 23;
+        GLOBAL_TIMER = 24;
+        CAMERA       = 25;
+        reserved 2 to 4, 6 to 22;
+    }
+
+    enum AssetCategory {
+        SPECIAL                 = 0;  // Special type
+        PREFAB                  = 1;  // Prefab (component), player template, or character template
+        ENTITY                  = 2;  // Entity or creation
+        CONFIGURATION           = 3;  // Configuration information
+        TERRAIN                 = 5;  // Terrain
+        UI                      = 8;  // UI layout or interactive control
+        PRESET_POINT            = 9;  // Preset point
+        DECORATION              = 14; // Decoration
+        STRUCTURE               = 15; // Structure
+        ENTITY_DEPLOYMENT_GROUP = 18; // Entity deployment group
+        PATH                    = 19; // Path
+        UNIT_TAG                = 23; // Unit tag
+        reserved 4, 6, 7, 10 to 13, 16, 17, 20 to 22;
+    }
+}
+
+enum AssetType {
+    UNKNOWN_TYPE            = 0;  // Unknown type
+    PREFAB                  = 1;  // Prefab (component)
+    CREATION                = 2;  // Creation
+    ENTITY                  = 3;  // Entity
+    TERRAIN                 = 5;  // Terrain
+    PRESET_POINT            = 6;  // Preset point
+    UNIT_STATUS             = 7;  // Unit status
+    SKILL                   = 8;  // Skill
+    ENTITY_NODE_GRAPH       = 9;  // Entity node graph
+    BOOLEAN_FILTER          = 10; // Boolean filter
+    SKILL_NODE_GRAPH        = 11; // Skill node graph
+    COMPOSITE_NODE          = 12; // Composite node (including listen signal, modify/split/assemble structure)
+    CAMERA                  = 13; // Camera
+    SIGNAL                  = 14; // Signal (send signal, send signal to server node graph)
+    UI_CONTROL              = 15; // Interactive control
+    SKILL_RESOURCE          = 16; // Skill resource
+    PLAYER                  = 18; // Player template
+    CHARACTER               = 19; // Character template
+    INTERFACE_LAYOUT        = 20; // UI layout
+    UI_CONTROL_GROUP        = 21; // UI control group
+    STATUS_NODE_GRAPH       = 22; // Status node graph
+    CLASS_NODE_GRAPH        = 23; // Class node graph
+    GLOBAL_TIMER            = 24; // Global timer
+    ITEM                    = 26; // Item
+    DECORATION              = 28; // Decoration
+    STRUCTURE               = 29; // Structure
+    SHOP                    = 30; // Shop
+    PATH                    = 38; // Path
+    SHIELD                  = 39; // Shield
+    ENTITY_DEPLOYMENT_GROUP = 43; // Entity deployment group
+    UNIT_TAG                = 44; // Unit tag
+    SCAN_TAG                = 45; // Scan tag
+    ITEM_NODE_GRAPH         = 46; // Item node graph
+    INTEGER_FILTER          = 47; // Integer filter
+    LIGHT_SOURCE            = 48; // Light source
+    ENVIRONMENT             = 49; // Environment configuration
+    reserved 4, 17, 25, 27, 31 to 37, 40 to 42;
+}
+
+message UiControlGroup {
+    ContentWrapper content = 1;
+
+    message ContentWrapper {
+        uint32 guid = 501;
+        repeated Info info = 502;
+        repeated uint32 children = 503;
+        uint32 parent = 504;
+        repeated Data data = 505;
+
+        message Info {
+            oneof value {
+                Wrapper.Guid guid = 11;
+                Wrapper.Int32 index = 12;
+                Wrapper.GuidList related = 14;
+                string empty15 = 15; // -> #17
+                string empty16 = 16; // -> #15
+            }
+
+            int32 field501 = 501; // #11:1, #12:2, #14:4, #15:5, #16:6
+            int32 field502 = 502; // #11:5, #12:6, #14:4, #15:7, #16:13
+            Details details = 503; // It only exists when field #15 or #16 is set.  
+
+            message Details {
+                oneof value {
+                    string empty15 = 15;
+                    string empty17 = 17;
+                }
+
+                int32 field501 = 501; // #15:6,  #17:8
+                int32 field502 = 502; // #15:13, #17:7
+                int32 field503 = 503; // #15:1,  #17:1
+            }
+        }
+
+        message Data {
+            oneof value {
+                Transform transform = 11;
+                Wrapper.String name = 12;
+                Wrapper.Int32 builtin_id = 13;
+                Field14 field14 = 14;
+                string empty19 = 19;
+            }
+            
+            int32 field501 = 501; // #11:1,     #12:2,  #13:3,  #14:4,  #19:9
+            int32 field502 = 502; // #11:11/12, #12:15, #13:9,  #14:23, #19:25
+            Details details = 503; // It only exists when field #11, #14 or #19 is set.
+
+            message Field14 {
+                string empty15 = 15;
+                int32 field501 = 501; // 5
+            }
+
+            message Details {
+                oneof value {
+                    Transform transform = 13;
+                    Field14 field14 = 14;
+                    TextBox textbox = 19;
+                }
+
+                int32 field501 = 501; // #13:4,     #14:5,  #19:10
+                int32 field502 = 502; // #13:11/12, #14:23, #19:25
+                int32 field503 = 503; // #13:1,     #14:1,  #19:1
+            }            
+        }
+    }
+}
+
+message Transform {
+    oneof value {
+        string empty11 = 11; // builtin
+        MultiPlatform multi_platform = 12; // custom
+    }
+
+    ControlType type = 501;
+
+    message MultiPlatform {
+        repeated Platform platforms = 501;
+        int32 field502 = 502; // 3
+
+        message Platform {
+            PlatformType platform_type = 501;
+            RectTransform transform = 502;
+
+            enum PlatformType {
+                KEYBOARD = 0;
+                TOUCHSCREEN = 1;
+                CONTROLLER_CONSOLE = 2;
+                CONTROLLER_MOBILE = 3;
+            }
+        }
+    }
+
+    enum ControlType {
+        UNKNOWN_CONTROL = 0;
+        BUILTIN_CONTROL = 1;
+        CUSTOM_CONTROL = 2;
+    }
+}
+
+message TextBox {
+    int32 font_size = 502;
+    Wrapper.String text = 505;
+}
+
+message Asset {
+    AssetInfo info = 1;
+    repeated AssetInfo related = 2;
+    string name = 3;
+    reserved 4;
+    AssetType type = 5;
+
+    oneof content {
+        //EntityDefinition entity = 11;
+        // ??? = 12;
+        //NodeGraph node_graph = 13;
+        //CompositeDefinition composite = 14;
+        //Configuration config = 15;
+        //Terrain terrain = 16;
+        //Camera camera = 17;
+        //PresetPoint point = 18;
+        UiControlGroup ui = 19;
+        //GlobalTimer timer = 20;
+        // ??? = 21;
+        //StructureDefinition struct = 22;
+        //Path path = 23;
+        // ???
+        //UnitTag unit_tag = 26;
+        //EntityDeploymentGroup deployment = 27;
+    }
+}
+
+message GiaFile {
+    repeated Asset assets = 1;
+    repeated Asset related = 2;
+    string export_info = 3;
+}

@@ -878,11 +878,14 @@ export class CommentsManager {
     });
 
     titleEl.addEventListener('keydown', (e) => {
+      e.stopPropagation();
       if (e.key === 'Enter') {
         e.preventDefault();
         titleEl.blur();
       }
     });
+    titleEl.addEventListener('keyup', (e) => e.stopPropagation());
+    titleEl.addEventListener('keypress', (e) => e.stopPropagation());
 
     // Tray Header Dragging
     const headerEl = el.querySelector('.comment-tray-header');
@@ -1225,10 +1228,15 @@ export class CommentsManager {
         </div>
       </div>
       <div class="note-bubble-body">
+        ${note.screenshotSvg ? `
+          <div class="note-screenshot-box" style="width: 100%; height: 130px; margin-bottom: 8px; border: 1px solid #283040; border-radius: 4px; overflow: hidden; background: #0c0f17;">
+            ${note.screenshotSvg}
+          </div>
+        ` : ''}
         ${note.isEditing ? `
-          <textarea class="note-bubble-textarea" placeholder="Type instructions, markdown, or add image URLs...">${note.text || ''}</textarea>
+          <textarea class="note-bubble-textarea" placeholder="Type instructions, markdown, or add image URLs...">${note.text || note.content || ''}</textarea>
         ` : `
-          <div class="note-bubble-content">${this.parseMarkdownAndImages(note.text)}</div>
+          <div class="note-bubble-content">${this.parseMarkdownAndImages(note.text || note.content || '')}</div>
         `}
       </div>
       ${note.isEditing ? `
@@ -1278,11 +1286,14 @@ export class CommentsManager {
         }
       });
       titleEl.addEventListener('keydown', (e) => {
+        e.stopPropagation();
         if (e.key === 'Enter') {
           e.preventDefault();
           titleEl.blur();
         }
       });
+      titleEl.addEventListener('keyup', (e) => e.stopPropagation());
+      titleEl.addEventListener('keypress', (e) => e.stopPropagation());
     }
 
     // Pin Socket Wiring Interaction

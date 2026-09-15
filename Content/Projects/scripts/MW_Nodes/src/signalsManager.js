@@ -152,10 +152,10 @@ export class SignalsManager {
     let finalName = name ? name.trim() : '';
     if (!finalName) {
       let idx = 1;
-      while (this.hasSignal(`Signal_${idx}`)) {
+      while (this.hasSignal(`s_Signal_${idx}`) || this.hasSignal(`Signal_${idx}`)) {
         idx++;
       }
-      finalName = `Signal_${idx}`;
+      finalName = `s_Signal_${idx}`;
     }
 
     // Prevent name collisions with the classic trailing '_2', '_3', ...

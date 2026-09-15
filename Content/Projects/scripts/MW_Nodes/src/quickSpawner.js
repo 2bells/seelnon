@@ -164,7 +164,8 @@ export class QuickSpawner {
             activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || document.activeElement?.isContentEditable ||
             e.target.closest('.ide-container') || document.activeElement?.closest('.ide-container') ||
             e.target.closest('.comment-tray') || document.activeElement?.closest('.comment-tray') ||
-            e.target.closest('.note-bubble') || document.activeElement?.closest('.note-bubble')) {
+            e.target.closest('.note-bubble') || document.activeElement?.closest('.note-bubble') ||
+            e.target.closest('.param-input') || document.activeElement?.closest('.param-input')) {
           return;
         }
         e.preventDefault();

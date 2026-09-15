@@ -1,16 +1,16 @@
 /* ==========================================================================
    Miliastra Wonderland - Node Graph Storage & Explorer Stylesheet
-   Pure CSS - Brutalist Aesthetic - Zero Dependencies
+   Pure CSS - Brutalist Aesthetic - Zero Dependencies (Aligned with Server Signal Explorer)
    ========================================================================== */
 
 /* Main Explorer Window Card */
 .graph-explorer-card {
-  width: 820px;
+  width: 860px;
   max-width: 95vw;
-  height: 600px;
+  height: 640px;
   max-height: 90vh;
-  background: #1c202a;
-  border: 1px solid #32394a;
+  background: #20242e;
+  border: 1px solid #323947;
   border-radius: 8px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 6px 16px rgba(0, 0, 0, 0.4);
   display: flex;
@@ -29,8 +29,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #161822;
-  border-bottom: 1px solid #282f3e;
+  background: #1c2029;
+  border-bottom: 1px solid #2b313f;
   cursor: grab;
   flex-shrink: 0;
 }
@@ -49,7 +49,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #e5c07b;
+  color: #e5a93c;
 }
 
 .ge-header-title {
@@ -60,8 +60,8 @@
 }
 
 .ge-header-badge {
-  background: #232a38;
-  border: 1px solid #3a455a;
+  background: #282e3b;
+  border: 1px solid #384152;
   color: #94a3b8;
   font-size: 11px;
   font-weight: 500;
@@ -90,7 +90,7 @@
 }
 
 .ge-btn-icon:hover {
-  background: #252c3c;
+  background: #2b313f;
   color: #ffffff;
 }
 
@@ -106,8 +106,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #191c26;
-  border-bottom: 1px solid #282e3d;
+  background: #1c2029;
+  border-bottom: 1px solid #2b313f;
   gap: 12px;
   flex-shrink: 0;
 }
@@ -139,14 +139,14 @@
 }
 
 .ge-crumb-item:hover {
-  background: #262e3e;
-  color: #e5c07b;
+  background: #2b313f;
+  color: #e5a93c;
 }
 
 .ge-crumb-item.active {
   color: #f1f5f9;
   font-weight: 600;
-  background: #252b3a;
+  background: #282e3b;
 }
 
 .ge-crumb-sep {
@@ -161,30 +161,29 @@
 }
 
 .ge-btn-primary {
-  background: #2a3928;
-  border: 1px solid #4a6b46;
-  color: #c9e8be;
+  background: #e5a93c;
+  border: 1px solid #f6be59;
+  color: #1a1d25;
   font-size: 12px;
-  font-weight: 600;
-  padding: 5px 12px;
+  font-weight: 700;
+  padding: 5px 14px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
   white-space: nowrap;
 }
 
 .ge-btn-primary:hover {
-  background: #395236;
-  border-color: #6da267;
-  color: #ffffff;
+  background: #f0b548;
+  box-shadow: 0 0 12px rgba(229, 169, 60, 0.35);
 }
 
 .ge-btn-secondary {
-  background: #212734;
-  border: 1px solid #333d50;
+  background: #282e3b;
+  border: 1px solid #384152;
   color: #cbd5e1;
   font-size: 12px;
   font-weight: 500;
@@ -199,8 +198,8 @@
 }
 
 .ge-btn-secondary:hover {
-  background: #2c3547;
-  border-color: #4b5a75;
+  background: #323c4e;
+  border-color: #4a5770;
   color: #ffffff;
 }
 
@@ -212,8 +211,8 @@
 .ge-search-input {
   width: 100%;
   height: 28px;
-  background: #141620;
-  border: 1px solid #2d3545;
+  background: #181b22;
+  border: 1px solid #2f3644;
   border-radius: 4px;
   padding: 0 26px 0 28px;
   font-size: 12px;
@@ -223,7 +222,7 @@
 }
 
 .ge-search-input:focus {
-  border-color: #e5c07b;
+  border-color: #e5a93c;
 }
 
 .ge-search-icon {
@@ -254,15 +253,15 @@
   display: flex;
   flex: 1;
   min-height: 0;
-  background: #191c25;
+  background: #20242e;
 }
 
 /* Left Sidebar (Tree) */
 .ge-sidebar {
-  width: 200px;
-  min-width: 170px;
-  background: #151720;
-  border-right: 1px solid #232836;
+  width: 210px;
+  min-width: 180px;
+  background: #1c2029;
+  border-right: 1px solid #2b313f;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -277,7 +276,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #556277;
+  color: #6b7890;
 }
 
 .ge-tree-scroll {
@@ -300,6 +299,16 @@
   color: #a6b2c4;
   transition: background 0.12s, color 0.12s;
   box-sizing: border-box;
+}
+
+.ge-tree-item.drag-over {
+  background: #2b3548 !important;
+  border: 1px dashed #e5a93c;
+  color: #ffffff;
+}
+
+.ge-graph-card.dragging {
+  opacity: 0.4;
 }
 
 .ge-tree-item:hover {
@@ -538,106 +547,176 @@
   transform: translateX(2px);
 }
 
-/* Graphs Grid Section */
-.ge-graphs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  grid-gap: 12px;
-  align-content: start;
-  width: 100%;
-}
-
-/* Node Graph Cards */
-.ge-graph-card {
-  background: #202532;
-  border: 1px solid #2e3646;
-  border-radius: 6px;
-  padding: 12px;
+/* Graphs Column Section */
+.ge-graphs-column {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+}
+
+/* Node Graph Cards (Column Row layout) */
+.ge-graph-card {
+  background: #20242e;
+  border: 1px solid #323947;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   cursor: pointer;
   position: relative;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: background 0.12s, border-color 0.12s;
 }
 
 .ge-graph-card:hover {
-  background: #262c3b;
-  border-color: #4e5b74;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  transform: translateY(-1px);
+  background: #272a34;
+  border-color: #48546b;
 }
 
-.ge-graph-card.active-graph {
-  border-color: #9fb343;
-  background: #222a33;
+.ge-graph-card.selected-graph {
+  background: #352f22;
+  border-color: #8c733c;
 }
 
-.ge-graph-card-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.ge-graph-identity {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.ge-graph-icon {
-  width: 28px;
-  height: 28px;
-  background: #2c3647;
-  border: 1px solid #3d4a62;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9fb343;
-  flex-shrink: 0;
+.ge-graph-card.selected-graph .ge-graph-icon {
+  color: #e5a93c;
+  border-color: #8c733c;
+  background: #423824;
 }
 
 .ge-graph-card.active-graph .ge-graph-icon {
-  color: #e5c07b;
-  border-color: #e5c07b;
-  background: #333026;
+  color: #e5a93c;
+  border-color: #8c733c;
+  background: #332d20;
 }
 
-.ge-graph-name-group {
+/* Compact New Graph Button */
+#geBtnNewGraph {
+  padding: 6px 9px;
+  justify-content: center;
+}
+
+/* Context Menu */
+.ge-ctx-menu {
+  position: fixed;
+  z-index: 999999;
+  width: 170px;
+  background: #1c2029;
+  border: 1px solid #323947;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.ge-ctx-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.ge-ctx-item:hover {
+  background: #282e3b;
+  color: #ffffff;
+}
+
+.ge-ctx-has-sub:hover .ge-ctx-submenu {
+  display: block;
+}
+
+.ge-ctx-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  width: 150px;
+  background: #1c2029;
+  border: 1px solid #323947;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+}
+
+.ge-ctx-subitem {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.ge-ctx-subitem:hover {
+  background: #282e3b;
+  color: #ffffff;
+}
+
+.ge-graph-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
+  flex: 1;
+}
+
+.ge-graph-row-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.ge-graph-icon {
+  width: 32px;
+  height: 32px;
+  background: #282e3b;
+  border: 1px solid #384152;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #838fa3;
+  flex-shrink: 0;
+}
+
+.ge-graph-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
 }
 
 .ge-graph-name {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: #f8fafc;
+  color: #f1f5f9;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ge-graph-badge {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: 3px;
   letter-spacing: 0.3px;
 }
 
 .ge-badge-active {
-  background: rgba(159, 179, 67, 0.2);
-  color: #9fb343;
-  border: 1px solid #9fb343;
+  background: #332d20;
+  color: #e5a93c;
+  border: 1px solid #8c733c;
 }
 
 .ge-badge-server {
-  background: #242c3c;
+  background: #282e3b;
   color: #94a3b8;
-  border: 1px solid #364257;
+  border: 1px solid #384152;
 }
 
 .ge-graph-meta {
@@ -646,47 +725,39 @@
   gap: 8px;
   font-size: 11px;
   color: #838fa3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ge-graph-actions {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-top: 4px;
-  border-top: 1px solid #293040;
-  padding-top: 8px;
-  width: 100%;
-  box-sizing: border-box;
+  gap: 6px;
 }
 
 .ge-action-btn {
-  flex: 1;
-  min-width: 0;
-  background: #191d27;
-  border: 1px solid #303747;
+  background: #181b22;
+  border: 1px solid #2f3644;
   color: #c5cedd;
   font-size: 11px;
   font-weight: 500;
-  padding: 4px 4px;
+  padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
   text-align: center;
   white-space: nowrap;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .ge-action-btn:hover {
-  background: #283142;
-  border-color: #4c5a75;
+  background: #323c4e;
+  border-color: #4a5770;
   color: #ffffff;
 }
 
 .ge-action-btn.btn-delete {
-  flex: 0 0 28px;
-  width: 28px;
-  padding: 4px 0;
+  padding: 4px 8px;
   color: #94a3b8;
 }
 
@@ -697,13 +768,10 @@
 }
 
 .ge-action-btn.btn-sure-delete {
-  flex: 0 0 54px;
-  width: 54px;
   background: #881337 !important;
   border-color: #f43f5e !important;
   color: #fff1f2 !important;
   font-weight: 700 !important;
-  padding: 4px 2px !important;
 }
 
 /* Empty State */

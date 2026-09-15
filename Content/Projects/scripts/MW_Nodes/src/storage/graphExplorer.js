@@ -10,6 +10,7 @@ import { GraphState } from '../graphState.js';
 let zIndexCounter = 350;
 
 export class NodeGraphExplorer {
+  static draggingGraphId = null;
   /**
    * @param {object} app - The main MiliastraApp instance
    */
@@ -107,7 +108,6 @@ export class NodeGraphExplorer {
               <line x1="12" y1="8" x2="12" y2="16"/>
               <line x1="8" y1="12" x2="16" y2="12"/>
             </svg>
-            <span>+ New Graph</span>
           </button>
         </div>
       </div>
@@ -164,6 +164,43 @@ export class NodeGraphExplorer {
     `;
 
     document.body.appendChild(this.card);
+
+    // Create and append body-level context menus to prevent clipping and ensure topmost layering
+    const ctxMenu = document.createElement('div');
+    ctxMenu.className = 'ge-ctx-menu';
+    ctxMenu.id = 'geCtxMenu';
+    ctxMenu.style.display = 'none';
+    ctxMenu.innerHTML = `
+      <div class="ge-ctx-item" id="geCtxNewGraph">Create Node Graph</div>
+      <div class="ge-ctx-item ge-ctx-has-sub">
+        Sort <span style="margin-left:auto;">›</span>
+        <div class="ge-ctx-submenu">
+          <div class="ge-ctx-subitem" data-sort="date_desc">Last Modified</div>
+          <div class="ge-ctx-subitem" data-sort="name_asc">Name (A-Z)</div>
+          <div class="ge-ctx-subitem" data-sort="nodes_desc">Node Count</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ctxMenu);
+
+    const graphCtxMenu = document.createElement('div');
+    graphCtxMenu.className = 'ge-ctx-menu';
+    graphCtxMenu.id = 'geGraphCtxMenu';
+    graphCtxMenu.style.display = 'none';
+    graphCtxMenu.innerHTML = `
+      <div class="ge-ctx-item" id="geGraphCtxOpen">Open</div>
+      <div class="ge-ctx-item" id="geGraphCtxRename">Rename</div>
+      <div class="ge-ctx-item" id="geGraphCtxDuplicate">Duplicate</div>
+      <div class="ge-ctx-item ge-ctx-has-sub" id="geGraphCtxMoveParent">
+        Move to <span style="margin-left:auto;">›</span>
+        <div class="ge-ctx-submenu" id="geGraphCtxMoveSub">
+          <div class="ge-ctx-subitem" data-folder="root">Root Directory</div>
+        </div>
+      </div>
+      <div class="ge-ctx-item" id="geGraphCtxDelete" style="color:#f43f5e;">Delete</div>
+      <div class="ge-ctx-item" id="geGraphCtxExport">Export</div>
+    `;
+    document.body.appendChild(graphCtxMenu);
   }
 
   bindEvents() {
@@ -244,6 +281,128 @@ export class NodeGraphExplorer {
       this.sortMode = e.target.value;
       this.renderContent();
     });
+
+    // Context Menu
+    const ctxMenu = document.getElementById('geCtxMenu');
+    const graphCtxMenu = document.getElementById('geGraphCtxMenu');
+    const contentScroll = this.card.querySelector('#geContentScroll');
+    const treeContainer = this.card.querySelector('#geTreeContainer');
+
+    const hideMenus = () => {
+      if (ctxMenu) ctxMenu.style.display = 'none';
+      if (graphCtxMenu) graphCtxMenu.style.display = 'none';
+    };
+
+    contentScroll.addEventListener('contextmenu', (e) => {
+      // Only show general context menu if not right-clicking a graph card
+      if (e.target.closest('.ge-graph-card')) return;
+      e.preventDefault();
+      if (graphCtxMenu) graphCtxMenu.style.display = 'none';
+      ctxMenu.style.left = `${e.clientX}px`;
+      ctxMenu.style.top = `${e.clientY}px`;
+      ctxMenu.style.display = 'block';
+    });
+
+    contentScroll.addEventListener('scroll', hideMenus);
+    if (treeContainer) treeContainer.addEventListener('scroll', hideMenus);
+    window.addEventListener('scroll', hideMenus, true);
+
+    document.addEventListener('click', () => {
+      hideMenus();
+    });
+
+    const ctxNewGraphBtn = document.getElementById('geCtxNewGraph');
+    if (ctxNewGraphBtn) {
+      ctxNewGraphBtn.addEventListener('click', () => {
+        hideMenus();
+        this.promptNewGraph();
+      });
+    }
+
+    const graphCtxOpen = document.getElementById('geGraphCtxOpen');
+    if (graphCtxOpen) {
+      graphCtxOpen.addEventListener('click', () => {
+        hideMenus();
+        if (this.activeGraph) this.openGraphInEditor(this.activeGraph);
+      });
+    }
+
+    const graphCtxRename = document.getElementById('geGraphCtxRename');
+    if (graphCtxRename) {
+      graphCtxRename.addEventListener('click', () => {
+        hideMenus();
+        if (this.activeGraph) this.promptRenameGraph(this.activeGraph);
+      });
+    }
+
+    const graphCtxDuplicate = document.getElementById('geGraphCtxDuplicate');
+    if (graphCtxDuplicate) {
+      graphCtxDuplicate.addEventListener('click', () => {
+        hideMenus();
+        if (this.activeGraph) this.duplicateGraph(this.activeGraph);
+      });
+    }
+
+    const graphCtxDelete = document.getElementById('geGraphCtxDelete');
+    if (graphCtxDelete) {
+      graphCtxDelete.addEventListener('click', async () => {
+        hideMenus();
+        if (this.activeGraph) {
+          await graphStorage.deleteGraph(this.activeGraph.id);
+          const idx = this.app.graphs?.findIndex(openG => openG.id === this.activeGraph.id || openG.name === this.activeGraph.name);
+          if (idx !== undefined && idx >= 0 && this.app.graphs.length > 1) {
+            this.app.closeGraph(idx);
+          } else if (idx !== undefined && idx >= 0 && this.app.graphs.length === 1) {
+            this.app.state.nodes = [];
+            this.app.state.wires = [];
+            this.app.renderer.render();
+          }
+          await this.loadAndRefresh();
+        }
+      });
+    }
+
+    const graphCtxExport = document.getElementById('geGraphCtxExport');
+    if (graphCtxExport) {
+      graphCtxExport.addEventListener('click', () => {
+        hideMenus();
+        if (this.activeGraph) this.exportGraph(this.activeGraph);
+      });
+    }
+
+    const moveSubContainer = document.getElementById('geGraphCtxMoveSub');
+    if (moveSubContainer) {
+      moveSubContainer.addEventListener('click', async (e) => {
+        const targetFolderId = e.target.getAttribute('data-folder');
+        if (targetFolderId && this.activeGraph) {
+          if (graphCtxMenu) graphCtxMenu.style.display = 'none';
+          const rec = await graphStorage.getRecord('graphs', this.activeGraph.id);
+          if (rec) {
+            rec.folderId = targetFolderId;
+            if (rec.data) rec.data.folderId = targetFolderId;
+            rec.updatedAt = Date.now();
+            await graphStorage.putRecord('graphs', rec);
+            await this.loadAndRefresh();
+            if (this.app.simulator) {
+              this.app.simulator.log(`Moved graph '${rec.name}' to folder.`, 'info');
+            }
+          }
+        }
+      });
+    }
+
+    this.card.querySelectorAll('.ge-ctx-subitem').forEach(sub => {
+      sub.addEventListener('click', (e) => {
+        ctxMenu.style.display = 'none';
+        const val = e.target.getAttribute('data-sort');
+        const sel = this.card.querySelector('#geSortSelect');
+        if (sel) {
+          sel.value = val;
+          this.sortMode = val;
+          this.renderContent();
+        }
+      });
+    });
   }
 
   async open(folderId = null) {
@@ -278,38 +437,40 @@ export class NodeGraphExplorer {
       // Deduplication safeguard: clean up any redundant records with the same name from previous sessions
       const nameMap = new Map();
       for (const g of allGraphs) {
+        if (!g || !g.name) continue;
         const list = nameMap.get(g.name) || [];
         list.push(g);
         nameMap.set(g.name, list);
       }
       for (const [, list] of nameMap.entries()) {
         if (list.length > 1) {
-          list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-          const keep = list.find(item => this.app?.state?.id === item.id) || list[0];
+          list.sort((a, b) => ((b && b.updatedAt) || 0) - ((a && a.updatedAt) || 0));
+          const keep = list.find(item => item && this.app?.state?.id === item.id) || list[0];
           for (const dup of list) {
-            if (dup.id !== keep.id) {
+            if (dup && keep && dup.id !== keep.id) {
               await graphStorage.deleteGraph(dup.id);
             }
           }
         }
       }
 
-      this.graphs = await graphStorage.getAllGraphs();
+      this.graphs = (await graphStorage.getAllGraphs()).filter(Boolean);
 
       // Synchronize currently open graphs into DB if missing
       if (this.app && Array.isArray(this.app.graphs)) {
         for (const g of this.app.graphs) {
+          if (!g) continue;
           if (!g.id) {
             g.id = g.name === 'Open_Garage' ? 'graph_open_garage' : ('g_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
           }
-          const found = this.graphs.find(rec => rec.id === g.id || rec.name === g.name);
+          const found = this.graphs.find(rec => rec && (rec.id === g.id || rec.name === g.name));
           if (!found) {
             await graphStorage.saveGraph(g, g.folderId || 'root');
           } else if (found.id !== g.id) {
             g.id = found.id;
           }
         }
-        this.graphs = await graphStorage.getAllGraphs();
+        this.graphs = (await graphStorage.getAllGraphs()).filter(Boolean);
       }
 
       this.renderTree();
@@ -324,6 +485,48 @@ export class NodeGraphExplorer {
     const container = this.card.querySelector('#geTreeContainer');
     if (!container) return;
     container.innerHTML = '';
+
+    const setupDropTarget = (el, targetFolderId) => {
+      el.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        el.classList.add('drag-over');
+      });
+      el.addEventListener('dragleave', (e) => {
+        if (!el.contains(e.relatedTarget)) {
+          el.classList.remove('drag-over');
+        }
+      });
+      el.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        el.classList.remove('drag-over');
+        try {
+          let graphId = NodeGraphExplorer.draggingGraphId || e.dataTransfer.getData('text/plain');
+          if (!graphId) {
+            try {
+              const data = JSON.parse(e.dataTransfer.getData('application/json'));
+              graphId = data.graphId;
+            } catch {}
+          }
+          if (graphId) {
+            const rec = await graphStorage.getRecord('graphs', graphId);
+            if (rec) {
+              rec.folderId = targetFolderId;
+              if (rec.data) rec.data.folderId = targetFolderId;
+              rec.updatedAt = Date.now();
+              await graphStorage.putRecord('graphs', rec);
+              await this.loadAndRefresh();
+              if (this.app.simulator) {
+                this.app.simulator.log(`Moved graph '${rec.name}' to folder.`, 'info');
+              }
+            }
+          }
+          NodeGraphExplorer.draggingGraphId = null;
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    };
 
     // 1. "All Graphs" item
     const allItem = document.createElement('div');
@@ -366,6 +569,7 @@ export class NodeGraphExplorer {
       this.renderTree();
       this.renderContent();
     });
+    setupDropTarget(rootItem, 'root');
     container.appendChild(rootItem);
 
     // 3. User Folders
@@ -396,6 +600,8 @@ export class NodeGraphExplorer {
         this.renderTree();
         this.renderContent();
       });
+
+      setupDropTarget(item, f.id);
 
       item.querySelector('.edit-folder-btn').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -578,25 +784,63 @@ export class NodeGraphExplorer {
         `;
       }
 
-      const grid = document.createElement('div');
-      grid.className = 'ge-graphs-grid';
+      const columnContainer = document.createElement('div');
+      columnContainer.className = 'ge-graphs-column';
 
       // Render each graph card
       visibleGraphs.forEach(g => {
-        const isOpenInApp = this.app.graphs && this.app.graphs.some(openG => openG.id === g.id || openG.name === g.name);
+        if (!g) return;
+        const isOpenInApp = this.app.graphs && this.app.graphs.some(openG => openG && (openG.id === g.id || openG.name === g.name));
         const isActiveGraph = this.app.state && (this.app.state.id === g.id || this.app.state.name === g.name);
 
         const card = document.createElement('div');
         card.className = `ge-graph-card ${isActiveGraph ? 'active-graph' : ''}`;
-        card.title = `Click to open '${g.name}'`;
+        card.setAttribute('draggable', 'true');
+        card.title = `Double-click to open '${g.name || 'Graph'}'`;
 
-      const formattedTime = this.formatRelativeTime(g.updatedAt);
-      const folderObj = this.folders.find(f => f.id === g.folderId);
-      const folderLabel = folderObj ? folderObj.name : 'Root';
+        card.addEventListener('dragstart', (e) => {
+          NodeGraphExplorer.draggingGraphId = g.id;
+          e.dataTransfer.setData('text/plain', g.id);
+          e.dataTransfer.setData('application/json', JSON.stringify({ graphId: g.id }));
+          e.dataTransfer.effectAllowed = 'move';
+          card.classList.add('dragging');
+        });
 
-      card.innerHTML = `
-        <div class="ge-graph-card-top">
-          <div class="ge-graph-identity">
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+        });
+
+        card.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          columnContainer.querySelectorAll('.ge-graph-card').forEach(c => c.classList.remove('selected-graph'));
+          card.classList.add('selected-graph');
+          this.activeGraph = g;
+
+          const moveSub = document.getElementById('geGraphCtxMoveSub');
+          if (moveSub) {
+            moveSub.innerHTML = `<div class="ge-ctx-subitem" data-folder="root">Root Directory</div>`;
+            this.folders.forEach(f => {
+              const subItem = document.createElement('div');
+              subItem.className = 'ge-ctx-subitem';
+              subItem.setAttribute('data-folder', f.id);
+              subItem.textContent = f.name;
+              moveSub.appendChild(subItem);
+            });
+          }
+
+          const graphCtx = document.getElementById('geGraphCtxMenu');
+          if (graphCtx) {
+            graphCtx.style.left = `${e.clientX}px`;
+            graphCtx.style.top = `${e.clientY}px`;
+            graphCtx.style.display = 'block';
+          }
+        });
+
+        const formattedTime = this.formatRelativeTime(g.updatedAt);
+
+        card.innerHTML = `
+          <div class="ge-graph-row-left">
             <div class="ge-graph-icon">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <circle cx="6" cy="6" r="3"/>
@@ -604,94 +848,37 @@ export class NodeGraphExplorer {
                 <path d="M6 9v3a3 3 0 0 0 3 3h6" stroke="currentColor" stroke-width="2" fill="none"/>
               </svg>
             </div>
-            <div class="ge-graph-name-group">
+            <div class="ge-graph-info">
               <div class="ge-graph-name">${this.esc(g.name)}</div>
-              <div style="font-size:10.5px;color:#8592a6;">📁 ${this.esc(folderLabel)}</div>
+              <div class="ge-graph-meta">
+                <span>${g.nodeCount || 0} nodes</span>
+                <span>•</span>
+                <span>${g.wireCount || 0} wires</span>
+                <span>•</span>
+                <span>${formattedTime}</span>
+              </div>
             </div>
           </div>
-          <div>
+          <div class="ge-graph-row-right">
             ${isActiveGraph ? '<span class="ge-graph-badge ge-badge-active">ACTIVE</span>' : (isOpenInApp ? '<span class="ge-graph-badge ge-badge-server">OPEN</span>' : '<span class="ge-graph-badge ge-badge-server">SAVED</span>')}
           </div>
-        </div>
+        `;
 
-        <div class="ge-graph-meta">
-          <span>${g.nodeCount || 0} nodes</span>
-          <span>•</span>
-          <span>${g.wireCount || 0} wires</span>
-          <span>•</span>
-          <span>${formattedTime}</span>
-        </div>
+        // Single click selects card
+        card.addEventListener('click', () => {
+          columnContainer.querySelectorAll('.ge-graph-card').forEach(c => c.classList.remove('selected-graph'));
+          card.classList.add('selected-graph');
+        });
 
-        <div class="ge-graph-actions">
-          <button class="ge-action-btn" data-action="rename" title="Rename graph">Rename</button>
-          <button class="ge-action-btn" data-action="duplicate" title="Duplicate graph">Duplicate</button>
-          <button class="ge-action-btn" data-action="move" title="Move to folder">Move</button>
-          <button class="ge-action-btn btn-delete" data-action="delete" title="Delete graph">✕</button>
-        </div>
-      `;
+        // Double-click card body to open
+        card.addEventListener('dblclick', () => {
+          this.openGraphInEditor(g);
+        });
 
-      // Click card body to open
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.ge-graph-actions')) return;
-        this.openGraphInEditor(g);
-      });
-
-      // Actions
-      card.querySelector('[data-action="rename"]').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.promptRenameGraph(g);
-      });
-
-      card.querySelector('[data-action="duplicate"]').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.duplicateGraph(g);
-      });
-
-      card.querySelector('[data-action="move"]').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.promptMoveGraph(g);
-      });
-
-      // Inline Sure? confirmation for deleting graph
-      const delBtn = card.querySelector('[data-action="delete"]');
-      let delTimer = null;
-      delBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (delBtn.dataset.sure === '1') {
-          clearTimeout(delTimer);
-          await graphStorage.deleteGraph(g.id);
-
-          // If open in app tabs, close or reset it
-          const idx = this.app.graphs?.findIndex(openG => openG.id === g.id || openG.name === g.name);
-          if (idx !== undefined && idx >= 0 && this.app.graphs.length > 1) {
-            this.app.closeGraph(idx);
-          } else if (idx !== undefined && idx >= 0 && this.app.graphs.length === 1) {
-            this.app.state.nodes = [];
-            this.app.state.wires = [];
-            this.app.renderer.render();
-          }
-
-          if (this.app.simulator) {
-            this.app.simulator.log(`Deleted node graph '${g.name}'.`, 'info');
-          }
-
-          await this.loadAndRefresh();
-        } else {
-          delBtn.dataset.sure = '1';
-          delBtn.textContent = 'Sure?';
-          delBtn.classList.add('btn-sure-delete');
-          delTimer = setTimeout(() => {
-            delBtn.dataset.sure = '0';
-            delBtn.textContent = '✕';
-            delBtn.classList.remove('btn-sure-delete');
-          }, 3000);
-        }
-      });
-
-      grid.appendChild(card);
+      columnContainer.appendChild(card);
     });
 
-    graphsSection.appendChild(grid);
+    graphsSection.appendChild(columnContainer);
     scrollArea.appendChild(graphsSection);
   }
 }
@@ -940,6 +1127,19 @@ export class NodeGraphExplorer {
       if (this.app.simulator) {
         this.app.simulator.log(`Deleted graph '${graphRecord.name}'.`, 'info');
       }
+    }
+  }
+
+  exportGraph(g) {
+    const blob = new Blob([JSON.stringify(g, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${g.name || 'node_graph'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    if (this.app.simulator) {
+      this.app.simulator.log(`Exported graph '${g.name}'.`, 'info');
     }
   }
 

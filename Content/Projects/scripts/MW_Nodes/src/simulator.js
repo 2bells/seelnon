@@ -42,6 +42,13 @@ export class GraphSimulator {
   async runSimulation() {
     if (this.isRunning) return;
     this.isRunning = true;
+    this.simulatedState = {
+      presetStates: {},
+      tabStates: {},
+      signalsEmitted: [],
+      printedStrings: [],
+      variables: {}
+    };
     this.log(`[Miliastra Engine] Initializing Server Node Graph execution context: "${this.state.name}"`, 'system');
 
     // 1. Find root Event nodes
@@ -49,6 +56,9 @@ export class GraphSimulator {
     if (eventNodes.length === 0) {
       this.log('[Warning] No Event Node found in graph to trigger execution flow.', 'warn');
       this.isRunning = false;
+      window.dispatchEvent(new CustomEvent('miliastra_simulation_completed', { 
+        detail: { simulatedState: this.simulatedState, graphName: this.state.name } 
+      }));
       return;
     }
 
@@ -60,6 +70,9 @@ export class GraphSimulator {
 
     this.log(`[Miliastra Engine] Execution complete for "${this.state.name}". All branches settled.`, 'success');
     this.isRunning = false;
+    window.dispatchEvent(new CustomEvent('miliastra_simulation_completed', { 
+      detail: { simulatedState: this.simulatedState, graphName: this.state.name } 
+    }));
   }
 
   async stepExec(fromNodeId, fromPinName) {
@@ -238,9 +251,24 @@ export class GraphSimulator {
       await this.sleep(200);
       await this.stepExec(node.id, 'execOut');
     }
+    else if (node.blueprintId === 'exec_set_the_preset_status_value_of_the_complex_creation') {
+      const target = this.resolveInputData(node.id, 'Target Entity') || 'Door_Entity_1001';
+      const presetIdx = this.resolveInputData(node.id, 'Preset Status Index') || node.inputValues?.['Preset Status Index'] || '10002032';
+      const presetVal = this.resolveInputData(node.id, 'Preset Status Value') || node.inputValues?.['Preset Status Value'] || '1';
+      this.log(` → Setting Preset Status Index [${presetIdx}] on [${target}] to Value [${presetVal}]`, 'action');
+      if (!this.simulatedState) this.simulatedState = { presetStates: {}, tabStates: {}, signalsEmitted: [], printedStrings: [], variables: {} };
+      if (!this.simulatedState.presetStates) this.simulatedState.presetStates = {};
+      this.simulatedState.presetStates[String(presetIdx)] = Number(presetVal);
+      this.log(`   • [Preset Status Updated] Index ${presetIdx} = State ${presetVal}`, 'success');
+      await this.sleep(250);
+      await this.stepExec(node.id, 'execOut');
+    }
     else if (node.blueprintId === 'exec_print_string') {
       const str = node.inputValues['String'] || 'Hello Teyvat';
       this.log(`[Print String Log] "${str}"`, 'print');
+      if (!this.simulatedState) this.simulatedState = { presetStates: {}, tabStates: {}, signalsEmitted: [], printedStrings: [], variables: {} };
+      if (!this.simulatedState.printedStrings) this.simulatedState.printedStrings = [];
+      this.simulatedState.printedStrings.push(str);
       await this.sleep(200);
       await this.stepExec(node.id, 'execOut');
     }
@@ -260,6 +288,13 @@ export class GraphSimulator {
 
     const srcNode = this.state.nodes.find(n => n.id === wire.fromNode);
     if (!srcNode) return null;
+
+    if (srcNode.blueprintId === 'event_when_tab_selected') {
+      if (wire.fromPin === 'Tab ID') return srcNode.inputValues?.['Tab ID'] || 1;
+      if (wire.fromPin === 'Target Entity') return 'Door_Entity_1001';
+      if (wire.fromPin === 'Target GUID') return '10002032';
+      if (wire.fromPin === 'Trigger Entity') return 'Player_Entity_Local';
+    }
 
     if (srcNode.blueprintId === 'event_monitor_signal') {
       if (srcNode.receivedSignalPayload && srcNode.receivedSignalPayload[wire.fromPin] !== undefined) {

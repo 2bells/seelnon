@@ -17,6 +17,8 @@ import { NodeGraphExplorer } from './storage/graphExplorer.js';
 import { CompositeNodeManager } from './compositeNode.js';
 import { NodeInspector } from './nodeInspector.js';
 import { CommentsManager } from './commentsManager.js';
+import { PuzzleManager } from './puzzles/puzzleManager.js';
+import { PuzzleExplorer } from './puzzles/puzzleExplorer.js';
 
 class MiliastraApp {
   constructor() {
@@ -50,6 +52,12 @@ class MiliastraApp {
 
     this.commentsManager = new CommentsManager(this);
     window.miliastraComments = this.commentsManager;
+
+    this.puzzleManager = new PuzzleManager(this.state, this.renderer, this.simulator);
+    window.miliastraPuzzleManager = this.puzzleManager;
+
+    this.puzzleExplorer = new PuzzleExplorer(this.puzzleManager);
+    window.miliastraPuzzleExplorer = this.puzzleExplorer;
 
     window.addEventListener('open_signal_explorer', (e) => {
       this.signalExplorer.open(e.detail?.signalName);
@@ -146,6 +154,9 @@ class MiliastraApp {
     if (this.commentsManager) {
       this.commentsManager.state = s;
     }
+    if (this.puzzleManager) {
+      this.puzzleManager.state = s;
+    }
     if (this.graphExplorer && this.graphExplorer.isOpen) {
       this.graphExplorer.updateFooter();
       this.graphExplorer.renderContent();
@@ -171,7 +182,7 @@ class MiliastraApp {
     const base = name || 'Node_Graph';
     let n = base;
     let k = 1;
-    while (this.graphs.some(g => g.name === n)) { n = `${base}_${k++}`; }
+    while (this.graphs.some(g => g && g.name === n)) { n = `${base}_${k++}`; }
     const g = new GraphState(n, 'Server');
     g.folderId = folderId || 'root';
     this.graphs.push(g);
@@ -192,14 +203,14 @@ class MiliastraApp {
     clearTimeout(this.__persistTimer);
     this.__persistTimer = setTimeout(() => {
       try {
-        const data = (this.graphs || []).map(g => g.toJSON());
+        const data = (this.graphs || []).filter(Boolean).map(g => g.toJSON());
         localStorage.setItem('miliastra.graphs', JSON.stringify(data));
       } catch (err) {
         /* storage full / unavailable — non-fatal */
       }
       // Also write each open graph to IndexedDB
       if (Array.isArray(this.graphs)) {
-        this.graphs.forEach(g => {
+        this.graphs.filter(Boolean).forEach(g => {
           graphStorage.saveGraph(g, g.folderId || 'root').catch(() => {});
         });
       }
@@ -313,6 +324,7 @@ class MiliastraApp {
           <div class="menu-item" id="menuWindowBtn">Window</div>
           <div class="menu-item" id="menuExplorerBtn">Explorer</div>
           <div class="menu-item" id="menuCompositeBtn" title="Composite Nodes Menu">Composite ▾</div>
+          <div class="menu-item" id="menuPuzzlesBtn" title="Miliastra Wonderland Puzzles Explorer" style="color: #38bdf8; font-weight: 700;">Puzzles</div>
           <div class="menu-item" id="menuHelpBtn">Help</div>
           
           <div class="window-dropdown-menu" id="compositeDropdown" style="display:none; left: 160px; min-width: 260px;">
@@ -324,6 +336,7 @@ class MiliastraApp {
           </div>
 
           <div class="window-dropdown-menu" id="windowDropdown" style="display:none;">
+            <div class="dropdown-item" id="menuPuzzlesItem" style="color: #38bdf8; font-weight: 700;">🧩 Puzzle Explorer (Challenges & Notes)...</div>
             <div class="dropdown-item" id="menuNodeExplorer">Node Graph Explorer...</div>
             <div class="dropdown-item" id="menuInspectNode" style="color: #38bdf8; font-weight: 600;">Inspect Node (Exploded View)...</div>
             <div class="dropdown-item" id="menuNewGraph">New Graph</div>
@@ -383,6 +396,11 @@ class MiliastraApp {
           <button class="dock-btn dock-btn-comments" id="btnToggleComments" title="Notes & Comments Mode (C)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+          <button class="dock-btn dock-btn-puzzles" id="btnOpenPuzzles" title="Miliastra Puzzle Explorer (Challenges & Notes)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2">
+              <path d="M19.439 7.85c0-1.571-1.286-2.85-2.87-2.85a2.86 2.86 0 0 0-2.85 2.85v.714H9.281v-.714a2.86 2.86 0 0 0-2.85-2.85C4.846 5 3.56 6.279 3.56 7.85c0 1.25.807 2.314 1.93 2.686v3.928c-1.123.372-1.93 1.436-1.93 2.686 0 1.571 1.286 2.85 2.87 2.85a2.86 2.86 0 0 0 2.85-2.85v-.714h4.438v.714a2.86 2.86 0 0 0 2.85 2.85 2.86 2.86 0 0 0 2.87-2.85c0-1.25-.807-2.314-1.93-2.686v-3.928c1.123-.372 1.93-1.436 1.93-2.686z"/>
             </svg>
           </button>
           <button class="dock-btn" id="btnAutoAlign" title="Snap Nodes to Grid">
@@ -855,6 +873,30 @@ class MiliastraApp {
       });
     }
 
+    const menuPuzzlesBtn = document.getElementById('menuPuzzlesBtn');
+    if (menuPuzzlesBtn) {
+      menuPuzzlesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllTopDropdowns();
+        this.puzzleExplorer.open();
+      });
+    }
+
+    const menuPuzzlesItem = document.getElementById('menuPuzzlesItem');
+    if (menuPuzzlesItem) {
+      menuPuzzlesItem.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        this.puzzleExplorer.open();
+      });
+    }
+
+    const btnOpenPuzzles = document.getElementById('btnOpenPuzzles');
+    if (btnOpenPuzzles) {
+      btnOpenPuzzles.addEventListener('click', () => {
+        this.puzzleExplorer.open();
+      });
+    }
+
     const menuNodeExp = document.getElementById('menuNodeExplorer');
     if (menuNodeExp) {
       menuNodeExp.addEventListener('click', () => {
@@ -1160,8 +1202,20 @@ class MiliastraApp {
 
   initKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {
-      // Don't intercept if user is typing in an input
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      const activeTag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toLowerCase() : '';
+      const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable ||
+                       activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || document.activeElement?.isContentEditable ||
+                       e.target.closest?.('.quick-spawn-input, .quick-spawn-popup, .node-search-input, .comment-tray-title, .note-bubble-title, .note-bubble-textarea, .param-input, .ide-container, input, textarea') ||
+                       document.activeElement?.closest?.('.quick-spawn-input, .quick-spawn-popup, .node-search-input, .comment-tray-title, .note-bubble-title, .note-bubble-textarea, .param-input, .ide-container, input, textarea');
+
+      // If user is actively typing in any input, search box (quickSpawn), contentEditable, or note/tray title,
+      // allow native input text shortcuts (Ctrl+A to select all text, Ctrl+C, Ctrl+V, Ctrl+Z) and bypass canvas shortcuts.
+      if (isTyping) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          GiaCodec.exportToFile(this.state, 'gia');
+        }
         return;
       }
 
