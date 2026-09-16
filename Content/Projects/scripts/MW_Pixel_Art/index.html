@@ -13,65 +13,106 @@
         <span class="logo">P</span>
         <span class="brand-name">Pixel GIA</span>
       </div>
-      <div class="titlebar-right">
-        <span class="doc-name">untitled-64.gia</span>
-        <span class="zoom" id="zoom">100%</span>
+
+      <div class="toolbar">
+        <div class="tool-grid">
+          <button class="tool t-pencil on" data-tool="pencil" title="Pencil (B)">Pencil</button>
+          <button class="tool t-eraser" data-tool="eraser" title="Eraser (E)">Eraser</button>
+          <button class="tool t-fill" data-tool="fill" title="Fill (G)">Fill</button>
+          <button class="tool t-picker" data-tool="picker" title="Color picker (I)">Pick</button>
+        </div>
+        <label class="size-wrap">
+          <span>size</span>
+          <input id="pensize" type="number" value="1" min="1" max="16" />
+        </label>
+
+        <div class="zoomctl">
+          <button class="zbtn" id="zoomin" title="Zoom in (+)">+</button>
+          <span class="zoom" id="zoom">100%</span>
+          <button class="zbtn" id="zoomout" title="Zoom out (−)">−</button>
+        </div>
       </div>
     </header>
 
     <div class="workspace">
-      <aside class="toolbar">
-        <button class="tool" id="import" title="Import image">&#128444;</button>
-        <button class="tool" id="erase" title="Eraser">&#9633;</button>
-        <button class="tool" id="clear" title="Clear">&#10005;</button>
-        <input type="file" id="file" accept="image/*" hidden />
+      <aside class="sidebar">
+        <div class="side-section">
+          <div class="side-label">Color</div>
+          <input type="color" id="wheel" value="#444444" title="color wheel" class="wheel" />
+          <span class="hint">hold Alt &#9998; to pick a color</span>
+          <input type="color" id="editcolor" hidden />
+        </div>
+
+        <div class="side-section">
+          <div class="side-label">Background</div>
+          <div class="bg-row">
+            <input type="color" id="bgcolor" value="#1b1b1f" title="background color" />
+            <span class="hint">behind transparent layers</span>
+          </div>
+        </div>
+
+        <div class="side-section">
+          <div class="side-label">Palette</div>
+          <div class="palette" id="palette"></div>
+        </div>
+
+        <div class="side-section">
+          <div class="side-label">Last used</div>
+          <div class="palette" id="lastused"></div>
+        </div>
+
+        <div class="side-section">
+          <div class="side-head">
+            <div class="side-label">Layers</div>
+            <button class="ladd" id="addLayer" title="Add layer">+</button>
+          </div>
+          <div class="layers" id="layers"></div>
+        </div>
+
+        <div class="side-section">
+          <div class="side-label">Import</div>
+          <button class="import" id="import">Import image</button>
+          <input type="file" id="file" accept="image/*" hidden />
+        </div>
+
+        <div class="side-section">
+          <div class="side-label">Project</div>
+          <input class="doc-input" id="docname" value="untitled" spellcheck="false" />
+          <div class="project-btns">
+            <button class="tool" id="save">save</button>
+            <button class="tool danger" id="delProject" title="Delete selected project">delete</button>
+          </div>
+          <select id="projects" class="projects" title="Load a saved project"></select>
+        </div>
       </aside>
 
       <section class="canvas-area">
         <div class="canvas-frame">
           <canvas id="grid"></canvas>
         </div>
-        <div class="palette" id="palette">
-          <input type="color" id="wheel" value="#444444" title="color wheel" class="wheel" />
-        </div>
       </section>
 
       <aside class="panel">
-        <div class="panel-head">
-          <span>Layers</span>
-          <span class="grid-ctl">
-            grid
-            <select id="size">
-              <option value="16">16×16</option>
-              <option value="20">20×20</option>
-              <option value="24">24×24</option>
-              <option value="28">28×28</option>
-              <option value="30">30×30</option>
-              <option value="32">32×32</option>
-              <option value="64" selected>64×64</option>
-              <option value="128">128×128</option>
-            </select>
-          </span>
+        <div class="grid-row">
+          <span>grid</span>
+          <select id="size">
+            <option value="16">16×16</option>
+            <option value="20">20×20</option>
+            <option value="24">24×24</option>
+            <option value="28">28×28</option>
+            <option value="30">30×30</option>
+            <option value="32">32×32</option>
+            <option value="64" selected>64×64</option>
+          </select>
         </div>
-        <div class="tabs" id="tabs"></div>
 
         <div class="panel-head">
           <span>Export</span>
         </div>
         <div class="export">
           <label class="row">
-            <span>font size</span>
-            <select id="font">
-              <option value="auto" selected>auto (fit box)</option>
-              <option value="none">none (omit)</option>
-              <option value="8">8</option>
-              <option value="10">10</option>
-              <option value="12">12</option>
-              <option value="16">16</option>
-              <option value="20">20</option>
-              <option value="24">24</option>
-              <option value="32">32</option>
-            </select>
+            <span>name</span>
+            <input id="name" type="text" value="ASCII_Template" spellcheck="false" />
           </label>
           <label class="row">
             <span>box size</span>
@@ -82,38 +123,38 @@
             </span>
           </label>
           <label class="row">
-            <span>name</span>
-            <input id="name" type="text" value="ASCII_Template" spellcheck="false" />
+            <span>zoom</span>
+            <span class="box">
+              <input id="zoomx" type="number" value="1" step="0.05" min="0.1" />
+              <span class="x">×</span>
+              <input id="zoomy" type="number" value="0.8" step="0.05" min="0.1" />
+            </span>
           </label>
           <label class="row">
-            <span>zoom x</span>
-            <input id="zoomx" type="number" value="1" step="0.05" min="0.1" />
-          </label>
-          <label class="row">
-            <span>zoom y</span>
-            <input id="zoomy" type="number" value="0.8" step="0.05" min="0.1" />
+            <span>font size</span>
+            <select id="font">
+              <option value="none" selected>none (omit)</option>
+              <option value="auto">auto (fit box)</option>
+              <option value="8">8</option>
+              <option value="10">10</option>
+              <option value="12">12</option>
+              <option value="16">16</option>
+              <option value="20">20</option>
+              <option value="24">24</option>
+              <option value="32">32</option>
+            </select>
           </label>
           <label class="row">
             <span>max colors</span>
             <input id="maxcolors" type="number" value="7" min="1" max="64" />
           </label>
           <label class="row">
-            <span>blank</span>
-            <select id="blank">
-              <option value="space">space</option>
-              <option value="full" selected>full-width</option>
-              <option value="block">bg block</option>
-            </select>
-          </label>
-          <label class="row" id="bgwrap" hidden>
-            <span>bg</span>
-            <input id="bg" type="color" value="#000000" />
-          </label>
-          <label class="row">
             <span>limit</span>
             <input id="limit" type="number" value="1000" min="1" />
           </label>
         </div>
+
+        <div class="tabs" id="tabs"></div>
 
         <label class="field">
           <span class="lbl">ASCII <em>(one text box per color tab — no color tags)</em></span>

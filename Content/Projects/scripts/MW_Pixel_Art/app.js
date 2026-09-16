@@ -1,137 +1,453 @@
+import { buildComboGia } from "./encoder.js";
+
 const $ = (id) => document.getElementById(id);
 const canvas = $("grid"), ctx = canvas.getContext("2d");
-const paletteEl = $("palette"), eraseBtn = $("erase"), clearBtn = $("clear");
-const out = $("out"), go = $("go"), dl = $("dl"), status = $("status");
-const blankSel = $("blank"), bgWrap = $("bgwrap"), bgColor = $("bg");
-const tabsEl = $("tabs"), copyBtn = $("copy"), sizeSel = $("size");
-const fontSel = $("font"), boxW = $("boxw"), boxH = $("boxh"), maxColorsEl = $("maxcolors");
-const importBtn = $("import"), fileInput = $("file"), fitEl = $("fit"), wheel = $("wheel");
+const paletteEl = $("palette"), lastUsedEl = $("lastused"), wheel = $("wheel");
+const bgColorEl = $("bgcolor");
+const importBtn = $("import"), fileInput = $("file");
+const out = $("out"), go = $("go"), dl = $("dl"), status = $("status"), copyBtn = $("copy");
+const tabsEl = $("tabs"), layersEl = $("layers"), sizeSel = $("size"), fontSel = $("font"), penSizeEl = $("pensize");
+const boxW = $("boxw"), boxH = $("boxh"), maxColorsEl = $("maxcolors");
 const nameEl = $("name"), zoomXEl = $("zoomx"), zoomYEl = $("zoomy");
+const fitEl = $("fit"), lenEl = $("len"), limitEl = $("limit");
+const saveBtn = $("save"), delProjectBtn = $("delProject"), projectsSel = $("projects");
+const docNameEl = $("docname"), editColor = $("editcolor"), zoomEl = $("zoom");
+const zoomInBtn = $("zoomin"), zoomOutBtn = $("zoomout");
+const addLayerBtn = $("addLayer");
+const tools = document.querySelectorAll("[data-tool]");
 
-let N = parseInt(sizeSel.value, 10) || 16, CELL = canvas.width / N;
-const PALETTE = [
+let N = 64, CELL = 288 / 16;
+let PALETTE = [
   "#000000", "#444444", "#888888", "#bbbbbb", "#ffffff",
   "#e50000", "#f96d00", "#f9c700", "#b8d200", "#3f8e00",
   "#00a0b0", "#1e57c7", "#7a3abf", "#ff4dd2", "#7a4425", "#d9924b",
 ];
 const ERASE = null;
-const BLANK = { space: " ", full: "\u3000", block: "█" };
+const BLANK = "\u3000";
 
-let fontSize = null; // resolved <size> value; null = omit the tag
-let grid = [];
+let layers = [];
+let activeLayer = 0;
+let backgroundColor = "#1b1b1f";
 let color = PALETTE[1];
+let tool = "pencil";
 let painting = false;
+let altDown = false;
+let zoomFactor = 1;
 let activeTab = "All";
-let comboBase = null; // combo_test1 template (multi-box .gia export)
-const td = new TextDecoder();
+let comboBase = null;
+let lastUsed = loadLastUsed();
+let history = [];
+let future = [];
 
-function effectiveFontSize() {
-  const v = fontSel.value;
-  if (v === "none") return null;
-  if (v === "auto") {
-    const bw = parseInt(boxW.value, 10) || 1, bh = parseInt(boxH.value, 10) || 1;
-    return Math.max(1, Math.round(Math.min(bw, bh) / N));
-  }
-  return parseInt(v, 10) || null;
+/* ------------------------------------------------------------------ */
+/* Layer helpers                                                       */
+/* ------------------------------------------------------------------ */
+const active = () => layers[activeLayer] || layers[0];
+const makeLayer = (c) => ({
+  grid: Array.from({ length: N }, () => Array(N).fill(ERASE)),
+  color: c || color,
+});
+function emptyLayerGrid() { return Array.from({ length: N }, () => Array(N).fill(ERASE)); }
+
+/* ------------------------------------------------------------------ */
+/* History (undo/redo)                                                 */
+/* ------------------------------------------------------------------ */
+const snapLayers = () => layers.map((l) => ({ ...l, grid: l.grid.map((r) => r.slice()) }));
+const loadSnapLayers = (s) => (layers = s.map((l) => ({ ...l, grid: l.grid.map((r) => r.slice()) })));
+function pushHistory() { history.push(snapLayers()); if (history.length > 100) history.shift(); future = []; }
+function undo() {
+  if (!history.length) return;
+  future.push(snapLayers());
+  loadSnapLayers(history.pop());
+  afterGridChange();
 }
+function redo() {
+  if (!future.length) return;
+  history.push(snapLayers());
+  loadSnapLayers(future.pop());
+  afterGridChange();
+}
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    const k = e.key.toLowerCase();
+    if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if (k === "y") { e.preventDefault(); redo(); }
+    return;
+  }
+  if (e.altKey && e.key.toLowerCase() === "i") { e.preventDefault(); selectTool("picker"); }
+  const k = e.key.toLowerCase();
+  if (k === "b") selectTool("pencil");
+  else if (k === "e") selectTool("eraser");
+  else if (k === "g") selectTool("fill");
+  else if (k === "i") selectTool("picker");
+  if (e.key === "Alt" && !altDown) { altDown = true; updateCursor(); }
+});
+window.addEventListener("keyup", (e) => {
+  if (e.key === "Alt" && altDown) { altDown = false; updateCursor(); }
+});
+window.addEventListener("blur", () => { altDown = false; updateCursor(); });
 
 function speak(msg, kind) {
   status.textContent = msg;
   status.className = "status" + (kind ? " " + kind : "");
 }
-
 function resetGrid() {
-  grid = Array.from({ length: N }, () => Array(N).fill(ERASE));
-  canvas.width = N * (288 / 16); canvas.height = N * (288 / 16);
-  CELL = canvas.width / N;
+  layers = [makeLayer(PALETTE[1])];
+  activeLayer = 0;
+  canvas.width = N * CELL; canvas.height = N * CELL;
+}
+function afterGridChange() {
+  draw(); render();
+}
+
+/* ------------------------------------------------------------------ */
+/* Tools                                                               */
+/* ------------------------------------------------------------------ */
+tools.forEach((btn) => btn.addEventListener("click", () => selectTool(btn.dataset.tool)));
+function selectTool(name) {
+  tool = name;
+  tools.forEach((b) => b.classList.toggle("on", b.dataset.tool === name));
+  updateCursor();
+  markActive();
+}
+const EYEDROPPER = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M18.8 5.2a2 2 0 0 1 0 2.8l-.75.75-2.8-2.8.75-.75a2 2 0 0 1 2.8 0z' fill='%23fff' stroke='%23000' stroke-width='.8'/><path d='M13.3 9.7l1 1-7.3 7.3-.6 2.6 2.6-.6 7.3-7.3 1 1-7.1 7.1a1.2 1.2 0 0 1-1.7 0l-1.3-1.3a1.2 1.2 0 0 1 0-1.7z' fill='%23fff' stroke='%23000' stroke-width='.8' stroke-linejoin='round'/></svg>") 2 20, crosshair`;
+function updateCursor() {
+  const picking = altDown || tool === "picker";
+  canvas.classList.toggle("pick", picking);
+  canvas.style.cursor = picking ? EYEDROPPER : "";
 }
 
 /* ------------------------------------------------------------------ */
 /* Canvas painting                                                     */
 /* ------------------------------------------------------------------ */
 function draw() {
-  ctx.fillStyle = "#1b1b1f";
+  ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const S = CELL;
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const c = grid[y][x];
-    if (c) { ctx.fillStyle = c; ctx.fillRect(x * S, y * S, S, S); }
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    if (layer.visible === false) continue;
+    const L = layer.grid;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const v = L[y][x];
+      if (v != null) { ctx.fillStyle = v; ctx.fillRect(x * S, y * S, S, S); }
+    }
   }
   ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.lineWidth = 1;
   for (let i = 0; i <= N; i++) {
     ctx.beginPath(); ctx.moveTo(i * S, 0); ctx.lineTo(i * S, canvas.height); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, i * S); ctx.lineTo(canvas.width, i * S); ctx.stroke();
   }
+  drawBrushOutline();
 }
-function paint(x, y) {
-  if (x < 0 || y < 0 || x >= N || y >= N) return;
-  grid[y][x] = color; draw(); render();
+let hoverP = null;
+function drawBrushOutline() {
+  if (!hoverP || tool === "picker" || tool === "fill") return;
+  const size = Math.max(1, parseInt(penSizeEl.value, 10) || 1);
+  const r = (size - 1) / 2;
+  const x = Math.floor(hoverP.x - r), y = Math.floor(hoverP.y - r);
+  const px = hoverP.x - r, py = hoverP.y - r;
+  const w = size * CELL, h = size * CELL;
+  const colorStroke = tool === "eraser" ? "#ff3b30" : "#ffffff";
+  ctx.strokeStyle = colorStroke;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x * CELL, y * CELL, w, h);
+  void px; void py;
+}
+function paintAt(p, use = tool) {
+  const layer = active();
+  if (p.x < 0 || p.y < 0 || p.x >= N || p.y >= N) return;
+  const c = use === "eraser" ? ERASE : color;
+  if (c != null) rememberUsed(c, 1);
+  const size = Math.max(1, parseInt(penSizeEl.value, 10) || 1);
+  const r = Math.floor((size - 1) / 2);
+  for (let dy = -r; dy <= size - 1 - r; dy++) for (let dx = -r; dx <= size - 1 - r; dx++) {
+    const nx = p.x + dx, ny = p.y + dy;
+    if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+    layer.grid[ny][nx] = c;
+  }
+  draw(); render();
+}
+function rememberUsed(hex, count) {
+  if (!hex) return;
+  if (count < 1) count = 1;
+  for (let i = 0; i < count; i++) rememberColor(hex);
+}
+function bucketFill(p) {
+  const layer = active();
+  const L = layer.grid;
+  const target = L[p.y][p.x];
+  const fill = color;
+  if (target === fill) return;
+  rememberUsed(fill, 20);
+  const stack = [[p.x, p.y]];
+  L[p.y][p.x] = fill;
+  while (stack.length) {
+    const [x, y] = stack.pop();
+    const nbrs = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]];
+    for (const [nx, ny] of nbrs) {
+      if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      if (L[ny][nx] === target) { L[ny][nx] = fill; stack.push([nx, ny]); }
+    }
+  }
+  draw(); render();
 }
 function pos(e) {
   const r = canvas.getBoundingClientRect();
   const sx = canvas.width / r.width, sy = canvas.height / r.height;
   return {
-    x: Math.floor((e.clientX - r.left) * sx / CELL),
-    y: Math.floor((e.clientY - r.top) * sy / CELL),
+    x: Math.max(0, Math.min(N - 1, Math.floor((e.clientX - r.left) * sx / CELL))),
+    y: Math.max(0, Math.min(N - 1, Math.floor((e.clientY - r.top) * sy / CELL))),
   };
 }
+function composite() {
+  const out = Array.from({ length: N }, () => Array(N).fill(ERASE));
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    if (layer.visible === false) continue;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const v = layer.grid[y][x];
+      if (v != null) out[y][x] = v;
+    }
+  }
+  return out;
+}
+function pickAt(p) {
+  const c = composite()[p.y][p.x];
+  if (c) setColor(c);
+}
 canvas.addEventListener("mousedown", (e) => {
-  e.preventDefault(); painting = true;
+  e.preventDefault();
   const p = pos(e);
-  if (e.button === 2) { grid[p.y][p.x] = ERASE; draw(); render(); }
-  else paint(p.x, p.y);
+  if (e.altKey || tool === "picker") { pickAt(p); return; }
+  pushHistory();
+  if (e.button === 2) { active().grid[p.y][p.x] = ERASE; draw(); render(); return; }
+  if (tool === "fill") { bucketFill(p); return; }
+  painting = true;
+  paintAt(p);
+  if (tool === "eraser") { active().grid[p.y][p.x] = ERASE; draw(); render(); }
 });
 canvas.addEventListener("mousemove", (e) => {
-  if (!painting) return;
   const p = pos(e);
-  if (e.buttons & 2) { grid[p.y][p.x] = ERASE; draw(); render(); }
-  else paint(p.x, p.y);
+  hoverP = p;
+  draw();
+  if (!painting) return;
+  paintAt(p, tool === "eraser" ? "eraser" : tool);
 });
+canvas.addEventListener("mouseleave", () => { hoverP = null; draw(); });
 window.addEventListener("mouseup", () => (painting = false));
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
 sizeSel.addEventListener("change", () => {
-  N = parseInt(sizeSel.value, 10) || 16;
+  N = parseInt(sizeSel.value, 10) || 64;
   resetGrid(); draw(); render();
+  applyZoom();
 });
-
-fontSel.addEventListener("change", () => {
-  fontSize = effectiveFontSize();
-  render();
-});
-wheel.addEventListener("input", () => {
-  color = wheel.value;
-  eraseBtn.classList.remove("on");
-  markActive();
-});
+fontSel.addEventListener("change", () => render());
+wheel.addEventListener("input", () => setColor(wheel.value));
+bgColorEl.addEventListener("input", () => { backgroundColor = bgColorEl.value; draw(); });
 
 /* ------------------------------------------------------------------ */
-/* Palette                                                             */
+/* Palette — fixed slots; editing one color never touches the others   */
 /* ------------------------------------------------------------------ */
+function loadPalette() {
+  try {
+    const v = JSON.parse(localStorage.getItem("pixelgia.palette") || "[]");
+    if (Array.isArray(v) && v.length === PALETTE.length && v.every((c) => /^#[0-9a-f]{6}$/i.test(c))) return v;
+  } catch {}
+  return PALETTE.slice();
+}
+function savePalette() { try { localStorage.setItem("pixelgia.palette", JSON.stringify(PALETTE)); } catch {} }
+function sw(hex, onPick, onAlt, extra) {
+  const el = document.createElement("button");
+  el.className = "swatch" + (extra || "");
+  el.style.background = hex; el.title = hex;
+  el.dataset.hex = hex.toLowerCase();
+  el.addEventListener("click", () => onPick(hex));
+  el.addEventListener("contextmenu", (e) => { e.preventDefault(); onAlt && onAlt(hex); });
+  return el;
+}
 function buildPalette() {
-  PALETTE.forEach((hex) => {
-    const sw = document.createElement("button");
-    sw.className = "swatch"; sw.style.background = hex; sw.title = hex;
-    sw.addEventListener("click", () => { color = hex; eraseBtn.classList.remove("on"); markActive(); });
-    paletteEl.appendChild(sw);
-  });
+  paletteEl.innerHTML = "";
+  PALETTE.forEach((hex, i) => paletteEl.appendChild(sw(hex, setColor, editSlot(i))));
+  markActive();
+}
+function buildLastUsed() {
+  lastUsedEl.innerHTML = "";
+  lastUsed.forEach((hex) => lastUsedEl.appendChild(sw(hex, setColor)));
+  markActive();
+}
+function editSlot(i) {
+  return () => {
+    editColor.value = PALETTE[i];
+    editColor.oninput = () => {
+      PALETTE[i] = editColor.value;
+      savePalette();
+      const b = paletteEl.children[i];
+      if (b) { b.style.background = editColor.value; b.title = editColor.value; }
+      markActive();
+    };
+    editColor.onchange = () => setColor(editColor.value);
+    editColor.click();
+  };
+}
+function setColor(hex) {
+  color = hex;
+  wheel.value = hex;
   markActive();
 }
 function markActive() {
-  [...paletteEl.children].forEach((sw, i) => {
-    const isSwatch = sw.classList.contains("swatch");
-    if (isSwatch) sw.classList.toggle("active", PALETTE[i] === color);
-  });
+  [...paletteEl.children].forEach((el, i) => el.classList.toggle("active", PALETTE[i] === color));
+  [...lastUsedEl.children].forEach((el) => el.classList.toggle("active", (el.dataset.hex || "") === (color || "").toLowerCase()));
 }
-eraseBtn.addEventListener("click", () => {
-  eraseBtn.classList.toggle("on");
-  color = eraseBtn.classList.contains("on") ? ERASE : PALETTE[1];
-  markActive();
-});
-clearBtn.addEventListener("click", () => { resetGrid(); draw(); render(); });
 
 /* ------------------------------------------------------------------ */
-/* Image import + color quantization                                   */
+/* Last-used — only records colors not already present on canvas       */
+/* ------------------------------------------------------------------ */
+function loadLastUsed() {
+  try { const v = JSON.parse(localStorage.getItem("pixelgia.lastused") || "[]"); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+}
+function saveLastUsed() { try { localStorage.setItem("pixelgia.lastused", JSON.stringify(lastUsed)); } catch {} }
+function onCanvas(hex) {
+  for (const layer of layers) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (layer.grid[y][x] === hex) return true;
+  }
+  return false;
+}
+function rememberColor(hex) {
+  if (onCanvas(hex)) return;
+  lastUsed = lastUsed.filter((h) => h !== hex);
+  lastUsed.unshift(hex);
+  if (lastUsed.length > 12) lastUsed.pop();
+  saveLastUsed();
+  buildLastUsed();
+}
+
+/* ------------------------------------------------------------------ */
+/* Draw layers — stacking, add/delete/reorder/eye                      */
+/* ------------------------------------------------------------------ */
+function renderLayers() {
+  layersEl.innerHTML = "";
+  if (!layers.length) {
+    const empty = document.createElement("div");
+    empty.className = "layers-empty";
+    empty.textContent = "no layers yet";
+    layersEl.appendChild(empty);
+    return;
+  }
+  // top layer first (front) at index 0
+  for (let i = 0; i < layers.length; i++) {
+    const l = layers[i];
+    const idx = i;
+    const isActive = idx === activeLayer;
+    const row = document.createElement("div");
+    row.className = "dlayer" + (isActive ? " active" : "") + (l.visible === false ? " hidden" : "");
+    row.dataset.index = idx;
+
+    const eye = document.createElement("button");
+    eye.className = "leye";
+    eye.textContent = l.visible === false ? "○" : "●";
+    eye.title = l.visible === false ? "show layer" : "hide layer";
+    eye.addEventListener("click", (e) => {
+      e.stopPropagation();
+      l.visible = (l.visible === false) ? true : false;
+      renderLayers(); draw(); render();
+    });
+
+    const col = document.createElement("button");
+    col.className = "lswatch";
+    col.style.background = l.color;
+    col.title = l.color;
+    col.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setActiveLayer(idx);
+      editLayerColor(idx);
+    });
+
+    const nm = document.createElement("span");
+    nm.className = "lname";
+    nm.textContent = "Layer " + (idx + 1);
+    nm.title = "layer " + (idx + 1);
+
+    const up = document.createElement("button");
+    up.className = "larrow";
+    up.textContent = "↑";
+    up.title = "move up";
+    up.addEventListener("click", (e) => { e.stopPropagation(); moveLayer(idx, -1); });
+
+    const down = document.createElement("button");
+    down.className = "larrow";
+    down.textContent = "↓";
+    down.title = "move down";
+    down.addEventListener("click", (e) => { e.stopPropagation(); moveLayer(idx, 1); });
+
+    const del = document.createElement("button");
+    del.className = "ldel";
+    del.textContent = "×";
+    del.title = "delete layer";
+    del.addEventListener("click", (e) => { e.stopPropagation(); deleteLayer(idx); });
+
+    row.addEventListener("click", () => setActiveLayer(idx));
+    row.append(eye, col, nm, up, down, del);
+    layersEl.appendChild(row);
+  }
+}
+function setActiveLayer(i) {
+  activeLayer = i;
+  renderLayers(); markActive(); render();
+}
+function addLayer() {
+  pushHistory();
+  const nextColor = nextUnusedColor();
+  layers.unshift(makeLayer(nextColor));
+  activeLayer = 0;
+  renderLayers(); markActive(); render();
+  speak("layer added", "ok");
+}
+function nextUnusedColor() {
+  const used = new Set(layers.map((l) => l.color));
+  const base = PALETTE.concat(lastUsed);
+  for (const c of base) if (!used.has(c)) return c;
+  return color;
+}
+function deleteLayer(i) {
+  if (layers.length <= 1) { speak("need at least one layer", "err"); return; }
+  pushHistory();
+  layers.splice(i, 1);
+  if (activeLayer >= layers.length) activeLayer = layers.length - 1;
+  renderLayers(); markActive(); render();
+  speak("layer deleted", "ok");
+}
+function moveLayer(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= layers.length) return;
+  pushHistory();
+  [layers[i], layers[j]] = [layers[j], layers[i]];
+  if (activeLayer === i) activeLayer = j;
+  else if (activeLayer === j) activeLayer = i;
+  renderLayers(); render();
+}
+function editLayerColor(idx) {
+  const l = layers[idx];
+  editColor.value = l.color;
+  editColor.oninput = () => {
+    l.color = editColor.value;
+    const swatch = layersEl.querySelector(`[data-index="${idx}"] .lswatch`);
+    if (swatch) { swatch.style.background = l.color; swatch.title = l.color; }
+    if (idx === activeLayer) { color = l.color; markActive(); }
+    draw();
+  };
+  editColor.onchange = () => {
+    if (idx === activeLayer) { color = l.color; wheel.value = l.color; }
+    if (l.grid.some((r) => r.some((v) => v != null))) rememberColor(l.color);
+  };
+  editColor.click();
+}
+addLayerBtn.addEventListener("click", addLayer);
+
+/* ------------------------------------------------------------------ */
+/* Image import + quantization                                         */
 /* ------------------------------------------------------------------ */
 function rgbToHex([r, g, b]) {
   return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
@@ -184,7 +500,7 @@ fileInput.addEventListener("change", () => {
   if (!f) return;
   const img = new Image();
   img.onload = () => {
-    N = 64; sizeSel.value = "64"; resetGrid();
+    pushHistory();
     const off = document.createElement("canvas");
     off.width = N; off.height = N;
     const oc = off.getContext("2d");
@@ -200,39 +516,61 @@ fileInput.addEventListener("change", () => {
     }
     const maxC = Math.max(1, parseInt(maxColorsEl.value, 10) || 7);
     const pal = quantize(px, maxC);
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const i = (y * N + x) * 4;
-      if (data[i + 3] < 128) { grid[y][x] = ERASE; continue; }
-      grid[y][x] = rgbToHex(nearest(pal, [data[i], data[i + 1], data[i + 2]]));
-    }
+    mapToLayers(data, pal);
+    pal.forEach((c) => rememberColor(rgbToHex(c)));
     draw(); render();
     speak(`imported · ${pal.length} color(s)`, "ok");
     fileInput.value = "";
   };
-  img.onerror = () => speak("couldn’t read image", "err");
+  img.onerror = () => speak("couldn't read image", "err");
   img.src = URL.createObjectURL(f);
 });
+function mapToLayers(data, pal) {
+  layers = [];
+  const assign = Array.from({ length: N }, () => Array(N).fill(ERASE));
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = (y * N + x) * 4;
+    if (data[i + 3] < 128) { assign[y][x] = ERASE; continue; }
+    assign[y][x] = rgbToHex(nearest(pal, [data[i], data[i + 1], data[i + 2]]));
+  }
+  const colorSet = [];
+  const byColor = {};
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const c = assign[y][x];
+    if (!c) continue;
+    if (!colorSet.includes(c)) { colorSet.push(c); byColor[c] = makeLayer(c); }
+    byColor[c].grid[y][x] = c;
+  }
+  layers = colorSet.map((c) => byColor[c]);
+  // active = front-most (last color)
+  activeLayer = layers.length - 1;
+  if (layers.length) { color = layers[activeLayer].color; wheel.value = color; }
+}
 
 /* ------------------------------------------------------------------ */
-/* Tabs: All + one per color (single-color layer)                     */
+/* Export text + tabs                                                  */
 /* ------------------------------------------------------------------ */
+function effectiveFontSize() {
+  const v = fontSel.value;
+  if (v === "none") return null;
+  if (v === "auto") {
+    const bw = parseInt(boxW.value, 10) || 1, bh = parseInt(boxH.value, 10) || 1;
+    return Math.max(1, Math.round(Math.min(bw, bh) / N));
+  }
+  return parseInt(v, 10) || null;
+}
 function combinedString() {
+  const g = composite();
   let s = "", open = null;
-  const mode = blankSel.value;
   for (let y = 0; y < N; y++) {
     if (y > 0) s += "\\n";
     for (let x = 0; x < N; x++) {
-      const c = grid[y][x];
-      if (c === ERASE) {
-        if (mode === "block") {
-          const bg = bgColor.value;
-          if (open !== bg) { if (open !== null) s += "</color>"; s += `<color=#${bg.slice(1)}>`; open = bg; }
-          s += "█";
-        } else s += BLANK[mode];
-      } else if (open === c) s += "█";
+      const c = g[y][x];
+      if (c === ERASE) s += " ";
+      else if (open === c) s += "\u2588";
       else {
         if (open !== null) s += "</color>";
-        s += `<color=#${c.slice(1)}>█`; open = c;
+        s += `<color=#${c.slice(1)}>\u2588`; open = c;
       }
     }
   }
@@ -241,37 +579,38 @@ function combinedString() {
 }
 function distinctColors() {
   const order = [];
+  const g = composite();
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const c = grid[y][x];
+    const c = g[y][x];
     if (c && !order.includes(c)) order.push(c);
   }
   return order;
 }
-function layerString(color) {
+function layerString(hex, fontSize) {
   let s = "";
+  const enc = hex.slice(1).toLowerCase();
+  const g = composite();
   for (let y = 0; y < N; y++) {
     if (y > 0) s += "\\n";
-    for (let x = 0; x < N; x++) s += grid[y][x] === color ? "█" : "\u3000";
+    for (let x = 0; x < N; x++) {
+      s += g[y][x] === hex ? "\u2588" : "\u3000";
+    }
   }
   const open = fontSize ? `<size=${fontSize}>` : "";
   const close = fontSize ? "</size>" : "";
-  return open + `<color=#${color.slice(1)}>` + s + "</color>" + close;
+  return open + `<color=#${enc}>` + s + "</color>" + close;
 }
 function render() {
-  fontSize = effectiveFontSize();
+  const fontSize = effectiveFontSize();
   const colors = distinctColors();
   const tabs = [{ label: "All", swatch: null, text: combinedString() }];
-  colors.forEach((c) => tabs.push({ label: c, swatch: c, text: layerString(c) }));
+  colors.forEach((c) => tabs.push({ label: c, swatch: c, text: layerString(c, fontSize) }));
   if (!tabs.some((t) => t.label === activeTab)) activeTab = "All";
   tabsEl.innerHTML = "";
   tabs.forEach((t) => {
     const b = document.createElement("button");
     b.className = "tab" + (t.label === activeTab ? " active" : "");
-    if (t.swatch) {
-      const sw = document.createElement("i");
-      sw.style.background = t.swatch;
-      b.appendChild(sw);
-    }
+    if (t.swatch) { const sw = document.createElement("i"); sw.style.background = t.swatch; b.appendChild(sw); }
     b.appendChild(document.createTextNode(t.label));
     b.title = t.label;
     b.addEventListener("click", () => { activeTab = t.label; render(); });
@@ -281,6 +620,19 @@ function render() {
   out.value = active.text;
   updateLen(active.text.length);
   updateFit();
+  renderLayers();
+}
+function updateLen(n) {
+  const lim = parseInt(limitEl.value, 10) || 0;
+  lenEl.textContent = `${n} chars`;
+  lenEl.classList.toggle("over", lim > 0 && n > lim);
+  if (lim > 0) lenEl.textContent += ` / limit ${lim} (${Math.max(0, lim - n)} left)`;
+}
+function updateFit() {
+  const bw = parseInt(boxW.value, 10) || 1, bh = parseInt(boxH.value, 10) || 1;
+  const mode = fontSel.value;
+  const label = mode === "none" ? "size omitted" : (mode === "auto" ? `writes <size=${effectiveFontSize()}>` : `writes <size=${mode}>`);
+  fitEl.textContent = `box ${bw}×${bh} · ${label}`;
 }
 copyBtn.addEventListener("click", () => {
   out.select();
@@ -288,371 +640,121 @@ copyBtn.addEventListener("click", () => {
   catch { document.execCommand("copy"); }
   speak(`copied ${activeTab} (${out.value.length} chars)`);
 });
-
-const limit = $("limit"), lenEl = $("len");
-function updateLen(n) {
-  const lim = parseInt(limit.value, 10) || 0;
-  lenEl.textContent = `${n} chars`;
-  lenEl.classList.toggle("over", lim > 0 && n > lim);
-  if (lim > 0) lenEl.textContent += ` / limit ${lim} (${Math.max(0, lim - n)} left)`;
-}
-function updateFit() {
-  const bw = parseInt(boxW.value, 10) || 1, bh = parseInt(boxH.value, 10) || 1;
-  const fit = Math.floor(Math.min(bw, bh) / N);
-  const mode = fontSel.value;
-  const label = mode === "none" ? "size omitted" : (mode === "auto" ? `writes <size=${effectiveFontSize()}>` : `writes <size=${mode}>`);
-  fitEl.textContent = `box ${bw}×${bh} · ${label}`;
-}
-limit.addEventListener("input", () => updateLen(out.value.length));
+limitEl.addEventListener("input", () => updateLen(out.value.length));
 boxW.addEventListener("input", render);
 boxH.addEventListener("input", render);
 maxColorsEl.addEventListener("input", updateFit);
-blankSel.addEventListener("change", () => {
-  bgWrap.hidden = blankSel.value !== "block";
-  render();
-});
-bgColor.addEventListener("input", render);
 
 /* ------------------------------------------------------------------ */
-/* Raw protobuf helpers (lossless)                                    */
+/* Save / load (IndexedDB)                                             */
 /* ------------------------------------------------------------------ */
-function readVarint(data, pos) {
-  let res = 0n, shift = 0n;
-  while (true) {
-    const b = data[pos]; pos++;
-    res |= BigInt(b & 0x7f) << shift;
-    if (!(b & 0x80)) break;
-    shift += 7n;
-  }
-  return { v: res, pos };
+const DB_NAME = "pixel-gia", STORE = "projects", KEY = "current";
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const rq = indexedDB.open(DB_NAME, 1);
+    rq.onupgradeneeded = () => { const db = rq.result; if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE); };
+    rq.onsuccess = () => resolve(rq.result);
+    rq.onerror = () => reject(rq.error);
+  });
 }
-function writeVarint(n) {
-  let x = BigInt(n);
-  const out = [];
-  while (x >= 0x80n) { out.push(Number(x & 0x7fn) | 0x80); x >>= 7n; }
-  out.push(Number(x));
-  return new Uint8Array(out);
+function dbPut(value) {
+  return openDB().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(value, KEY);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  }));
 }
-function concat(parts) {
-  const len = parts.reduce((a, b) => a + b.length, 0);
-  const out = new Uint8Array(len);
-  let o = 0;
-  for (const p of parts) { out.set(p, o); o += p.length; }
-  return out;
+function dbGet() {
+  return openDB().then((db) => new Promise((resolve, reject) => {
+    const rq = db.transaction(STORE, "readonly").objectStore(STORE).get(KEY);
+    rq.onsuccess = () => { db.close(); resolve(rq.result); };
+    rq.onerror = () => { db.close(); reject(rq.error); };
+  }));
 }
-function isMessage(raw) {
+async function saveProject() {
+  const name = (docNameEl.value.trim() || "untitled");
+  docNameEl.value = name;
+  const data = { layers: snapLayers(), backgroundColor, color, tool, N, savedAt: Date.now() };
   try {
-    let pos = 0, end = raw.length;
-    while (pos < end) {
-      const { v: tag, pos: p2 } = readVarint(raw, pos);
-      pos = p2;
-      const field = Number(tag >> 3n), wire = Number(tag & 0x7n);
-      if (field === 0) return false;
-      if (wire === 0) ({ pos } = readVarint(raw, pos));
-      else if (wire === 5) pos += 4;
-      else if (wire === 1) pos += 8;
-      else if (wire === 2) {
-        const { v, pos: p3 } = readVarint(raw, pos);
-        pos = p3 + Number(v);
-        if (pos > end) return false;
-      } else return false;
-    }
-    return true;
-  } catch { return false; }
+    const all = (await dbGet()) || {};
+    all[name] = data;
+    await dbPut(all);
+    speak(`saved "${name}"`, "ok");
+    refreshProjects();
+  } catch { speak("couldn't save", "err"); }
 }
+async function loadProject(name) {
+  try {
+    const all = await dbGet();
+    const data = all && all[name];
+    if (!data) { speak("no saved project", "err"); return; }
+    pushHistory();
+    N = data.N || 64; sizeSel.value = String(N);
+    if (data.layers && data.layers.length) {
+      layers = data.layers.map((l) => ({ ...l, grid: l.grid.map((r) => r.slice()) }));
+      activeLayer = 0;
+    } else if (data.grid) {
+      // legacy single-grid
+      layers = [{ grid: data.grid.map((r) => r.slice()), color: data.color || PALETTE[1], visible: true }];
+      activeLayer = 0;
+    } else { resetGrid(); }
+    backgroundColor = data.backgroundColor || "#1b1b1f"; bgColorEl.value = backgroundColor;
+    color = layers[activeLayer].color || PALETTE[1]; wheel.value = color;
+    if (data.tool) selectTool(data.tool);
+    docNameEl.value = name;
+    canvas.width = N * CELL; canvas.height = N * CELL;
+    markActive();
+    draw(); render();
+    speak(`loaded "${name}"`, "ok");
+  } catch { speak("couldn't load", "err"); }
+}
+async function deleteProject(name) {
+  try {
+    const all = await dbGet();
+    if (!all || !all[name]) { speak("no such project", "err"); return; }
+    delete all[name];
+    await dbPut(all);
+    speak(`deleted "${name}"`, "ok");
+    refreshProjects();
+  } catch { speak("couldn't delete", "err"); }
+}
+async function refreshProjects() {
+  let all = {};
+  try { all = (await dbGet()) || {}; } catch {}
+  projectsSel.innerHTML = "";
+  const isProject = (v) => v && typeof v === "object" && (Array.isArray(v.layers) || Array.isArray(v.grid));
+  const names = Object.keys(all).filter((k) => isProject(all[k])).sort((a, b) => a.localeCompare(b));
+  if (!names.length) {
+    const placeholder = document.createElement("option");
+    placeholder.value = ""; placeholder.textContent = "no saved projects";
+    placeholder.disabled = true; placeholder.selected = true;
+    projectsSel.appendChild(placeholder);
+    return;
+  }
+  const cur = docNameEl.value.trim() || "untitled";
+  let found = false;
+  names.forEach((name) => {
+    const o = document.createElement("option");
+    o.value = name; o.textContent = name;
+    if (name === cur) { o.selected = true; found = true; }
+    projectsSel.appendChild(o);
+  });
+  if (!found) projectsSel.value = names[0];
+}
+saveBtn.addEventListener("click", saveProject);
+delProjectBtn.addEventListener("click", () => {
+  const name = projectsSel.value;
+  if (name) deleteProject(name);
+});
+projectsSel.addEventListener("change", () => {
+  const name = projectsSel.value;
+  if (name) loadProject(name);
+});
 
 /* ------------------------------------------------------------------ */
-/* Multi-box .gia export  (combo_test1 template)                      */
+/* Build                                                               */
 /* ------------------------------------------------------------------ */
-function bestStr(data) {
-  let bestRaw = null, bestLen = 0, pos = 0, end = data.length;
-  while (pos < end) {
-    const { v: tag, pos: p1 } = readVarint(data, pos); pos = p1;
-    const w = Number(tag & 0x7n);
-    if (w === 0) ({ pos } = readVarint(data, pos));
-    else if (w === 5) pos += 4;
-    else if (w === 1) pos += 8;
-    else {
-      const { v: size, pos: p2 } = readVarint(data, pos);
-      const raw = data.slice(p2, p2 + Number(size)); pos = p2 + Number(size);
-      let d = true, s = "";
-      try { s = td.decode(raw); } catch { d = false; }
-      if (d && !isMessage(raw) && raw.length > 0 && raw.length > bestLen) { bestLen = raw.length; bestRaw = raw; }
-      else if (isMessage(raw)) { const r = bestStr(raw); if (r && r.length > bestLen) { bestLen = r.length; bestRaw = r; } }
-    }
-  }
-  return bestRaw;
-}
-function eq(a, b) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-function replaceText(data, target, newStr) {
-  const body = []; let pos = 0, end = data.length;
-  while (pos < end) {
-    const { v: tag, pos: p1 } = readVarint(data, pos); pos = p1;
-    const wire = Number(tag & 0x7n); const tb = writeVarint(tag);
-    if (wire === 0) { const { v, pos: p2 } = readVarint(data, pos); pos = p2; body.push(tb, writeVarint(v)); }
-    else if (wire === 5) { body.push(tb, data.slice(pos, pos + 4)); pos += 4; }
-    else if (wire === 1) { body.push(tb, data.slice(pos, pos + 8)); pos += 8; }
-    else {
-      const { v: size, pos: p2 } = readVarint(data, pos);
-      const raw = data.slice(p2, p2 + Number(size)); pos = p2 + Number(size);
-      let nv = raw;
-      if (eq(raw, target)) nv = newStr;
-      else if (isMessage(raw)) nv = replaceText(raw, target, newStr);
-      body.push(tb, writeVarint(nv.length), nv);
-    }
-  }
-  return concat(body);
-}
-function splitFrames(data) {
-  const f = []; let pos = 0, end = data.length;
-  while (pos < end) {
-    const { v: tag, pos: p1 } = readVarint(data, pos); pos = p1;
-    const wire = Number(tag & 0x7n), fn = Number(tag >> 3n); const tb = writeVarint(tag);
-    if (wire === 0) { const { v, pos: p2 } = readVarint(data, pos); pos = p2; f.push({ tb, val: writeVarint(v), v: Number(v), fn }); }
-    else if (wire === 5) { f.push({ tb, val: data.slice(pos, pos + 4), fn }); pos += 4; }
-    else if (wire === 1) { f.push({ tb, val: data.slice(pos, pos + 8), fn }); pos += 8; }
-    else {
-      const { v: size, pos: p2 } = readVarint(data, pos);
-      const raw = data.slice(p2, p2 + Number(size)); pos = p2 + Number(size);
-      f.push({ tb, val: writeVarint(raw.length), raw, fn });
-    }
-  }
-  return f;
-}
-function rebuild(frames) {
-  const parts = [];
-  for (const f of frames) {
-    if (f.raw) parts.push(f.tb, f.val, f.raw);
-    else parts.push(f.tb, f.val);
-  }
-  return concat(parts);
-}
-function repack(payload) {
-  const header = new Uint8Array(20);
-  const dv = new DataView(header.buffer);
-  dv.setUint32(0, payload.length + 20, false);
-  dv.setUint32(4, 1, false);
-  dv.setUint32(8, 0x0326, false);
-  dv.setUint32(12, 3, false);
-  dv.setUint32(16, payload.length, false);
-  return concat([header, payload, new Uint8Array([0x00, 0x00, 0x06, 0x79])]);
-}
-
-/* ------------------------------------------------------------------ */
-/* Build .gia: combination of text boxes (one per color).               */
-/* ------------------------------------------------------------------ */
-function encodePacked(guids) { return concat(guids.map((g) => writeVarint(g))); }
-function getGuid(boxRaw) {
-  const id = splitFrames(boxRaw).find((x) => x.fn === 1);
-  if (!id || !id.raw) return null;
-  const g = splitFrames(id.raw).find((x) => x.fn === 4);
-  return g ? Number(g.v) : null;
-}
-function remapGuid(data, from, to) {
-  const out = []; let pos = 0, end = data.length;
-  while (pos < end) {
-    const { v: tag, pos: p1 } = readVarint(data, pos); pos = p1;
-    const wire = Number(tag & 0x7n); const tb = writeVarint(tag);
-    if (wire === 0) { const { v, pos: p2 } = readVarint(data, pos); pos = p2; out.push(tb, writeVarint(Number(v) === from ? to : v)); }
-    else if (wire === 5) { out.push(tb, data.slice(pos, pos + 4)); pos += 4; }
-    else if (wire === 1) { out.push(tb, data.slice(pos, pos + 8)); pos += 8; }
-    else {
-      const { v: size, pos: p2 } = readVarint(data, pos);
-      const raw = data.slice(p2, p2 + Number(size)); pos = p2 + Number(size);
-      const nv = isMessage(raw) ? remapGuid(raw, from, to) : raw;
-      out.push(tb, writeVarint(nv.length), nv);
-    }
-  }
-  return concat(out);
-}
-function makeIdentity(guid) {
-  return concat([writeVarint(2 << 3), writeVarint(1), writeVarint(3 << 3), writeVarint(8), writeVarint(4 << 3), writeVarint(guid)]);
-}
-function setPayload(msg, fn, newPayload) {
-  const out = []; let pos = 0, end = msg.length; let done = false;
-  while (pos < end) {
-    const { v: tag, pos: p1 } = readVarint(msg, pos); pos = p1;
-    const wire = Number(tag & 0x7n), f = Number(tag >> 3n); const tb = writeVarint(tag);
-    if (wire === 0) { const { v, pos: p2 } = readVarint(msg, pos); pos = p2; out.push(tb, writeVarint(v)); }
-    else if (wire === 5) { out.push(tb, msg.slice(pos, pos + 4)); pos += 4; }
-    else if (wire === 1) { out.push(tb, msg.slice(pos, pos + 8)); pos += 8; }
-    else {
-      const { v: size, pos: p2 } = readVarint(msg, pos);
-      const raw = msg.slice(p2, p2 + Number(size)); pos = p2 + Number(size);
-      if (f === fn && !done) { out.push(tb, writeVarint(newPayload.length), newPayload); done = true; }
-      else out.push(tb, writeVarint(raw.length), raw);
-    }
-  }
-  return concat(out);
-}
-function setComboRefs(combRaw, orderedGuids) {
-  const packed = encodePacked(orderedGuids);
-  const out = []; let pos = 0, end = combRaw.length; let emitted = false;
-  while (pos < end) {
-    const { v: tag, pos: p1 } = readVarint(combRaw, pos); pos = p1;
-    const wire = Number(tag & 0x7n), fn = Number(tag >> 3n); const tb = writeVarint(tag);
-    if (wire === 0) { const { v, pos: p2 } = readVarint(combRaw, pos); pos = p2; out.push(tb, writeVarint(v)); }
-    else if (wire === 5) { out.push(tb, combRaw.slice(pos, pos + 4)); pos += 4; }
-    else if (wire === 1) { out.push(tb, combRaw.slice(pos, pos + 8)); pos += 8; }
-    else {
-      const { v: size, pos: p2 } = readVarint(combRaw, pos);
-      const raw = combRaw.slice(p2, p2 + Number(size)); pos = p2 + Number(size);
-      if (fn === 2) {
-        if (!emitted) { emitted = true; for (const g of orderedGuids) { const id = makeIdentity(g); out.push(writeVarint(2 << 3 | 2), writeVarint(id.length), id); } }
-        continue;
-      }
-      if (fn === 19 && raw) {
-        let f19_1 = null;
-        { let q = 0; while (q < raw.length) { const { v: tag2, pos: q1 } = readVarint(raw, q); q = q1; const w2 = Number(tag2 & 0x7n), f2 = Number(tag2 >> 3n); if (w2 === 2 && f2 === 1) { const { v: sz, pos: q2 } = readVarint(raw, q); f19_1 = raw.slice(q2, q2 + Number(sz)); q = q2 + Number(sz); } else if (w2 === 0) ({ q } = readVarint(raw, q)); else if (w2 === 5) q += 4; else if (w2 === 1) q += 8; else { const { v: sz, pos: q2 } = readVarint(raw, q); q = q2 + Number(sz); } } }
-        const newF19_1 = f19_1 ? setPayload(f19_1, 503, packed) : f19_1;
-        const newF19 = newF19_1 ? setPayload(raw, 1, newF19_1) : raw;
-        out.push(tb, writeVarint(newF19.length), newF19);
-        continue;
-      }
-      out.push(tb, writeVarint(raw.length), raw);
-    }
-  }
-  return concat(out);
-}
-/* Offset-aware proto frame splitter (for in-place float edits) */
-function sfAbs(data, base) {
-  base = base || 0;
-  const f = [];
-  let pos = 0, end = data.length;
-  while (pos < end) {
-    const { v: tag, pos: p1 } = readVarint(data, pos); pos = p1;
-    const wire = Number(tag & 7n), fn = Number(tag >> 3n);
-    if (wire === 0) { const { v, pos: p2 } = readVarint(data, pos); pos = p2; f.push({ fn, wire, v: Number(v), abs: base + p1 }); }
-    else if (wire === 5) { f.push({ fn, wire, abs: base + pos }); pos += 4; }
-    else if (wire === 1) { f.push({ fn, wire, abs: base + pos }); pos += 8; }
-    else {
-      const { v: size, pos: p2 } = readVarint(data, pos);
-      const absRaw = base + p2; pos = p2 + Number(size);
-      f.push({ fn, wire, raw: data.subarray(absRaw, absRaw + Number(size)), abs: absRaw });
-    }
-  }
-  return f;
-}
-function f32bytes(v) {
-  const b = new Uint8Array(4); new DataView(b.buffer).setFloat32(0, v, true); return b;
-}
-/* Absolute-offset frame splitter: parses frames within [from,to) of `out`,
-   returning frames with absolute byte offsets (wire-5/1 point at the payload)
-   plus content `abs`/`len` for length-delimited fields. Unlike sfAbs, it does
-   NOT index the buffer with absolute offsets against a subarray — the known
-   source of the box-size/zoom injection bug. */
-function frameSpan(out, from, to) {
-  const f = [];
-  let p = from;
-  while (p < to) {
-    const { v: tag, pos: p1 } = readVarint(out, p); p = p1;
-    const wire = Number(tag & 7n), fn = Number(tag >> 3n);
-    if (wire === 0) { const { v, pos: p2 } = readVarint(out, p); p = p2; f.push({ fn, wire, v: Number(v) }); }
-    else if (wire === 5) { f.push({ fn, wire, abs: p }); p += 4; }
-    else if (wire === 1) { f.push({ fn, wire, abs: p }); p += 8; }
-    else {
-      const { v: size, pos: p2 } = readVarint(out, p); p = p2;
-      const cs = p; p += Number(size);
-      f.push({ fn, wire, abs: cs, len: Number(size) });
-    }
-  }
-  return f;
-}
-/* patch every quad's zoom (vec field1/field2) + box dims (vec 501/502) in a color box frame */
-function patchBoxQuads(raw, W, H, zx, zy) {
-  if (!raw || !W || !H) return raw;
-  const out = new Uint8Array(raw);
-  const SEG = (from, to) => frameSpan(out, from, to);
-  let m = SEG(0, out.length);
-  const f19 = m.find((x) => x.fn === 19 && x.len);
-  if (!f19) return raw;
-  m = SEG(f19.abs, f19.abs + f19.len);
-  const f1 = m.find((x) => x.fn === 1 && x.len);
-  if (!f1) return raw;
-  m = SEG(f1.abs, f1.abs + f1.len);
-  for (const e of m) {
-    if (e.fn !== 505 || !e.len) continue;
-    const inner = SEG(e.abs, e.abs + e.len);
-    const qf502 = inner.find((x) => x.fn === 502 && x.v === 12);
-    if (!qf502) continue;
-    const q503 = inner.find((x) => x.fn === 503 && x.len);
-    if (!q503) continue;
-    let mm = SEG(q503.abs, q503.abs + q503.len);
-    const f13 = mm.find((x) => x.fn === 13 && x.len);
-    if (!f13) continue;
-    mm = SEG(f13.abs, f13.abs + f13.len);
-    const f12 = mm.find((x) => x.fn === 12 && x.len);
-    if (!f12) continue;
-    mm = SEG(f12.abs, f12.abs + f12.len);
-    for (const q of mm) {
-      if (q.fn !== 501 || !q.len) continue;
-      const qm = SEG(q.abs, q.abs + q.len);
-      const qz = qm.find((x) => x.fn === 502 && x.len);
-      if (!qz) continue;
-      const qz2 = SEG(qz.abs, qz.abs + qz.len);
-      const zoom = qz2.find((x) => x.fn === 501 && x.len);
-      const dims = qz2.find((x) => x.fn === 505 && x.len);
-      if (!zoom || !dims) continue;
-      const zm = SEG(zoom.abs, zoom.abs + zoom.len);
-      const dm = SEG(dims.abs, dims.abs + dims.len);
-      for (const zf of zm) { if (zf.fn === 1 && zf.wire === 5) out.set(f32bytes(zx), zf.abs); else if (zf.fn === 2 && zf.wire === 5) out.set(f32bytes(zy), zf.abs); }
-      for (const df of dm) { if (df.fn === 501 && df.wire === 5) out.set(f32bytes(W), df.abs); else if (df.fn === 502 && df.wire === 5) out.set(f32bytes(H), df.abs); }
-    }
-  }
-  return out;
-}
-function readTemplateName(combRaw) {
-  const f3 = sfAbs(combRaw, 0).find((x) => x.fn === 3 && x.raw);
-  if (!f3) return null;
-  try { return td.decode(f3.raw); } catch { return null; }
-}
-function applyName(combRaw) {
-  const cur = readTemplateName(combRaw);
-  const nm = (nameEl.value.trim() || "ASCII_Template");
-  if (!cur || cur === nm) return combRaw;
-  const enc2 = new TextEncoder();
-  return replaceText(combRaw, enc2.encode(cur), enc2.encode(nm));
-}
-
-function buildExport(comboBase, colors) {
-  const enc = new TextEncoder();
-  const bw = Math.abs(parseFloat(boxW.value)) || 1200;
-  const bh = Math.abs(parseFloat(boxH.value)) || 1500;
-  const zx = parseFloat(zoomXEl.value); const ZX = Number.isFinite(zx) ? zx : 1;
-  const zy = parseFloat(zoomYEl.value); const ZY = Number.isFinite(zy) ? zy : 0.8;
-  const frames = splitFrames(comboBase.slice(20, -4));
-  const boxFrames = frames.filter((f) => f.fn === 2);
-  const TEMPLATE = boxFrames.length;
-  const N = colors.length;
-  const baseGUIDs = boxFrames.map((f) => getGuid(f.raw));
-  let boxes = boxFrames.map((f, i) => ({ raw: f.raw, guid: baseGUIDs[i], color: i < N ? colors[i] : null }));
-  if (N < TEMPLATE) boxes = boxes.slice(0, N);
-  let nextGuid = Math.max(...baseGUIDs) + 1;
-  while (boxes.length < N) {
-    const src = boxFrames[boxes.length % TEMPLATE];
-    boxes.push({ raw: remapGuid(src.raw, getGuid(src.raw), nextGuid), guid: nextGuid, color: colors[boxes.length] });
-    nextGuid++;
-  }
-  const orderedGuids = [];
-  for (const bx of boxes) {
-    const best = bestStr(bx.raw);
-    const layer = enc.encode(bx.color ? layerString(bx.color) : "");
-    if (best) bx.raw = replaceText(bx.raw, best, layer);
-    if (bx.color) bx.raw = patchBoxQuads(bx.raw, bw, bh, ZX, ZY);
-    orderedGuids.push(bx.guid);
-  }
-  const combFrame = frames.find((f) => f.fn === 1);
-  let combRaw = applyName(setComboRefs(combFrame.raw, orderedGuids));
-  const result = [{ tb: writeVarint(1 << 3 | 2), val: writeVarint(combRaw.length), raw: combRaw }];
-  for (const bx of boxes) result.push({ tb: writeVarint(2 << 3 | 2), val: writeVarint(bx.raw.length), raw: bx.raw });
-  for (const f of frames) if (f.fn !== 1 && f.fn !== 2) result.push(f);
-  return repack(rebuild(result));
-}
-
 go.addEventListener("click", () => {
   if (!comboBase) { speak("template not loaded", "err"); return; }
   const colors = distinctColors();
@@ -661,7 +763,14 @@ go.addEventListener("click", () => {
     speak(`⚠ ${colors.length} colors — game may break above ${maxC}. Build anyway?`, "err");
     return;
   }
-  const built = buildExport(comboBase, colors);
+  const fontSize = effectiveFontSize();
+  const texts = colors.map((c) => layerString(c, fontSize));
+  const built = buildComboGia(comboBase, colors, {
+    name: nameEl.value.trim() || "ASCII_Template",
+    boxW: boxW.value, boxH: boxH.value,
+    zoomX: zoomXEl.value, zoomY: zoomYEl.value,
+    texts,
+  });
   const blob = new Blob([built], { type: "application/octet-stream" });
   dl.href = URL.createObjectURL(blob);
   dl.hidden = false;
@@ -669,14 +778,33 @@ go.addEventListener("click", () => {
   speak(`ok · ${colors.length} color box(es) · .gia ${built.length} B`, "ok");
 });
 
+function applyZoom() {
+  const px = Math.round(N * CELL * zoomFactor);
+  canvas.style.width = px + "px";
+  canvas.style.height = px + "px";
+  zoomEl.textContent = Math.round(zoomFactor * 100) + "%";
+}
+zoomInBtn.addEventListener("click", () => setZoom(zoomFactor + 0.25));
+zoomOutBtn.addEventListener("click", () => setZoom(zoomFactor - 0.25));
+function setZoom(v) {
+  zoomFactor = Math.max(0.25, Math.min(16, v));
+  applyZoom();
+}
+
 /* ------------------------------------------------------------------ */
 /* Init                                                                */
 /* ------------------------------------------------------------------ */
+PALETTE = loadPalette();
 resetGrid();
+bgColorEl.value = backgroundColor;
 buildPalette();
+buildLastUsed();
+selectTool("pencil");
 draw();
 render();
-fetch("combo_base.gia")
+refreshProjects();
+applyZoom();
+fetch("./combo_base.gia")
   .then((r) => r.arrayBuffer())
-  .then((b) => { comboBase = new Uint8Array(b); if (grid) speak("ready · draw or import an image, then Build .gia"); })
-  .catch(() => speak("couldn’t load combo template", "err"));
+  .then((b) => { comboBase = new Uint8Array(b); speak("ready · draw or import an image, then Build .gia"); })
+  .catch(() => speak("couldn't load combo template", "err"));
