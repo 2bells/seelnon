@@ -1,6 +1,6 @@
 /**
  * Miliastra Wonderland TypeScript IDE Stylesheet
- * Dark brutalist IDE styling with built-in syntax highlighting and high-contrast UI
+ * Dark brutalist IDE  styling with built-in syntax highlighting and high-contrast UI
  */
 
 .miliastra-ide-container {
@@ -162,11 +162,10 @@
   align-items: flex-start;
 }
 
-/* Line Numbers Gutter - Sticky to left during horizontal scroll */
+/* Line Numbers Gutter - Sticky to left during horizontal scroll, scrolls vertically with code */
 .ide-line-numbers {
   position: sticky;
   left: 0;
-  top: 0;
   min-width: 48px;
   padding: 12px 10px 12px 0;
   background: #16181D;
@@ -180,12 +179,47 @@
   box-sizing: border-box;
   flex-shrink: 0;
   z-index: 5;
-  align-self: stretch;
+  align-self: flex-start;
+  height: max-content;
 }
 
 .ide-line-number {
   height: 20px;
   line-height: 20px;
+  position: relative;
+  padding-right: 2px;
+}
+
+.ide-line-number.line-changed {
+  color: #E5C07B;
+  font-weight: 600;
+}
+
+.ide-line-number.line-changed::after {
+  content: '';
+  position: absolute;
+  right: -10px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: #E5C07B;
+  border-radius: 1.5px;
+}
+
+.ide-line-number.line-added {
+  color: #98C379;
+  font-weight: 600;
+}
+
+.ide-line-number.line-added::after {
+  content: '';
+  position: absolute;
+  right: -10px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: #98C379;
+  border-radius: 1.5px;
 }
 
 /* Editor Input & Syntax Highlighting Overlays */

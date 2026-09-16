@@ -1400,6 +1400,23 @@ export const OPERATION_NODES = [
     "execOut": false
   },
   {
+    "id": "op_pi",
+    "name": "Pi",
+    "category": "operation",
+    "folder": "II. Math",
+    "description": "Returns the mathematical constant Pi (π ≈ 3.14159265).",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "Pi (π)",
+        "type": "float",
+        "description": "Pi value (3.14159265)"
+      }
+    ],
+    "execIn": false,
+    "execOut": false
+  },
+  {
     "id": "op_tangent_function",
     "name": "Tangent Function",
     "category": "operation",

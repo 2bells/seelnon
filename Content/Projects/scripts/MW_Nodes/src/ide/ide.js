@@ -7,7 +7,7 @@ import { LuaGenerator } from './luaGenerator.js';
 import { LuaParser } from './luaParser.js';
 import { GiaCodec } from '../giaCodec.js';
 import { highlightLua } from './utils/highlighter.js';
-import { getNodeBlueprint } from '../nodesData.js';
+import { getNodeBlueprint, applyDataTypeToNode } from '../nodesData.js';
 
 const THE_LANG = {
   label: 'Lua',
@@ -352,10 +352,21 @@ export class MiliastraIde {
   }
 
   updateLineNumbers() {
-    const lineCount = this.textarea.value.split('\n').length;
+    const lines = this.textarea.value.split('\n');
+    const lineCount = lines.length;
+    const base = this.baselineLines || [];
     let numbers = '';
-    for (let i = 1; i <= lineCount; i++) {
-      numbers += `<div class="ide-line-number">${i}</div>`;
+
+    for (let i = 0; i < lineCount; i++) {
+      let cls = '';
+      if (this.codeDirty && base.length > 0) {
+        if (i >= base.length) {
+          cls = ' line-added';
+        } else if (lines[i] !== base[i]) {
+          cls = ' line-changed';
+        }
+      }
+      numbers += `<div class="ide-line-number${cls}">${i + 1}</div>`;
     }
     this.lineNumbers.innerHTML = numbers;
   }
@@ -369,6 +380,7 @@ export class MiliastraIde {
   syncFromGraph() {
     const code = THE_LANG.generate(this.state);
     this.textarea.value = code;
+    this.baselineLines = code.split('\n');
     this.updateHighlighting();
     this.updateLineNumbers();
     this.updateCursorPos();
@@ -463,6 +475,36 @@ export class MiliastraIde {
     const state = this.state;
     this.applyingFromCode = true;
     try {
+      // 0) Node Graph Variables: synchronized per-nodegraph from Lua code
+      if (Array.isArray(parsed.graphVariables)) {
+        const hasGraphVarHeader = /--\s*Node\s*Graph\s*Variables/i.test(code);
+        if (parsed.graphVariables.length > 0 || hasGraphVarHeader) {
+          const declaredNames = new Set(parsed.graphVariables.map(v => v.name.toLowerCase()));
+          
+          // Remove variables that were deleted in Lua
+          const currentVars = state.getNodeGraphVariables ? state.getNodeGraphVariables() : (state.nodeGraphVariables || []);
+          const toRemove = currentVars.filter(v => !declaredNames.has((v.name || '').toLowerCase()));
+          for (const r of toRemove) {
+            state.removeNodeGraphVariable(r.id);
+          }
+
+          // Add or update surviving/new variables
+          for (const gv of parsed.graphVariables) {
+            const existingVar = state.getNodeGraphVariableByName(gv.name);
+            if (existingVar) {
+              state.updateNodeGraphVariable(existingVar.id, {
+                type: gv.type || existingVar.type,
+                defaultValue: gv.defaultValue !== undefined ? gv.defaultValue : existingVar.defaultValue,
+                value: gv.value !== undefined ? gv.value : existingVar.value
+              });
+            } else {
+              state.addNodeGraphVariable(gv.name, gv.type || 'int', gv.defaultValue !== undefined ? gv.defaultValue : '');
+            }
+          }
+          state.notify?.('node_vars_changed');
+        }
+      }
+
       const curById = new Map(state.nodes.map(n => [n.id, n]));
       const idMap = new Map(); // parsed node id -> final graph id
 
@@ -470,10 +512,86 @@ export class MiliastraIde {
       //    nodes for statements the code adds. Never replaces the arrays, and
       //    never deletes a node the code didn't mention.
       const seen = new Set();
+      const matchedExistingIds = new Set();
+      const nodeMatchMap = new Map(); // pn.id -> existing node
+
+      // Pass 1: Match parsed nodes to existing nodes with exact identifier / name / GUID / alias matches
       for (const pn of parsed.nodes) {
         if (seen.has(pn.id)) continue;
         seen.add(pn.id);
-        const existing = curById.get(pn.id);
+
+        let existing = curById.get(pn.id);
+        if (existing && matchedExistingIds.has(existing.id)) existing = null;
+
+        if (!existing && pn.varName) {
+          existing = state.nodes.find(n => n.varName === pn.varName && !matchedExistingIds.has(n.id));
+        }
+        if (!existing && pn.category === 'event') {
+          existing = state.nodes.find(n => n.category === 'event' && !matchedExistingIds.has(n.id) &&
+            (n.blueprintId === pn.blueprintId || (pn.signalName && n.signalName === pn.signalName)));
+        }
+        if (!existing && pn.blueprintId === 'query_get_node_graph_var') {
+          existing = state.nodes.find(n => n.blueprintId === 'query_get_node_graph_var' &&
+            n.inputValues?.['Variable Name'] === pn.inputValues?.['Variable Name'] &&
+            !matchedExistingIds.has(n.id));
+        }
+        if (!existing && pn.blueprintId === 'exec_set_node_graph_var') {
+          existing = state.nodes.find(n => n.blueprintId === 'exec_set_node_graph_var' &&
+            n.inputValues?.['Variable Name'] === pn.inputValues?.['Variable Name'] &&
+            !matchedExistingIds.has(n.id));
+        }
+        if (!existing && pn.blueprintId === 'query_get_custom_var') {
+          existing = state.nodes.find(n => n.blueprintId === 'query_get_custom_var' &&
+            n.inputValues?.['Variable Name'] === pn.inputValues?.['Variable Name'] &&
+            !matchedExistingIds.has(n.id));
+        }
+        if (!existing && pn.blueprintId === 'exec_set_custom_var') {
+          existing = state.nodes.find(n => n.blueprintId === 'exec_set_custom_var' &&
+            n.inputValues?.['Variable Name'] === pn.inputValues?.['Variable Name'] &&
+            !matchedExistingIds.has(n.id));
+        }
+        if (!existing && pn.blueprintId === 'query_query_entity_by_guid') {
+          existing = state.nodes.find(n => n.blueprintId === 'query_query_entity_by_guid' &&
+            ((pn.guidAlias && n.guidAlias === pn.guidAlias) || (pn.inputValues?.['GUID'] && n.inputValues?.['GUID'] === pn.inputValues?.['GUID'])) &&
+            !matchedExistingIds.has(n.id));
+        }
+        if (!existing && pn.blueprintId === 'query_get_self_entity') {
+          existing = state.nodes.find(n => n.blueprintId === 'query_get_self_entity' && !matchedExistingIds.has(n.id));
+        }
+
+        if (existing) {
+          matchedExistingIds.add(existing.id);
+          nodeMatchMap.set(pn.id, existing);
+        }
+      }
+
+      // Pass 2: Fallback matching for renamed or restated nodes of identical blueprint
+      for (const pn of parsed.nodes) {
+        if (nodeMatchMap.has(pn.id)) continue;
+
+        let existing = null;
+        if (pn.blueprintId === 'query_get_custom_var') {
+          existing = state.nodes.find(n => n.blueprintId === 'query_get_custom_var' && !matchedExistingIds.has(n.id));
+        } else if (pn.blueprintId === 'exec_set_custom_var') {
+          existing = state.nodes.find(n => n.blueprintId === 'exec_set_custom_var' && !matchedExistingIds.has(n.id));
+        } else if (pn.blueprintId === 'query_query_entity_by_guid') {
+          existing = state.nodes.find(n => n.blueprintId === 'query_query_entity_by_guid' && !matchedExistingIds.has(n.id));
+        } else if (pn.blueprintId === 'op_equal') {
+          existing = state.nodes.find(n => n.blueprintId === 'op_equal' && !matchedExistingIds.has(n.id));
+        } else if (pn.blueprintId) {
+          existing = state.nodes.find(n => n.blueprintId === pn.blueprintId && !matchedExistingIds.has(n.id));
+        }
+
+        if (existing) {
+          matchedExistingIds.add(existing.id);
+          nodeMatchMap.set(pn.id, existing);
+        }
+      }
+
+      // Pass 3: Apply changes to matched nodes or spawn new nodes
+      for (const pn of parsed.nodes) {
+        const existing = nodeMatchMap.get(pn.id);
+
         if (existing) {
           this.mergeNodeFromCode(existing, pn);
           idMap.set(pn.id, existing.id);
@@ -484,11 +602,20 @@ export class MiliastraIde {
             dataType: pn.dataType,
           };
           if (pn.varName) custom.varName = pn.varName;
+          if (pn.guidAlias) custom.guidAlias = pn.guidAlias;
+          if (pn.alias) custom.alias = pn.alias;
           if (pn.customInputs) custom.customInputs = pn.customInputs;
           if (pn.signalName !== undefined) custom.signalName = pn.signalName;
-          const pos = this.spawnPoint();
+          const pos = (typeof pn.x === 'number' && pn.x > 0) ? { x: pn.x, y: pn.y } : this.spawnPoint();
           const node = state.createNode(pn.blueprintId || pn.name, pos.x, pos.y, custom);
           if (node) {
+            if (pn.dataType) {
+              const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+              if (bp) applyDataTypeToNode(node, bp, pn.dataType);
+            }
+            if (pn.guidAlias) node.guidAlias = pn.guidAlias;
+            if (pn.alias) node.alias = pn.alias;
+            matchedExistingIds.add(node.id);
             idMap.set(pn.id, node.id);
           } else {
             // Unresolvable blueprint (hand-written fn not in the registry): keep the
@@ -497,6 +624,7 @@ export class MiliastraIde {
             state.nodes.push(pn);
             state.saveSnapshot?.();
             state.notify?.('node_add');
+            matchedExistingIds.add(pn.id);
             idMap.set(pn.id, pn.id);
           }
         }
@@ -595,6 +723,25 @@ export class MiliastraIde {
       for (const nodeId of codeNodeIds) {
         state.refreshNodePinTypes?.(nodeId);
       }
+
+      // E) Clean up orphaned Custom Variable nodes (Set / Get) that were removed from Lua
+      const orphanCustomVarNodes = state.nodes.filter(n =>
+        (n.blueprintId === 'exec_set_custom_var' || n.blueprintId === 'query_get_custom_var') &&
+        !matchedExistingIds.has(n.id)
+      );
+      for (const orphan of orphanCustomVarNodes) {
+        state.removeNode?.(orphan.id);
+      }
+
+      // Also clean up orphan Get Self Entity / Query Entity by GUID nodes that have 0 remaining connections
+      const orphanEntityQueryNodes = state.nodes.filter(n =>
+        (n.blueprintId === 'query_get_self_entity' || n.blueprintId === 'query_query_entity_by_guid') &&
+        !matchedExistingIds.has(n.id) &&
+        !state.wires.some(w => w.fromNode === n.id || w.toNode === n.id)
+      );
+      for (const orphan of orphanEntityQueryNodes) {
+        state.removeNode?.(orphan.id);
+      }
     } catch (err) {
       this.log(`✗ could not apply code → graph: ${err.message}`, 'error');
     } finally {
@@ -616,8 +763,14 @@ export class MiliastraIde {
     const next = Object.assign({}, existing.inputValues || {}, pnVals);
     existing.inputValues = next;
 
-    if (pn.dataType !== undefined && pn.dataType !== null) existing.dataType = pn.dataType;
+    if (pn.dataType !== undefined && pn.dataType !== null) {
+      existing.dataType = pn.dataType;
+      const bp = getNodeBlueprint(existing.blueprintId) || getNodeBlueprint(existing.name);
+      if (bp) applyDataTypeToNode(existing, bp, pn.dataType);
+    }
     if (pn.varName) existing.varName = pn.varName;
+    if (pn.guidAlias !== undefined) existing.guidAlias = pn.guidAlias;
+    if (pn.alias !== undefined) existing.alias = pn.alias;
     if (pn.customInputs && Array.isArray(pn.customInputs)) existing.customInputs = pn.customInputs;
     if (pn.signalName !== undefined) existing.signalName = pn.signalName;
   }

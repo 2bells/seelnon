@@ -367,6 +367,8 @@ export class GraphState {
       inputValues: { ...inputValues, ...customData.inputValues },
       pinTypes: { ...(customData.pinTypes || {}) },
       varName: customData.varName || null,
+      guidAlias: customData.guidAlias || null,
+      alias: customData.alias || null,
       dynamicInputs: customData.dynamicInputs || (bp.canAddDynamicInputs ? ['0'] : []),
       dynamicBranches: customData.dynamicBranches || (bp.canAddDynamicBranches ? ['Branch 0', 'Branch 1', 'Branch 2', 'Default'] : null),
       branchValues: customData.branchValues || {},
@@ -598,14 +600,36 @@ export class GraphState {
           if (outDef && outDef.type) srcType = outDef.type;
         }
 
+        // Special backward inheritance for Data Type Conversion node
+        const isSrcConversion = (srcBp?.id === 'op_data_type_conversion' || (srcNode.name || '').toLowerCase() === 'data type conversion') && fromPin === 'Output';
+        const isTgtConversion = (tgtBp?.id === 'op_data_type_conversion' || (tgtNode.name || '').toLowerCase() === 'data type conversion') && toPin === 'Input';
+
+        if (isSrcConversion && (srcType === 'generic' || !srcNode.dataType || srcNode.dataType === 'generic')) {
+          const tgtCurrentType = this.getPinType(toNode, toPin, 'generic');
+          if (tgtCurrentType && tgtCurrentType !== 'generic' && ['int', 'float', 'bool', 'string'].includes(tgtCurrentType)) {
+            srcNode.dataType = tgtCurrentType;
+            if (!srcNode.pinTypes) srcNode.pinTypes = {};
+            srcNode.pinTypes['Output'] = tgtCurrentType;
+            applyDataTypeToNode(srcNode, srcBp, tgtCurrentType);
+            srcType = tgtCurrentType;
+          }
+        }
+
+        if (isTgtConversion && srcType && srcType !== 'generic') {
+          if (!tgtNode.pinTypes) tgtNode.pinTypes = {};
+          tgtNode.pinTypes['Input'] = srcType;
+        }
+
         if (srcType && srcType !== 'generic') {
           const tgtCurrentType = this.getPinType(toNode, toPin, 'generic');
           const tgtInDef = (tgtBp?.inputs || []).find(i => i.name === toPin);
+          const isListTargetPin = toPin === 'List' || toPin === 'Target List' || toPin === 'Iteration List' || toPin === 'Input List';
           const isTgtGeneric = tgtCurrentType === 'generic' || 
                                 tgtInDef?.type === 'generic' || 
                                 tgtInDef?.hasGear === true || 
-                                (tgtCurrentType === 'list' && srcType.endsWith('list')) || 
-                                (tgtInDef?.type === 'list' && srcType.endsWith('list')) || 
+                                isListTargetPin ||
+                                (tgtCurrentType.endsWith('list') && (srcType.endsWith('list') || srcType === 'list')) || 
+                                (tgtInDef?.type === 'list' && (srcType.endsWith('list') || srcType === 'list')) || 
                                 (tgtBp?.id === 'op_assembly_list') || 
                                 (tgtBp?.id === 'exec_list_sorting') || 
                                 (tgtBp?.id === 'exec_list_iteration_loop') ||
@@ -641,6 +665,18 @@ export class GraphState {
             const elemType = srcType.replace(/\s+list$/i, '').trim() || srcType;
             tgtNode.dataType = elemType;
             applyDataTypeToNode(tgtNode, tgtBp, elemType);
+          }
+          // 3. Local Variable Bond ("holding hands")
+          else if ((srcBp?.id === 'query_get_local_variable' || srcNode.name === 'Get Local Variable') &&
+                   (tgtBp?.id === 'exec_set_local_var' || tgtNode.name === 'Set Local Variable') &&
+                   fromPin === 'Local Variable' && toPin === 'Local Variable') {
+            const chosenType = srcNode.dataType || tgtNode.dataType || srcType || 'generic';
+            if (chosenType && chosenType !== 'generic') {
+              srcNode.dataType = chosenType;
+              tgtNode.dataType = chosenType;
+              if (srcBp) applyDataTypeToNode(srcNode, srcBp, chosenType);
+              if (tgtBp) applyDataTypeToNode(tgtNode, tgtBp, chosenType);
+            }
           }
           // 3. List Sorting
           else if (isSortOp && (toPin === 'List' || toPin === 'Sorted List')) {
@@ -780,7 +816,13 @@ export class GraphState {
 
     const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
     if (bp) {
-      applyDataTypeToNode(node, bp, newType);
+      if (bp.id === 'op_data_type_conversion' || bp.id.includes('data_type_conversion')) {
+        if (pinName === 'Output') {
+          node.dataType = newType;
+        }
+      } else {
+        applyDataTypeToNode(node, bp, newType);
+      }
     }
 
     this.saveSnapshot();
@@ -796,6 +838,30 @@ export class GraphState {
     if (bp && newType) {
       applyDataTypeToNode(node, bp, newType);
     }
+
+    // Synchronize paired Local Variable nodes ("holding hands")
+    if (node.blueprintId === 'query_get_local_variable' || node.name === 'Get Local Variable') {
+      const pairWire = this.wires.find(w => !w.isExec && w.fromNode === node.id && w.fromPin === 'Local Variable');
+      if (pairWire) {
+        const setNode = this.nodes.find(n => n.id === pairWire.toNode);
+        if (setNode && setNode.dataType !== newType) {
+          setNode.dataType = newType;
+          const setBp = getNodeBlueprint(setNode.blueprintId) || getNodeBlueprint(setNode.name);
+          if (setBp) applyDataTypeToNode(setNode, setBp, newType);
+        }
+      }
+    } else if (node.blueprintId === 'exec_set_local_var' || node.name === 'Set Local Variable') {
+      const pairWire = this.wires.find(w => !w.isExec && w.toNode === node.id && w.toPin === 'Local Variable');
+      if (pairWire) {
+        const getNode = this.nodes.find(n => n.id === pairWire.fromNode);
+        if (getNode && getNode.dataType !== newType) {
+          getNode.dataType = newType;
+          const getBp = getNodeBlueprint(getNode.blueprintId) || getNodeBlueprint(getNode.name);
+          if (getBp) applyDataTypeToNode(getNode, getBp, newType);
+        }
+      }
+    }
+
     this.saveSnapshot();
     this.notify('node_type_changed');
     return true;
@@ -831,6 +897,16 @@ export class GraphState {
             return v.type;
           }
         }
+      }
+    }
+
+    // Data Type Conversion pin type resolution
+    if (node && (node.blueprintId === 'op_data_type_conversion' || node.name === 'Data Type Conversion')) {
+      if (pinName === 'Output') {
+        return node.pinTypes?.['Output'] || node.dataType || 'generic';
+      }
+      if (pinName === 'Input') {
+        return node.pinTypes?.['Input'] || 'generic';
       }
     }
 

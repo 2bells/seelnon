@@ -77,6 +77,24 @@ export class SignalsManager {
     ];
   }
 
+  sanitizeParams(params) {
+    const builtin = new Set([
+      'Event Source Entity', 'Event Source GUID', 'Signal Source Entity',
+      'event_source_entity', 'event_source_g_u_i_d', 'signal_source_entity',
+      'execIn', 'execOut', 'Signal Name', 'Signal'
+    ]);
+    return (params || []).filter(p => {
+      if (!p || !p.name) return false;
+      const clean = String(p.name).replace(/^[-#/\s]+/, '').trim();
+      if (!clean || clean.startsWith('--') || clean.startsWith('-')) return false;
+      if (builtin.has(clean) || builtin.has(p.name)) return false;
+      return true;
+    }).map(p => ({
+      ...p,
+      name: String(p.name).replace(/^[-#/\s]+/, '').trim()
+    }));
+  }
+
   // Used when a .gia / import carries signals that must become brand-new entries.
   // Name collisions are resolved with the classic trailing '_2', '_3', etc.
   importSignals(signalDefs) {
@@ -105,12 +123,15 @@ export class SignalsManager {
   }
 
   getSignals() {
+    this.signals.forEach(s => { s.params = this.sanitizeParams(s.params); });
     return this.signals;
   }
 
   getSignal(name) {
     if (!name) return null;
-    return this.signals.find(s => s.name === name) || null;
+    const sig = this.signals.find(s => s.name === name) || null;
+    if (sig) sig.params = this.sanitizeParams(sig.params);
+    return sig;
   }
 
   hasSignal(name) {
@@ -119,10 +140,12 @@ export class SignalsManager {
 
   registerSignal(name, params = []) {
     if (!name) return null;
+    const cleanParams = this.sanitizeParams(params);
     let existing = this.signals.find(s => s.name === name);
     if (existing) {
-      if (Array.isArray(params)) {
-        params.forEach(p => {
+      existing.params = this.sanitizeParams(existing.params);
+      if (Array.isArray(cleanParams)) {
+        cleanParams.forEach(p => {
           if (p && p.name && !existing.params.some(ep => ep.name === p.name)) {
             existing.params.push({
               id: p.id || `p_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -136,7 +159,7 @@ export class SignalsManager {
     }
     const newSig = {
       name: name.trim(),
-      params: (params || []).map((p, i) => ({
+      params: (cleanParams || []).map((p, i) => ({
         id: p.id || `p_${Date.now()}_${i}`,
         name: p.name || `Param_${i + 1}`,
         type: p.type || 'float'
@@ -167,9 +190,10 @@ export class SignalsManager {
       finalName = `${finalName}_${idx}`;
     }
 
+    const cleanParams = this.sanitizeParams(params);
     const newSignal = {
       name: finalName,
-      params: params.map((p, i) => ({
+      params: cleanParams.map((p, i) => ({
         id: p.id || `p_${Date.now()}_${i}`,
         name: p.name || `Param_${i + 1}`,
         type: normalizeSignalType(p.type)

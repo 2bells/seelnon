@@ -299,19 +299,19 @@ export class GraphRenderer {
       }
     });
 
-    // If node has a specialized data type or can add dynamic inputs, display clickable badge
-    const currentDataType = node.dataType || (bp.canAddDynamicInputs ? 'generic' : null);
-    if (currentDataType) {
-      if (!node.dataType && bp.canAddDynamicInputs) node.dataType = 'generic';
+    // If node has a specialized data type or supports variable type configuration, display clickable badge
+    const supportsType = this.canNodeConfigureDataType(node, bp);
+    if (supportsType) {
+      const currentDataType = node.dataType || 'generic';
       const typeBadge = document.createElement('span');
       typeBadge.className = 'node-type-badge';
-      const color = PIN_COLORS[node.dataType] || '#50E3C2';
+      const color = PIN_COLORS[currentDataType] || '#50E3C2';
       typeBadge.style.color = color;
       typeBadge.style.backgroundColor = `${color}22`;
       typeBadge.style.borderColor = `${color}55`;
-      const dtObj = DATA_TYPES.find(d => d.id === node.dataType);
-      typeBadge.textContent = dtObj ? dtObj.label : node.dataType;
-      typeBadge.title = `Specialized Type: ${dtObj ? dtObj.label : node.dataType} (Click to change)`;
+      const dtObj = DATA_TYPES.find(d => d.id === currentDataType);
+      typeBadge.textContent = dtObj ? dtObj.label : currentDataType;
+      typeBadge.title = `Variable / Data Type: ${dtObj ? dtObj.label : currentDataType} (Click to change)`;
       typeBadge.addEventListener('click', (e) => {
         e.stopPropagation();
         this.openNodeTypePicker(typeBadge, node);
@@ -687,6 +687,21 @@ export class GraphRenderer {
     mbContainer.appendChild(addRow);
   }
 
+  canNodeConfigureDataType(node, bp) {
+    if (!bp) return false;
+    if (bp.canAddDynamicInputs) return true;
+    if (node.dataType) return true;
+    const isLoopOp = bp.id === 'exec_list_iteration_loop' || bp.id.includes('list_iteration_loop');
+    const isListOp = bp.id === 'exec_list_sorting' || bp.id === 'exec_concatenate_list';
+    if (isLoopOp || isListOp) return true;
+    if (bp.id === 'query_get_local_variable' || bp.id === 'exec_set_local_var') return true;
+    if (bp.id === 'query_get_custom_var' || bp.id === 'exec_set_custom_var') return true;
+    if (bp.id === 'op_data_type_conversion') return true;
+    if (bp.inputs && bp.inputs.some(i => i.hasGear || i.type === 'generic')) return true;
+    if (bp.outputs && bp.outputs.some(o => o.hasGear || o.type === 'generic')) return true;
+    return false;
+  }
+
   updateNodeElement(node, el) {
     if (node.isComposite) {
       const titleEl = el.querySelector('.node-title');
@@ -732,13 +747,13 @@ export class GraphRenderer {
 
     const header = el.querySelector('.node-header');
     if (header) {
-      const currentDataType = node.dataType || (bp.canAddDynamicInputs ? 'generic' : null);
+      const supportsType = this.canNodeConfigureDataType(node, bp);
       let typeBadge = header.querySelector('.node-type-badge:not(.composite-edit-btn)');
-      if (currentDataType) {
-        if (!node.dataType && bp.canAddDynamicInputs) node.dataType = 'generic';
-        const dtObj = DATA_TYPES.find(d => d.id === node.dataType);
-        const labelText = dtObj ? dtObj.label : node.dataType;
-        const color = PIN_COLORS[node.dataType] || '#50E3C2';
+      if (supportsType) {
+        const currentDataType = node.dataType || 'generic';
+        const dtObj = DATA_TYPES.find(d => d.id === currentDataType);
+        const labelText = dtObj ? dtObj.label : currentDataType;
+        const color = PIN_COLORS[currentDataType] || '#50E3C2';
         if (!typeBadge) {
           typeBadge = document.createElement('span');
           typeBadge.className = 'node-type-badge';
@@ -752,7 +767,7 @@ export class GraphRenderer {
         typeBadge.style.backgroundColor = `${color}22`;
         typeBadge.style.borderColor = `${color}55`;
         typeBadge.textContent = labelText;
-        typeBadge.title = `Specialized Type: ${labelText} (Click to change)`;
+        typeBadge.title = `Variable / Data Type: ${labelText} (Click to change)`;
       } else if (typeBadge) {
         typeBadge.remove();
       }
@@ -1127,6 +1142,10 @@ export class GraphRenderer {
           removeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.state.removeDynamicInput(node.id, keyName);
+            const nodeEl = this.nodeElements?.get(node.id) || this.nodesLayer?.querySelector(`.node[data-id="${node.id}"]`);
+            if (nodeEl) {
+              delete nodeEl.dataset.pinsSig;
+            }
             this.render();
           });
           pinRow.appendChild(removeBtn);
@@ -1153,6 +1172,10 @@ export class GraphRenderer {
           document.activeElement.blur();
         }
         this.state.addDynamicInput(node.id);
+        const nodeEl = this.nodeElements?.get(node.id) || this.nodesLayer?.querySelector(`.node[data-id="${node.id}"]`);
+        if (nodeEl) {
+          delete nodeEl.dataset.pinsSig;
+        }
         this.render();
       });
       inputsCol.appendChild(addElementBtn);
@@ -2262,6 +2285,11 @@ export class GraphRenderer {
         // Fast SVG update without DOM allocation
         group.hitbox.setAttribute('d', pathData);
         group.path.setAttribute('d', pathData);
+        if (!wire.isExec) {
+          const srcType = this.state.getPinType(wire.fromNode, wire.fromPin);
+          const wireColor = PIN_COLORS[srcType] || '#538cc4';
+          group.path.style.stroke = wireColor;
+        }
         if (this.state.selectedWireIds.has(wire.id)) {
           group.path.classList.add('selected');
         } else {
@@ -2616,10 +2644,24 @@ export class GraphRenderer {
     const listEl = popup.querySelector('.type-picker-list');
     const searchInput = popup.querySelector('.type-picker-input');
 
+    const isConvNode = node.blueprintId === 'op_data_type_conversion' || node.name === 'Data Type Conversion';
+    const isConvOutput = isConvNode && pinName === 'Output';
+    const isConvInput = isConvNode && pinName === 'Input';
+
     const renderList = (filter = '') => {
       listEl.innerHTML = '';
       const filterLower = String(filter || '').toLowerCase();
-      const basePool = isListPin ? DATA_TYPES.filter(t => t.id === 'list' || t.id.endsWith(' list')) : DATA_TYPES;
+      let basePool = DATA_TYPES;
+      if (isListPin) {
+        basePool = DATA_TYPES.filter(t => t.id === 'list' || t.id.endsWith(' list'));
+      } else if (isConvOutput) {
+        const allowed = new Set(['bool', 'float', 'string', 'int']);
+        basePool = DATA_TYPES.filter(t => allowed.has(t.id));
+      } else if (isConvInput) {
+        const allowed = new Set(['generic', 'int', 'float', 'entity', 'bool', 'guid', 'vector3', 'faction']);
+        basePool = DATA_TYPES.filter(t => allowed.has(t.id));
+      }
+
       const filtered = basePool.filter(t => {
         if (!t) return false;
         const label = String(t.label || t.id || '').toLowerCase();
@@ -2648,6 +2690,10 @@ export class GraphRenderer {
         item.addEventListener('click', (ev) => {
           ev.stopPropagation();
           this.state.setPinType(node.id, pinName, t.id);
+          const nodeEl = this.nodeElements?.get(node.id) || this.nodesLayer?.querySelector(`.node[data-id="${node.id}"]`);
+          if (nodeEl) {
+            delete nodeEl.dataset.pinsSig;
+          }
           this.closePopups();
           this.render();
         });
@@ -2714,10 +2760,17 @@ export class GraphRenderer {
     const listEl = popup.querySelector('.type-picker-list');
     const searchInput = popup.querySelector('.type-picker-input');
 
+    const isConvNode = node.blueprintId === 'op_data_type_conversion' || node.name === 'Data Type Conversion';
+
     const renderList = (filter = '') => {
       listEl.innerHTML = '';
       const filterLower = String(filter || '').toLowerCase();
-      const filtered = DATA_TYPES.filter(t => {
+      let basePool = DATA_TYPES;
+      if (isConvNode) {
+        const allowed = new Set(['bool', 'float', 'string', 'int']);
+        basePool = DATA_TYPES.filter(t => allowed.has(t.id));
+      }
+      const filtered = basePool.filter(t => {
         if (!t) return false;
         const label = String(t.label || t.id || '').toLowerCase();
         const id = String(t.id || '').toLowerCase();
@@ -2745,6 +2798,10 @@ export class GraphRenderer {
         item.addEventListener('click', (ev) => {
           ev.stopPropagation();
           this.state.setNodeDataType(node.id, t.id);
+          const nodeEl = this.nodeElements?.get(node.id) || this.nodesLayer?.querySelector(`.node[data-id="${node.id}"]`);
+          if (nodeEl) {
+            delete nodeEl.dataset.pinsSig;
+          }
           this.closePopups();
           this.render();
         });

@@ -117,7 +117,13 @@ export function highlightTs(code) {
 
 const LUA_KEYWORDS = new Set([
   'local', 'function', 'end', 'if', 'then', 'else', 'elseif', 'for', 'while',
-  'do', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until'
+  'do', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until',
+  'random', 'randomFloat', 'toInt', 'toFloat', 'toBool', 'tostring', 'toVector3', 'math', 'self', 'guid', 'get',
+  'cos', 'sin', 'tan', 'sqrt', 'acos', 'asin', 'atan', 'abs', 'deg', 'rad', 'min', 'max', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'pi'
+]);
+
+const LUA_TYPES = new Set([
+  'int', 'integer', 'string', 'bool', 'boolean', 'float', 'vector3', 'entity', 'list', 'dict'
 ]);
 
 const LUA_RE = new RegExp(
@@ -128,31 +134,32 @@ const LUA_RE = new RegExp(
   ')|(' +
     '\\b\\d+(?:\\.\\d+)?\\b' +
   ')|(' +
-    '\\b(?:local|function|end|if|then|else|elseif|for|while|do|return|in|and|or|not|require|repeat|until|nil|true|false)\\b' +
+    '\\b(?:local|function|end|if|then|else|elseif|for|while|do|return|in|and|or|not|require|repeat|until|nil|true|false|random|randomFloat|toInt|toFloat|toBool|tostring|toVector3|math|self|guid|get|int|integer|string|bool|boolean|float|vector3|entity|list|dict|cos|sin|tan|sqrt|acos|asin|atan|abs|deg|rad|min|max|clamp|floor|ceil|round|trunc|pi)\\b' +
   ')|(' +
     '[A-Za-z_][\\w]*' +
   ')',
   'g'
 );
 
-// Comments may carry a machine "stamp" (`-- @id`). Render the `@id` bit as a
-// faint meta token so it reads as book-keeping, not as something to edit.
+// Comments: render clean comments without intrusive box badges
 function renderLuaComment(text) {
-  const m = /@([A-Za-z0-9_:.\-]+)/.exec(text);
-  if (!m) return `<span class="tok-com">${esc(text)}</span>`;
-  const before = text.slice(0, m.index);
-  const id = m[0];
-  const after = text.slice(m.index + m[0].length);
-  return (
-    (before ? `<span class="tok-com">${esc(before)}</span>` : '') +
-    `<span class="tok-meta">${esc(id)}</span>` +
-    (after ? `<span class="tok-com">${esc(after)}</span>` : '')
-  );
+  return `<span class="tok-com">${esc(text)}</span>`;
 }
 
-function classifyLuaIdent(word, nextChar) {
+function classifyLuaIdent(word, nextChar, prevToken, prevPunc) {
+  // If following `guid.` (e.g. `guid.boss`, `guid.1`), color the entity parent as purple/keyword
+  if (prevToken === 'guid' && prevPunc === '.') {
+    return 'tok-kw';
+  }
+  if (['toInt', 'toFloat', 'toBool', 'tostring', 'toVector3', 'random', 'randomFloat', 'cos', 'sin', 'tan', 'sqrt', 'acos', 'asin', 'atan', 'abs', 'deg', 'rad', 'min', 'max', 'clamp', 'floor', 'ceil', 'round', 'trunc'].includes(word)) {
+    return 'tok-fn';
+  }
+  if (word === 'pi' || word === 'PI') {
+    return 'tok-kw';
+  }
+  if (LUA_TYPES.has(word)) return 'tok-type';
   if (LUA_KEYWORDS.has(word)) return 'tok-kw';
-  if (nextChar === '(') return 'tok-fn';
+  if (nextChar === '(' || (prevToken === 'f' && prevPunc === '.') || (prevToken === 'math' && prevPunc === '.')) return 'tok-fn';
   return 'tok-var';
 }
 
@@ -161,20 +168,71 @@ export function highlightLua(code) {
   let idx = 0;
   LUA_RE.lastIndex = 0;
   let m;
+  let lastWord = '';
+  let lastPunc = '';
+
   while ((m = LUA_RE.exec(code)) !== null) {
-    html += renderPlain(code.slice(idx, m.index));
+    const plainBetween = code.slice(idx, m.index);
+    if (plainBetween) {
+      const trimmed = plainBetween.trim();
+      if (trimmed === '.') lastPunc = '.';
+      else if (trimmed) lastPunc = trimmed[trimmed.length - 1];
+    }
+    html += renderPlain(plainBetween);
+
     const com = m[1];
-    if (com) { html += renderLuaComment(com); idx = m.index + com.length; continue; }
+    if (com) {
+      html += renderLuaComment(com);
+      idx = m.index + com.length;
+      lastWord = '';
+      lastPunc = '';
+      continue;
+    }
+
     const str = m[2];
-    if (str) { html += `<span class="tok-str">${esc(str)}</span>`; idx = m.index + str.length; continue; }
+    if (str) {
+      html += `<span class="tok-str">${esc(str)}</span>`;
+      idx = m.index + str.length;
+      lastWord = '';
+      lastPunc = '';
+      continue;
+    }
+
     const num = m[3];
-    if (num) { html += `<span class="tok-num">${esc(num)}</span>`; idx = m.index + num.length; continue; }
+    if (num) {
+      // If following `guid.` (e.g. `guid.1`), highlight as entity parent (purple)
+      if (lastWord === 'guid' && lastPunc === '.') {
+        html += `<span class="tok-kw">${esc(num)}</span>`;
+      } else {
+        html += `<span class="tok-num">${esc(num)}</span>`;
+      }
+      idx = m.index + num.length;
+      lastWord = num;
+      lastPunc = '';
+      continue;
+    }
+
     const kw = m[4];
-    if (kw) { html += `<span class="tok-kw">${esc(kw)}</span>`; idx = m.index + kw.length; continue; }
+    if (kw) {
+      const next = code[m.index + kw.length] || '';
+      const cls = classifyLuaIdent(kw, next, lastWord, lastPunc);
+      html += `<span class="${cls}">${esc(kw)}</span>`;
+      idx = m.index + kw.length;
+      lastWord = kw;
+      lastPunc = '';
+      continue;
+    }
+
     const ident = m[5];
-    const next = code[m.index + ident.length] || '';
-    html += `<span class="${classifyLuaIdent(ident, next)}">${esc(ident)}</span>`;
-    idx = m.index + ident.length;
+    if (ident) {
+      const next = code[m.index + ident.length] || '';
+      const cls = classifyLuaIdent(ident, next, lastWord, lastPunc);
+      html += `<span class="${cls}">${esc(ident)}</span>`;
+      idx = m.index + ident.length;
+      lastWord = ident;
+      lastPunc = '';
+      continue;
+    }
   }
   html += renderPlain(code.slice(idx));
   return html;
