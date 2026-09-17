@@ -10,6 +10,7 @@ const tabsEl = $("tabs"), layersEl = $("layers"), sizeSel = $("size"), fontSel =
 const boxW = $("boxw"), boxH = $("boxh"), maxColorsEl = $("maxcolors");
 const nameEl = $("name"), zoomXEl = $("zoomx"), zoomYEl = $("zoomy");
 const fitEl = $("fit"), lenEl = $("len"), limitEl = $("limit");
+const smartCropEl = $("smartcrop");
 const saveBtn = $("save"), delProjectBtn = $("delProject"), projectsSel = $("projects");
 const docNameEl = $("docname"), editColor = $("editcolor"), zoomEl = $("zoom");
 const zoomInBtn = $("zoomin"), zoomOutBtn = $("zoomout");
@@ -559,12 +560,26 @@ function effectiveFontSize() {
   }
   return parseInt(v, 10) || null;
 }
-function combinedString() {
+function cropBounds() {
+  if (!smartCropEl.checked) return null;
   const g = composite();
+  let x0 = N, y0 = N, x1 = -1, y1 = -1;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (g[y][x] != null) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return null;
+  return { x0, y0, x1, y1 };
+}
+function combinedString(bounds) {
+  const g = composite();
+  const b = bounds || { x0: 0, y0: 0, x1: N - 1, y1: N - 1 };
   let s = "", open = null;
-  for (let y = 0; y < N; y++) {
-    if (y > 0) s += "\\n";
-    for (let x = 0; x < N; x++) {
+  for (let y = b.y0; y <= b.y1; y++) {
+    if (y > b.y0) s += "\\n";
+    for (let x = b.x0; x <= b.x1; x++) {
       const c = g[y][x];
       if (c === ERASE) s += " ";
       else if (open === c) s += "\u2588";
@@ -586,13 +601,14 @@ function distinctColors() {
   }
   return order;
 }
-function layerString(hex, fontSize) {
+function layerString(hex, fontSize, bounds) {
   let s = "";
   const enc = hex.slice(1).toLowerCase();
   const g = composite();
-  for (let y = 0; y < N; y++) {
-    if (y > 0) s += "\\n";
-    for (let x = 0; x < N; x++) {
+  const b = bounds || { x0: 0, y0: 0, x1: N - 1, y1: N - 1 };
+  for (let y = b.y0; y <= b.y1; y++) {
+    if (y > b.y0) s += "\\n";
+    for (let x = b.x0; x <= b.x1; x++) {
       s += g[y][x] === hex ? "\u2588" : "\u3000";
     }
   }
@@ -603,8 +619,9 @@ function layerString(hex, fontSize) {
 function render() {
   const fontSize = effectiveFontSize();
   const colors = distinctColors();
-  const tabs = [{ label: "All", swatch: null, text: combinedString() }];
-  colors.forEach((c) => tabs.push({ label: c, swatch: c, text: layerString(c, fontSize) }));
+  const bounds = cropBounds();
+  const tabs = [{ label: "All", swatch: null, text: combinedString(bounds) }];
+  colors.forEach((c) => tabs.push({ label: c, swatch: c, text: layerString(c, fontSize, bounds) }));
   if (!tabs.some((t) => t.label === activeTab)) activeTab = "All";
   tabsEl.innerHTML = "";
   tabs.forEach((t) => {
@@ -641,6 +658,7 @@ copyBtn.addEventListener("click", () => {
   speak(`copied ${activeTab} (${out.value.length} chars)`);
 });
 limitEl.addEventListener("input", () => updateLen(out.value.length));
+smartCropEl.addEventListener("change", render);
 boxW.addEventListener("input", render);
 boxH.addEventListener("input", render);
 maxColorsEl.addEventListener("input", updateFit);
@@ -764,7 +782,8 @@ go.addEventListener("click", () => {
     return;
   }
   const fontSize = effectiveFontSize();
-  const texts = colors.map((c) => layerString(c, fontSize));
+  const bounds = cropBounds();
+  const texts = colors.map((c) => layerString(c, fontSize, bounds));
   const built = buildComboGia(comboBase, colors, {
     name: nameEl.value.trim() || "ASCII_Template",
     boxW: boxW.value, boxH: boxH.value,
