@@ -12,6 +12,7 @@ import { GiaCodec } from './giaCodec.js';
 import { MiliastraIde } from './ide/ide.js';
 import { SignalExplorer } from './signalExplorer.js';
 import { NodeGraphVariablesWindow } from './nodeGraphVariables.js';
+import { CustomVariablesWindow } from './customVariables.js';
 import { graphStorage } from './storage/indexdb.js';
 import { NodeGraphExplorer } from './storage/graphExplorer.js';
 import { CompositeNodeManager } from './compositeNode.js';
@@ -41,6 +42,9 @@ class MiliastraApp {
     this.nodeGraphVars = new NodeGraphVariablesWindow(this.state, this.renderer);
     window.miliastraNodeGraphVars = this.nodeGraphVars;
 
+    this.customVars = new CustomVariablesWindow(this.state, this.renderer);
+    window.miliastraCustomVars = this.customVars;
+
     this.graphExplorer = new NodeGraphExplorer(this);
     window.miliastraGraphExplorer = this.graphExplorer;
 
@@ -65,6 +69,10 @@ class MiliastraApp {
 
     window.addEventListener('open_node_graph_vars', (e) => {
       this.nodeGraphVars.open(e.detail?.varName);
+    });
+
+    window.addEventListener('open_custom_vars', (e) => {
+      this.customVars.open(e.detail?.varName);
     });
 
     window.addEventListener('open_graph_explorer', (e) => {
@@ -151,6 +159,9 @@ class MiliastraApp {
     this.ide.attachState?.(s);
     this.signalExplorer.state = s;
     this.nodeGraphVars.state = s;
+    if (this.customVars) {
+      this.customVars.state = s;
+    }
     if (this.commentsManager) {
       this.commentsManager.state = s;
     }
@@ -342,6 +353,7 @@ class MiliastraApp {
             <div class="dropdown-item" id="menuNewGraph">New Graph</div>
             <div class="dropdown-item" id="menuCreateComposite" style="color: #88C0D0; font-weight: 600;">Create Composite Node (Ctrl+G)</div>
             <div class="dropdown-item" id="menuNodeGraphVars">Node Graph Variables...</div>
+            <div class="dropdown-item" id="menuCustomVars" style="color: #E5C07B; font-weight: 600;">Custom Variables...</div>
             <div class="dropdown-item" id="menuSignalExplorer">Server Signal Explorer (Signals)...</div>
             <div class="dropdown-item" id="menuImportGia">Import .gia Asset...</div>
             <div class="dropdown-item" id="menuExportGia">Export .gia Binary Asset</div>
@@ -430,6 +442,13 @@ class MiliastraApp {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor"/>
               <path d="M7 8h10M7 12h6M7 16h10" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <button class="dock-btn dock-btn-custom-vars" id="btnOpenCustomVariables" title="Custom Variables (Game Objects &amp; References)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E5C07B" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v10M7 12h10" stroke-linecap="round"/>
             </svg>
           </button>
 
@@ -676,6 +695,14 @@ class MiliastraApp {
     document.getElementById('btnOpenVariables').addEventListener('click', () => {
       this.nodeGraphVars.toggle();
     });
+
+    // Open Custom Variables from toolbar
+    const btnOpenCustomVars = document.getElementById('btnOpenCustomVariables');
+    if (btnOpenCustomVars) {
+      btnOpenCustomVars.addEventListener('click', () => {
+        this.customVars.toggle();
+      });
+    }
 
     // Open Node Inspector from toolbar
     const btnOpenInsp = document.getElementById('btnOpenInspector');
@@ -1061,6 +1088,14 @@ class MiliastraApp {
     document.getElementById('menuNodeGraphVars').addEventListener('click', () => {
       this.nodeGraphVars.open();
     });
+
+    const menuCustomVars = document.getElementById('menuCustomVars');
+    if (menuCustomVars) {
+      menuCustomVars.addEventListener('click', () => {
+        closeAllTopDropdowns();
+        this.customVars.open();
+      });
+    }
 
     document.getElementById('menuSignalExplorer').addEventListener('click', () => {
       this.signalExplorer.open();

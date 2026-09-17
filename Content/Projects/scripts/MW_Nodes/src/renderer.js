@@ -18,6 +18,40 @@ function optionsAreBooleans(opts) {
   return opts.length === 2 && truthy.has(opts[0]) && falsy.has(opts[1]);
 }
 
+function parseVec3(rawVal) {
+  let vec = { x: 0, y: 0, z: 0 };
+  if (typeof rawVal === 'object' && rawVal !== null) {
+    vec = { x: rawVal.x !== undefined ? rawVal.x : 0, y: rawVal.y !== undefined ? rawVal.y : 0, z: rawVal.z !== undefined ? rawVal.z : 0 };
+  } else if (typeof rawVal === 'string') {
+    const s = rawVal.trim();
+    if ((s.startsWith('(') && s.endsWith(')')) || (s.startsWith('{') && s.endsWith('}'))) {
+      const inner = s.slice(1, -1).trim();
+      const xM = /\bx\s*[:=]\s*([^,]+)/i.exec(inner);
+      const yM = /\by\s*[:=]\s*([^,]+)/i.exec(inner);
+      const zM = /\bz\s*[:=]\s*([^,]+)/i.exec(inner);
+      if (xM || yM || zM) {
+        vec = {
+          x: xM ? xM[1].trim() : 0,
+          y: yM ? yM[1].trim() : 0,
+          z: zM ? zM[1].trim() : 0
+        };
+      } else {
+        const parts = inner.split(',').map(p => p.trim());
+        vec = {
+          x: parts[0] !== undefined ? parts[0] : 0,
+          y: parts[1] !== undefined ? parts[1] : 0,
+          z: parts[2] !== undefined ? parts[2] : 0
+        };
+      }
+    }
+  }
+  return vec;
+}
+
+function formatVec3Str(vec) {
+  return `(x = ${vec.x !== undefined ? vec.x : 0}, y = ${vec.y !== undefined ? vec.y : 0}, z = ${vec.z !== undefined ? vec.z : 0})`;
+}
+
 export class GraphRenderer {
   constructor(canvasContainer, graphState) {
     this.container = canvasContainer;
@@ -171,7 +205,19 @@ export class GraphRenderer {
     return { x, y };
   }
 
+  freeze() {
+    this.isFrozen = true;
+  }
+
+  unfreeze(renderImmediately = true) {
+    this.isFrozen = false;
+    if (renderImmediately) {
+      this.render();
+    }
+  }
+
   render() {
+    if (this.isFrozen) return;
     this.updateTransform();
     this.renderNodes();
     if (window.miliastraComments) {
@@ -190,6 +236,7 @@ export class GraphRenderer {
       this._renderRafPending = true;
       requestAnimationFrame(() => {
         this._renderRafPending = false;
+        if (this.isFrozen) return;
         if (window.miliastraComments) {
           window.miliastraComments.render();
         }
@@ -358,6 +405,54 @@ export class GraphRenderer {
       sigContainer.className = 'node-signal-selector';
       this.populateSignalSelector(node, bp, sigContainer);
       body.appendChild(sigContainer);
+    }
+
+    // 1.6. List name selector for Assembly List nodes
+    if (bp.id === 'op_assembly_list' || (bp.name || '').toLowerCase() === 'assembly list') {
+      const listNameRow = document.createElement('div');
+      listNameRow.className = 'node-list-name-row';
+      listNameRow.style.display = 'flex';
+      listNameRow.style.alignItems = 'center';
+      listNameRow.style.padding = '4px 10px';
+      listNameRow.style.background = 'rgba(255, 255, 255, 0.03)';
+      listNameRow.style.borderBottom = '1px solid rgba(255, 255, 255, 0.08)';
+      listNameRow.style.gap = '6px';
+      listNameRow.style.fontSize = '12px';
+      listNameRow.style.color = '#8ea1b4';
+
+      const label = document.createElement('span');
+      label.textContent = 'list.';
+      label.style.fontFamily = 'monospace';
+      label.style.fontWeight = 'bold';
+      label.style.color = '#50E3C2';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'param-input list-name-input';
+      input.value = node.listName || 'name_a';
+      input.style.flex = '1';
+      input.style.height = '22px';
+      input.style.fontSize = '11px';
+      input.style.padding = '0 6px';
+      input.style.background = '#151921';
+      input.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+      input.style.borderRadius = '3px';
+      input.style.color = '#e0e6ed';
+      input.style.fontFamily = 'monospace';
+
+      input.addEventListener('change', (e) => {
+        const val = e.target.value.trim().replace(/[^a-zA-Z0-9_]/g, '') || 'name_a';
+        node.listName = val;
+        input.value = val;
+        this.state.saveSnapshot();
+        this.state.notify('node_modified');
+      });
+      input.addEventListener('keydown', (e) => e.stopPropagation());
+      input.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+      listNameRow.appendChild(label);
+      listNameRow.appendChild(input);
+      body.appendChild(listNameRow);
     }
 
     // 2. Data parameters content (Inputs & Outputs)
@@ -745,6 +840,14 @@ export class GraphRenderer {
       }
     }
 
+    const isListNode = bp.id === 'op_assembly_list' || (bp.name || '').toLowerCase() === 'assembly list';
+    if (isListNode) {
+      const listNameInput = el.querySelector('.list-name-input');
+      if (listNameInput && listNameInput !== document.activeElement) {
+        listNameInput.value = node.listName || 'name_a';
+      }
+    }
+
     const header = el.querySelector('.node-header');
     if (header) {
       const supportsType = this.canNodeConfigureDataType(node, bp);
@@ -792,8 +895,9 @@ export class GraphRenderer {
       const dynamicSig = bp.canAddDynamicInputs ? (node.dynamicInputs || []).join(',') : '';
       const isSigNodeCheck = bp.id === 'event_monitor_signal' || bp.id === 'exec_send_signal' || bp.isSignalNode;
       const sigName = isSigNodeCheck ? (node.inputValues?.['Signal Name'] || node.signalName || '') : '';
+      const listNameSig = isListNode ? (node.listName || '') : '';
       const dataTypeSig = node.dataType || '';
-      const pinsSig = `${connectedWires}#${typesSig}#${dynamicSig}#${sigName}#${dataTypeSig}`;
+      const pinsSig = `${connectedWires}#${typesSig}#${dynamicSig}#${sigName}#${listNameSig}#${dataTypeSig}`;
 
       if (el.dataset.pinsSig !== pinsSig) {
         el.dataset.pinsSig = pinsSig;
@@ -1114,6 +1218,49 @@ export class GraphRenderer {
           badgeSpan.className = 'param-badge-pill';
           badgeSpan.textContent = badge;
           rightWidget.appendChild(badgeSpan);
+        } else if (pinType === 'vector3' || node.dataType === 'vector3') {
+          const vecContainer = document.createElement('div');
+          vecContainer.className = 'vector3-input-container';
+          vecContainer.style.cssText = 'display: flex; gap: 4px; align-items: center; width: 100%;';
+          
+          let currentVec = parseVec3(node.inputValues[keyName]);
+
+          ['X', 'Y', 'Z'].forEach((axis) => {
+            const axisWrap = document.createElement('div');
+            axisWrap.style.cssText = 'position: relative; flex: 1; display: flex; align-items: center; min-width: 0;';
+
+            const axisInput = document.createElement('input');
+            axisInput.type = 'text';
+            axisInput.className = 'param-input vector-axis-input';
+            const axisColor = axis === 'X' ? '#EF4444' : (axis === 'Y' ? '#22C55E' : '#3B82F6');
+            const axisBg = axis === 'X' ? 'rgba(239, 68, 68, 0.18)' : (axis === 'Y' ? 'rgba(34, 197, 94, 0.18)' : 'rgba(59, 130, 246, 0.18)');
+            axisInput.style.cssText = `width: 100%; text-align: center; padding: 2px 2px; font-size: 11px; font-family: monospace; font-weight: bold; background: ${axisBg}; border: 1px solid ${axisColor}; border-radius: 3px; color: #FFFFFF; outline: none;`;
+            const axisVal = currentVec[axis.toLowerCase()];
+            axisInput.value = (axisVal !== undefined) ? axisVal : 0;
+            axisInput.title = `Element ${keyName} (${axis} Axis)`;
+
+            axisInput.addEventListener('mousedown', (e) => e.stopPropagation());
+            axisInput.addEventListener('click', (e) => e.stopPropagation());
+            axisInput.addEventListener('focus', () => {
+              axisInput.style.borderColor = '#FFFFFF';
+              axisInput.style.boxShadow = `0 0 5px ${axisColor}`;
+            });
+            axisInput.addEventListener('input', (e) => {
+              currentVec[axis.toLowerCase()] = e.target.value;
+              const valStr = formatVec3Str(currentVec);
+              this.state.setInputValue(node.id, keyName, valStr, false);
+            });
+            axisInput.addEventListener('blur', () => {
+              axisInput.style.borderColor = axisColor;
+              axisInput.style.boxShadow = 'none';
+              const valStr = formatVec3Str(currentVec);
+              this.state.setInputValue(node.id, keyName, valStr, true);
+            });
+
+            axisWrap.appendChild(axisInput);
+            vecContainer.appendChild(axisWrap);
+          });
+          rightWidget.appendChild(vecContainer);
         } else {
           const input = document.createElement('input');
           input.type = 'text';
@@ -1267,14 +1414,7 @@ export class GraphRenderer {
               vecContainer.className = 'vector3-input-container';
               vecContainer.style.cssText = 'display: flex; gap: 4px; align-items: center; width: 100%;';
               
-              let currentVec = { x: 0, y: 0, z: 0 };
-              const rawVal = node.inputValues[param.name];
-              if (typeof rawVal === 'object' && rawVal !== null) {
-                currentVec = { x: Number(rawVal.x) || 0, y: Number(rawVal.y) || 0, z: Number(rawVal.z) || 0 };
-              } else if (typeof rawVal === 'string' && rawVal.startsWith('(') && rawVal.endsWith(')')) {
-                const parts = rawVal.slice(1, -1).split(',').map(s => Number(s.trim()) || 0);
-                currentVec = { x: parts[0] || 0, y: parts[1] || 0, z: parts[2] || 0 };
-              }
+              let currentVec = parseVec3(node.inputValues[param.name]);
 
               ['X', 'Y', 'Z'].forEach((axis) => {
                 const axisWrap = document.createElement('div');
@@ -1298,13 +1438,13 @@ export class GraphRenderer {
                 });
                 axisInput.addEventListener('input', (e) => {
                   currentVec[axis.toLowerCase()] = e.target.value;
-                  const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
+                  const valStr = formatVec3Str(currentVec);
                   this.state.setInputValue(node.id, param.name, valStr, false);
                 });
                 axisInput.addEventListener('blur', () => {
                   axisInput.style.borderColor = axisColor;
                   axisInput.style.boxShadow = 'none';
-                  const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
+                  const valStr = formatVec3Str(currentVec);
                   this.state.setInputValue(node.id, param.name, valStr, true);
                 });
 
@@ -1417,6 +1557,10 @@ export class GraphRenderer {
           if (isListPin || isLocalVarPin) {
             // List or local variable input accepts only wires - do not include text input window, but rightWidget maintains alignment width
           } else if (inp.name === 'Variable Name') {
+            const isCustomVarNode = node.blueprintId === 'query_get_custom_var' ||
+                                    node.blueprintId === 'exec_set_custom_var' ||
+                                    (node.name || '').toLowerCase().includes('custom variable');
+
             const varWrap = document.createElement('div');
             varWrap.className = 'param-var-search-wrap';
 
@@ -1425,7 +1569,7 @@ export class GraphRenderer {
             input.className = 'param-input param-var-input';
             input.value = node.inputValues[inp.name] !== undefined ? node.inputValues[inp.name] : (inp.defaultVal || 'HP');
             input.placeholder = inp.placeholder || 'Variable Name';
-            input.title = 'Click 🔍 to select from Node Graph Variables';
+            input.title = isCustomVarNode ? 'Click 🔍 to select from Custom Variables' : 'Click 🔍 to select from Node Graph Variables';
             input.addEventListener('mousedown', (e) => e.stopPropagation());
             input.addEventListener('click', (e) => e.stopPropagation());
             input.addEventListener('input', (e) => {
@@ -1438,7 +1582,7 @@ export class GraphRenderer {
             const searchBtn = document.createElement('button');
             searchBtn.className = 'param-var-search-btn';
             searchBtn.type = 'button';
-            searchBtn.title = 'Browse Node Graph Variables';
+            searchBtn.title = isCustomVarNode ? 'Browse Custom Variables' : 'Browse Node Graph Variables';
             searchBtn.innerHTML = `
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
                 <circle cx="11" cy="11" r="7"/>
@@ -1572,14 +1716,7 @@ export class GraphRenderer {
             vecContainer.className = 'vector3-input-container';
             vecContainer.style.cssText = 'display: flex; gap: 4px; align-items: center; width: 100%;';
             
-            let currentVec = { x: 0, y: 0, z: 0 };
-            const rawVal = node.inputValues[inp.name];
-            if (typeof rawVal === 'object' && rawVal !== null) {
-              currentVec = { x: Number(rawVal.x) || 0, y: Number(rawVal.y) || 0, z: Number(rawVal.z) || 0 };
-            } else if (typeof rawVal === 'string' && rawVal.startsWith('(') && rawVal.endsWith(')')) {
-              const parts = rawVal.slice(1, -1).split(',').map(s => Number(s.trim()) || 0);
-              currentVec = { x: parts[0] || 0, y: parts[1] || 0, z: parts[2] || 0 };
-            }
+            let currentVec = parseVec3(node.inputValues[inp.name]);
 
             ['X', 'Y', 'Z'].forEach((axis) => {
               const axisWrap = document.createElement('div');
@@ -1603,13 +1740,13 @@ export class GraphRenderer {
               });
               axisInput.addEventListener('input', (e) => {
                 currentVec[axis.toLowerCase()] = e.target.value;
-                const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
+                const valStr = formatVec3Str(currentVec);
                 this.state.setInputValue(node.id, inp.name, valStr, false);
               });
               axisInput.addEventListener('blur', () => {
                 axisInput.style.borderColor = axisColor;
                 axisInput.style.boxShadow = 'none';
-                const valStr = `(${currentVec.x}, ${currentVec.y}, ${currentVec.z})`;
+                const valStr = formatVec3Str(currentVec);
                 this.state.setInputValue(node.id, inp.name, valStr, true);
               });
 
@@ -1955,6 +2092,10 @@ export class GraphRenderer {
   }
 
   openVariablePicker(node, paramName, anchorEl) {
+    const isCustomVarNode = node.blueprintId === 'query_get_custom_var' ||
+                            node.blueprintId === 'exec_set_custom_var' ||
+                            (node.name || '').toLowerCase().includes('custom variable');
+
     const existing = document.getElementById('canvasVarPickerPopup');
     if (existing) existing.remove();
 
@@ -1968,15 +2109,18 @@ export class GraphRenderer {
     popup.style.top = `${rect.bottom + 4}px`;
     popup.style.zIndex = '1000';
 
+    const titleText = isCustomVarNode ? 'Custom Variables' : 'Node Graph Variables';
+    const openBtnText = isCustomVarNode ? '+ Open Custom Variables' : '+ Open Node Graph Variables';
+
     popup.innerHTML = `
       <div class="sig-picker-search-box">
         <span class="sig-picker-search-icon">🔍</span>
-        <input type="text" class="sig-picker-search-inp" placeholder="Search variables..." autocomplete="off" />
+        <input type="text" class="sig-picker-search-inp" placeholder="Search ${titleText.toLowerCase()}..." autocomplete="off" />
       </div>
       <div class="sig-picker-list"></div>
       <div class="sig-picker-footer">
         <button class="sig-picker-open-mgr-btn">
-          <span>+ Open Node Graph Variables</span>
+          <span>${openBtnText}</span>
         </button>
       </div>
     `;
@@ -1989,13 +2133,13 @@ export class GraphRenderer {
 
     const renderList = (query = '') => {
       listContainer.innerHTML = '';
-      const allVars = this.state.getNodeGraphVariables();
+      const allVars = isCustomVarNode ? this.state.getCustomVariables() : this.state.getNodeGraphVariables();
       const filtered = allVars.filter(v => !query || v.name.toLowerCase().includes(query.toLowerCase().trim()));
 
       if (filtered.length === 0) {
         const none = document.createElement('div');
         none.className = 'sig-picker-empty';
-        none.textContent = 'No matching variables';
+        none.textContent = `No matching ${isCustomVarNode ? 'custom' : 'node graph'} variables`;
         listContainer.appendChild(none);
         return;
       }
@@ -2012,6 +2156,19 @@ export class GraphRenderer {
         nameSpan.textContent = v.name;
         item.appendChild(nameSpan);
 
+        if (isCustomVarNode && v.entityType) {
+          const entBadge = document.createElement('span');
+          entBadge.className = 'var-entity-badge';
+          entBadge.style.fontSize = '10px';
+          entBadge.style.padding = '1px 5px';
+          entBadge.style.borderRadius = '3px';
+          entBadge.style.marginRight = '4px';
+          entBadge.style.background = 'rgba(255,255,255,0.08)';
+          entBadge.style.color = '#abb2bf';
+          entBadge.textContent = v.entityType === 'self' ? 'self' : (v.guidAlias || v.guid || 'guid');
+          item.appendChild(entBadge);
+        }
+
         const typeBadge = document.createElement('span');
         typeBadge.className = `var-type-badge type-${v.type}`;
         typeBadge.textContent = v.type;
@@ -2020,6 +2177,9 @@ export class GraphRenderer {
         item.addEventListener('click', (e) => {
           e.stopPropagation();
           this.state.setInputValue(node.id, paramName, v.name);
+          if (v.type && (node.dataType !== v.type)) {
+            this.state.setNodeDataType(node.id, v.type);
+          }
           popup.remove();
           this.render();
         });
@@ -2038,9 +2198,23 @@ export class GraphRenderer {
     openMgrBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       popup.remove();
-      window.dispatchEvent(new CustomEvent('open_node_graph_vars', {
-        detail: { varName: node.inputValues[paramName] }
-      }));
+      if (isCustomVarNode) {
+        if (window.miliastraCustomVars) {
+          window.miliastraCustomVars.open(node.inputValues[paramName]);
+        } else {
+          window.dispatchEvent(new CustomEvent('open_custom_vars', {
+            detail: { varName: node.inputValues[paramName] }
+          }));
+        }
+      } else {
+        if (window.miliastraNodeGraphVars) {
+          window.miliastraNodeGraphVars.open();
+        } else {
+          window.dispatchEvent(new CustomEvent('open_node_graph_vars', {
+            detail: { varName: node.inputValues[paramName] }
+          }));
+        }
+      }
     });
 
     const outsideClick = (e) => {

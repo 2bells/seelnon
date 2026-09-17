@@ -6,8 +6,9 @@
 import { LuaGenerator } from './luaGenerator.js';
 import { LuaParser } from './luaParser.js';
 import { GiaCodec } from '../giaCodec.js';
-import { highlightLua } from './utils/highlighter.js';
+import { highlightLua, highlightLuaLine } from './utils/highlighter.js';
 import { getNodeBlueprint, applyDataTypeToNode } from '../nodesData.js';
+import { IdeAutocomplete } from './autocomplete.js';
 
 const THE_LANG = {
   label: 'Lua',
@@ -35,6 +36,7 @@ export class MiliastraIde {
     this.applyingFromCode = false; // currently pushing code edits into the graph
 
     this.initDom();
+    this.autocomplete = new IdeAutocomplete(this, this.textarea, this.scrollContainer);
     this.bindEvents();
     this.attachState(this.state);
     this.syncFromGraph();
@@ -51,28 +53,13 @@ export class MiliastraIde {
     this._state = state;
     this.state = state;
 
-    if (!this._hasBlurSyncListener) {
-      this._hasBlurSyncListener = true;
-      document.addEventListener('focusout', (e) => {
-        if (this._pendingIdeSync) {
-          this._pendingIdeSync = false;
-          if ((this.viewMode === 'code' || this.viewMode === 'split') && !this.applyingFromCode) {
-            this.syncFromGraph();
-            this.codeDirty = false;
-            this.setMirrorState('synced');
-          }
-        }
-      });
-    }
-
-    this._unsub = state.subscribe((changeType) => {
-      // If user is currently typing in an input box, wait until they blur (deselect) before syncing IDE
-      const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-        this._pendingIdeSync = true;
-        return;
-      }
-      if ((this.viewMode === 'code' || this.viewMode === 'split') && !this.applyingFromCode) {
+    this._unsub = state.subscribe(() => {
+      if (this.autocomplete) this.autocomplete.buildCatalog();
+      // Never overwrite user editor buffer when editing or in code mode
+      if (this.codeDirty) return;
+      if (document.activeElement === this.textarea) return;
+      if (this.viewMode === 'code') return;
+      if (this.viewMode === 'split' && !this.applyingFromCode) {
         this.syncFromGraph();
         this.codeDirty = false;
         this.setMirrorState('synced');
@@ -212,14 +199,9 @@ export class MiliastraIde {
     btnCode.addEventListener('click', () => this.setViewMode('code'));
     btnSplit.addEventListener('click', () => this.setViewMode('split'));
 
-    // Textarea Input — highlight only. The graph does NOT change per keystroke;
-    // edits are mirrored back only when the user presses Check (checkMirror).
+    // Textarea Input — instantaneous isolated per-line highlight and status updates
     this.textarea.addEventListener('input', () => {
-      this.updateHighlighting();
-      this.updateLineNumbers();
-      this.ensureCursorVisible();
-      this.codeDirty = true;
-      this.setMirrorState('edited');
+      this.handleEditorInput();
     });
 
     // Guard against internal textarea scroll by directing delta to scroll container
@@ -239,13 +221,54 @@ export class MiliastraIde {
     this.textarea.addEventListener('click', () => {
       this.updateCursorPos();
       this.ensureCursorVisible();
+      if (this.autocomplete) this.autocomplete.hide();
     });
 
-    // Tab Key Handling (insert 2 spaces instead of losing focus) + Ctrl/Cmd+Enter = Check (Lua)
+    // Tab & Enter Key Handling (auto-indentation) + Ctrl/Cmd+Enter = Check (Lua)
     this.textarea.addEventListener('keydown', (e) => {
+      if (this.autocomplete && this.autocomplete.handleKeyDown(e)) {
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         this.checkMirror();
+        return;
+      }
+      if (e.key === 'Enter') {
+        const text = this.textarea.value;
+        const start = this.textarea.selectionStart;
+        const end = this.textarea.selectionEnd;
+
+        // Find the beginning of the current line
+        const lastNewline = text.lastIndexOf('\n', start - 1);
+        const currentLine = text.substring(lastNewline + 1, start);
+        
+        // Measure leading whitespace of current line
+        const matchIndent = currentLine.match(/^[ \t]*/);
+        let indent = matchIndent ? matchIndent[0] : '';
+        const trimmed = currentLine.trim();
+
+        // Check if current line opens a block that requires +2 spaces indent:
+        const opensBlock = (
+          /\b(then|do|repeat)\s*$/.test(trimmed) ||
+          /\bfunction\s*\(.*\)\s*$/.test(trimmed) ||
+          /^f\.on\b/.test(trimmed) ||
+          /^self\s*$/.test(trimmed) ||
+          /^guid\b.*$/.test(trimmed) ||
+          /:\s*$/.test(trimmed) ||
+          /\{\s*$/.test(trimmed) ||
+          /\(\s*$/.test(trimmed)
+        );
+
+        if (opensBlock) {
+          indent += '  ';
+        }
+
+        e.preventDefault();
+        const insertion = '\n' + indent;
+        this.textarea.value = text.substring(0, start) + insertion + text.substring(end);
+        this.textarea.selectionStart = this.textarea.selectionEnd = start + insertion.length;
+        this.handleEditorInput();
         return;
       }
       if (e.key === 'Tab') {
@@ -254,10 +277,7 @@ export class MiliastraIde {
         const end = this.textarea.selectionEnd;
         this.textarea.value = this.textarea.value.substring(0, start) + '  ' + this.textarea.value.substring(end);
         this.textarea.selectionStart = this.textarea.selectionEnd = start + 2;
-        this.updateHighlighting();
-        this.updateLineNumbers();
-        this.updateCursorPos();
-        this.ensureCursorVisible();
+        this.handleEditorInput();
       }
     });
 
@@ -311,14 +331,72 @@ export class MiliastraIde {
     });
   }
 
+  handleEditorInput() {
+    const val = this.textarea.value;
+    const sel = this.textarea.selectionStart;
+
+    if (!this._linesCache) {
+      this.updateHighlighting(true);
+      this.updateLineNumbers(true);
+    } else {
+      const oldLen = this._linesCache.length;
+      let currentLineCount = 1;
+      for (let i = 0; i < val.length; i++) {
+        if (val[i] === '\n') currentLineCount++;
+      }
+
+      if (currentLineCount === oldLen) {
+        // High-speed single-line update (< 0.02ms)
+        let lineIdx = 0;
+        let lineStart = 0;
+        for (let i = 0; i < sel; i++) {
+          if (val[i] === '\n') {
+            lineIdx++;
+            lineStart = i + 1;
+          }
+        }
+        let lineEnd = val.indexOf('\n', sel);
+        if (lineEnd === -1) lineEnd = val.length;
+
+        const currentLineText = val.substring(lineStart, lineEnd);
+        if (this._linesCache[lineIdx] !== currentLineText) {
+          this._linesCache[lineIdx] = currentLineText;
+          const lineEl = this.highlightCode.children[lineIdx];
+          if (lineEl) {
+            lineEl.innerHTML = highlightLuaLine(currentLineText) || '&nbsp;';
+          }
+        }
+      } else {
+        // Multi-line / newline / deletion / paste update
+        const lines = val.split('\n');
+        this._linesCache = lines;
+        this.highlightCode.innerHTML = lines.map(l => `<div class="ide-code-line">${highlightLuaLine(l) || '&nbsp;'}</div>`).join('');
+        this.updateLineNumbers(false);
+      }
+    }
+
+    this.updateCursorPos();
+    this.ensureCursorVisible();
+    this.codeDirty = true;
+    this.setMirrorState('edited');
+    if (this.autocomplete) this.autocomplete.handleInput();
+  }
+
   ensureCursorVisible() {
     if (!this.scrollContainer || !this.textarea) return;
-    const text = this.textarea.value.substring(0, this.textarea.selectionStart);
-    const lines = text.split('\n');
-    const row = lines.length;
-    const col = lines[lines.length - 1].length;
+    const pos = this.textarea.selectionStart;
+    const text = this.textarea.value;
+    let row = 1;
+    let lastNl = -1;
+    for (let i = 0; i < pos; i++) {
+      if (text[i] === '\n') {
+        row++;
+        lastNl = i;
+      }
+    }
+    const col = Math.max(0, pos - lastNl - 1);
     const cursorY = (row - 1) * 20 + 12; // 20px line-height, 12px padding-top
-    const cursorX = col * 7.8 + 16;
+    const cursorX = col * 7.82 + 16;
 
     const container = this.scrollContainer;
     const scrollTop = container.scrollTop;
@@ -344,37 +422,38 @@ export class MiliastraIde {
   }
 
   updateCursorPos() {
-    const text = this.textarea.value.substr(0, this.textarea.selectionStart);
-    const lines = text.split('\n');
-    const row = lines.length;
-    const col = lines[lines.length - 1].length + 1;
+    const pos = this.textarea.selectionStart;
+    const text = this.textarea.value;
+    let row = 1;
+    let lastNl = -1;
+    for (let i = 0; i < pos; i++) {
+      if (text[i] === '\n') {
+        row++;
+        lastNl = i;
+      }
+    }
+    const col = pos - lastNl;
     this.cursorPos.textContent = `Ln ${row}, Col ${col}`;
   }
 
-  updateLineNumbers() {
-    const lines = this.textarea.value.split('\n');
-    const lineCount = lines.length;
-    const base = this.baselineLines || [];
+  updateLineNumbers(force = false) {
+    const lineCount = this._linesCache ? this._linesCache.length : 1;
+    if (this._lastLineCount === lineCount && !force) {
+      return;
+    }
+    this._lastLineCount = lineCount;
     let numbers = '';
-
-    for (let i = 0; i < lineCount; i++) {
-      let cls = '';
-      if (this.codeDirty && base.length > 0) {
-        if (i >= base.length) {
-          cls = ' line-added';
-        } else if (lines[i] !== base[i]) {
-          cls = ' line-changed';
-        }
-      }
-      numbers += `<div class="ide-line-number${cls}">${i + 1}</div>`;
+    for (let i = 1; i <= lineCount; i++) {
+      numbers += `<div class="ide-line-number">${i}</div>`;
     }
     this.lineNumbers.innerHTML = numbers;
   }
 
-  updateHighlighting() {
+  updateHighlighting(forceFull = false) {
     const code = this.textarea.value;
-    const highlighted = THE_LANG.highlight(code);
-    this.highlightCode.innerHTML = highlighted + (code.endsWith('\n') ? ' \n' : '');
+    const lines = code.split('\n');
+    this._linesCache = lines;
+    this.highlightCode.innerHTML = lines.map(l => `<div class="ide-code-line">${highlightLuaLine(l) || '&nbsp;'}</div>`).join('');
   }
 
   syncFromGraph() {
@@ -382,7 +461,7 @@ export class MiliastraIde {
     this.textarea.value = code;
     this.baselineLines = code.split('\n');
     this.updateHighlighting();
-    this.updateLineNumbers();
+    this.updateLineNumbers(true);
     this.updateCursorPos();
 
     // Update status items
@@ -475,7 +554,15 @@ export class MiliastraIde {
     const state = this.state;
     this.applyingFromCode = true;
     try {
-      // 0) Node Graph Variables: synchronized per-nodegraph from Lua code
+      // 0a) Custom Variables: synchronized per-nodegraph from Lua code
+      if (Array.isArray(parsed.customVariables)) {
+        const hasCustomVarHeader = /--\s*Custom\s*Variables/i.test(code);
+        if (parsed.customVariables.length > 0 || hasCustomVarHeader) {
+          state.setCustomVariables(parsed.customVariables);
+        }
+      }
+
+      // 0b) Node Graph Variables: synchronized per-nodegraph from Lua code
       if (Array.isArray(parsed.graphVariables)) {
         const hasGraphVarHeader = /--\s*Node\s*Graph\s*Variables/i.test(code);
         if (parsed.graphVariables.length > 0 || hasGraphVarHeader) {
@@ -530,6 +617,18 @@ export class MiliastraIde {
           existing = state.nodes.find(n => n.category === 'event' && !matchedExistingIds.has(n.id) &&
             (n.blueprintId === pn.blueprintId || (pn.signalName && n.signalName === pn.signalName)));
         }
+        if (!existing && pn.blueprintId === 'query_get_local_variable') {
+          if (pn.varName) {
+            existing = state.nodes.find(n => n.blueprintId === 'query_get_local_variable' && n.varName === pn.varName && !matchedExistingIds.has(n.id));
+          } else if (pn.inputValues?.['Initial Value'] !== undefined) {
+            existing = state.nodes.find(n => n.blueprintId === 'query_get_local_variable' && !n.varName && n.inputValues?.['Initial Value'] === pn.inputValues?.['Initial Value'] && !matchedExistingIds.has(n.id));
+          }
+        }
+        if (!existing && pn.blueprintId === 'exec_set_local_var') {
+          if (pn.varName) {
+            existing = state.nodes.find(n => n.blueprintId === 'exec_set_local_var' && n.varName === pn.varName && !matchedExistingIds.has(n.id));
+          }
+        }
         if (!existing && pn.blueprintId === 'query_get_node_graph_var') {
           existing = state.nodes.find(n => n.blueprintId === 'query_get_node_graph_var' &&
             n.inputValues?.['Variable Name'] === pn.inputValues?.['Variable Name'] &&
@@ -555,6 +654,12 @@ export class MiliastraIde {
             ((pn.guidAlias && n.guidAlias === pn.guidAlias) || (pn.inputValues?.['GUID'] && n.inputValues?.['GUID'] === pn.inputValues?.['GUID'])) &&
             !matchedExistingIds.has(n.id));
         }
+        if (!existing && (pn.blueprintId === 'op_assembly_list' || (pn.name || '').toLowerCase() === 'assembly list')) {
+          if (pn.listName) {
+            existing = state.nodes.find(n => (n.blueprintId === 'op_assembly_list' || (n.name || '').toLowerCase() === 'assembly list') &&
+              (n.listName || '').toLowerCase() === (pn.listName || '').toLowerCase() && !matchedExistingIds.has(n.id));
+          }
+        }
         if (!existing && pn.blueprintId === 'query_get_self_entity') {
           existing = state.nodes.find(n => n.blueprintId === 'query_get_self_entity' && !matchedExistingIds.has(n.id));
         }
@@ -570,7 +675,9 @@ export class MiliastraIde {
         if (nodeMatchMap.has(pn.id)) continue;
 
         let existing = null;
-        if (pn.blueprintId === 'query_get_custom_var') {
+        if (pn.blueprintId === 'op_assembly_list' || (pn.name || '').toLowerCase() === 'assembly list') {
+          existing = state.nodes.find(n => (n.blueprintId === 'op_assembly_list' || (n.name || '').toLowerCase() === 'assembly list') && !matchedExistingIds.has(n.id));
+        } else if (pn.blueprintId === 'query_get_custom_var') {
           existing = state.nodes.find(n => n.blueprintId === 'query_get_custom_var' && !matchedExistingIds.has(n.id));
         } else if (pn.blueprintId === 'exec_set_custom_var') {
           existing = state.nodes.find(n => n.blueprintId === 'exec_set_custom_var' && !matchedExistingIds.has(n.id));
@@ -602,6 +709,8 @@ export class MiliastraIde {
             dataType: pn.dataType,
           };
           if (pn.varName) custom.varName = pn.varName;
+          if (pn.listName) custom.listName = pn.listName;
+          if (pn.dynamicInputs) custom.dynamicInputs = pn.dynamicInputs;
           if (pn.guidAlias) custom.guidAlias = pn.guidAlias;
           if (pn.alias) custom.alias = pn.alias;
           if (pn.customInputs) custom.customInputs = pn.customInputs;
@@ -613,6 +722,8 @@ export class MiliastraIde {
               const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
               if (bp) applyDataTypeToNode(node, bp, pn.dataType);
             }
+            if (pn.listName) node.listName = pn.listName;
+            if (pn.dynamicInputs) node.dynamicInputs = [...pn.dynamicInputs];
             if (pn.guidAlias) node.guidAlias = pn.guidAlias;
             if (pn.alias) node.alias = pn.alias;
             matchedExistingIds.add(node.id);
@@ -724,7 +835,16 @@ export class MiliastraIde {
         state.refreshNodePinTypes?.(nodeId);
       }
 
-      // E) Clean up orphaned Custom Variable nodes (Set / Get) that were removed from Lua
+      // E) Clean up orphaned Assembly List nodes (list.name = {...}) that were removed from Lua
+      const orphanListNodes = state.nodes.filter(n =>
+        (n.blueprintId === 'op_assembly_list' || (n.name || '').toLowerCase() === 'assembly list') &&
+        !matchedExistingIds.has(n.id)
+      );
+      for (const orphan of orphanListNodes) {
+        state.removeNode?.(orphan.id);
+      }
+
+      // Clean up orphaned Custom Variable nodes (Set / Get) that were removed from Lua
       const orphanCustomVarNodes = state.nodes.filter(n =>
         (n.blueprintId === 'exec_set_custom_var' || n.blueprintId === 'query_get_custom_var') &&
         !matchedExistingIds.has(n.id)
@@ -733,9 +853,27 @@ export class MiliastraIde {
         state.removeNode?.(orphan.id);
       }
 
-      // Also clean up orphan Get Self Entity / Query Entity by GUID nodes that have 0 remaining connections
+      // Clean up orphaned Node Graph Variable nodes (Set / Get) that were removed from Lua
+      const orphanNodeGraphVarNodes = state.nodes.filter(n =>
+        (n.blueprintId === 'exec_set_node_graph_var' || n.blueprintId === 'query_get_node_graph_var') &&
+        !matchedExistingIds.has(n.id)
+      );
+      for (const orphan of orphanNodeGraphVarNodes) {
+        state.removeNode?.(orphan.id);
+      }
+
+      // Clean up orphaned Exec / Flow nodes that were removed from Lua
+      const orphanExecNodes = state.nodes.filter(n =>
+        (n.category === 'execution' || n.category === 'flow' || n.blueprintId?.startsWith('exec_') || n.blueprintId?.startsWith('flow_')) &&
+        !matchedExistingIds.has(n.id)
+      );
+      for (const orphan of orphanExecNodes) {
+        state.removeNode?.(orphan.id);
+      }
+
+      // Clean up orphan Get Self Entity / Query Entity by GUID / Math Op nodes that have 0 remaining connections
       const orphanEntityQueryNodes = state.nodes.filter(n =>
-        (n.blueprintId === 'query_get_self_entity' || n.blueprintId === 'query_query_entity_by_guid') &&
+        (n.blueprintId === 'query_get_self_entity' || n.blueprintId === 'query_query_entity_by_guid' || n.blueprintId?.startsWith('op_')) &&
         !matchedExistingIds.has(n.id) &&
         !state.wires.some(w => w.fromNode === n.id || w.toNode === n.id)
       );
@@ -754,14 +892,20 @@ export class MiliastraIde {
   // inputValues are normalized to the node's *real* pin set, so untouched pins
   // keep their values while stray `param_N` keys can never accumulate.
   mergeNodeFromCode(existing, pn) {
-    const pnVals = pn.inputValues || {};
-    // Additive merge: keep every key the graph node already carries (e.g. a
-    // Monitor Signal's dynamic `Signal Name`, cached toggles) and layer the
-    // code's values on top. Only what the code expressed is applied; nothing is
-    // ever dropped. (A whitelist here was silently wiping monitor signal names —
-    // their blueprint has empty `inputs`, so `Signal Name` isn't a blueprinted pin.)
-    const next = Object.assign({}, existing.inputValues || {}, pnVals);
-    existing.inputValues = next;
+    const isList = existing.blueprintId === 'op_assembly_list' || (existing.name || '').toLowerCase() === 'assembly list';
+    if (isList) {
+      if (pn.listName) existing.listName = pn.listName;
+      if (pn.dynamicInputs && Array.isArray(pn.dynamicInputs)) {
+        existing.dynamicInputs = [...pn.dynamicInputs];
+      }
+      if (pn.inputValues) {
+        existing.inputValues = { ...pn.inputValues };
+      }
+    } else {
+      const pnVals = pn.inputValues || {};
+      const next = Object.assign({}, existing.inputValues || {}, pnVals);
+      existing.inputValues = next;
+    }
 
     if (pn.dataType !== undefined && pn.dataType !== null) {
       existing.dataType = pn.dataType;

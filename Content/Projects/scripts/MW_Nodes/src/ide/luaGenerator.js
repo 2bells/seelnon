@@ -27,9 +27,15 @@ const EVENT_MAP = {
   'when game timer elapses': 'whenGameTimerElapses',
   'when ui button is clicked': 'whenUiButtonClicked',
   'when custom event triggers': 'whenCustomEventTriggers',
+  'when custom variable changes': 'whenCustomVariableChanges',
+  'when custom var changes': 'whenCustomVariableChanges',
   'when tab selected': 'whenTabSelected',
+  'when tab is selected': 'whenTabSelected',
+  'when preset status changes': 'whenPresetStatusChanges',
+  'when status stacks change': 'whenStatusStacksChange',
+  'when timer ends': 'whenTimerEnds',
   'when signal received': 'whenSignalReceived',
-  'monitor signal': 'whenSignalReceived'
+  'monitor signal': 'monitorSignal'
 };
 
 function toCamel(s) {
@@ -70,13 +76,54 @@ function isExec(n) {
 }
 function isData(n) { return n && !isEvent(n) && !isFlow(n) && !isExec(n); }
 
+export function formatVec3(val) {
+  if (val === null || val === undefined) return '(x = 0.0, y = 0.0, z = 0.0)';
+  if (typeof val === 'object' && val !== null) {
+    const x = val.x !== undefined ? val.x : '0.0';
+    const y = val.y !== undefined ? val.y : '0.0';
+    const z = val.z !== undefined ? val.z : '0.0';
+    return `(x = ${x}, y = ${y}, z = ${z})`;
+  }
+  const s = String(val).trim();
+  if ((s.startsWith('(') && s.endsWith(')')) || (s.startsWith('{') && s.endsWith('}'))) {
+    const inner = s.slice(1, -1).trim();
+    const xMatch = /\bx\s*[:=]\s*([^,]+)/i.exec(inner);
+    const yMatch = /\by\s*[:=]\s*([^,]+)/i.exec(inner);
+    const zMatch = /\bz\s*[:=]\s*([^,]+)/i.exec(inner);
+    if (xMatch || yMatch || zMatch) {
+      const x = xMatch ? xMatch[1].trim() : '0.0';
+      const y = yMatch ? yMatch[1].trim() : '0.0';
+      const z = zMatch ? zMatch[1].trim() : '0.0';
+      return `(x = ${x}, y = ${y}, z = ${z})`;
+    }
+    const parts = inner.split(',').map(p => p.trim());
+    if (parts.length === 3) {
+      return `(x = ${parts[0] || '0.0'}, y = ${parts[1] || '0.0'}, z = ${parts[2] || '0.0'})`;
+    }
+  }
+  return s;
+}
+
 function lit(v) {
   if (v === null || v === undefined) return "''";
   if (typeof v === 'boolean') return v ? 'true' : 'false';
   if (typeof v === 'number') return String(v);
-  const s = String(v);
+  const s = String(v).trim();
   if (s === 'true' || s === 'false') return s;
+  if (s === 'True' || s === 'Yes') return 'true';
+  if (s === 'False' || s === 'No') return 'false';
   if (/^-?\d+(\.\d+)?$/.test(s)) return s;
+
+  // Vector3 literal in circle brackets
+  if ((s.startsWith('(') && s.endsWith(')')) || (s.startsWith('{') && s.endsWith('}'))) {
+    const inner = s.slice(1, -1).trim();
+    const parts = inner.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.length === 3 && (parts.every(p => /^-?\d+(\.\d+)?$/.test(p)) || /\b[xyz]\s*[:=]/i.test(inner))) {
+      return formatVec3(s);
+    }
+    return s;
+  }
+
   return `'${s.replace(/'/g, "\\'")}'`;
 }
 
@@ -107,7 +154,7 @@ class _LuaGen {
     let out = `local f = require("node_graph.functions")\n\n`;
 
     // 1. Emit Node Graph Variables (without 'local')
-    const graphVars = (this.g.getNodeGraphVariables ? this.g.getNodeGraphVariables() : (this.g.nodeGraphVariables || []));
+    const graphVars = (this.g.getNodeGraphVariables ? this.g.getNodeGraphVariables() : (this.g.nodeGraphVariables || this.g.graphVariables || []));
     if (graphVars && graphVars.length > 0) {
       out += `-- Node Graph Variables\n`;
       for (const v of graphVars) {
@@ -121,12 +168,11 @@ class _LuaGen {
         } else if (varType === 'float') {
           formattedVal = defVal.includes('.') ? defVal : `${defVal}.0`;
         } else if (varType === 'bool') {
-          formattedVal = (defVal === 'True' || defVal === '1' || defVal === 'true' || defVal === 'Yes') ? 'false' : 'false';
-          if (defVal === 'True' || defVal === '1' || defVal === 'true' || defVal === 'Yes') formattedVal = 'true';
+          formattedVal = (defVal === 'True' || defVal === '1' || defVal === 'true' || defVal === 'Yes') ? 'true' : 'false';
         } else if (varType === 'string') {
           formattedVal = `"${defVal.replace(/"/g, '\\"')}"`;
-        } else if (varType === 'vector3') {
-          formattedVal = defVal || '{ 0, 0, 0 }';
+        } else if (varType === 'vector3' || varType === '3d_vector' || varType === '_3d_vector') {
+          formattedVal = formatVec3(defVal || '(x = 0.0, y = 0.0, z = 0.0)');
         }
 
         out += `${varName}: ${varType} = ${formattedVal}\n`;
@@ -134,7 +180,55 @@ class _LuaGen {
       out += `\n`;
     }
 
-    // 2. Emit Custom Variables Header (from Set Custom Variable nodes and custom variables registry)
+    // 2. Emit Standalone Assembly Lists (Lone Nodes)
+    const assemblyNodes = this.nodes.filter(n => n.blueprintId === 'op_assembly_list' || (n.name || '').toLowerCase() === 'assembly list');
+    const standaloneAssemblyNodes = assemblyNodes.filter(n => {
+      return n.listName || !this.wires.some(w => w.fromNode === n.id && (w.toPin === 'Value' || w.toPin === 'Initial Value'));
+    });
+    if (standaloneAssemblyNodes.length > 0) {
+      out += `-- Lists\n`;
+      for (const an of standaloneAssemblyNodes) {
+        const listName = an.listName || 'name_a';
+        const elemType = an.dataType || 'int';
+        const dynamicKeys = (an.dynamicInputs && an.dynamicInputs.length > 0)
+          ? an.dynamicInputs
+          : Object.keys(an.inputValues || {}).filter(k => /^\d+$/.test(k));
+        if (dynamicKeys.length === 0) dynamicKeys.push('0');
+        const elems = [];
+        for (const k of dynamicKeys) {
+          let v = an.inputValues?.[k];
+          if (v === undefined || v === null || v === '') {
+            if (elemType === 'int') v = '0';
+            else if (elemType === 'float') v = '0.0';
+            else if (elemType === 'bool') v = 'false';
+            else if (elemType === 'vector3') v = '(x = 0.0, y = 0.0, z = 0.0)';
+            else if (elemType === 'string') v = "''";
+            else v = '0';
+          }
+          if (elemType === 'vector3') {
+            elems.push(formatVec3(v || '(x = 0.0, y = 0.0, z = 0.0)'));
+          } else if (elemType === 'string') {
+            const s = String(v).trim();
+            if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
+              elems.push(s);
+            } else {
+              elems.push(`'${s.replace(/'/g, "\\'")}'`);
+            }
+          } else if (elemType === 'bool') {
+            elems.push((v === 'true' || v === 'True' || v === '1' || v === true) ? 'true' : 'false');
+          } else if (elemType === 'float') {
+            const s = String(v).trim();
+            elems.push(s.includes('.') ? s : `${s || 0}.0`);
+          } else {
+            elems.push(String(v).trim() || '0');
+          }
+        }
+        out += `list.${listName}: ${elemType} list = { ${elems.join(', ')} }\n`;
+      }
+      out += `\n`;
+    }
+
+    // 3. Emit Custom Variables Header (from Set Custom Variable nodes and custom variables registry)
     const customVarsByEntity = this.collectCustomVariables();
     out += `-- Custom Variables\n`;
     if (customVarsByEntity.size > 0) {
@@ -168,7 +262,48 @@ class _LuaGen {
   collectCustomVariables() {
     const map = new Map(); // entityKey -> Array<{ name, type, defaultValue }>
 
-    // From nodes in graph
+    // 1. First priority: authoritative customVariables from graph state
+    const stateCustomVars = (this.g && typeof this.g.getCustomVariables === 'function')
+      ? this.g.getCustomVariables()
+      : (this.g?.customVariables || []);
+
+    if (Array.isArray(stateCustomVars) && stateCustomVars.length > 0) {
+      for (const cv of stateCustomVars) {
+        let entityKey = 'self';
+        if (cv.entityType === 'guid') {
+          if (cv.guidAlias) {
+            entityKey = cv.guid ? `guid.${cv.guidAlias} = ${cv.guid}` : `guid.${cv.guidAlias}`;
+          } else if (cv.guid) {
+            entityKey = `guid = ${cv.guid}`;
+          } else {
+            entityKey = 'guid.boss = 10003222';
+          }
+        } else if (cv.entityType === 'entity') {
+          entityKey = cv.guidAlias ? `entity.${cv.guidAlias}` : 'entity';
+        } else {
+          entityKey = 'self';
+        }
+
+        let defVal = cv.defaultValue !== undefined && cv.defaultValue !== '' ? String(cv.defaultValue) : 'get';
+        if (cv.isGet || defVal === 'get') {
+          defVal = 'get';
+        } else if (cv.type === 'float' && !defVal.includes('.')) {
+          defVal = `${defVal}.0`;
+        } else if (cv.type === 'bool') {
+          defVal = (defVal === 'True' || defVal === 'true' || defVal === '1') ? 'true' : 'false';
+        }
+
+        if (!map.has(entityKey)) map.set(entityKey, []);
+        map.get(entityKey).push({
+          name: cv.name,
+          type: cv.type || 'float',
+          defaultValue: defVal
+        });
+      }
+      return map;
+    }
+
+    // 2. Fallback: scan nodes in graph if no customVariables in state
     for (const n of this.nodes) {
       if (n.blueprintId === 'exec_set_custom_var' || (n.name || '').toLowerCase() === 'set custom variable' ||
           n.blueprintId === 'query_get_custom_var' || (n.name || '').toLowerCase() === 'get custom variable') {
@@ -236,11 +371,19 @@ class _LuaGen {
   emitEvent(ev) {
     this.var = new Map();       // nodeId -> local var
     this.evVar = new Map();     // "evid::pin" -> local var
+    this.emittedLocals = new Set();
+    this.usedVarNames = new Set();
     this._n = 0;
     this.visited = new Set();
     this.ev = ev;
 
+    // Track all pre-existing variable names
+    for (const n of this.nodes) {
+      if (n.varName) this.usedVarNames.add(String(n.varName).toLowerCase());
+    }
+
     const reach = this.reachableSet(ev);
+    const isSignalNode = (ev.blueprintId === 'event_monitor_signal' || (ev.name || '').toLowerCase() === 'monitor signal');
     const evName = this.eventName(ev);
 
     // Register all Get Node Graph Variable and Get Local Variable nodes
@@ -250,8 +393,17 @@ class _LuaGen {
         this.var.set(n.id, vn);
       }
       if (n.blueprintId === 'query_get_local_variable' || (n.name || '').toLowerCase() === 'get local variable') {
-        const vn = n.varName || 'sum';
-        this.var.set(n.id, vn);
+        const lvWire = this.wires.find(w => !w.isExec && w.fromNode === n.id && w.fromPin === 'Local Variable');
+        let boundVarName = n.varName;
+        if (lvWire) {
+          const setNode = this.byId.get(lvWire.toNode);
+          if (setNode && (setNode.blueprintId === 'exec_set_local_var' || (setNode.name || '').toLowerCase() === 'set local variable')) {
+            boundVarName = setNode.varName || boundVarName;
+          }
+        }
+        if (boundVarName) {
+          this.var.set(n.id, boundVarName);
+        }
       }
     }
 
@@ -267,11 +419,23 @@ class _LuaGen {
     const dataConsts = this.emitDataConsts(reach);
     const body = this.walkFrom(ev, '  ');
 
+    let onHeader = '';
+    let commentHeader = '';
+    if (isSignalNode) {
+      const sigName = ev.inputValues?.['Signal Name'] || ev.signalName || 'HC_Shot';
+      commentHeader = `-- -------- event · Monitor Signal (${sigName}) --------\n`;
+      onHeader = `f.on(signal:"${sigName}", function(ctx)\n`;
+    } else {
+      commentHeader = `-- -------- event · ${ev.name || 'handler'} (${evName}) --------\n`;
+      onHeader = `f.on("${evName}", function(ctx)\n`;
+    }
+
     return (
-      `-- -------- event · ${ev.name || 'handler'} (${evName}) --------\n` +
-      `f.on("${evName}", function(ctx)\n` +
+      commentHeader +
+      onHeader +
       evConsts + '\n' +
       dataConsts +
+      `  -- Logic\n` +
       body +
       `end)\n`
     );
@@ -301,11 +465,24 @@ class _LuaGen {
     return pins;
   }
 
-  nextVar(prefix) { this._n++; return `${prefix}_${this._n}`; }
+  nextVar(prefix = 'var') {
+    const letters = 'abcdefghijklmnopqrstuvwxyz';
+    let name;
+    do {
+      if (this._n < 26) {
+        name = `${prefix}_${letters[this._n]}`;
+      } else {
+        name = `${prefix}_${this._n + 1}`;
+      }
+      this._n++;
+    } while (this.usedVarNames && this.usedVarNames.has(name));
+    if (this.usedVarNames) this.usedVarNames.add(name);
+    return name;
+  }
 
   eventName(ev) {
-    if ((ev.blueprintId || '') === 'event_monitor_signal') {
-      return ev.inputValues?.['Signal Name'] || ev.signalName || 'no_signal';
+    if ((ev.blueprintId || '') === 'event_monitor_signal' || (ev.name || '').toLowerCase() === 'monitor signal') {
+      return ev.inputValues?.['Signal Name'] || ev.signalName || 'HC_Shot';
     }
     const key = (ev.name || '').toLowerCase();
     return EVENT_MAP[key] || toCamel(ev.name || 'Event');
@@ -417,84 +594,61 @@ class _LuaGen {
     return typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name) && !['f', 'ctx', 'f_on', 'require', 'local'].includes(name);
   }
 
+  emitNodeStmt(curr) {
+    if (curr.blueprintId === 'exec_set_node_graph_var' || (curr.name || '').toLowerCase() === 'set node graph variable') {
+      const vn = curr.inputValues?.['Variable Name'] || 'num';
+      const val = this.argOut(curr, 'Variable Value') || '0';
+      return `${vn} = ${val}`;
+    }
+    if (curr.blueprintId === 'exec_set_local_var' || (curr.name || '').toLowerCase() === 'set local variable') {
+      const lvWire = this.wires.find(w => !w.isExec && w.toNode === curr.id && w.toPin === 'Local Variable');
+      let varName = curr.varName;
+      let dt = curr.declaredType || curr.dataType;
+      if (lvWire) {
+        const getLv = this.byId.get(lvWire.fromNode);
+        if (getLv) {
+          varName = varName || getLv.varName;
+          dt = dt || getLv.declaredType || getLv.dataType;
+        }
+      }
+      if (!varName) {
+        varName = this.nextVar('var');
+      }
+      const val = this.argOut(curr, 'Value') || '0';
+      const typeAnno = dt ? `: ${dt}` : '';
+
+      if (!this.emittedLocals) this.emittedLocals = new Set();
+      if (!this.emittedLocals.has(varName)) {
+        this.emittedLocals.add(varName);
+        return `local ${varName}${typeAnno} = ${val}`;
+      }
+      return `${varName} = ${val}`;
+    }
+    if (curr.blueprintId === 'exec_set_custom_var' || (curr.name || '').toLowerCase() === 'set custom variable') {
+      return this.emitSetCustomVar(curr);
+    }
+    return this.call(curr);
+  }
+
   walkFrom(node, ind) {
     let out = '';
     let curr = this.nextExec(node, 'execOut');
-    let inInitPhase = true;
-    let hasEmittedInitHeader = false;
-    let hasEmittedLogicHeader = false;
 
     while (curr) {
       if (this.visited.has(curr.id)) break;
       this.visited.add(curr.id);
 
-      const isSetCustomVar = curr.blueprintId === 'exec_set_custom_var' || (curr.name || '').toLowerCase() === 'set custom variable';
-
-      if (inInitPhase && isSetCustomVar) {
-        if (!hasEmittedInitHeader) {
-          out += `${ind}-- Custom Var Initialisation\n`;
-          hasEmittedInitHeader = true;
-        }
-        out += `${ind}${this.emitSetCustomVar(curr)}\n`;
-      } else {
-        if (inInitPhase) {
-          inInitPhase = false;
-          if (hasEmittedInitHeader) out += '\n';
-        }
-        if (!hasEmittedLogicHeader) {
-          out += `${ind}-- Logic\n`;
-          hasEmittedLogicHeader = true;
-        }
-
-        if (curr.blueprintId === 'flow_double_branch' || curr.name === 'Double Branch') {
-          out += this.emitDoubleBranch(curr, ind);
-          break;
-        }
-        if (curr.blueprintId === 'flow_multiple_branches' || curr.name === 'Multiple Branches') {
-          out += this.emitMultiBranch(curr, ind);
-          break;
-        }
-
-        // Check for set node graph variable
-        if (curr.blueprintId === 'exec_set_node_graph_var' || (curr.name || '').toLowerCase() === 'set node graph variable') {
-          const vn = curr.inputValues?.['Variable Name'] || 'num';
-          const val = this.argOut(curr, 'Variable Value') || '0';
-          out += `${ind}${vn} = ${val}\n`;
-        } else if (curr.blueprintId === 'exec_set_local_var' || (curr.name || '').toLowerCase() === 'set local variable') {
-          const lvWire = this.wires.find(w => !w.isExec && w.toNode === curr.id && w.toPin === 'Local Variable');
-          let varName = curr.varName;
-          let dt = curr.declaredType || curr.dataType;
-          if (lvWire) {
-            const getLv = this.byId.get(lvWire.fromNode);
-            if (getLv) {
-              varName = varName || getLv.varName;
-              dt = dt || getLv.declaredType || getLv.dataType;
-            }
-          }
-          varName = varName || 'sum';
-          const val = this.argOut(curr, 'Value') || '0';
-          const typeAnno = dt ? `: ${dt}` : '';
-
-          if (!this.emittedLocals) this.emittedLocals = new Set();
-          if (!this.emittedLocals.has(varName)) {
-            this.emittedLocals.add(varName);
-            out += `${ind}local ${varName}${typeAnno} = ${val}\n`;
-          } else {
-            out += `${ind}${varName} = ${val}\n`;
-          }
-        } else if (isSetCustomVar) {
-          out += `${ind}${this.emitSetCustomVar(curr)}\n`;
-        } else {
-          out += `${ind}${this.call(curr)}\n`;
-        }
+      if (curr.blueprintId === 'flow_double_branch' || curr.name === 'Double Branch') {
+        out += this.emitDoubleBranch(curr, ind);
+        break;
       }
-      curr = this.nextExec(curr, 'execOut');
-    }
+      if (curr.blueprintId === 'flow_multiple_branches' || curr.name === 'Multiple Branches') {
+        out += this.emitMultiBranch(curr, ind);
+        break;
+      }
 
-    if (!hasEmittedLogicHeader && hasEmittedInitHeader) {
-      out += `\n${ind}-- Logic\n`;
-    } else if (!hasEmittedLogicHeader && !hasEmittedInitHeader) {
-      out += `${ind}-- Logic\n`;
+      out += `${ind}${this.emitNodeStmt(curr)}\n`;
+      curr = this.nextExec(curr, 'execOut');
     }
 
     return out;
@@ -502,53 +656,52 @@ class _LuaGen {
 
   emitSetCustomVar(node) {
     const targetWire = this.wires.find(w => !w.isExec && w.toNode === node.id && w.toPin === 'Target Entity');
-    let targetStr = "''";
+    let targetStr = "f.getSelfEntity()";
     let targetEntityNode = null;
+
     if (targetWire) {
       targetEntityNode = this.byId.get(targetWire.fromNode);
       if (targetEntityNode) {
         if (targetEntityNode.blueprintId === 'query_get_self_entity' || targetEntityNode.name === 'Get Self Entity') {
-          targetStr = "'f.getSelfEntity'";
+          targetStr = "f.getSelfEntity()";
         } else if (targetEntityNode.blueprintId === 'query_query_entity_by_guid' || targetEntityNode.name === 'Query Entity by GUID') {
           const guidVal = targetEntityNode.inputValues?.['GUID'] || '0';
-          targetStr = `'f.queryEntitybyGUID(${guidVal})'`;
+          targetStr = `f.queryEntitybyGUID(${guidVal})`;
+        } else {
+          targetStr = this.call(targetEntityNode);
         }
       }
     } else {
       const rawTarget = node.inputValues?.['Target Entity'];
-      if (rawTarget === 'self' || rawTarget === 'Self Entity') targetStr = "'f.getSelfEntity'";
-      else targetStr = lit(rawTarget || '');
+      if (rawTarget === 'self' || rawTarget === 'Self Entity' || !rawTarget) {
+        targetStr = "f.getSelfEntity()";
+      } else {
+        targetStr = lit(rawTarget || '');
+      }
     }
 
     const varName = node.inputValues?.['Variable Name'] || '';
     
-    // Check if Variable Value is wired to a Get Custom Variable node
+    // Check if Variable Value is wired to a node
     let valStr = '';
     const valWire = this.wires.find(w => !w.isExec && w.toNode === node.id && w.toPin === 'Variable Value');
     if (valWire) {
       const valSrc = this.byId.get(valWire.fromNode);
-      if (valSrc && (valSrc.blueprintId === 'query_get_custom_var' || valSrc.name === 'Get Custom Variable')) {
-        valStr = this.call(valSrc);
-      } else if (valSrc) {
+      if (valSrc) {
         valStr = this.call(valSrc);
       }
     } else {
       const rawVal = node.inputValues?.['Variable Value'];
       if (rawVal === 'get' || rawVal === '' || rawVal === undefined) {
-        if (targetEntityNode && (targetEntityNode.blueprintId === 'query_query_entity_by_guid' || targetEntityNode.name === 'Query Entity by GUID')) {
-          const alias = targetEntityNode.guidAlias || targetEntityNode.alias;
-          const guid = targetEntityNode.inputValues?.['GUID'] || '';
-          valStr = alias ? `guid.${alias}.${varName}` : (guid ? `guid.${guid}.${varName}` : `guid.${varName}`);
-        } else {
-          valStr = `self.${varName}`;
-        }
+        valStr = `self.${varName}`;
       } else {
         valStr = this.argOut(node, 'Variable Value') || '0';
       }
     }
 
     const trig = node.inputValues?.['Trigger Event'] || 'False';
-    const trigStr = (trig === 'True' || trig === 'true' || trig === 'Yes') ? "'True'" : "'False'";
+    const trigBool = (trig === 'True' || trig === 'true' || trig === 'Yes');
+    const trigStr = trigBool ? 'true' : 'false';
 
     let fnName = 'f.setCustomVar';
     const dt = (node.dataType || '').toLowerCase();
@@ -570,30 +723,14 @@ class _LuaGen {
     let out = `${ind}if ${c} then\n`;
     if (yesTarget) {
       this.visited.add(yesTarget.id);
-      if (yesTarget.blueprintId === 'exec_set_node_graph_var') {
-        const vn = yesTarget.inputValues?.['Variable Name'] || 'num';
-        const val = this.argOut(yesTarget, 'Variable Value') || '0';
-        out += `${ind}  ${vn} = ${val}\n`;
-      } else if (yesTarget.blueprintId === 'exec_set_custom_var') {
-        out += `${ind}  ${this.emitSetCustomVar(yesTarget)}\n`;
-      } else {
-        out += `${ind}  ${this.call(yesTarget)}\n`;
-      }
+      out += `${ind}  ${this.emitNodeStmt(yesTarget)}\n`;
       out += this.walkFrom(yesTarget, ind + '  ');
     }
 
     if (noTarget) {
       this.visited.add(noTarget.id);
       out += `${ind}else\n`;
-      if (noTarget.blueprintId === 'exec_set_node_graph_var') {
-        const vn = noTarget.inputValues?.['Variable Name'] || 'num';
-        const val = this.argOut(noTarget, 'Variable Value') || '0';
-        out += `${ind}  ${vn} = ${val}\n`;
-      } else if (noTarget.blueprintId === 'exec_set_custom_var') {
-        out += `${ind}  ${this.emitSetCustomVar(noTarget)}\n`;
-      } else {
-        out += `${ind}  ${this.call(noTarget)}\n`;
-      }
+      out += `${ind}  ${this.emitNodeStmt(noTarget)}\n`;
       out += this.walkFrom(noTarget, ind + '  ');
     }
 
@@ -649,20 +786,26 @@ class _LuaGen {
       let boundVarName = node.varName;
       if (lvWire) {
         const setNode = this.byId.get(lvWire.toNode);
-        if (setNode && setNode.varName) boundVarName = setNode.varName;
+        if (setNode && (setNode.blueprintId === 'exec_set_local_var' || (setNode.name || '').toLowerCase() === 'set local variable')) {
+          boundVarName = setNode.varName || boundVarName;
+        }
       }
       if (boundVarName) return boundVarName;
       if (this.var.has(node.id)) {
         return this.var.get(node.id);
       }
       const initVal = node.inputValues?.['Initial Value'];
-      if (initVal !== undefined && initVal !== '') return initVal;
-      return 'sum';
+      if (initVal !== undefined && initVal !== '') {
+        let s = String(initVal);
+        if (node.dataType === 'float' && !s.includes('.')) s += '.0';
+        return s;
+      }
+      return node.dataType === 'float' ? '0.0' : '0';
     }
 
-    // Pi Constant
-    if (bi === 'op_pi' || nm === 'pi') {
-      return 'math.pi()';
+    // Pi Constant (Query Node -> Math -> Pi)
+    if (bi === 'query_pi' || bi === 'op_pi' || nm === 'pi' || nm === 'pi (π)') {
+      return 'f.pi()';
     }
 
     // Math: Trigonometry & Common functions
@@ -850,6 +993,67 @@ class _LuaGen {
       return `not (${inp})`;
     }
 
+    // Vector3 Constants
+    if (bi === 'query_3d_vector_zero_vector' || bi === 'query_vector3_zero_vector' || nm === 'zero vector') {
+      return '(x = 0.0, y = 0.0, z = 0.0)';
+    }
+    if (bi === 'query_3d_vector_forward' || bi === 'query_vector3_forward' || nm === 'forward') {
+      return '(x = 0.0, y = 0.0, z = 1.0)';
+    }
+    if (bi === 'query_3d_vector_backward' || bi === 'query_vector3_backward' || nm === 'backward') {
+      return '(x = 0.0, y = 0.0, z = -1.0)';
+    }
+    if (bi === 'query_3d_vector_up' || bi === 'query_vector3_up' || nm === 'up') {
+      return '(x = 0.0, y = 1.0, z = 0.0)';
+    }
+    if (bi === 'query_3d_vector_down' || bi === 'query_vector3_down' || nm === 'down') {
+      return '(x = 0.0, y = -1.0, z = 0.0)';
+    }
+    if (bi === 'query_3d_vector_right' || bi === 'query_vector3_right' || nm === 'right') {
+      return '(x = 1.0, y = 0.0, z = 0.0)';
+    }
+    if (bi === 'query_3d_vector_left' || bi === 'query_vector3_left' || nm === 'left') {
+      return '(x = -1.0, y = 0.0, z = 0.0)';
+    }
+
+    // List Assembly
+    if (bi === 'op_assembly_list' || nm === 'assembly list') {
+      const dynamicKeys = node.dynamicInputs || ['0'];
+      const elemType = node.dataType || 'int';
+      const elems = [];
+      for (const k of dynamicKeys) {
+        const val = this.argOut(node, k);
+        if (elemType === 'vector3') {
+          elems.push(formatVec3(val || '(x = 0.0, y = 0.0, z = 0.0)'));
+        } else {
+          elems.push(val !== undefined && val !== '' ? val : '0');
+        }
+      }
+      return `{ ${elems.join(', ')} }`;
+    }
+
+    // List Queries
+    if (bi === 'query_get_val_from_list' || nm === 'get corresponding value from list' || nm === 'get value from list') {
+      const listWire = this.wires.find(w => !w.isExec && w.toNode === node.id && (w.toPin === 'List' || w.toPin === 'Target List'));
+      let listArg = 'list';
+      if (listWire) {
+        const srcNode = this.byId.get(listWire.fromNode);
+        if (srcNode) {
+          if (srcNode.listName) {
+            listArg = `list.${srcNode.listName}`;
+          } else if (srcNode.varName) {
+            listArg = srcNode.varName;
+          } else {
+            listArg = this.call(srcNode);
+          }
+        }
+      } else {
+        listArg = node.inputValues?.['List'] || node.inputValues?.['Target List'] || 'list';
+      }
+      const idArg = this.argOut(node, 'ID') || '0';
+      return `f.getValFromList(${listArg}, ${idArg})`;
+    }
+
     if (bi === 'exec_set_custom_var' || nm === 'set custom variable') {
       return this.emitSetCustomVar(node);
     }
@@ -896,6 +1100,11 @@ class _LuaGen {
         return this.call(src);
       }
     }
-    return lit(node.inputValues?.[pinName] ?? '');
+    const val = node.inputValues?.[pinName];
+    const pinType = this.g?.getPinType ? this.g.getPinType(node.id, pinName) : '';
+    if (pinType === 'vector3' || (typeof val === 'string' && val.startsWith('(') && val.endsWith(')'))) {
+      return formatVec3(val || '(x = 0.0, y = 0.0, z = 0.0)');
+    }
+    return lit(val ?? '');
   }
 }

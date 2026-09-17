@@ -60,8 +60,6 @@ export class NodeGraphExplorer {
           <span class="ge-header-icon">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-              <line x1="12" y1="11" x2="12" y2="17"/>
-              <line x1="9" y1="14" x2="15" y2="14"/>
             </svg>
           </span>
           <span class="ge-header-title">Node Graph Explorer</span>
@@ -84,51 +82,30 @@ export class NodeGraphExplorer {
         </div>
       </div>
 
-      <!-- Toolbar -->
-      <div class="ge-toolbar">
-        <div class="ge-toolbar-left">
-          <div class="ge-breadcrumbs" id="geBreadcrumbs">
-            <span class="ge-crumb-item active">All Graphs</span>
-          </div>
-        </div>
-
-        <div class="ge-toolbar-actions">
-          <div class="ge-search-box">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" class="ge-search-icon">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" class="ge-search-input" id="geSearchInput" placeholder="Search graphs..." autocomplete="off" />
-            <button class="ge-search-clear" id="geSearchClear" style="display:none;">✕</button>
-          </div>
-
-          <button class="ge-btn-primary" id="geBtnNewGraph" title="Create New Node Graph">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <line x1="12" y1="8" x2="12" y2="16"/>
-              <line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
       <!-- Main Body (Sidebar + Content) -->
       <div class="ge-body">
         <!-- Sidebar: Folder Tree -->
         <div class="ge-sidebar">
-          <div class="ge-sidebar-title-row">
-            <span>Folders & Categories</span>
-          </div>
-          <div class="ge-tree-scroll" id="geTreeContainer"></div>
-          <div class="ge-sidebar-bottom">
-            <button class="ge-btn-add-folder" id="geBtnSidebarAddFolder">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
+          <div class="ge-search-row">
+            <span class="ge-search-icon">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              <span>Add Folder</span>
-            </button>
+            </span>
+            <input type="text" class="ge-search-input" id="geSearchInput" placeholder="Search graphs..." autocomplete="off" />
+            <button class="ge-search-clear" id="geSearchClear" style="display:none;">✕</button>
           </div>
+
+          <div class="ge-tree-scroll" id="geTreeContainer"></div>
+
+          <button class="ge-btn-add-folder" id="geBtnSidebarAddFolder">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Folder
+          </button>
         </div>
 
         <!-- Content: File and Graph Cards -->
@@ -145,6 +122,16 @@ export class NodeGraphExplorer {
             </div>
           </div>
           <div class="ge-content-scroll" id="geContentScroll"></div>
+          <div style="margin-top:auto; padding:10px 14px; border-top:1px solid #272e3c; background:#181b24;">
+            <button class="ge-btn-add-folder" id="geBtnNewGraph" title="Create New Node Graph">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>
+              + New Graph
+            </button>
+          </div>
         </div>
       </div>
 
@@ -640,36 +627,17 @@ export class NodeGraphExplorer {
 
   renderContent() {
     const scrollArea = this.card.querySelector('#geContentScroll');
-    const breadcrumbs = this.card.querySelector('#geBreadcrumbs');
     const summary = this.card.querySelector('#geContentSummary');
     if (!scrollArea) return;
 
     scrollArea.innerHTML = '';
 
-    // Render breadcrumb navigation
     let currentFolderName = 'All Graphs';
     if (this.currentFolderId === 'root') {
       currentFolderName = 'Root Directory';
     } else if (this.currentFolderId !== 'all') {
       const folder = this.folders.find(f => f.id === this.currentFolderId);
       if (folder) currentFolderName = folder.name;
-    }
-
-    breadcrumbs.innerHTML = `
-      <span class="ge-crumb-item ${this.currentFolderId === 'all' ? 'active' : ''}" id="crumbHome">All Graphs</span>
-      ${this.currentFolderId !== 'all' ? `
-        <span class="ge-crumb-sep">/</span>
-        <span class="ge-crumb-item active">${this.esc(currentFolderName)}</span>
-      ` : ''}
-    `;
-
-    const crumbHome = breadcrumbs.querySelector('#crumbHome');
-    if (crumbHome) {
-      crumbHome.addEventListener('click', () => {
-        this.currentFolderId = 'all';
-        this.renderTree();
-        this.renderContent();
-      });
     }
 
     // Filter graphs
@@ -694,62 +662,10 @@ export class NodeGraphExplorer {
       visibleGraphs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     }
 
-    // Render subfolders as full-width 'lines'
-    let hasSubfolders = false;
-    if (!this.searchQuery && (this.currentFolderId === 'root' || this.currentFolderId === 'all')) {
-      const subfolders = this.currentFolderId === 'root'
-        ? this.folders.filter(f => f.parentId === 'root')
-        : this.folders;
-
-      if (subfolders.length > 0) {
-        hasSubfolders = true;
-        const folderSection = document.createElement('div');
-        folderSection.className = 'ge-folders-section';
-        folderSection.innerHTML = `
-          <div class="ge-section-title">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-            <span>Folders (${subfolders.length})</span>
-          </div>
-        `;
-
-        const folderList = document.createElement('div');
-        folderList.className = 'ge-folders-list';
-
-        subfolders.forEach(f => {
-          const fCount = this.graphs.filter(g => g.folderId === f.id).length;
-          const fLine = document.createElement('div');
-          fLine.className = 'ge-folder-line';
-          fLine.innerHTML = `
-            <div class="ge-folder-line-left">
-              <span class="ge-folder-line-icon" style="color:${f.color || '#e5c07b'}">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                  <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
-                </svg>
-              </span>
-              <span class="ge-folder-line-name">${this.esc(f.name)}</span>
-              <span class="ge-folder-line-count">${fCount} graph${fCount === 1 ? '' : 's'}</span>
-            </div>
-            <span class="ge-folder-line-arrow">▶</span>
-          `;
-          fLine.addEventListener('click', () => {
-            this.currentFolderId = f.id;
-            this.renderTree();
-            this.renderContent();
-          });
-          folderList.appendChild(fLine);
-        });
-
-        folderSection.appendChild(folderList);
-        scrollArea.appendChild(folderSection);
-      }
-    }
-
     summary.textContent = `${visibleGraphs.length} node graph(s)`;
 
     // Empty state
-    if (visibleGraphs.length === 0 && !hasSubfolders) {
+    if (visibleGraphs.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'ge-empty-state';
       empty.innerHTML = `
@@ -772,17 +688,6 @@ export class NodeGraphExplorer {
     if (visibleGraphs.length > 0) {
       const graphsSection = document.createElement('div');
       graphsSection.className = 'ge-graphs-section';
-      if (hasSubfolders) {
-        graphsSection.innerHTML = `
-          <div class="ge-section-title">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M7 8h10M7 12h10M7 16h6"/>
-            </svg>
-            <span>Node Graphs (${visibleGraphs.length})</span>
-          </div>
-        `;
-      }
 
       const columnContainer = document.createElement('div');
       columnContainer.className = 'ge-graphs-column';

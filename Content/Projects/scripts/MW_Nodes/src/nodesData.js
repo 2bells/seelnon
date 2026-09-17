@@ -479,6 +479,26 @@ export function applyDataTypeToNode(nodeInstance, blueprint, dataType) {
     nodeInstance.pinTypes['0~99'] = elemType;
     nodeInstance.pinTypes['List'] = elemType === 'generic' ? 'list' : `${elemType} list`;
   }
+  // 4b. Get Value From List & List Queries
+  else if (
+    bpId === 'query_get_val_from_list' ||
+    bpId.includes('get_val_from_list') ||
+    bpId === 'query_search_list_and_return_value_id' ||
+    bpId === 'query_get_maximum_value_from_list' ||
+    bpId === 'query_get_list_length'
+  ) {
+    const elemType = dataType.replace(/\s+list$/i, '').trim() || 'generic';
+    nodeInstance.dataType = elemType;
+    if (nodeInstance.pinTypes['List'] !== undefined || blueprint.inputs?.some(i => i.name === 'List')) {
+      nodeInstance.pinTypes['List'] = elemType === 'generic' ? 'list' : `${elemType} list`;
+    }
+    if (nodeInstance.pinTypes['Target List'] !== undefined || blueprint.inputs?.some(i => i.name === 'Target List')) {
+      nodeInstance.pinTypes['Target List'] = elemType === 'generic' ? 'list' : `${elemType} list`;
+    }
+    if (nodeInstance.pinTypes['Value'] !== undefined || blueprint.outputs?.some(o => o.name === 'Value') || blueprint.inputs?.some(i => i.name === 'Value')) {
+      nodeInstance.pinTypes['Value'] = elemType;
+    }
+  }
   // 5. List Sorting & List Manipulation
   else if (bpId === 'exec_list_sorting' || bpId === 'list_sorting' || bpId.includes('list_sorting')) {
     const elemType = dataType.replace(/\s+list$/i, '').trim() || 'generic';

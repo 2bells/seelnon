@@ -32,11 +32,10 @@ export class GraphState {
     this.wireStyle = 'curved'; // 'curved' | 'orthogonal'
 
     // Node Graph Variables (persist inside this graph, as in Miliastra Wonderland)
-    this.nodeGraphVariables = [
-      { id: 'var_1', name: 'HP', type: 'int', defaultValue: '0', value: '0' },
-      { id: 'var_2', name: 'Attacked', type: 'bool', defaultValue: 'False', value: 'False' },
-      { id: 'var_3', name: 'Damage', type: 'float', defaultValue: '0.0', value: '0.0' }
-    ];
+    this.nodeGraphVariables = [];
+
+    // Custom Variables (associated with game objects: self, guid, etc.)
+    this.customVariables = [];
 
     // Comment Trays and Text Bubble Notes
     this.comments = []; // [{ id, title, x, y, width, height, collapsed, color, collapsedNodeIds }]
@@ -71,6 +70,7 @@ export class GraphState {
       nodes: this.nodes,
       wires: this.wires,
       nodeGraphVariables: this.nodeGraphVariables,
+      customVariables: this.customVariables,
       comments: this.comments || [],
       notes: this.notes || [],
       signals: signalsManager.serialize(),
@@ -94,6 +94,7 @@ export class GraphState {
     }
     if (obj && Array.isArray(obj.wires)) g.wires = obj.wires;
     if (obj && Array.isArray(obj.nodeGraphVariables)) g.nodeGraphVariables = obj.nodeGraphVariables;
+    if (obj && Array.isArray(obj.customVariables)) g.customVariables = obj.customVariables;
     if (obj && Array.isArray(obj.comments)) g.comments = obj.comments;
     if (obj && Array.isArray(obj.notes)) g.notes = obj.notes;
     if (obj && obj.signals && Array.isArray(obj.signals)) signalsManager.deserialize(obj.signals);
@@ -112,6 +113,7 @@ export class GraphState {
       nodes: this.nodes,
       wires: this.wires,
       nodeGraphVariables: this.nodeGraphVariables,
+      customVariables: this.customVariables,
       comments: this.comments || [],
       notes: this.notes || []
     });
@@ -128,6 +130,9 @@ export class GraphState {
       this.wires = snap.wires;
       if (snap.nodeGraphVariables) {
         this.nodeGraphVariables = snap.nodeGraphVariables;
+      }
+      if (snap.customVariables) {
+        this.customVariables = snap.customVariables;
       }
       this.comments = snap.comments || [];
       this.notes = snap.notes || [];
@@ -148,6 +153,9 @@ export class GraphState {
       if (snap.nodeGraphVariables) {
         this.nodeGraphVariables = snap.nodeGraphVariables;
       }
+      if (snap.customVariables) {
+        this.customVariables = snap.customVariables;
+      }
       this.comments = snap.comments || [];
       this.notes = snap.notes || [];
       this.selectedNodeIds.clear();
@@ -156,6 +164,107 @@ export class GraphState {
       return true;
     }
     return false;
+  }
+
+  // Custom Variables API (associated with game objects: self, guid, etc.)
+  getCustomVariables() {
+    return [...(this.customVariables || [])];
+  }
+
+  getCustomVariableByName(name, entityType = null) {
+    if (!name) return null;
+    return (this.customVariables || []).find(v => {
+      const matchName = (v.name || '').toLowerCase() === name.toLowerCase();
+      if (!matchName) return false;
+      if (entityType && v.entityType && v.entityType !== entityType) return false;
+      return true;
+    }) || null;
+  }
+
+  setCustomVariables(list) {
+    if (!Array.isArray(list)) return;
+    this.customVariables = list.map((item, idx) => ({
+      id: item.id || `cvar_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
+      entityType: item.entityType || 'self',
+      guid: item.guid || null,
+      guidAlias: item.guidAlias || null,
+      name: item.name || `Var_${idx + 1}`,
+      type: item.type || 'float',
+      defaultValue: item.defaultValue !== undefined ? String(item.defaultValue) : '0',
+      isGet: !!item.isGet
+    }));
+    this.saveSnapshot();
+    this.notify('custom_vars_changed');
+  }
+
+  addCustomVariable(data = {}) {
+    this.customVariables = this.customVariables || [];
+    let cleanName = (data.name || '').trim();
+    if (!cleanName) {
+      cleanName = `Damage${this.customVariables.length + 1}`;
+    }
+
+    const entityType = data.entityType || 'self';
+    const guidAlias = data.guidAlias || (entityType === 'guid' ? (data.guid ? `entity_${data.guid}` : 'boss') : null);
+    const guid = data.guid || (entityType === 'guid' ? '10003222' : null);
+    const type = data.type || 'float';
+    let defVal = data.defaultValue !== undefined ? String(data.defaultValue) : '';
+    if (defVal === '') {
+      if (type === 'int') defVal = '0';
+      else if (type === 'float') defVal = '0.0';
+      else if (type === 'bool') defVal = 'False';
+      else if (type === 'vector3') defVal = '(0, 0, 0)';
+      else if (type === 'string') defVal = '';
+      else defVal = '0';
+    }
+
+    const newCVar = {
+      id: `cvar_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      entityType,
+      guid,
+      guidAlias,
+      name: cleanName,
+      type,
+      defaultValue: String(defVal),
+      isGet: data.isGet !== undefined ? !!data.isGet : (defVal === 'get')
+    };
+
+    this.customVariables.push(newCVar);
+    this.saveSnapshot();
+    this.notify('custom_vars_changed');
+    return newCVar;
+  }
+
+  updateCustomVariable(id, updates = {}) {
+    const v = (this.customVariables || []).find(item => item.id === id);
+    if (!v) return false;
+
+    if (updates.name !== undefined) {
+      const trimmed = updates.name.trim();
+      if (trimmed) v.name = trimmed;
+    }
+    if (updates.entityType !== undefined) v.entityType = updates.entityType;
+    if (updates.guid !== undefined) v.guid = updates.guid;
+    if (updates.guidAlias !== undefined) v.guidAlias = updates.guidAlias;
+    if (updates.type !== undefined) v.type = updates.type;
+    if (updates.defaultValue !== undefined) {
+      v.defaultValue = String(updates.defaultValue);
+      v.isGet = (v.defaultValue === 'get');
+    }
+    if (updates.isGet !== undefined) {
+      v.isGet = !!updates.isGet;
+      if (v.isGet) v.defaultValue = 'get';
+    }
+
+    this.saveSnapshot();
+    this.notify('custom_vars_changed');
+    return true;
+  }
+
+  removeCustomVariable(id) {
+    this.customVariables = (this.customVariables || []).filter(v => v.id !== id);
+    this.saveSnapshot();
+    this.notify('custom_vars_changed');
   }
 
   // Node Graph Variables API
@@ -260,6 +369,40 @@ export class GraphState {
     return true;
   }
 
+  generateUniqueLocalVarName() {
+    const used = new Set();
+    (this.nodes || []).forEach(n => {
+      if (n && n.varName) used.add(String(n.varName).toLowerCase());
+    });
+    const letters = 'abcdefghijklmnopqrstuvwxyz';
+    for (let i = 0; i < 26; i++) {
+      const candidate = `var_${letters[i]}`;
+      if (!used.has(candidate)) return candidate;
+    }
+    for (let i = 1; i <= 1000; i++) {
+      const candidate = `var_${i}`;
+      if (!used.has(candidate)) return candidate;
+    }
+    return `var_${Date.now()}`;
+  }
+
+  generateUniqueListName() {
+    const used = new Set();
+    (this.nodes || []).forEach(n => {
+      if (n && n.listName) used.add(String(n.listName).toLowerCase());
+    });
+    const letters = 'abcdefghijklmnopqrstuvwxyz';
+    for (let i = 0; i < 26; i++) {
+      const candidate = `name_${letters[i]}`;
+      if (!used.has(candidate)) return candidate;
+    }
+    for (let i = 1; i <= 1000; i++) {
+      const candidate = `name_${i}`;
+      if (!used.has(candidate)) return candidate;
+    }
+    return `name_${Date.now()}`;
+  }
+
   createNode(blueprintId, x = 200, y = 200, customData = {}) {
     const parsed = parseNodeBlueprintAndType(blueprintId);
     const bp = parsed.blueprint || getNodeBlueprint(blueprintId);
@@ -356,6 +499,16 @@ export class GraphState {
 
     const detectedDataType = customData.dataType || parsed.dataType || null;
 
+    let nodeVarName = customData.varName || null;
+    if (!nodeVarName && bp.id === 'exec_set_local_var') {
+      nodeVarName = this.generateUniqueLocalVarName();
+    }
+
+    let nodeListName = customData.listName || null;
+    if (!nodeListName && (bp.id === 'op_assembly_list' || (bp.name || '').toLowerCase() === 'assembly list' || bp.canAddDynamicInputs)) {
+      nodeListName = this.generateUniqueListName();
+    }
+
     const nodeInstance = {
       id,
       blueprintId: bp.id,
@@ -366,7 +519,8 @@ export class GraphState {
       y: Math.round(y),
       inputValues: { ...inputValues, ...customData.inputValues },
       pinTypes: { ...(customData.pinTypes || {}) },
-      varName: customData.varName || null,
+      varName: nodeVarName,
+      listName: nodeListName,
       guidAlias: customData.guidAlias || null,
       alias: customData.alias || null,
       dynamicInputs: customData.dynamicInputs || (bp.canAddDynamicInputs ? ['0'] : []),
@@ -530,6 +684,14 @@ export class GraphState {
         x: newX,
         y: newY
       };
+
+      if (clone.blueprintId === 'exec_set_local_var') {
+        const hasPairedGetInPaste = this.clipboard.wires?.some(w => !w.isExec && w.toNode === orig.id && w.toPin === 'Local Variable');
+        if (!hasPairedGetInPaste) {
+          clone.varName = this.generateUniqueLocalVarName();
+        }
+      }
+
       newNodes.push(clone);
     }
 
@@ -563,6 +725,10 @@ export class GraphState {
     this.saveSnapshot();
     this.notify('nodes_pasted');
     return newNodes;
+  }
+
+  connectWires(fromNode, fromPin, toNode, toPin, isExec = false) {
+    return this.addWire(fromNode, fromPin, toNode, toPin, isExec);
   }
 
   addWire(fromNode, fromPin, toNode, toPin, isExec = false) {

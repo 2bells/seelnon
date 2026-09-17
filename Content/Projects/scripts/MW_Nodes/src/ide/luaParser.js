@@ -28,63 +28,294 @@ function resolveNode(fn) {
     REVERSE = new Map();
     (NODE_REGISTRY || []).forEach(bp => {
       const key = toCamel(bp.name);
-      if (key && !REVERSE.has(key)) REVERSE.set(key, bp);
+      if (key) {
+        if (!REVERSE.has(key)) REVERSE.set(key, bp);
+        if (!REVERSE.has(key.toLowerCase())) REVERSE.set(key.toLowerCase(), bp);
+      }
       const idKey = toCamel(bp.id);
-      if (idKey && !REVERSE.has(idKey)) REVERSE.set(idKey, bp);
+      if (idKey) {
+        if (!REVERSE.has(idKey)) REVERSE.set(idKey, bp);
+        if (!REVERSE.has(idKey.toLowerCase())) REVERSE.set(idKey.toLowerCase(), bp);
+      }
+      const strippedId = bp.id.replace(/^(exec_|query_|op_|flow_|event_)/, '');
+      const strippedKey = toCamel(strippedId);
+      if (strippedKey) {
+        if (!REVERSE.has(strippedKey)) REVERSE.set(strippedKey, bp);
+        if (!REVERSE.has(strippedKey.toLowerCase())) REVERSE.set(strippedKey.toLowerCase(), bp);
+      }
     });
 
     // Explicit function name bindings for custom variables and entity queries
     const baseSetCustomVar = getNodeBlueprint('exec_set_custom_var');
-    REVERSE.set('setCustomVar', baseSetCustomVar);
-    REVERSE.set('setCustomVariable', baseSetCustomVar);
-    REVERSE.set('setCustomVarInt', { ...baseSetCustomVar, dataType: 'int' });
-    REVERSE.set('setCustomVarFloat', { ...baseSetCustomVar, dataType: 'float' });
-    REVERSE.set('setCustomVarBool', { ...baseSetCustomVar, dataType: 'bool' });
-    REVERSE.set('setCustomVarString', { ...baseSetCustomVar, dataType: 'string' });
-    REVERSE.set('setCustomVarVector3', { ...baseSetCustomVar, dataType: 'vector3' });
-    REVERSE.set('setCustomVarEntity', { ...baseSetCustomVar, dataType: 'entity' });
+    if (baseSetCustomVar) {
+      REVERSE.set('setCustomVar', baseSetCustomVar);
+      REVERSE.set('setcustomvar', baseSetCustomVar);
+      REVERSE.set('setCustomVariable', baseSetCustomVar);
+      REVERSE.set('setcustomvariable', baseSetCustomVar);
+      REVERSE.set('setCustomVarInt', { ...baseSetCustomVar, dataType: 'int' });
+      REVERSE.set('setcustomvarint', { ...baseSetCustomVar, dataType: 'int' });
+      REVERSE.set('setCustomVarFloat', { ...baseSetCustomVar, dataType: 'float' });
+      REVERSE.set('setcustomvarfloat', { ...baseSetCustomVar, dataType: 'float' });
+      REVERSE.set('setCustomVarBool', { ...baseSetCustomVar, dataType: 'bool' });
+      REVERSE.set('setcustomvarbool', { ...baseSetCustomVar, dataType: 'bool' });
+      REVERSE.set('setCustomVarString', { ...baseSetCustomVar, dataType: 'string' });
+      REVERSE.set('setcustomvarstring', { ...baseSetCustomVar, dataType: 'string' });
+      REVERSE.set('setCustomVarVector3', { ...baseSetCustomVar, dataType: 'vector3' });
+      REVERSE.set('setcustomvarvector3', { ...baseSetCustomVar, dataType: 'vector3' });
+      REVERSE.set('setCustomVarEntity', { ...baseSetCustomVar, dataType: 'entity' });
+      REVERSE.set('setcustomvarentity', { ...baseSetCustomVar, dataType: 'entity' });
+    }
 
     const baseGetCustomVar = getNodeBlueprint('query_get_custom_var');
-    REVERSE.set('getCustomVar', baseGetCustomVar);
-    REVERSE.set('getCustomVariable', baseGetCustomVar);
-    REVERSE.set('getCustomVarInt', { ...baseGetCustomVar, dataType: 'int' });
-    REVERSE.set('getCustomVarFloat', { ...baseGetCustomVar, dataType: 'float' });
-    REVERSE.set('getCustomVarBool', { ...baseGetCustomVar, dataType: 'bool' });
-    REVERSE.set('getCustomVarString', { ...baseGetCustomVar, dataType: 'string' });
-    REVERSE.set('getCustomVarVector3', { ...baseGetCustomVar, dataType: 'vector3' });
-    REVERSE.set('getCustomVarEntity', { ...baseGetCustomVar, dataType: 'entity' });
+    if (baseGetCustomVar) {
+      REVERSE.set('getCustomVar', baseGetCustomVar);
+      REVERSE.set('getcustomvar', baseGetCustomVar);
+      REVERSE.set('getCustomVariable', baseGetCustomVar);
+      REVERSE.set('getcustomvariable', baseGetCustomVar);
+      REVERSE.set('getCustomVarInt', { ...baseGetCustomVar, dataType: 'int' });
+      REVERSE.set('getcustomvarint', { ...baseGetCustomVar, dataType: 'int' });
+      REVERSE.set('getCustomVarFloat', { ...baseGetCustomVar, dataType: 'float' });
+      REVERSE.set('getcustomvarfloat', { ...baseGetCustomVar, dataType: 'float' });
+      REVERSE.set('getCustomVarBool', { ...baseGetCustomVar, dataType: 'bool' });
+      REVERSE.set('getcustomvarbool', { ...baseGetCustomVar, dataType: 'bool' });
+      REVERSE.set('getCustomVarString', { ...baseGetCustomVar, dataType: 'string' });
+      REVERSE.set('getcustomvarstring', { ...baseGetCustomVar, dataType: 'string' });
+      REVERSE.set('getCustomVarVector3', { ...baseGetCustomVar, dataType: 'vector3' });
+      REVERSE.set('getcustomvarvector3', { ...baseGetCustomVar, dataType: 'vector3' });
+      REVERSE.set('getCustomVarEntity', { ...baseGetCustomVar, dataType: 'entity' });
+      REVERSE.set('getcustomvarentity', { ...baseGetCustomVar, dataType: 'entity' });
+    }
 
     REVERSE.set('getSelfEntity', getNodeBlueprint('query_get_self_entity'));
+    REVERSE.set('getselfentity', getNodeBlueprint('query_get_self_entity'));
     REVERSE.set('queryEntityByGuid', getNodeBlueprint('query_query_entity_by_guid'));
+    REVERSE.set('queryentitybyguid', getNodeBlueprint('query_query_entity_by_guid'));
     REVERSE.set('queryEntitybyGUID', getNodeBlueprint('query_query_entity_by_guid'));
     REVERSE.set('queryEntityByGUID', getNodeBlueprint('query_query_entity_by_guid'));
     REVERSE.set('doubleBranch', getNodeBlueprint('flow_double_branch'));
+    REVERSE.set('doublebranch', getNodeBlueprint('flow_double_branch'));
   }
-  return REVERSE.get(fn) || null;
+  return REVERSE.get(fn) || (typeof fn === 'string' ? REVERSE.get(fn.toLowerCase()) : null) || null;
 }
 
 function normalizeTypeName(t) {
   if (!t) return 'string';
   const lt = String(t).toLowerCase().trim();
+  if (lt.endsWith(' list')) {
+    const elem = lt.replace(/\s+list$/, '').trim();
+    return `${normalizeTypeName(elem)} list`;
+  }
   if (lt === 'int' || lt === 'integer' || lt === 'number') return 'int';
   if (lt === 'float' || lt === 'floating-point' || lt === 'real' || lt === 'double') return 'float';
   if (lt === 'bool' || lt === 'boolean') return 'bool';
   if (lt === 'string' || lt === 'str' || lt === 'text') return 'string';
-  if (lt === 'vector3' || lt === 'vector' || lt === '3d vector' || lt === 'vec3') return 'vector3';
+  if (lt === 'vector3' || lt === 'vector' || lt === '3d vector' || lt === 'vec3' || lt === '3d_vector' || lt === '_3d_vector') return 'vector3';
   if (lt === 'entity') return 'entity';
   if (lt === 'guid') return 'guid';
   if (lt === 'list') return 'list';
   if (lt === 'dict' || lt === 'dictionary') return 'dict';
+  if (lt === 'faction') return 'faction';
+  if (lt === 'config_id' || lt === 'config' || lt === 'configuration') return 'config_id';
+  if (lt === 'prefab_id' || lt === 'prefab') return 'prefab_id';
+  if (lt === 'structure') return 'structure';
   return 'string';
 }
 
-function inferTypeFromVal(valStr) {
+export function formatVec3(val) {
+  if (val === null || val === undefined) return '(x = 0.0, y = 0.0, z = 0.0)';
+  if (typeof val === 'object' && val !== null) {
+    const x = val.x !== undefined ? val.x : '0.0';
+    const y = val.y !== undefined ? val.y : '0.0';
+    const z = val.z !== undefined ? val.z : '0.0';
+    return `(x = ${x}, y = ${y}, z = ${z})`;
+  }
+  const s = String(val).trim();
+  if ((s.startsWith('(') && s.endsWith(')')) || (s.startsWith('{') && s.endsWith('}'))) {
+    const inner = s.slice(1, -1).trim();
+    const xMatch = /\bx\s*[:=]\s*([^,]+)/i.exec(inner);
+    const yMatch = /\by\s*[:=]\s*([^,]+)/i.exec(inner);
+    const zMatch = /\bz\s*[:=]\s*([^,]+)/i.exec(inner);
+    if (xMatch || yMatch || zMatch) {
+      const x = xMatch ? xMatch[1].trim() : '0.0';
+      const y = yMatch ? yMatch[1].trim() : '0.0';
+      const z = zMatch ? zMatch[1].trim() : '0.0';
+      return `(x = ${x}, y = ${y}, z = ${z})`;
+    }
+    const parts = inner.split(',').map(p => p.trim());
+    if (parts.length === 3) {
+      return `(x = ${parts[0] || '0.0'}, y = ${parts[1] || '0.0'}, z = ${parts[2] || '0.0'})`;
+    }
+  }
+  return s;
+}
+
+export function inferTypeFromVal(valStr) {
   const s = String(valStr ?? '').trim();
   if (s === 'true' || s === 'false' || s === 'True' || s === 'False') return 'bool';
   if (/^-?\d+\.\d+$/.test(s)) return 'float';
   if (/^-?\d+$/.test(s)) return 'int';
-  if (s.startsWith('{') || s.startsWith('(')) return 'vector3';
+  if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) return 'string';
+
+  // Vector3 in circle brackets: (x = 1.1, y = 2.2, z = 3.3) or (1.1, 2.2, 3.3) or (1, 2, 3)
+  if (s.startsWith('(') && s.endsWith(')')) {
+    const inner = s.slice(1, -1).trim();
+    if (/\b[xyz]\s*[:=]/i.test(inner)) return 'vector3';
+    const parts = inner.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.length === 3 && parts.every(p => /^-?\d+(\.\d+)?$/.test(p))) {
+      return 'vector3';
+    }
+  }
+
+  // Lists in curly braces: { ... }
+  if (s.startsWith('{') && s.endsWith('}')) {
+    const inner = s.slice(1, -1).trim();
+    if (!inner) return 'int list';
+
+    // Dictionary check
+    if (/^[a-zA-Z_]\w*\s*=\s*[^,]+(,\s*[a-zA-Z_]\w*\s*=\s*[^,]+)*$/.test(inner) && !inner.startsWith('(')) {
+      return 'dict';
+    }
+
+    // Split elements respecting nested parens and braces
+    const elems = [];
+    let cur = '';
+    let parenDepth = 0;
+    let braceDepth = 0;
+    for (let i = 0; i < inner.length; i++) {
+      const c = inner[i];
+      if (c === '(') parenDepth++;
+      else if (c === ')') parenDepth--;
+      else if (c === '{') braceDepth++;
+      else if (c === '}') braceDepth--;
+
+      if (c === ',' && parenDepth === 0 && braceDepth === 0) {
+        if (cur.trim()) elems.push(cur.trim());
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    if (cur.trim()) elems.push(cur.trim());
+
+    if (elems.length === 0) return 'int list';
+
+    let hasVector3 = false;
+    let hasFloat = false;
+    let hasBool = false;
+    let hasString = false;
+    let hasInt = false;
+
+    for (const elem of elems) {
+      if ((elem.startsWith('(') && elem.endsWith(')')) || /\b[xyz]\s*[:=]/i.test(elem)) {
+        hasVector3 = true;
+      } else if (elem === 'true' || elem === 'false' || elem === 'True' || elem === 'False') {
+        hasBool = true;
+      } else if ((elem.startsWith("'") && elem.endsWith("'")) || (elem.startsWith('"') && elem.endsWith('"'))) {
+        hasString = true;
+      } else if (/^-?\d+\.\d+$/.test(elem)) {
+        hasFloat = true;
+      } else if (/^-?\d+$/.test(elem)) {
+        hasInt = true;
+      } else if (elem.includes('.') && /^-?\d/.test(elem)) {
+        hasFloat = true;
+      }
+    }
+
+    if (hasVector3) return 'vector3 list';
+    if (hasString) return 'string list';
+    if (hasBool && !hasFloat && !hasInt) return 'bool list';
+    if (hasFloat) return 'float list';
+    if (hasInt) return 'int list';
+    return 'int list';
+  }
+
   return 'string';
+}
+
+function readValueExpression(T, startIdx) {
+  let j = startIdx;
+  if (j >= T.length) return { rawVal: '0', nextIdx: j };
+
+  const firstTk = T[j];
+  if (firstTk.t === '{') {
+    let depth = 1;
+    let parts = ['{'];
+    j++;
+    while (j < T.length && depth > 0) {
+      const tk = T[j];
+      if (tk.t === '{') depth++;
+      else if (tk.t === '}') depth--;
+
+      if (tk.t === 'str') parts.push(`'${tk.v}'`);
+      else parts.push(tk.raw || tk.v);
+      j++;
+    }
+    let rawVal = parts.join(' ');
+    rawVal = rawVal.replace(/\s*,\s*/g, ', ').replace(/\{\s*/g, '{ ').replace(/\s*\}/g, ' }');
+    return { rawVal, nextIdx: j };
+  }
+
+  if (firstTk.t === '(') {
+    let depth = 1;
+    let parts = ['('];
+    j++;
+    while (j < T.length && depth > 0) {
+      const tk = T[j];
+      if (tk.t === '(') depth++;
+      else if (tk.t === ')') depth--;
+
+      if (tk.t === 'str') parts.push(`'${tk.v}'`);
+      else parts.push(tk.raw || tk.v);
+      j++;
+    }
+    let rawVal = parts.join(' ');
+    rawVal = rawVal.replace(/\s*,\s*/g, ', ').replace(/\(\s*/g, '(').replace(/\s*\)/g, ')');
+    const inner = rawVal.slice(1, -1).trim();
+    const partsList = inner.split(',').map(p => p.trim());
+    if (partsList.length === 3 || /\b[xyz]\s*[:=]/i.test(inner)) {
+      rawVal = formatVec3(rawVal);
+    }
+    return { rawVal, nextIdx: j };
+  }
+
+  if (firstTk.t === 'str') {
+    return { rawVal: `'${firstTk.v}'`, nextIdx: j + 1 };
+  }
+
+  if (firstTk.t === 'num') {
+    return { rawVal: firstTk.raw || String(firstTk.v), nextIdx: j + 1 };
+  }
+
+  return { rawVal: String(firstTk.v), nextIdx: j + 1 };
+}
+
+export function parseElementsFromBracedString(s) {
+  const str = String(s || '').trim();
+  if (!str.startsWith('{') || !str.endsWith('}')) {
+    return str ? [str] : [];
+  }
+  const inner = str.slice(1, -1).trim();
+  if (!inner) return [];
+  const elems = [];
+  let cur = '';
+  let parenDepth = 0;
+  let braceDepth = 0;
+  for (let i = 0; i < inner.length; i++) {
+    const c = inner[i];
+    if (c === '(') parenDepth++;
+    else if (c === ')') parenDepth--;
+    else if (c === '{') braceDepth++;
+    else if (c === '}') braceDepth--;
+
+    if (c === ',' && parenDepth === 0 && braceDepth === 0) {
+      if (cur.trim()) elems.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  if (cur.trim()) elems.push(cur.trim());
+  return elems;
 }
 
 export class LuaParser {
@@ -115,7 +346,6 @@ class _LuaParser {
     const handlers = this.findHandlers(T);
 
     if (handlers.length === 0) {
-      // If no explicit `f.on(...)` handler is found, create a default root handler
       handlers.push({ bodyStart: 0, end: T.length, evId: null, evName: 'whenTabSelected' });
     }
 
@@ -128,7 +358,7 @@ class _LuaParser {
       this.T = T.slice(h.bodyStart, h.end);
       this.i = 0;
 
-      const ev = this.makeEventNode(h.evName);
+      const ev = this.makeEventNode(h.evName, h.isSignal, h.signalName);
       ev.x = 100;
       ev.y = 150;
       if (h.evId && !this.takenIds.has(h.evId)) { ev.id = h.evId; this.takenIds.add(h.evId); }
@@ -139,93 +369,6 @@ class _LuaParser {
 
       let currentExec = ev;
       let curX = ev.x + 360;
-
-      // Authoritative Custom Variable Initialisation:
-      // When `-- Custom Variables` is declared at top of file, it has absolute priority.
-      // We synthesize the clean initialization nodes directly from `this.customVariables`.
-      if (Array.isArray(this.customVariables) && this.customVariables.length > 0) {
-        for (const cv of this.customVariables) {
-          const setVarNode = this.makeNode('exec_set_custom_var', 'Set Custom Variable', 'execution');
-          setVarNode.x = curX;
-          setVarNode.y = 150;
-          setVarNode.inputValues['Variable Name'] = cv.name;
-          setVarNode.inputValues['Trigger Event'] = 'False';
-          setVarNode.dataType = cv.type || 'float';
-          const bp = getNodeBlueprint('exec_set_custom_var');
-          if (bp) applyDataTypeToNode(setVarNode, bp, cv.type || 'float');
-          this.nodes.push(setVarNode);
-
-          // Create target entity query node
-          if (cv.entityType === 'self') {
-            const selfNode = this.makeNode('query_get_self_entity', 'Get Self Entity', 'query');
-            selfNode.x = setVarNode.x - 140;
-            selfNode.y = setVarNode.y + 230;
-            this.nodes.push(selfNode);
-            this.wires.push({
-              id: this.nextWireId(),
-              fromNode: selfNode.id,
-              fromPin: 'Self Entity',
-              toNode: setVarNode.id,
-              toPin: 'Target Entity',
-              isExec: false
-            });
-          } else if (cv.entityType === 'guid') {
-            const guidNode = this.makeNode('query_query_entity_by_guid', 'Query Entity by GUID', 'query');
-            guidNode.x = setVarNode.x - 220;
-            guidNode.y = setVarNode.y + 230;
-            guidNode.inputValues['GUID'] = cv.guid || '0';
-            if (cv.guidAlias) guidNode.guidAlias = cv.guidAlias;
-            this.nodes.push(guidNode);
-            this.wires.push({
-              id: this.nextWireId(),
-              fromNode: guidNode.id,
-              fromPin: 'Entity',
-              toNode: setVarNode.id,
-              toPin: 'Target Entity',
-              isExec: false
-            });
-          }
-
-          // Variable Value: if 'get' or empty or isGet, wire to Get Custom Variable
-          const isGet = cv.defaultValue === 'get' || cv.isGet || !cv.defaultValue;
-          if (isGet) {
-            setVarNode.inputValues['Variable Value'] = '';
-            if (cv.entityType === 'self') {
-              const getVarRef = this.createGetCustomVarSelfNode(cv.name);
-              if (getVarRef && getVarRef.nodeId) {
-                this.wires.push({
-                  id: this.nextWireId(),
-                  fromNode: getVarRef.nodeId,
-                  fromPin: 'Variable Value',
-                  toNode: setVarNode.id,
-                  toPin: 'Variable Value',
-                  isExec: false
-                });
-              }
-            } else if (cv.entityType === 'guid') {
-              const getVarRef = this.createGetCustomVarGuidNode(cv.name, cv.guid || '0', cv.guidAlias);
-              if (getVarRef && getVarRef.nodeId) {
-                this.wires.push({
-                  id: this.nextWireId(),
-                  fromNode: getVarRef.nodeId,
-                  fromPin: 'Variable Value',
-                  toNode: setVarNode.id,
-                  toPin: 'Variable Value',
-                  isExec: false
-                });
-              }
-            }
-          } else {
-            setVarNode.inputValues['Variable Value'] = cv.defaultValue;
-          }
-
-          // Wire in the execution chain at the start
-          this.connectExec(currentExec, setVarNode);
-          currentExec = setVarNode;
-          curX += 360;
-        }
-      }
-
       this.x = curX;
 
       // Pass 2: build execution flow / control for game logic
@@ -286,7 +429,69 @@ class _LuaParser {
         break;
       }
 
-      // 1. Direct namespaced syntax: `self.Damage: float = get` or `self.Damage: float`
+      // 0. Standalone / Lone List syntax: `list.name: int list = {1, 2, 3, 4}` or `list.name = {1, 2, 3, 4}`
+      if (tk.t === 'id' && tk.v === 'list' && T[i + 1]?.t === '.' && (T[i + 2]?.t === 'id' || T[i + 2]?.t === 'num')) {
+        const listName = String(T[i + 2].v);
+        let j = i + 3;
+        let declaredType = null;
+        if (T[j]?.t === ':') {
+          j++;
+          let typeStr = '';
+          while (j < n && T[j]?.t === 'id') {
+            typeStr += (typeStr ? ' ' : '') + T[j].v;
+            j++;
+          }
+          declaredType = normalizeTypeName(typeStr);
+        }
+        if (T[j]?.t === '=') {
+          j++;
+        }
+        const res = readValueExpression(T, j);
+        const rawVal = res.rawVal;
+        j = res.nextIdx;
+
+        let elemType = declaredType ? declaredType.replace(/\s+list$/i, '').trim() : null;
+        if (!elemType) {
+          const inferred = inferTypeFromVal(rawVal);
+          elemType = inferred.replace(/\s+list$/i, '').trim();
+        }
+        if (!elemType || elemType === 'list') elemType = 'int';
+
+        const listNode = this.makeNode('op_assembly_list', 'Assembly List', 'operation');
+        listNode.listName = listName;
+        listNode.dataType = elemType;
+        listNode.x = 220;
+        listNode.y = 120 + (this.nodes.length * 150);
+
+        // Parse list elements
+        const rawElems = parseElementsFromBracedString(rawVal);
+        const dynamicKeys = [];
+        for (let k = 0; k < Math.max(1, rawElems.length); k++) {
+          const key = String(k);
+          dynamicKeys.push(key);
+          let elemVal = rawElems[k] !== undefined ? rawElems[k] : (elemType === 'vector3' ? '(x = 0.0, y = 0.0, z = 0.0)' : '0');
+          if (elemType === 'string') {
+            elemVal = elemVal.trim();
+            if ((elemVal.startsWith("'") && elemVal.endsWith("'")) || (elemVal.startsWith('"') && elemVal.endsWith('"'))) {
+              elemVal = elemVal.slice(1, -1);
+            }
+          }
+          listNode.inputValues[key] = elemType === 'vector3' ? formatVec3(elemVal) : elemVal;
+        }
+        listNode.dynamicInputs = dynamicKeys;
+        const bp = getNodeBlueprint('op_assembly_list');
+        if (bp) applyDataTypeToNode(listNode, bp, elemType);
+
+        if (!this.listNodes) this.listNodes = new Map();
+        this.listNodes.set('list.' + listName, listNode);
+        this.listNodes.set(listName, listNode);
+        this.nodes.push(listNode);
+
+        i = j;
+        continue;
+      }
+
+      // 1. Direct namespaced syntax: `self.Damage: float = get` or `self.Damage: float = 3.3` or `self.Damage = 3`
       if (tk.t === 'id' && tk.v === 'self' && T[i + 1]?.t === '.' && T[i + 2]?.t === 'id') {
         const varName = T[i + 2].v;
         let j = i + 3;
@@ -300,14 +505,15 @@ class _LuaParser {
         }
         let rawVal = 'get';
         if (T[j]?.t === '=') {
-          j++;
-          const valTk = T[j];
-          if (valTk) { rawVal = String(valTk.v); j++; }
+          const res = readValueExpression(T, j + 1);
+          rawVal = res.rawVal;
+          j = res.nextIdx;
         }
         if (!varType) varType = inferTypeFromVal(rawVal);
         this.customVariables.push({
           entityType: 'self',
           guid: null,
+          guidAlias: null,
           name: varName,
           type: varType,
           defaultValue: rawVal,
@@ -317,30 +523,41 @@ class _LuaParser {
         continue;
       }
 
-      // 2. Direct namespaced guid syntax: `guid.Boss = 1008221` (definition) or `guid.Boss.HP: int = 100` or `guid.HP: int = 100`
+      // 2. Direct namespaced guid syntax: `guid.Boss = 1008221` (definition) or `guid.Boss.HP: int = 100` or `guid.HP = 100`
       if (tk.t === 'id' && tk.v === 'guid') {
         // A) `guid = 1008221`
         if (T[i + 1]?.t === '=') {
-          const guidVal = T[i + 2]?.v ?? '0';
-          currentCustomEntity = { type: 'guid', guid: String(guidVal) };
-          this.guidEntities.set('guid', String(guidVal));
+          let guidVal = String(T[i + 2]?.raw || T[i + 2]?.v || '0000000000');
+          if (!guidVal || guidVal === '0') guidVal = '0000000000';
+          currentCustomEntity = { type: 'guid', guid: guidVal, alias: null };
+          this.guidEntities.set('guid', guidVal);
           i += 3;
           continue;
         }
-        // B) `guid.Boss = 1008221` or `guid.1 = 1008221`
-        if (T[i + 1]?.t === '.' && (T[i + 2]?.t === 'id' || T[i + 2]?.t === 'num') && T[i + 3]?.t === '=') {
+        // B) `guid.Boss = 1008221` or `guid.boss` (without `=`)
+        if (T[i + 1]?.t === '.' && (T[i + 2]?.t === 'id' || T[i + 2]?.t === 'num')) {
           const alias = String(T[i + 2].v);
-          const guidVal = String(T[i + 4]?.v ?? '0');
-          this.guidEntities.set(alias.toLowerCase(), guidVal);
-          currentCustomEntity = { type: 'guid', guid: guidVal, alias };
-          i += 5;
-          continue;
+          if (T[i + 3]?.t === '=') {
+            let guidVal = String(T[i + 4]?.raw || T[i + 4]?.v || '0000000000');
+            if (!guidVal || guidVal === '0') guidVal = '0000000000';
+            this.guidEntities.set(alias.toLowerCase(), guidVal);
+            currentCustomEntity = { type: 'guid', guid: guidVal, alias };
+            i += 5;
+            continue;
+          } else if (T[i + 3]?.t !== '.') {
+            // Standalone `guid.boss` declaration (default 10 zeros)
+            const guidVal = '0000000000';
+            this.guidEntities.set(alias.toLowerCase(), guidVal);
+            currentCustomEntity = { type: 'guid', guid: guidVal, alias };
+            i += 3;
+            continue;
+          }
         }
-        // C) `guid.Boss.HP: int = 100` or `guid.1.HP: int = 100` or `guid.Boss.HP: int`
+        // C) `guid.Boss.HP: int = 100` or `guid.Boss.HP = 100`
         if (T[i + 1]?.t === '.' && (T[i + 2]?.t === 'id' || T[i + 2]?.t === 'num') && T[i + 3]?.t === '.' && T[i + 4]?.t === 'id') {
           const alias = String(T[i + 2].v);
           const varName = T[i + 4].v;
-          const resolvedGuid = this.guidEntities.get(alias.toLowerCase()) || (/^\d+$/.test(alias) ? alias : '0');
+          const resolvedGuid = this.guidEntities.get(alias.toLowerCase()) || (/^\d{5,}$/.test(alias) ? alias : '0000000000');
           let j = i + 5;
           let varType = null;
           if (T[j]?.t === ':') {
@@ -349,9 +566,9 @@ class _LuaParser {
           }
           let rawVal = 'get';
           if (T[j]?.t === '=') {
-            j++;
-            const valTk = T[j];
-            if (valTk) { rawVal = String(valTk.v); j++; }
+            const res = readValueExpression(T, j + 1);
+            rawVal = res.rawVal;
+            j = res.nextIdx;
           }
           if (!varType) varType = inferTypeFromVal(rawVal);
           this.customVariables.push({
@@ -366,40 +583,12 @@ class _LuaParser {
           i = j;
           continue;
         }
-        // D) `guid.HP: int = 100` or `guid.HP: int`
-        if (T[i + 1]?.t === '.' && T[i + 2]?.t === 'id' && (T[i + 3]?.t === ':' || T[i + 3]?.t === '=' || inCustomVarsSection)) {
-          const varName = T[i + 2].v;
-          let j = i + 3;
-          let varType = null;
-          if (T[j]?.t === ':') {
-            j++;
-            if (T[j]?.t === 'id') { varType = normalizeTypeName(T[j].v); j++; }
-          }
-          let rawVal = 'get';
-          if (T[j]?.t === '=') {
-            j++;
-            const valTk = T[j];
-            if (valTk) { rawVal = String(valTk.v); j++; }
-          }
-          if (!varType) varType = inferTypeFromVal(rawVal);
-          const resolvedGuid = this.guidEntities.get('guid') || '1008221';
-          this.customVariables.push({
-            entityType: 'guid',
-            guid: resolvedGuid,
-            name: varName,
-            type: varType,
-            defaultValue: rawVal,
-            isGet: rawVal === 'get' || !rawVal
-          });
-          i = j;
-          continue;
-        }
       }
 
       // 3. Section header keywords: `self` or `none` block
       if (inCustomVarsSection) {
-        if (tk.t === 'id' && tk.v === 'self') {
-          currentCustomEntity = { type: 'self' };
+        if (tk.t === 'id' && tk.v === 'self' && T[i + 1]?.t !== '.' && T[i + 1]?.t !== ':') {
+          currentCustomEntity = { type: 'self', guid: null, alias: null };
           i++;
           continue;
         }
@@ -410,19 +599,73 @@ class _LuaParser {
         }
       }
 
-      // 4. Check for Variable Declarations: `<Ident>: <type> = <val>` or `<Ident>: <type>`
+      // 4. Multiple assignment check: `local a, b, c = 1, 2.5, 'three'` or `a, b, c = 1, 2.5, 'three'`
       let isLocalPrefixed = false;
-      let varIdentIdx = i;
-
+      let checkIdx = i;
       if (tk.t === 'id' && tk.v === 'local') {
         isLocalPrefixed = true;
-        varIdentIdx = i + 1;
+        checkIdx = i + 1;
       }
 
-      const varTk = T[varIdentIdx];
+      const firstIdent = T[checkIdx];
+      if (firstIdent && firstIdent.t === 'id' && !['f', 'function', 'require', 'if', 'end', 'self', 'guid', 'return'].includes(firstIdent.v)) {
+        // Check if there's a comma list of identifiers: a, b, c
+        const varNames = [firstIdent.v];
+        let p = checkIdx + 1;
+        while (p < n && T[p]?.t === ',' && T[p + 1]?.t === 'id') {
+          varNames.push(T[p + 1].v);
+          p += 2;
+        }
+
+        if (varNames.length > 1 && T[p]?.t === '=') {
+          // Parse multiple values separated by commas
+          p++; // skip '='
+          const rawValues = [];
+          while (p < n && rawValues.length < varNames.length) {
+            const res = readValueExpression(T, p);
+            rawValues.push(res.rawVal);
+            p = res.nextIdx;
+            if (T[p]?.t === ',') p++;
+            else break;
+          }
+
+          for (let k = 0; k < varNames.length; k++) {
+            const vName = varNames[k];
+            const rVal = rawValues[k] !== undefined ? rawValues[k] : '0';
+            const vType = inferTypeFromVal(rVal);
+
+            if (inCustomVarsSection && currentCustomEntity) {
+              this.customVariables.push({
+                entityType: currentCustomEntity.type,
+                guid: currentCustomEntity.guid || (currentCustomEntity.type === 'guid' ? '0000000000' : null),
+                guidAlias: currentCustomEntity.alias || (currentCustomEntity.type === 'guid' ? 'boss' : null),
+                name: vName,
+                type: vType,
+                defaultValue: rVal,
+                isGet: rVal === 'get' || !rVal
+              });
+            } else {
+              const gv = {
+                name: vName,
+                type: vType,
+                defaultValue: rVal,
+                value: rVal
+              };
+              this.graphVariables.push(gv);
+              this.varToGraphVar.set(vName.toLowerCase(), gv);
+              this.varToGraphVar.set(vName, gv);
+            }
+          }
+          i = p;
+          continue;
+        }
+      }
+
+      // 5. Standard single variable declaration: `<Ident>: <type> = <val>` or `<Ident> = <val>` or `<Ident>: <type>`
+      const varTk = T[checkIdx];
       if (varTk && varTk.t === 'id' && !['f', 'function', 'require', 'if', 'end', 'self', 'guid', 'return'].includes(varTk.v)) {
         const rawVarName = varTk.v;
-        let j = varIdentIdx + 1;
+        let j = checkIdx + 1;
         let varType = null;
 
         // Check for type annotation: `: int`
@@ -438,12 +681,9 @@ class _LuaParser {
         if (T[j]?.t === '=' || (inCustomVarsSection && currentCustomEntity && varType)) {
           let rawVal = (inCustomVarsSection && currentCustomEntity) ? 'get' : '0';
           if (T[j]?.t === '=') {
-            j++;
-            const valTk = T[j];
-            if (valTk) {
-              rawVal = String(valTk.v);
-              j++;
-            }
+            const res = readValueExpression(T, j + 1);
+            rawVal = res.rawVal;
+            j = res.nextIdx;
           }
 
           if (!varType) {
@@ -454,8 +694,8 @@ class _LuaParser {
             // Register Custom Variable under active entity block
             this.customVariables.push({
               entityType: currentCustomEntity.type,
-              guid: currentCustomEntity.guid || null,
-              guidAlias: currentCustomEntity.alias || null,
+              guid: currentCustomEntity.guid || (currentCustomEntity.type === 'guid' ? '0000000000' : null),
+              guidAlias: currentCustomEntity.alias || (currentCustomEntity.type === 'guid' ? 'boss' : null),
               name: rawVarName,
               type: varType,
               defaultValue: rawVal,
@@ -521,7 +761,7 @@ class _LuaParser {
       if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1] || ''))) {
         let s = '';
         while (i < n && /[0-9.eE+-]/.test(src[i])) { s += src[i]; i++; }
-        T.push({ t: 'num', v: parseFloat(s) });
+        T.push({ t: 'num', v: parseFloat(s), raw: s });
         continue;
       }
 
@@ -535,7 +775,7 @@ class _LuaParser {
 
       // Two-character operators
       const two = src.slice(i, i + 2);
-      if (['==', '~=', '!=', '<=', '>=', '..'].includes(two)) {
+      if (['==', '~=', '!=', '<=', '>=', '..', '+=', '-=', '*=', '/=', '++', '--'].includes(two)) {
         T.push({ t: two, v: two });
         i += 2;
         continue;
@@ -555,8 +795,28 @@ class _LuaParser {
           T[i + 1]?.t === '.' && T[i + 2]?.t === 'id' && T[i + 2].v === 'on' &&
           T[i + 3]?.t === '(') {
         let evName = 'whenTabSelected';
+        let isSignal = false;
+        let signalName = null;
         let j = i + 4;
-        if (T[j]?.t === 'str') { evName = T[j].v; j++; }
+
+        // Check for f.on(signal:"...", ...) or f.on(signal: "...", ...) or f.on(signal = "...", ...)
+        if (T[j]?.t === 'id' && T[j].v.toLowerCase() === 'signal') {
+          isSignal = true;
+          j++;
+          if (T[j]?.t === ':' || T[j]?.t === '=') j++;
+          if (T[j]?.t === 'str' || T[j]?.t === 'id') {
+            signalName = T[j].v;
+            evName = 'monitorSignal';
+            j++;
+          }
+        } else if (T[j]?.t === 'str') {
+          evName = T[j].v;
+          j++;
+        } else if (T[j]?.t === 'id' && T[j].v !== 'function') {
+          evName = T[j].v;
+          j++;
+        }
+
         while (j < T.length && !(T[j].t === 'id' && T[j].v === 'function')) j++;
         while (j < T.length && T[j].t !== ')') j++;
         const bodyStart = j + 1;
@@ -573,7 +833,7 @@ class _LuaParser {
           const m = /@([A-Za-z0-9_:.\-]+)/.exec(T[i - 1].v);
           if (m) evId = m[1];
         }
-        handlers.push({ bodyStart, end: k, evId, evName });
+        handlers.push({ bodyStart, end: k, evId, evName, isSignal, signalName });
         i = k;
       }
     }
@@ -602,28 +862,65 @@ class _LuaParser {
     return node;
   }
 
-  makeEventNode(evName) {
-    let bpId = 'event_when_tab_selected';
-    let bpName = 'When Tab Selected';
-
-    if (evName === 'whenGameStarts') { bpId = 'event_when_game_starts'; bpName = 'When Game Starts'; }
-    else if (evName === 'whenGameTimerElapses') { bpId = 'event_when_game_timer_elapses'; bpName = 'When Game Timer Elapses'; }
-    else if (evName === 'whenEntityCreated') { bpId = 'event_when_entity_created'; bpName = 'When Entity Is Created'; }
-    else if (evName === 'whenEntityDestroyed') { bpId = 'event_when_entity_destroyed'; bpName = 'When Entity Is Destroyed'; }
-    else if (evName === 'whenEntityTakesDamage') { bpId = 'event_when_entity_takes_damage'; bpName = 'When Entity Takes Damage'; }
-    else if (evName === 'whenEntityDealsDamage') { bpId = 'event_when_entity_deals_damage'; bpName = 'When Entity Deals Damage'; }
-    else if (evName === 'whenUiButtonClicked') { bpId = 'event_when_ui_button_clicked'; bpName = 'When UI Button Is Clicked'; }
-    else if (evName && evName !== 'whenTabSelected') {
-      bpId = 'event_monitor_signal';
-      bpName = 'Monitor Signal';
+  makeEventNode(evName, isSignal = false, signalName = null) {
+    if (isSignal || signalName) {
+      const node = this.makeNode('event_monitor_signal', 'Monitor Signal', 'event');
+      node.signalName = signalName || evName || 'HC_Shot';
+      node.inputValues = node.inputValues || {};
+      node.inputValues['Signal Name'] = node.signalName;
+      return node;
     }
 
-    const node = this.makeNode(bpId, bpName, 'event');
-    if (bpId === 'event_monitor_signal') {
-      node.signalName = evName;
-      node.inputValues['Signal Name'] = evName;
+    const EVENT_BLUEPRINT_MAP = {
+      'whengamestarts': { id: 'event_when_game_starts', name: 'When Game Starts' },
+      'whengametimerelapses': { id: 'event_when_game_timer_elapses', name: 'When Game Timer Elapses' },
+      'whenentitycreated': { id: 'event_when_entity_created', name: 'When Entity Is Created' },
+      'whenentityiscreated': { id: 'event_when_entity_created', name: 'When Entity Is Created' },
+      'whenentitydestroyed': { id: 'event_when_entity_destroyed', name: 'When Entity Is Destroyed' },
+      'whenentityisdestroyed': { id: 'event_when_entity_destroyed', name: 'When Entity Is Destroyed' },
+      'whenentitytakesdamage': { id: 'event_when_entity_takes_damage', name: 'When Entity Takes Damage' },
+      'whenentitydealsdamage': { id: 'event_when_entity_deals_damage', name: 'When Entity Deals Damage' },
+      'whenentityattacks': { id: 'event_when_entity_attacks', name: 'When Entity Attacks' },
+      'whenentityenterstrigger': { id: 'event_when_entity_enters_trigger', name: 'When Entity Enters Trigger' },
+      'whenentityexitstrigger': { id: 'event_when_entity_exits_trigger', name: 'When Entity Exits Trigger' },
+      'whenentityhealthchanges': { id: 'event_when_entity_health_changes', name: 'When Entity Health Changes' },
+      'whenentitystatechanges': { id: 'event_when_entity_state_changes', name: 'When Entity State Changes' },
+      'whenuibuttonclicked': { id: 'event_when_ui_button_clicked', name: 'When UI Button Is Clicked' },
+      'whenuibuttonisclicked': { id: 'event_when_ui_button_clicked', name: 'When UI Button Is Clicked' },
+      'whencustomeventtriggers': { id: 'event_when_custom_event_triggers', name: 'When Custom Event Triggers' },
+      'whencustomvariablechanges': { id: 'event_when_custom_var_changes', name: 'When Custom Variable Changes' },
+      'whencustomvarchanges': { id: 'event_when_custom_var_changes', name: 'When Custom Variable Changes' },
+      'whentabselected': { id: 'event_when_tab_selected', name: 'When Tab Selected' },
+      'whentabisselected': { id: 'event_when_tab_selected', name: 'When Tab Selected' },
+      'whenpresetstatuschanges': { id: 'event_when_preset_status_changes', name: 'When Preset Status Changes' },
+      'whenstatusstackschange': { id: 'event_when_status_stacks_change', name: 'When Status Stacks Change' },
+      'whentimerends': { id: 'event_when_timer_ends', name: 'When Timer Ends' }
+    };
+
+    const norm = String(evName || '').trim();
+    const clean = norm.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    if (EVENT_BLUEPRINT_MAP[clean]) {
+      const info = EVENT_BLUEPRINT_MAP[clean];
+      return this.makeNode(info.id, info.name, 'event');
     }
-    return node;
+
+    const bp = getNodeBlueprint(norm) || getNodeBlueprint(`event_${norm}`) || getNodeBlueprint(clean);
+    if (bp && bp.category === 'event') {
+      return this.makeNode(bp.id, bp.name, 'event');
+    }
+
+    // Only if it explicitly is a known signal in signalsManager, treat as signal
+    const isKnownSig = signalsManager && signalsManager.getSignal && signalsManager.getSignal(norm);
+    if (isKnownSig || norm.startsWith('sig_') || norm.startsWith('HC_')) {
+      const node = this.makeNode('event_monitor_signal', 'Monitor Signal', 'event');
+      node.signalName = norm;
+      node.inputValues = node.inputValues || {};
+      node.inputValues['Signal Name'] = norm;
+      return node;
+    }
+
+    return this.makeNode('event_when_tab_selected', 'When Tab Selected', 'event');
   }
 
   placeFlow(node) {
@@ -787,7 +1084,7 @@ class _LuaParser {
       sourceOperand = {
         isVar: true,
         nodeId: getLocalNode.id,
-        outputPin: 'Local Variable',
+        outputPin: 'Value',
         dataType: srcType,
         node: getLocalNode
       };
@@ -1020,9 +1317,9 @@ class _LuaParser {
   }
 
   createGetCustomVarSelfNode(varName) {
-    const cv = this.customVariables.find(c => c.entityType === 'self' && c.name.toLowerCase() === varName.toLowerCase());
+    const cv = this.customVariables.find(c => (c.entityType === 'self' || !c.entityType) && (c.name || '').toLowerCase() === (varName || '').toLowerCase());
     const resolvedName = cv ? cv.name : varName;
-    const resolvedType = cv ? cv.type : 'float';
+    const resolvedType = cv ? cv.type : 'int';
 
     const getVarNode = this.makeNode('query_get_custom_var', 'Get Custom Variable', 'query');
     this.placeData(getVarNode);
@@ -1050,9 +1347,9 @@ class _LuaParser {
   }
 
   createGetCustomVarGuidNode(varName, guidVal = '0', guidAlias = null) {
-    const cv = this.customVariables.find(c => c.entityType === 'guid' && c.name.toLowerCase() === varName.toLowerCase());
+    const cv = this.customVariables.find(c => c.entityType === 'guid' && (c.name || '').toLowerCase() === (varName || '').toLowerCase());
     const resolvedName = cv ? cv.name : varName;
-    const resolvedType = cv ? cv.type : 'float';
+    const resolvedType = cv ? cv.type : 'int';
     const finalGuid = cv && cv.guid ? cv.guid : guidVal;
     const finalAlias = (cv && cv.guidAlias) ? cv.guidAlias : guidAlias;
 
@@ -1285,6 +1582,17 @@ class _LuaParser {
           return this.createGetCustomVarGuidNode(varName, resolvedGuid, guidAlias);
         }
 
+        // List references: list.name, list.OMG_LIST
+        if (name === 'list' && peek()?.t === '.') {
+          consume(); // '.'
+          const listTk = consume();
+          const listName = listTk ? listTk.v : 'name';
+          const listNode = this.listNodes?.get('list.' + listName) || this.listNodes?.get(listName);
+          if (listNode) {
+            return { isVar: true, nodeId: listNode.id, outputPin: 'List', dataType: (listNode.dataType || 'int') + ' list', node: listNode };
+          }
+        }
+
         // Event parameter references
         if (this.varToEvent.has(name)) {
           const evRef = this.varToEvent.get(name);
@@ -1437,9 +1745,57 @@ class _LuaParser {
 
   argToValue(group) {
     if (!group || group.length === 0) return { isLit: true, value: '' };
-    const filtered = group.filter(t => t.t !== 'ln');
+    const filtered = group.filter(t => t.t !== 'ln' && t.t !== 'nl');
     if (filtered.length === 0) return { isLit: true, value: '' };
+
+    const vecStr = this.tryExtractVec3(filtered);
+    if (vecStr !== null) {
+      return { isLit: true, value: vecStr, dataType: 'vector3' };
+    }
+
+    const listStr = this.tryExtractList(filtered);
+    if (listStr !== null) {
+      return { isLit: true, value: listStr, dataType: 'list' };
+    }
+
     return this.parseExprTokens(filtered, false);
+  }
+
+  tryExtractVec3(tokens) {
+    if (!tokens || tokens.length < 3) return null;
+    const first = tokens[0];
+    const last = tokens[tokens.length - 1];
+    if (first?.t === '(' && last?.t === ')') {
+      const s = tokens.map(t => t.raw !== undefined ? t.raw : t.v).join(' ');
+      const inner = s.slice(1, -1).trim();
+      if (/\b[xyz]\s*[:=]/i.test(inner)) {
+        const xMatch = /\bx\s*[:=]\s*([^,)]+)/i.exec(inner);
+        const yMatch = /\by\s*[:=]\s*([^,)]+)/i.exec(inner);
+        const zMatch = /\bz\s*[:=]\s*([^,)]+)/i.exec(inner);
+        const x = xMatch ? parseFloat(xMatch[1].trim()) || 0 : 0;
+        const y = yMatch ? parseFloat(yMatch[1].trim()) || 0 : 0;
+        const z = zMatch ? parseFloat(zMatch[1].trim()) || 0 : 0;
+        return `(x = ${x.toFixed(1)}, y = ${y.toFixed(1)}, z = ${z.toFixed(1)})`;
+      }
+      const parts = inner.split(',').map(p => p.trim()).filter(Boolean);
+      if (parts.length === 3 && parts.every(p => /^-?\d+(\.\d+)?$/.test(p))) {
+        const x = parseFloat(parts[0]) || 0;
+        const y = parseFloat(parts[1]) || 0;
+        const z = parseFloat(parts[2]) || 0;
+        return `(x = ${x.toFixed(1)}, y = ${y.toFixed(1)}, z = ${z.toFixed(1)})`;
+      }
+    }
+    return null;
+  }
+
+  tryExtractList(tokens) {
+    if (!tokens || tokens.length < 2) return null;
+    const first = tokens[0];
+    const last = tokens[tokens.length - 1];
+    if (first?.t === '{' && last?.t === '}') {
+      return tokens.map(t => t.raw !== undefined ? t.raw : t.v).join(' ');
+    }
+    return null;
   }
 
   applyValueTo(node, pin, v) {
@@ -1453,7 +1809,19 @@ class _LuaParser {
         toNode: node.id, toPin: pin, isExec: false
       });
     } else if (v.isEvent && v.evId) {
-      this.wires.push({ id: this.nextWireId(), fromNode: v.evId, fromPin: v.pin, toNode: node.id, toPin: pin, isExec: false });
+      let outPin = v.pin;
+      const evNode = this.nodes.find(n => n.id === v.evId);
+      if (evNode) {
+        const bp = getNodeBlueprint(evNode.blueprintId) || getNodeBlueprint(evNode.name);
+        const allOutputs = [...(bp?.outputs || []), ...(evNode.customOutputs || [])];
+        const matched = allOutputs.find(o =>
+          o.name === v.pin ||
+          o.name.toLowerCase() === v.pin.toLowerCase() ||
+          o.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === v.pin.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+        );
+        if (matched) outPin = matched.name;
+      }
+      this.wires.push({ id: this.nextWireId(), fromNode: v.evId, fromPin: outPin, toNode: node.id, toPin: pin, isExec: false });
     } else {
       node.inputValues[pin] = this.coerce(node, pin, v.value);
     }
@@ -1589,9 +1957,12 @@ class _LuaParser {
   }
 
   dataOutputPin(node) {
+    if (node.blueprintId === 'query_get_local_variable' || (node.name || '').toLowerCase() === 'get local variable') {
+      return 'Value';
+    }
     const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
     if (!bp || !Array.isArray(bp.outputs) || bp.outputs.length === 0) return 'Result';
-    const nonExec = bp.outputs.filter(o => !o.isExec && o.name !== 'execOut');
+    const nonExec = bp.outputs.filter(o => !o.isExec && o.name !== 'execOut' && o.name !== 'Local Variable');
     return nonExec[0]?.name || bp.outputs[0]?.name || 'Result';
   }
 
@@ -1611,22 +1982,45 @@ class _LuaParser {
         if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
         continue;
       }
-      if (tk.t === 'id' && (this.varToLocalVar.has(tk.v) || this.varToGraphVar.has(tk.v.toLowerCase()) || this.varToGraphVar.has(tk.v)) && (this.T[this.i + 1]?.t === '=')) {
-        const n = this.parseAssignmentStmt(tk.v);
-        if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
-        continue;
+
+      // Check Custom Variable assignment / increment / decrement
+      // e.g. self.hp = 1, self.hp += 1, self.hp++, self.hp -= 1, self.hp--, guid.boss.hp += 1
+      let customVarMatch = false;
+      if (tk.t === 'id' && (tk.v === 'self' || tk.v === 'guid' || tk.v === 'target' || tk.v === 'entity' || this.guidEntities.has(tk.v.toLowerCase()) || this.varToNode.has(tk.v))) {
+        let p = this.i + 1;
+        if (this.T[p]?.t === '.' && this.T[p + 1]?.t === 'id') {
+          p += 2;
+          if (this.T[p]?.t === '.' && this.T[p + 1]?.t === 'id') {
+            p += 2;
+          }
+          const op = this.T[p]?.t;
+          if (op === '=' || op === '+=' || op === '-=' || op === '*=' || op === '/=' || op === '++' || op === '--') {
+            customVarMatch = true;
+          }
+        }
       }
-      if (tk.t === 'id' && (tk.v === 'self' || tk.v === 'guid' || tk.v === 'target' || tk.v === 'entity' || this.guidEntities.has(tk.v.toLowerCase()) || this.varToNode.has(tk.v)) && (this.T[this.i + 1]?.t === '.') && (this.T[this.i + 2]?.t === 'id') && (this.T[this.i + 3]?.t === '=')) {
+      if (customVarMatch) {
         const n = this.parseCustomVarAssignmentStmt();
         if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
         continue;
       }
+
+      // Check Local Variable or Node Graph Variable assignment / increment / decrement
+      if (tk.t === 'id' && (this.varToLocalVar.has(tk.v) || this.varToGraphVar.has(tk.v.toLowerCase()) || this.varToGraphVar.has(tk.v))) {
+        const nextOp = this.T[this.i + 1]?.t;
+        if (nextOp === '=' || nextOp === '+=' || nextOp === '-=' || nextOp === '*=' || nextOp === '/=' || nextOp === '++' || nextOp === '--') {
+          const n = this.parseAssignmentStmt(tk.v);
+          if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
+          continue;
+        }
+      }
+
       if (tk.t === 'id' && tk.v === 'if') {
         const b = this.parseIf();
         if (b) {
-          if (!first) first = b;
-          if (chainTail) this.connectExec(chainTail, b);
-          chainTail = b;
+          if (!first) first = b.first || b;
+          if (chainTail) this.connectExec(chainTail, b.first || b);
+          chainTail = b.last || b.first || b;
         }
         continue;
       }
@@ -1735,21 +2129,36 @@ class _LuaParser {
   }
 
   parseAssignmentStmt(varName) {
-    this.i++; // varName
-    if (this.T[this.i]?.t === '=') this.i++;
+    this.i++; // skip varName
+    const opTk = this.T[this.i];
+    const op = opTk?.t || '=';
+    this.i++; // skip op (=, +=, -=, *=, /=, ++, --)
 
-    const exprTokens = [];
-    let parenDepth = 0;
-    while (this.i < this.T.length) {
-      const tk = this.T[this.i];
-      if (tk.t === '(' || tk.t === '{') parenDepth++;
-      else if (tk.t === ')' || tk.t === '}') {
-        if (parenDepth > 0) parenDepth--;
+    let exprTokens = [];
+    if (op === '++') {
+      exprTokens = [{ t: 'id', v: varName }, { t: '+', v: '+' }, { t: 'num', v: 1, raw: '1' }];
+    } else if (op === '--') {
+      exprTokens = [{ t: 'id', v: varName }, { t: '-', v: '-' }, { t: 'num', v: 1, raw: '1' }];
+    } else {
+      const rawRhsTokens = [];
+      let parenDepth = 0;
+      while (this.i < this.T.length) {
+        const tk = this.T[this.i];
+        if (tk.t === '(' || tk.t === '{') parenDepth++;
+        else if (tk.t === ')' || tk.t === '}') {
+          if (parenDepth > 0) parenDepth--;
+        }
+        if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
+        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+        rawRhsTokens.push(tk);
+        this.i++;
       }
-      if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-      if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
-      exprTokens.push(tk);
-      this.i++;
+
+      if (op === '+=') exprTokens = [{ t: 'id', v: varName }, { t: '+', v: '+' }, ...rawRhsTokens];
+      else if (op === '-=') exprTokens = [{ t: 'id', v: varName }, { t: '-', v: '-' }, ...rawRhsTokens];
+      else if (op === '*=') exprTokens = [{ t: 'id', v: varName }, { t: '*', v: '*' }, ...rawRhsTokens];
+      else if (op === '/=') exprTokens = [{ t: 'id', v: varName }, { t: '/', v: '/' }, ...rawRhsTokens];
+      else exprTokens = rawRhsTokens;
     }
 
     if (this.varToLocalVar.has(varName)) {
@@ -1797,30 +2206,83 @@ class _LuaParser {
 
   parseCustomVarAssignmentStmt() {
     const entityTk = this.T[this.i];
-    this.i += 2; // skip entity and '.'
-    const varTk = this.T[this.i];
-    const varName = varTk ? varTk.v : 'Damage1';
-    this.i++; // skip var name
-    if (this.T[this.i]?.t === '=') this.i++;
+    this.i++; // skip entity
+    this.i++; // skip '.'
+    const firstPart = this.T[this.i]?.v;
+    this.i++; // skip first id part
 
-    const exprTokens = [];
-    let parenDepth = 0;
-    while (this.i < this.T.length) {
-      const tk = this.T[this.i];
-      if (tk.t === '(' || tk.t === '{') parenDepth++;
-      else if (tk.t === ')' || tk.t === '}') {
-        if (parenDepth > 0) parenDepth--;
-      }
-      if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-      if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
-      exprTokens.push(tk);
-      this.i++;
+    let guidAlias = null;
+    let varName = firstPart;
+    if (this.T[this.i]?.t === '.' && this.T[this.i + 1]?.t === 'id') {
+      this.i++; // skip second '.'
+      guidAlias = firstPart;
+      varName = this.T[this.i]?.v;
+      this.i++; // skip var name
     }
 
-    const cv = (this.customVariables || []).find(c => (c.name || '').toLowerCase() === varName.toLowerCase());
-    const targetType = cv ? cv.type : 'float';
+    const opTk = this.T[this.i];
+    const op = opTk?.t || '=';
+    this.i++; // skip operator (=, +=, -=, *=, /=, ++, --)
 
-    let valResult = this.parseExprTokens(exprTokens, false, null);
+    let exprTokens = [];
+    if (op === '++') {
+      if (guidAlias) {
+        exprTokens = [
+          { t: 'id', v: entityTk.v }, { t: '.', v: '.' }, { t: 'id', v: guidAlias }, { t: '.', v: '.' }, { t: 'id', v: varName },
+          { t: '+', v: '+' },
+          { t: 'num', v: 1, raw: '1' }
+        ];
+      } else {
+        exprTokens = [
+          { t: 'id', v: entityTk.v }, { t: '.', v: '.' }, { t: 'id', v: varName },
+          { t: '+', v: '+' },
+          { t: 'num', v: 1, raw: '1' }
+        ];
+      }
+    } else if (op === '--') {
+      if (guidAlias) {
+        exprTokens = [
+          { t: 'id', v: entityTk.v }, { t: '.', v: '.' }, { t: 'id', v: guidAlias }, { t: '.', v: '.' }, { t: 'id', v: varName },
+          { t: '-', v: '-' },
+          { t: 'num', v: 1, raw: '1' }
+        ];
+      } else {
+        exprTokens = [
+          { t: 'id', v: entityTk.v }, { t: '.', v: '.' }, { t: 'id', v: varName },
+          { t: '-', v: '-' },
+          { t: 'num', v: 1, raw: '1' }
+        ];
+      }
+    } else {
+      const rawRhsTokens = [];
+      let parenDepth = 0;
+      while (this.i < this.T.length) {
+        const tk = this.T[this.i];
+        if (tk.t === '(' || tk.t === '{') parenDepth++;
+        else if (tk.t === ')' || tk.t === '}') {
+          if (parenDepth > 0) parenDepth--;
+        }
+        if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
+        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+        rawRhsTokens.push(tk);
+        this.i++;
+      }
+
+      const lhsTokens = guidAlias
+        ? [{ t: 'id', v: entityTk.v }, { t: '.', v: '.' }, { t: 'id', v: guidAlias }, { t: '.', v: '.' }, { t: 'id', v: varName }]
+        : [{ t: 'id', v: entityTk.v }, { t: '.', v: '.' }, { t: 'id', v: varName }];
+
+      if (op === '+=') exprTokens = [...lhsTokens, { t: '+', v: '+' }, ...rawRhsTokens];
+      else if (op === '-=') exprTokens = [...lhsTokens, { t: '-', v: '-' }, ...rawRhsTokens];
+      else if (op === '*=') exprTokens = [...lhsTokens, { t: '*', v: '*' }, ...rawRhsTokens];
+      else if (op === '/=') exprTokens = [...lhsTokens, { t: '/', v: '/' }, ...rawRhsTokens];
+      else exprTokens = rawRhsTokens;
+    }
+
+    const cv = (this.customVariables || []).find(c => (c.name || '').toLowerCase() === (varName || '').toLowerCase());
+    const targetType = cv ? cv.type : 'int';
+
+    let valResult = this.parseExprTokens(exprTokens, false, targetType);
 
     const valType = valResult.dataType || (valResult.isLit && typeof valResult.value === 'number' ? (String(valResult.value).includes('.') ? 'float' : 'int') : null);
     if (targetType === 'float' && valType === 'int') {
@@ -1838,7 +2300,7 @@ class _LuaParser {
     const bp = getNodeBlueprint('exec_set_custom_var');
     if (bp) applyDataTypeToNode(setNode, bp, targetType);
 
-    setNode.inputValues['Variable Name'] = varName;
+    setNode.inputValues['Variable Name'] = varName || 'Damage1';
     setNode.inputValues['Trigger Event'] = 'No';
 
     this.placeFlow(setNode);
@@ -1858,11 +2320,12 @@ class _LuaParser {
         isExec: false
       });
     } else if (this.guidEntities.has(entityTk.v.toLowerCase()) || entityTk.v === 'guid') {
-      const guidVal = this.guidEntities.get(entityTk.v.toLowerCase()) || '1008221';
+      const guidVal = this.guidEntities.get(entityTk.v.toLowerCase()) || (guidAlias && this.guidEntities.get(guidAlias.toLowerCase())) || '1008221';
       const guidNode = this.makeNode('query_query_entity_by_guid', 'Query Entity by GUID', 'query');
       guidNode.x = setNode.x - 300;
       guidNode.y = setNode.y - 140;
       guidNode.inputValues['GUID'] = String(guidVal);
+      if (guidAlias) guidNode.guidAlias = guidAlias;
       this.nodes.push(guidNode);
       this.wires.push({
         id: this.nextWireId(),
@@ -1896,14 +2359,146 @@ class _LuaParser {
     const ann = this.readNodeId();
     if (!r.fn) return null;
 
-    // If custom variables were declared at the top, they have already formed the authoritative
-    // initialization sequence. Do not spawn duplicate initialization nodes for f.setCustomVar calls.
-    if ((r.fn.startsWith('setCustomVar') || r.fn.startsWith('setCustomVariable')) && Array.isArray(this.customVariables) && this.customVariables.length > 0) {
-      const g1Val = this.argToValue(r.groups[1] || []);
-      const varName = g1Val.isLit ? String(g1Val.value) : '';
-      if (!varName || this.customVariables.some(cv => (cv.name || '').toLowerCase() === varName.toLowerCase())) {
-        return null;
+    // 1. Direct f.doubleBranch call handling
+    if (r.fn === 'doubleBranch' || r.fn === 'double_branch') {
+      const node = this.makeNode('flow_double_branch', 'Double Branch', 'flow');
+      if (ann && !this.takenIds.has(ann)) { node.id = ann; this.takenIds.add(ann); }
+      this.placeFlow(node);
+      this.nodes.push(node);
+      if (r.groups && r.groups[0]) {
+        const condVal = this.parseExprTokens(r.groups[0], true);
+        this.applyValueTo(node, 'Condition', condVal);
       }
+      return node;
+    }
+
+    // 2. Direct f.setLocalVar call handling
+    if (r.fn === 'setLocalVar' || r.fn === 'set_local_var') {
+      const g0Val = this.argToValue(r.groups[0] || []);
+      const varName = g0Val.isLit ? String(g0Val.value).replace(/['"]/g, '') : (g0Val.name || 'sum');
+      const setNode = this.makeNode('exec_set_local_var', 'Set Local Variable', 'execution');
+      if (ann && !this.takenIds.has(ann)) { setNode.id = ann; this.takenIds.add(ann); }
+      setNode.varName = varName;
+      this.placeFlow(setNode);
+      this.nodes.push(setNode);
+
+      const g1Val = this.parseExprTokens(r.groups[1] || [], false);
+      this.applyValueTo(setNode, 'Value', g1Val);
+
+      let getLocalNode = this.varToLocalVar.get(varName);
+      if (!getLocalNode) {
+        getLocalNode = this.makeNode('query_get_local_variable', 'Get Local Variable', 'query');
+        getLocalNode.varName = varName;
+        getLocalNode.x = setNode.x - 260;
+        getLocalNode.y = setNode.y + 110;
+        getLocalNode.inputValues['Initial Value'] = '0';
+        this.nodes.push(getLocalNode);
+        this.varToLocalVar.set(varName, getLocalNode);
+        this.varToNode.set(varName, getLocalNode.id);
+      }
+      this.wires.push({
+        id: this.nextWireId(),
+        fromNode: getLocalNode.id,
+        fromPin: 'Local Variable',
+        toNode: setNode.id,
+        toPin: 'Local Variable',
+        isExec: false
+      });
+      return setNode;
+    }
+
+    // 3. Direct f.setCustomVar / f.setCustomVarFloat / f.setCustomVarInt handling
+    if (r.fn.startsWith('setCustomVar') || r.fn.startsWith('set_custom_var') || r.fn.startsWith('setCustomVariable')) {
+      let dt = 'float';
+      if (r.fn.endsWith('Int')) dt = 'int';
+      else if (r.fn.endsWith('Float')) dt = 'float';
+      else if (r.fn.endsWith('Bool')) dt = 'bool';
+      else if (r.fn.endsWith('String')) dt = 'string';
+      else if (r.fn.endsWith('Vector3')) dt = 'vector3';
+      else if (r.fn.endsWith('Entity')) dt = 'entity';
+
+      const setNode = this.makeNode('exec_set_custom_var', 'Set Custom Variable', 'execution');
+      if (ann && !this.takenIds.has(ann)) { setNode.id = ann; this.takenIds.add(ann); }
+      setNode.dataType = dt;
+      const bp = getNodeBlueprint('exec_set_custom_var');
+      if (bp) applyDataTypeToNode(setNode, bp, dt);
+
+      // Target Entity (Group 0)
+      const g0 = r.groups[0] || [];
+      const g0Val = this.argToValue(g0);
+      let targetIsSelf = true;
+      let targetGuid = null;
+
+      if (g0Val.isVar && g0Val.nodeId) {
+        this.wires.push({
+          id: this.nextWireId(),
+          fromNode: g0Val.nodeId,
+          fromPin: g0Val.outputPin || 'Self Entity',
+          toNode: setNode.id,
+          toPin: 'Target Entity',
+          isExec: false
+        });
+        targetIsSelf = false;
+      } else {
+        const rawTarget = String(g0Val.value || '');
+        if (rawTarget.includes('queryEntitybyGUID') || rawTarget.includes('guid')) {
+          const match = /(\d+)/.exec(rawTarget);
+          targetGuid = match ? match[1] : '10003222';
+          targetIsSelf = false;
+        }
+      }
+
+      // Variable Name (Group 1)
+      const g1Val = this.argToValue(r.groups[1] || []);
+      const varName = g1Val.isLit ? String(g1Val.value).replace(/['"]/g, '') : 'Damage';
+      setNode.inputValues['Variable Name'] = varName;
+
+      // Variable Value (Group 2)
+      const g2Tokens = r.groups[2] || [];
+      const g2Val = this.parseExprTokens(g2Tokens, false, dt);
+      this.applyValueTo(setNode, 'Variable Value', g2Val);
+
+      // Trigger Event (Group 3)
+      const g3Val = this.argToValue(r.groups[3] || []);
+      const trigVal = g3Val.isLit ? String(g3Val.value).replace(/['"]/g, '') : 'False';
+      setNode.inputValues['Trigger Event'] = trigVal;
+
+      this.placeFlow(setNode);
+      this.nodes.push(setNode);
+
+      // Wire Target Entity if not wired yet
+      if (!g0Val.isVar) {
+        if (targetIsSelf) {
+          const selfNode = this.makeNode('query_get_self_entity', 'Get Self Entity', 'query');
+          selfNode.x = setNode.x - 220;
+          selfNode.y = setNode.y + 160;
+          this.nodes.push(selfNode);
+          this.wires.push({
+            id: this.nextWireId(),
+            fromNode: selfNode.id,
+            fromPin: 'Self Entity',
+            toNode: setNode.id,
+            toPin: 'Target Entity',
+            isExec: false
+          });
+        } else if (targetGuid) {
+          const guidNode = this.makeNode('query_query_entity_by_guid', 'Query Entity by GUID', 'query');
+          guidNode.x = setNode.x - 240;
+          guidNode.y = setNode.y + 160;
+          guidNode.inputValues['GUID'] = targetGuid;
+          this.nodes.push(guidNode);
+          this.wires.push({
+            id: this.nextWireId(),
+            fromNode: guidNode.id,
+            fromPin: 'Entity',
+            toNode: setNode.id,
+            toPin: 'Target Entity',
+            isExec: false
+          });
+        }
+      }
+
+      return setNode;
     }
 
     const ent = resolveNode(r.fn) || { name: r.fn, id: 'exec_' + r.fn, cat: 'execution' };
@@ -1965,14 +2560,16 @@ class _LuaParser {
     if (yes.first) this.connectPin(node, 'Yes', yes.first);
 
     let noFirst = null;
+    let noLast = null;
     if (this.T[this.i]?.t === 'id' && this.T[this.i].v === 'else') {
       this.i++;
       const no = this.parseBody();
       noFirst = no.first;
+      noLast = no.last;
     }
     if (this.T[this.i]?.t === 'id' && this.T[this.i].v === 'end') this.i++;
     if (noFirst) this.connectPin(node, 'No', noFirst);
-    return node;
+    return { first: node, last: yes.last || node };
   }
 
   parseBody() {

@@ -278,6 +278,10 @@ export class NodeGraphVariablesWindow {
     };
 
     addBtn.addEventListener('click', handleAdd);
+
+    window.addEventListener('open_node_graph_vars', () => {
+      this.open();
+    });
   }
 
   bringToFront() {

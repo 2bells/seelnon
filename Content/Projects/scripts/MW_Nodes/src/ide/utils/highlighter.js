@@ -46,32 +46,33 @@ function classifyIdent(word, nextChar) {
   return 'tok-var';
 }
 
+const PLAIN_RE = /([+\-*/%&=<>!|^~?]+|&&|\|\||===|!==)|([(){}[\];,:.])/g;
+const HAS_SPECIAL_RE = /[+\-*/%&=<>!|^~?(){}[\];,;.:]/;
+
 function renderPlain(segment) {
   if (!segment) return '';
-  // Color operators/structural punctuation outside of strings/comments,
-  // but keep member-access dots distinct from decimal handling.
+  if (!HAS_SPECIAL_RE.test(segment)) {
+    return esc(segment);
+  }
   let out = '';
-  const opRe = /([+\-*/%&=<>!|^~?]+|&&|\|\||===|!==)/g;
-  const puncRe = /([(){}[\],;:.])/g;
   let idx = 0;
-  opRe.lastIndex = 0;
+  PLAIN_RE.lastIndex = 0;
   let m;
-  while ((m = opRe.exec(segment)) !== null) {
-    out += esc(segment.slice(idx, m.index));
-    out += `<span class="tok-op">${esc(m[1])}</span>`;
-    idx = m.index + m[1].length;
+  while ((m = PLAIN_RE.exec(segment)) !== null) {
+    if (m.index > idx) {
+      out += esc(segment.slice(idx, m.index));
+    }
+    if (m[1]) {
+      out += `<span class="tok-op">${esc(m[1])}</span>`;
+    } else if (m[2]) {
+      out += `<span class="tok-punc">${esc(m[2])}</span>`;
+    }
+    idx = m.index + m[0].length;
   }
-  out += esc(segment.slice(idx));
-  // Now color punctuation in a separate pass over the escaped output
-  let plain = out, done = '';
-  let i = 0; puncRe.lastIndex = 0; let pm;
-  while ((pm = puncRe.exec(plain)) !== null) {
-    done += plain.slice(i, pm.index);
-    done += `<span class="tok-punc">${esc(pm[1])}</span>`;
-    i = pm.index + pm[1].length;
+  if (idx < segment.length) {
+    out += esc(segment.slice(idx));
   }
-  done += plain.slice(i);
-  return done;
+  return out;
 }
 
 export function highlightTs(code) {
@@ -115,6 +116,7 @@ export function highlightTs(code) {
   return html;
 }
 
+// High-performance tokenization for Lua in the IDE
 const LUA_KEYWORDS = new Set([
   'local', 'function', 'end', 'if', 'then', 'else', 'elseif', 'for', 'while',
   'do', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until',
@@ -126,114 +128,77 @@ const LUA_TYPES = new Set([
   'int', 'integer', 'string', 'bool', 'boolean', 'float', 'vector3', 'entity', 'list', 'dict'
 ]);
 
-const LUA_RE = new RegExp(
-  '(' +
+const LUA_TOKEN_RE = new RegExp(
+  '(' +                       // 1: comments
     '--[^\\n]*' +
-  ')|(' +
+  ')|(' +                     // 2: strings
     "'(?:\\\\.|[^'\\\\\\n])*'|\"(?:\\\\.|[^\"\\\\\\n])*\"" +
-  ')|(' +
+  ')|(' +                     // 3: numbers
     '\\b\\d+(?:\\.\\d+)?\\b' +
-  ')|(' +
-    '\\b(?:local|function|end|if|then|else|elseif|for|while|do|return|in|and|or|not|require|repeat|until|nil|true|false|random|randomFloat|toInt|toFloat|toBool|tostring|toVector3|math|self|guid|get|int|integer|string|bool|boolean|float|vector3|entity|list|dict|cos|sin|tan|sqrt|acos|asin|atan|abs|deg|rad|min|max|clamp|floor|ceil|round|trunc|pi)\\b' +
-  ')|(' +
-    '[A-Za-z_][\\w]*' +
+  ')|(' +                     // 4: identifiers / words
+    '[A-Za-z_]\\w*' +
   ')',
   'g'
 );
 
-// Comments: render clean comments without intrusive box badges
-function renderLuaComment(text) {
-  return `<span class="tok-com">${esc(text)}</span>`;
-}
-
-function classifyLuaIdent(word, nextChar, prevToken, prevPunc) {
-  // If following `guid.` (e.g. `guid.boss`, `guid.1`), color the entity parent as purple/keyword
-  if (prevToken === 'guid' && prevPunc === '.') {
-    return 'tok-kw';
-  }
+function classifyLuaWord(word, nextChar) {
   if (['toInt', 'toFloat', 'toBool', 'tostring', 'toVector3', 'random', 'randomFloat', 'cos', 'sin', 'tan', 'sqrt', 'acos', 'asin', 'atan', 'abs', 'deg', 'rad', 'min', 'max', 'clamp', 'floor', 'ceil', 'round', 'trunc'].includes(word)) {
     return 'tok-fn';
   }
-  if (word === 'pi' || word === 'PI') {
-    return 'tok-kw';
-  }
+  if (word === 'pi' || word === 'PI') return 'tok-kw';
   if (LUA_TYPES.has(word)) return 'tok-type';
   if (LUA_KEYWORDS.has(word)) return 'tok-kw';
-  if (nextChar === '(' || (prevToken === 'f' && prevPunc === '.') || (prevToken === 'math' && prevPunc === '.')) return 'tok-fn';
+  if (nextChar === '(') return 'tok-fn';
   return 'tok-var';
 }
 
-export function highlightLua(code) {
+export function highlightLuaLine(line) {
+  if (!line) return '';
   let html = '';
   let idx = 0;
-  LUA_RE.lastIndex = 0;
+  LUA_TOKEN_RE.lastIndex = 0;
   let m;
-  let lastWord = '';
-  let lastPunc = '';
 
-  while ((m = LUA_RE.exec(code)) !== null) {
-    const plainBetween = code.slice(idx, m.index);
-    if (plainBetween) {
-      const trimmed = plainBetween.trim();
-      if (trimmed === '.') lastPunc = '.';
-      else if (trimmed) lastPunc = trimmed[trimmed.length - 1];
+  while ((m = LUA_TOKEN_RE.exec(line)) !== null) {
+    if (m.index > idx) {
+      html += esc(line.slice(idx, m.index));
     }
-    html += renderPlain(plainBetween);
-
     const com = m[1];
     if (com) {
-      html += renderLuaComment(com);
+      html += `<span class="tok-com">${esc(com)}</span>`;
       idx = m.index + com.length;
-      lastWord = '';
-      lastPunc = '';
       continue;
     }
-
     const str = m[2];
     if (str) {
       html += `<span class="tok-str">${esc(str)}</span>`;
       idx = m.index + str.length;
-      lastWord = '';
-      lastPunc = '';
       continue;
     }
-
     const num = m[3];
     if (num) {
-      // If following `guid.` (e.g. `guid.1`), highlight as entity parent (purple)
-      if (lastWord === 'guid' && lastPunc === '.') {
-        html += `<span class="tok-kw">${esc(num)}</span>`;
-      } else {
-        html += `<span class="tok-num">${esc(num)}</span>`;
-      }
+      html += `<span class="tok-num">${esc(num)}</span>`;
       idx = m.index + num.length;
-      lastWord = num;
-      lastPunc = '';
       continue;
     }
-
-    const kw = m[4];
-    if (kw) {
-      const next = code[m.index + kw.length] || '';
-      const cls = classifyLuaIdent(kw, next, lastWord, lastPunc);
-      html += `<span class="${cls}">${esc(kw)}</span>`;
-      idx = m.index + kw.length;
-      lastWord = kw;
-      lastPunc = '';
-      continue;
-    }
-
-    const ident = m[5];
-    if (ident) {
-      const next = code[m.index + ident.length] || '';
-      const cls = classifyLuaIdent(ident, next, lastWord, lastPunc);
-      html += `<span class="${cls}">${esc(ident)}</span>`;
-      idx = m.index + ident.length;
-      lastWord = ident;
-      lastPunc = '';
+    const word = m[4];
+    if (word) {
+      const nextChar = line[m.index + word.length] || '';
+      const cls = classifyLuaWord(word, nextChar);
+      html += `<span class="${cls}">${esc(word)}</span>`;
+      idx = m.index + word.length;
       continue;
     }
   }
-  html += renderPlain(code.slice(idx));
+
+  if (idx < line.length) {
+    html += esc(line.slice(idx));
+  }
   return html;
+}
+
+export function highlightLua(code) {
+  if (!code) return '';
+  const lines = code.split('\n');
+  return lines.map(l => `<div class="ide-code-line">${highlightLuaLine(l) || '&nbsp;'}</div>`).join('');
 }

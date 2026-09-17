@@ -327,14 +327,12 @@ export class SignalExplorer {
       optMenu.style.display = 'none';
       const curSig = this.getSelectedSignal();
       if (!curSig) return;
-      if (confirm(`Delete signal "${curSig.name}"?`)) {
-        const idx = this.draftSignals.findIndex(s => s.name === curSig.name);
-        if (idx !== -1) {
-          this.draftSignals.splice(idx, 1);
-          this.hasPendingChanges = true;
-          this.selectedSignalName = this.draftSignals.length > 0 ? this.draftSignals[0].name : '';
-          this.render();
-        }
+      const idx = this.draftSignals.findIndex(s => s.name === curSig.name);
+      if (idx !== -1) {
+        this.draftSignals.splice(idx, 1);
+        this.hasPendingChanges = true;
+        this.selectedSignalName = this.draftSignals.length > 0 ? this.draftSignals[0].name : '';
+        this.render();
       }
     });
 
