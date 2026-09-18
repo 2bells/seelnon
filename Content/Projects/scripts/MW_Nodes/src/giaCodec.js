@@ -220,6 +220,36 @@ function baseValue(type, valStr) {
   }
 }
 
+function defaultBaseValue(type) {
+  const t = (type == null ? 'int' : String(type)).toLowerCase();
+  const code = typeCode(t) || 3;
+  switch (t) {
+    case 'enum':
+    case 'bool':
+    case 'boolean':
+      return { class: 6, itemType: valueItemType(code || 4), bEnum: {} };
+    case 'int':
+    case 'integer':
+      return { class: 2, itemType: valueItemType(code || 3), bInt: {} };
+    case 'float':
+      return { class: 4, itemType: valueItemType(code || 5), bFloat: {} };
+    case 'string':
+    case 'str':
+      return { class: 5, itemType: valueItemType(code || 6), bString: {} };
+    case 'vector3':
+    case 'vec':
+      return { class: 7, itemType: valueItemType(code || 12), bVector: {} };
+    case 'entity':
+    case 'guid':
+    case 'config_id':
+    case 'prefab_id':
+    case 'faction':
+      return { class: 1, itemType: valueItemType(code), bId: {} };
+    default:
+      return { class: 2, itemType: valueItemType(3), bInt: {} };
+  }
+}
+
 // Decide the value written onto an unwired input pin for standard nodes.
 function inputPinValue(blueprintType, existingVal) {
   const raw = existingVal == null ? '' : String(existingVal);
@@ -248,6 +278,33 @@ const ASSEMBLY_CONCRETE_TYPE_INFO = {
   prefab:    { concIdx: 8, elemType: 21, listType: 23, elemClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
   faction:   { concIdx: 9, elemType: 17, listType: 24, elemClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
   generic:   { concIdx: 0, elemType: 3,  listType: 8,  elemClass: 2, defaultKey: 'bInt', defaultVal: { val: 0 } }
+};
+
+// Equal / Not Equal concrete type mappings (11 supported types)
+const EQUAL_CONCRETE_INFO = {
+  generic:   { concIdx: 0, type: 0,  concreteId: 14,  valClass: 2, defaultKey: 'bInt', defaultVal: { val: 0 } },
+  string:    { concIdx: 1, type: 6,  concreteId: 14,  valClass: 5, defaultKey: 'bString', defaultVal: { val: '' } },
+  str:       { concIdx: 1, type: 6,  concreteId: 14,  valClass: 5, defaultKey: 'bString', defaultVal: { val: '' } },
+  entity:    { concIdx: 2, type: 1,  concreteId: 16,  valClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
+  guid:      { concIdx: 3, type: 2,  concreteId: 15,  valClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
+  vector3:   { concIdx: 4, type: 12, concreteId: 17,  valClass: 7, defaultKey: 'bVector', defaultVal: { val: { x: 0, y: 0, z: 0 } } },
+  vec:       { concIdx: 4, type: 12, concreteId: 17,  valClass: 7, defaultKey: 'bVector', defaultVal: { val: { x: 0, y: 0, z: 0 } } },
+  int:       { concIdx: 5, type: 3,  concreteId: 370, valClass: 2, defaultKey: 'bInt', defaultVal: { val: 0 } },
+  integer:   { concIdx: 5, type: 3,  concreteId: 370, valClass: 2, defaultKey: 'bInt', defaultVal: { val: 0 } },
+  float:     { concIdx: 6, type: 5,  concreteId: 371, valClass: 4, defaultKey: 'bFloat', defaultVal: { val: 0 } },
+  config_id: { concIdx: 7, type: 20, concreteId: 581, valClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
+  config:    { concIdx: 7, type: 20, concreteId: 581, valClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
+  prefab_id: { concIdx: 8, type: 21, concreteId: 582, valClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
+  prefab:    { concIdx: 8, type: 21, concreteId: 582, valClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
+  faction:   { concIdx: 9, type: 17, concreteId: 254, valClass: 1, defaultKey: 'bId', defaultVal: { val: 0 } },
+  bool:      { concIdx: 10, type: 4, concreteId: 786, valClass: 6, defaultKey: 'bEnum', defaultVal: { val: 0 } },
+  boolean:   { concIdx: 10, type: 4, concreteId: 786, valClass: 6, defaultKey: 'bEnum', defaultVal: { val: 0 } }
+};
+
+const NOT_EQUAL_CONCRETE_ID = {
+  generic: 18, string: 18, str: 18, entity: 20, guid: 19, vector3: 21, vec: 21,
+  int: 368, integer: 368, float: 369, config_id: 583, config: 583,
+  prefab_id: 584, prefab: 584, faction: 255, bool: 787, boolean: 787
 };
 
 const DATATYPE_SUFFIX = {
@@ -717,20 +774,21 @@ export class GiaCodec {
           let val = '';
           if (p.value) {
             if (p.value.bString?.val !== undefined) val = p.value.bString.val;
-            else if (p.value.bInt?.val !== undefined) val = String(p.value.bInt.val);
-            else if (p.value.bFloat?.val !== undefined) val = String(p.value.bFloat.val);
-            else if (p.value.bId?.val !== undefined) val = String(p.value.bId.val);
-            else if (p.value.bEnum?.val !== undefined) val = enumValToString(p.value.bEnum.val);
+            else if (p.value.bInt != null) val = String(p.value.bInt.val ?? 0);
+            else if (p.value.bFloat != null) val = String(p.value.bFloat.val ?? 0);
+            else if (p.value.bId != null) val = String(p.value.bId.val ?? 0);
+            else if (p.value.bEnum != null) val = enumValToString(p.value.bEnum.val ?? 0);
             else if (p.value.bVector?.val) {
               const v = p.value.bVector.val;
               val = `(${v.x || 0}, ${v.y || 0}, ${v.z || 0})`;
             } else if (p.value.bConcreteValue) {
               // Numeric literals are stored inside the concrete/reflective wrapper.
               const cv = p.value.bConcreteValue.value;
-              if (cv?.bInt?.val !== undefined) val = String(cv.bInt.val);
-              else if (cv?.bFloat?.val !== undefined) val = String(cv.bFloat.val);
+              if (cv?.bInt != null) val = String(cv.bInt.val ?? 0);
+              else if (cv?.bFloat != null) val = String(cv.bFloat.val ?? 0);
               else if (cv?.bString?.val !== undefined) val = cv.bString.val;
-              else if (cv?.bEnum?.val !== undefined) val = enumValToString(cv.bEnum.val);
+              else if (cv?.bEnum != null) val = enumValToString(cv.bEnum.val ?? 0);
+              else if (cv?.bId != null) val = String(cv.bId.val ?? 0);
               else if (cv?.bVector?.val) {
                 const v = cv.bVector.val;
                 val = `(${v.x || 0}, ${v.y || 0}, ${v.z || 0})`;
@@ -1245,18 +1303,10 @@ export class GiaCodec {
         return { generic: 169, concrete, real: true, isComposite: false };
       }
 
+      const isComparisonOp = ['Equal', 'Not_Equal', 'Greater_Than', 'Less_Than', 'Greater_Than_or_Equal_To', 'Less_Than_or_Equal_To'].includes(baseKey) ||
+        (bp?.id || '').startsWith('op_equal') || (bp?.id || '').startsWith('op_compare');
+
       let dataType = n.dataType || (n.pinTypes && n.pinTypes['Result']) || null;
-      if (!dataType) {
-        const outW = wires.find(w => !w.isExec && w.fromNode === n.id);
-        if (outW) {
-          const toN = stateNodes.find(sn => sn.id === outW.toNode);
-          const toBp = toN && (getNodeBlueprint(toN.blueprintId) || getNodeBlueprint(toN.name));
-          const targetInp = toBp?.inputs?.find(i => i.name === outW.toPin);
-          if (targetInp && targetInp.type && targetInp.type !== 'generic') {
-            dataType = targetInp.type;
-          }
-        }
-      }
       if (!dataType) {
         const inW = wires.find(w => !w.isExec && w.toNode === n.id);
         if (inW) {
@@ -1267,8 +1317,22 @@ export class GiaCodec {
             const outDef = fromBp?.outputs?.find(o => o.name === inW.fromPin);
             fType = outDef?.type;
           }
+          if (!fType || fType === 'generic') {
+            if (fromN && fromN.dataType) fType = fromN.dataType;
+          }
           if (fType && fType !== 'generic') {
             dataType = fType;
+          }
+        }
+      }
+      if (!dataType && !isComparisonOp) {
+        const outW = wires.find(w => !w.isExec && w.fromNode === n.id);
+        if (outW) {
+          const toN = stateNodes.find(sn => sn.id === outW.toNode);
+          const toBp = toN && (getNodeBlueprint(toN.blueprintId) || getNodeBlueprint(toN.name));
+          const targetInp = toBp?.inputs?.find(i => i.name === outW.toPin);
+          if (targetInp && targetInp.type && targetInp.type !== 'generic') {
+            dataType = targetInp.type;
           }
         }
       }
@@ -1287,10 +1351,20 @@ export class GiaCodec {
       }
 
       let concrete = null, generic = null;
-      if (dataType && DATATYPE_SUFFIX[dataType]) {
-        concrete = NODE_ID[`${baseKey}__${DATATYPE_SUFFIX[dataType]}`] ?? null;
+      if (baseKey === 'Equal' || bp?.id === 'op_equal') {
+        const eqInfo = EQUAL_CONCRETE_INFO[dataType] || EQUAL_CONCRETE_INFO.int;
+        generic = 14;
+        concrete = eqInfo.concreteId;
+      } else if (baseKey === 'Not_Equal' || bp?.id === 'op_not_equal') {
+        const eqInfo = EQUAL_CONCRETE_INFO[dataType] || EQUAL_CONCRETE_INFO.int;
+        generic = 18;
+        concrete = NOT_EQUAL_CONCRETE_ID[dataType] || 368;
+      } else {
+        if (dataType && DATATYPE_SUFFIX[dataType]) {
+          concrete = NODE_ID[`${baseKey}__${DATATYPE_SUFFIX[dataType]}`] ?? null;
+        }
+        generic = NODE_ID[`${baseKey}__Generic`] ?? NODE_ID[baseKey] ?? concrete ?? null;
       }
-      generic = NODE_ID[`${baseKey}__Generic`] ?? NODE_ID[baseKey] ?? concrete ?? null;
       let real = generic != null;
       if (!concrete) concrete = generic;
       if (generic == null) { generic = concrete; }
@@ -1336,7 +1410,36 @@ export class GiaCodec {
       // Event source nodes ("the red ones") only carry the exec outflow — no input
       // or output pins (matches real .gia files exactly). Signal (monitor/send)
       // nodes are NOT bare events: they additionally carry their composite signal.
-      const isEvent = !isSig && ((n.category || '') === 'event' || (n.blueprintId || '').startsWith('event_'));
+      const isCustomVarChangeEvent = (bp?.id === 'event_when_custom_variable_changes' || generic === 36);
+      const isGraphVarChangeEvent = (bp?.id === 'event_when_node_graph_variable_changes' || generic === 35);
+      const isVarChangeEvent = isCustomVarChangeEvent || isGraphVarChangeEvent;
+      const isEvent = !isSig && !isVarChangeEvent && ((n.category || '') === 'event' || (n.blueprintId || '').startsWith('event_'));
+
+      // When Custom Variable Changes / When Node Graph Variable Changes carry Pre/Post value OutParam pins
+      if (isVarChangeEvent) {
+        const varType = nums.dataType || n.dataType || 'int';
+        const typeNum = typeCode(varType) || 3;
+        pins.push(pin([4, 3], {
+          type: typeNum,
+          value: {
+            class: 10000,
+            alreadySetVal: true,
+            bConcreteValue: {
+              value: defaultBaseValue(varType)
+            }
+          }
+        }));
+        pins.push(pin([4, 4], {
+          type: typeNum,
+          value: {
+            class: 10000,
+            alreadySetVal: true,
+            bConcreteValue: {
+              value: defaultBaseValue(varType)
+            }
+          }
+        }));
+      }
 
       // Signal / Send nodes bind to a signal via a composite (kind:5) param pin that
       // carries the signal name as a string when configured.
@@ -1379,9 +1482,15 @@ export class GiaCodec {
           const connWires = keptWires.filter(w => !w.isExec && w.toNode === n.id && w.toPin === inp.name);
           let resolvedType = inp.type || 'generic';
           const isGenOp = isGenericOpNode(bp, baseKey);
+          const isEqOp = (baseKey === 'Equal' || bp?.id === 'op_equal' || baseKey === 'Not_Equal' || bp?.id === 'op_not_equal');
 
-          if (isGenOp && (inp.type === 'generic' || inp.hasGear || !inp.type)) {
+          if (isEqOp) {
+            resolvedType = nodeDataType;
+          } else if (isGenOp && (inp.type === 'generic' || inp.hasGear || !inp.type)) {
             resolvedType = (nodeDataType === 'float' ? 'float' : 'int');
+          } else if (inp.type && inp.type !== 'generic' && !inp.hasGear) {
+            // Fixed type in blueprint (e.g. bool for Condition, entity for Target Entity, string for Variable Name)
+            resolvedType = inp.type;
           } else if (connWires.length > 0) {
             const fromN = byIdKept.get(connWires[0].fromNode);
             const fromBp = (fromN && (getNodeBlueprint(fromN.blueprintId) || getNodeBlueprint(fromN.name))) || null;
@@ -1413,128 +1522,179 @@ export class GiaCodec {
 
           const slotIdx = gameInputSlot(bp?.id, inp.name, i);
           const p = pin([3, slotIdx], { type: typeCode(resolvedType) });
+          const raw = n.inputValues?.[inp.name] != null ? n.inputValues[inp.name] : inp.defaultVal;
 
-          if (connWires.length === 0) {
-            const raw = n.inputValues?.[inp.name] != null ? n.inputValues[inp.name] : inp.defaultVal;
-            if (isGenOp) {
-              const isFl = resolvedType === 'float';
-              const concIdx = isFl ? 1 : 0;
-              const typeNum = isFl ? 5 : 3;
-              const valClass = isFl ? 4 : 2;
-              const valKey = isFl ? 'bFloat' : 'bInt';
-              const num = isFl ? (parseFloat(raw) || 0) : (parseInt(raw, 10) || 0);
-              p.type = typeNum;
-              p.value = {
-                class: 10000,
-                alreadySetVal: true,
-                bConcreteValue: {
-                  indexOfConcrete: concIdx,
-                  value: {
-                    class: valClass,
-                    alreadySetVal: true,
-                    itemType: valueItemType(typeNum),
-                    [valKey]: { val: num }
-                  }
-                }
-              };
-            } else {
-              const val = baseValue(resolvedType, raw);
-              if (val) p.value = val;
-            }
-          } else {
+          if (connWires.length > 0) {
             p.connects = connWires.map(w => {
               const prodOut = outputIndexFor(byIdKept.get(w.fromNode), w.fromPin);
               const conn = { kind: 4, index: prodOut };
               return { id: nodeIndex.get(w.fromNode), connect: conn, connect2: conn };
             });
+          }
 
-            if (bp?.id === 'exec_list_sorting' && inp.name === 'List') {
-              const isFl = (resolvedType === 'float list' || n.dataType === 'float');
-              const listType = isFl ? 10 : 8;
-              const concIdx = isFl ? 1 : 0;
-              p.type = listType;
-              p.value = {
-                class: 10000,
-                alreadySetVal: true,
-                bConcreteValue: {
-                  indexOfConcrete: concIdx,
-                  value: {
-                    class: 10002,
-                    alreadySetVal: false,
-                    itemType: valueItemType(listType),
-                    bArray: { entries: [] }
-                  }
-                }
-              };
-            } else if (bp?.id === 'exec_list_iteration_loop' && inp.name === 'List') {
-              const isFl = (resolvedType === 'float list' || n.dataType === 'float');
-              const listType = isFl ? 10 : 8;
-              const concIdx = isFl ? 1 : 4;
-              p.type = listType;
-              p.value = {
-                class: 10000,
-                alreadySetVal: true,
-                bConcreteValue: {
-                  indexOfConcrete: concIdx,
-                  value: {
-                    class: 10002,
-                    alreadySetVal: false,
-                    itemType: valueItemType(listType),
-                    bArray: { entries: [] }
-                  }
-                }
-              };
-            } else if (bp?.id === 'exec_set_node_graph_variable' && inp.name === 'Variable Value') {
-              const isFl = (resolvedType === 'float' || n.dataType === 'float');
-              const varType = isFl ? 5 : 3;
-              p.type = varType;
-              p.value = {
-                class: 10000,
-                alreadySetVal: true,
-                bConcreteValue: {
-                  indexOfConcrete: 0,
-                  value: {
-                    class: isFl ? 4 : 2,
-                    alreadySetVal: false,
-                    itemType: valueItemType(varType),
-                    [isFl ? 'bFloat' : 'bInt']: { val: 0 }
-                  }
-                }
-              };
-            } else if (bp?.id === 'flow_multiple_branches' && inp.name === 'Control Expression') {
-              p.type = 3;
-              p.value = {
-                class: 10000,
-                alreadySetVal: true,
-                bConcreteValue: {
-                  indexOfConcrete: 0,
-                  value: {
-                    class: 2,
-                    alreadySetVal: false,
-                    itemType: valueItemType(3),
-                    bInt: { val: 0 }
-                  }
-                }
-              };
+          if (isEqOp) {
+            const eqInfo = EQUAL_CONCRETE_INFO[nodeDataType] || EQUAL_CONCRETE_INFO.int;
+            p.type = eqInfo.type;
+            let base = null;
+            if (connWires.length > 0) {
+              base = defaultBaseValue(nodeDataType);
             } else {
-              // Standard wired inputs: value is null!
-              p.value = null;
+              base = baseValue(nodeDataType, raw) || defaultBaseValue(nodeDataType);
             }
+            p.value = {
+              class: 10000,
+              alreadySetVal: true,
+              bConcreteValue: {
+                indexOfConcrete: eqInfo.concIdx,
+                value: base
+              }
+            };
+          } else if (isGenOp) {
+            const isFl = nodeDataType === 'float';
+            const concIdx = isFl ? 1 : 0;
+            const typeNum = isFl ? 5 : 3;
+            const valClass = isFl ? 4 : 2;
+            const valKey = isFl ? 'bFloat' : 'bInt';
+            p.type = typeNum;
+            let base = null;
+            if (connWires.length > 0) {
+              base = defaultBaseValue(nodeDataType);
+            } else {
+              const num = isFl ? (parseFloat(raw) || 0) : (parseInt(raw, 10) || 0);
+              base = {
+                class: valClass,
+                alreadySetVal: raw !== '' && raw != null,
+                itemType: valueItemType(typeNum),
+                [valKey]: { val: num }
+              };
+            }
+            p.value = {
+              class: 10000,
+              alreadySetVal: true,
+              bConcreteValue: {
+                ...(isFl ? { indexOfConcrete: 1 } : {}),
+                value: base
+              }
+            };
+          } else if ((bp?.id === 'exec_set_custom_variable' || generic === 22) && inp.name === 'Variable Value') {
+            const valType = nodeDataType || 'int';
+            const typeNum = typeCode(valType) || 3;
+            p.type = typeNum;
+            const base = connWires.length > 0
+              ? defaultBaseValue(valType)
+              : (baseValue(valType, raw) || defaultBaseValue(valType));
+            p.value = {
+              class: 10000,
+              alreadySetVal: true,
+              bConcreteValue: {
+                value: base
+              }
+            };
+          } else if (bp?.id === 'exec_list_sorting' && inp.name === 'List') {
+            const isFl = (resolvedType === 'float list' || n.dataType === 'float');
+            const listType = isFl ? 10 : 8;
+            const concIdx = isFl ? 1 : 0;
+            p.type = listType;
+            p.value = {
+              class: 10000,
+              alreadySetVal: true,
+              bConcreteValue: {
+                indexOfConcrete: concIdx,
+                value: {
+                  class: 10002,
+                  alreadySetVal: false,
+                  itemType: valueItemType(listType),
+                  bArray: { entries: [] }
+                }
+              }
+            };
+          } else if (bp?.id === 'exec_list_iteration_loop' && inp.name === 'List') {
+            const isFl = (resolvedType === 'float list' || n.dataType === 'float');
+            const listType = isFl ? 10 : 8;
+            const concIdx = isFl ? 1 : 4;
+            p.type = listType;
+            p.value = {
+              class: 10000,
+              alreadySetVal: true,
+              bConcreteValue: {
+                indexOfConcrete: concIdx,
+                value: {
+                  class: 10002,
+                  alreadySetVal: false,
+                  itemType: valueItemType(listType),
+                  bArray: { entries: [] }
+                }
+              }
+            };
+          } else if (bp?.id === 'exec_set_node_graph_variable' && inp.name === 'Variable Value') {
+            const isFl = (resolvedType === 'float' || n.dataType === 'float');
+            const varType = isFl ? 5 : 3;
+            p.type = varType;
+            p.value = {
+              class: 10000,
+              alreadySetVal: true,
+              bConcreteValue: {
+                indexOfConcrete: 0,
+                value: {
+                  class: isFl ? 4 : 2,
+                  alreadySetVal: connWires.length === 0 && raw !== '' && raw != null,
+                  itemType: valueItemType(varType),
+                  [isFl ? 'bFloat' : 'bInt']: { val: 0 }
+                }
+              }
+            };
+          } else if (bp?.id === 'flow_multiple_branches' && inp.name === 'Control Expression') {
+            p.type = 3;
+            p.value = {
+              class: 10000,
+              alreadySetVal: true,
+              bConcreteValue: {
+                indexOfConcrete: 0,
+                value: {
+                  class: 2,
+                  alreadySetVal: false,
+                  itemType: valueItemType(3),
+                  bInt: { val: 0 }
+                }
+              }
+            };
+          } else if (connWires.length === 0) {
+            const val = baseValue(resolvedType, raw);
+            if (val) p.value = val;
           }
           pins.push(p);
         });
 
+        // Set Custom Variable: Pin 4 (param_4 / Trigger Client Event) if present
+        if (bp?.id === 'exec_set_custom_variable' || generic === 22) {
+          if (n.inputValues?.['param_4'] !== undefined || n.inputValues?.['Trigger Client Event'] !== undefined) {
+            const rawP4 = n.inputValues?.['param_4'] ?? n.inputValues?.['Trigger Client Event'];
+            pins.push(pin([3, 4], {
+              type: 4,
+              value: {
+                class: 6,
+                alreadySetVal: true,
+                itemType: valueItemType(4),
+                bEnum: { val: (rawP4 === 'True' || rawP4 === '1' || rawP4 === 1 ? 1 : 0) }
+              }
+            }));
+          }
+        }
+
         // Data output pins (kind:4).
         const isAssemblyList = bp?.id === 'op_assembly_list' || (n.name || '').toLowerCase() === 'assembly list';
-        if (!isAssemblyList) {
+        if (!isAssemblyList && !isVarChangeEvent) {
           (bp?.outputs || []).forEach((out, oi) => {
             const isGear = out.type === 'generic' || out.hasGear;
-            if (!isGear && bp?.id !== 'exec_list_iteration_loop') return;
+            const isGetCustomVar = (bp?.id === 'query_get_custom_variable' || generic === 50) && oi === 0;
+            if (!isGear && bp?.id !== 'exec_list_iteration_loop' && !isGetCustomVar) return;
 
             let outType = n.pinTypes?.[out.name] || out.type || 'generic';
             const isGenOp = isGenericOpNode(bp, baseKey);
             if (isGenOp) {
               outType = (nodeDataType === 'float' ? 'float' : 'int');
+            } else if (isGetCustomVar) {
+              outType = nodeDataType || 'int';
             }
 
             const p = pin([4, gameOutputSlot(bp?.id, out.name, oi)], { type: typeCode(outType) });
@@ -1549,13 +1709,23 @@ export class GiaCodec {
                 class: 10000,
                 alreadySetVal: true,
                 bConcreteValue: {
-                  indexOfConcrete: concIdx,
+                  ...(isFl ? { indexOfConcrete: 1 } : {}),
                   value: {
                     class: valClass,
                     alreadySetVal: false,
                     itemType: valueItemType(typeNum),
                     [valKey]: { val: 0 }
                   }
+                }
+              };
+            } else if (isGetCustomVar) {
+              const typeNum = typeCode(outType) || 3;
+              p.type = typeNum;
+              p.value = {
+                class: 10000,
+                alreadySetVal: true,
+                bConcreteValue: {
+                  value: defaultBaseValue(outType)
                 }
               };
             } else if (bp?.id === 'exec_list_iteration_loop' && out.name === 'Value') {

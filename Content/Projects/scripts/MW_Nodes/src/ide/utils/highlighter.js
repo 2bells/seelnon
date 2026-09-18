@@ -119,7 +119,7 @@ export function highlightTs(code) {
 // High-performance tokenization for Lua in the IDE
 const LUA_KEYWORDS = new Set([
   'local', 'function', 'end', 'if', 'then', 'else', 'elseif', 'for', 'while',
-  'do', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until',
+  'do', 'from', 'to', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until',
   'random', 'randomFloat', 'toInt', 'toFloat', 'toBool', 'tostring', 'toVector3', 'math', 'self', 'guid', 'get',
   'cos', 'sin', 'tan', 'sqrt', 'acos', 'asin', 'atan', 'abs', 'deg', 'rad', 'min', 'max', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'pi'
 ]);

@@ -835,6 +835,26 @@ class _LuaParser {
         }
         handlers.push({ bodyStart, end: k, evId, evName, isSignal, signalName });
         i = k;
+      } else if (T[i].t === 'id' && T[i].v === 'function' && T[i + 1]?.t === 'id') {
+        const evName = T[i + 1].v;
+        let j = i + 2;
+        while (j < T.length && T[j].t !== ')') j++;
+        const bodyStart = j + 1;
+        let depth = 1;
+        let k = bodyStart;
+        while (k < T.length) {
+          const tk = T[k];
+          if (tk.t === 'id' && (tk.v === 'function' || tk.v === 'if' || tk.v === 'for' || tk.v === 'while')) depth++;
+          else if (tk.t === 'id' && tk.v === 'end') { depth--; if (depth === 0) break; }
+          k++;
+        }
+        let evId = null;
+        if (i > 0 && T[i - 1].t === 'ln') {
+          const m = /@([A-Za-z0-9_:.\-]+)/.exec(T[i - 1].v);
+          if (m) evId = m[1];
+        }
+        handlers.push({ bodyStart, end: k, evId, evName, isSignal: false, signalName: null });
+        i = k;
       }
     }
     return handlers;
@@ -946,6 +966,26 @@ class _LuaParser {
     });
   }
 
+  connectNextExec(fromNode, toNode) {
+    if (!fromNode || !toNode) return;
+    const fromObj = fromNode.last || fromNode.first || fromNode;
+    const toObj = toNode.first || toNode;
+    if (!fromObj || !toObj) return;
+
+    if (fromObj.blueprintId === 'exec_list_iteration_loop' || fromObj.blueprintId === 'exec_finite_loop') {
+      this.wires.push({
+        id: this.nextWireId(),
+        fromNode: fromObj.id,
+        fromPin: 'Loop Complete',
+        toNode: toObj.id,
+        toPin: 'execIn',
+        isExec: true
+      });
+    } else {
+      this.connectExec(fromObj, toObj);
+    }
+  }
+
   connectPin(fromNode, fromPin, toNode) {
     if (!fromNode || !toNode) return;
     this.wires.push({
@@ -1046,7 +1086,7 @@ class _LuaParser {
         if (parenDepth > 0) parenDepth--;
       }
       if (tk.t === 'ln' && parenDepth === 0) { i++; break; }
-      if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function') && parenDepth === 0) break;
+      if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'for' || tk.v === 'break' || tk.v === 'while' || tk.v === 'end' || tk.v === 'function') && parenDepth === 0) break;
       i++;
     }
     this.i = i;
@@ -1607,7 +1647,9 @@ class _LuaParser {
 
         // Fallback local variable references
         if (this.varToNode.has(name)) {
-          return { isVar: true, nodeId: this.varToNode.get(name) };
+          const v = this.varToNode.get(name);
+          if (typeof v === 'object' && v !== null) return v;
+          return { isVar: true, nodeId: v };
         }
 
         // Node Graph Variable references (e.g. `My_var`, `HP`, `num`)
@@ -1979,7 +2021,7 @@ class _LuaParser {
       if (tk.t === ';' || tk.t === ',') { this.i++; continue; }
       if (tk.t === 'id' && tk.v === 'local') {
         const n = this.parseLocalDeclarationStmt();
-        if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
+        if (n) { if (!first) first = n; if (chainTail) this.connectNextExec(chainTail, n); chainTail = n; }
         continue;
       }
 
@@ -2001,7 +2043,7 @@ class _LuaParser {
       }
       if (customVarMatch) {
         const n = this.parseCustomVarAssignmentStmt();
-        if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
+        if (n) { if (!first) first = n; if (chainTail) this.connectNextExec(chainTail, n); chainTail = n; }
         continue;
       }
 
@@ -2010,7 +2052,7 @@ class _LuaParser {
         const nextOp = this.T[this.i + 1]?.t;
         if (nextOp === '=' || nextOp === '+=' || nextOp === '-=' || nextOp === '*=' || nextOp === '/=' || nextOp === '++' || nextOp === '--') {
           const n = this.parseAssignmentStmt(tk.v);
-          if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
+          if (n) { if (!first) first = n; if (chainTail) this.connectNextExec(chainTail, n); chainTail = n; }
           continue;
         }
       }
@@ -2019,14 +2061,32 @@ class _LuaParser {
         const b = this.parseIf();
         if (b) {
           if (!first) first = b.first || b;
-          if (chainTail) this.connectExec(chainTail, b.first || b);
+          if (chainTail) this.connectNextExec(chainTail, b.first || b);
           chainTail = b.last || b.first || b;
+        }
+        continue;
+      }
+      if (tk.t === 'id' && tk.v === 'for') {
+        const b = this.parseFor();
+        if (b) {
+          if (!first) first = b.first || b;
+          if (chainTail) this.connectNextExec(chainTail, b.first || b);
+          chainTail = b.last || b.first || b;
+        }
+        continue;
+      }
+      if (tk.t === 'id' && tk.v === 'break') {
+        const n = this.parseBreakLoop();
+        if (n) {
+          if (!first) first = n;
+          if (chainTail) this.connectNextExec(chainTail, n);
+          chainTail = n;
         }
         continue;
       }
       if (tk.t === 'id' && (tk.v === 'utils' || tk.v === 'f' || tk.v === 'n')) {
         const n = this.parseStmt();
-        if (n) { if (!first) first = n; if (chainTail) this.connectExec(chainTail, n); chainTail = n; }
+        if (n) { if (!first) first = n; if (chainTail) this.connectNextExec(chainTail, n); chainTail = n; }
         continue;
       }
       this.i++;
@@ -2069,7 +2129,7 @@ class _LuaParser {
         if (parenDepth > 0) parenDepth--;
       }
       if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-      if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+      if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'for' || tk.v === 'break' || tk.v === 'while' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
       exprTokens.push(tk);
       this.i++;
     }
@@ -2149,7 +2209,7 @@ class _LuaParser {
           if (parenDepth > 0) parenDepth--;
         }
         if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'for' || tk.v === 'break' || tk.v === 'while' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
         rawRhsTokens.push(tk);
         this.i++;
       }
@@ -2263,7 +2323,7 @@ class _LuaParser {
           if (parenDepth > 0) parenDepth--;
         }
         if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'for' || tk.v === 'break' || tk.v === 'while' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
         rawRhsTokens.push(tk);
         this.i++;
       }
@@ -2501,6 +2561,53 @@ class _LuaParser {
       return setNode;
     }
 
+    // 4. Direct f.breakLoop call handling
+    if (r.fn === 'breakLoop' || r.fn === 'break_loop') {
+      const breakNode = this.makeNode('exec_break_loop', 'Break Loop', 'execution');
+      if (ann && !this.takenIds.has(ann)) { breakNode.id = ann; this.takenIds.add(ann); }
+      this.placeFlow(breakNode);
+      this.nodes.push(breakNode);
+      if (this.activeLoopNode) {
+        this.wires.push({
+          id: this.nextWireId(),
+          fromNode: breakNode.id,
+          fromPin: 'execOut',
+          toNode: this.activeLoopNode.id,
+          toPin: 'Break Loop',
+          isExec: true
+        });
+      }
+      return breakNode;
+    }
+
+    // 5. Direct f.finiteLoop / f.listIterationLoop call handling
+    if (r.fn === 'finiteLoop' || r.fn === 'finite_loop') {
+      const loopNode = this.makeNode('exec_finite_loop', 'Finite Loop', 'execution');
+      if (ann && !this.takenIds.has(ann)) { loopNode.id = ann; this.takenIds.add(ann); }
+      this.placeFlow(loopNode);
+      this.nodes.push(loopNode);
+      if (r.groups[0]?.length) {
+        const startVal = this.parseExprTokens(r.groups[0], false);
+        this.applyValueTo(loopNode, 'Start', startVal);
+      }
+      if (r.groups[1]?.length) {
+        const endVal = this.parseExprTokens(r.groups[1], false);
+        this.applyValueTo(loopNode, 'End', endVal);
+      }
+      return loopNode;
+    }
+    if (r.fn === 'listIterationLoop' || r.fn === 'list_iteration_loop') {
+      const loopNode = this.makeNode('exec_list_iteration_loop', 'List Iteration Loop', 'execution');
+      if (ann && !this.takenIds.has(ann)) { loopNode.id = ann; this.takenIds.add(ann); }
+      this.placeFlow(loopNode);
+      this.nodes.push(loopNode);
+      if (r.groups[0]?.length) {
+        const listVal = this.parseExprTokens(r.groups[0], false);
+        this.applyValueTo(loopNode, 'List', listVal);
+      }
+      return loopNode;
+    }
+
     const ent = resolveNode(r.fn) || { name: r.fn, id: 'exec_' + r.fn, cat: 'execution' };
     const node = this.makeNode(ent.id, ent.name, ent.cat);
     if (ann && !this.takenIds.has(ann)) { node.id = ann; this.takenIds.add(ann); }
@@ -2570,6 +2677,195 @@ class _LuaParser {
     if (this.T[this.i]?.t === 'id' && this.T[this.i].v === 'end') this.i++;
     if (noFirst) this.connectPin(node, 'No', noFirst);
     return { first: node, last: yes.last || node };
+  }
+
+  parseBreakLoop() {
+    this.i++; // skip 'break'
+    if (this.T[this.i]?.t === '(' && this.T[this.i + 1]?.t === ')') {
+      this.i += 2;
+    }
+    const ann = this.readNodeId();
+    const breakNode = this.makeNode('exec_break_loop', 'Break Loop', 'execution');
+    if (ann && !this.takenIds.has(ann)) { breakNode.id = ann; this.takenIds.add(ann); }
+    this.placeFlow(breakNode);
+    this.nodes.push(breakNode);
+    if (this.activeLoopNode) {
+      this.wires.push({
+        id: this.nextWireId(),
+        fromNode: breakNode.id,
+        fromPin: 'execOut',
+        toNode: this.activeLoopNode.id,
+        toPin: 'Break Loop',
+        isExec: true
+      });
+    }
+    return breakNode;
+  }
+
+  parseFor() {
+    this.i++; // skip 'for'
+    if (this.T[this.i]?.t !== 'id') return null;
+    const varName = this.T[this.i].v;
+    this.i++;
+
+    const nextTk = this.T[this.i];
+    if (nextTk?.t === 'id' && nextTk.v === 'in') {
+      this.i++; // skip 'in'
+      const exprTokens = [];
+      let depth = 0;
+      while (this.i < this.T.length) {
+        const t = this.T[this.i];
+        if (t.t === '(' || t.t === '{') depth++;
+        else if (t.t === ')' || t.t === '}') { if (depth > 0) depth--; }
+        if (depth === 0 && t.t === 'id' && t.v === 'do') {
+          this.i++; // skip 'do'
+          break;
+        }
+        exprTokens.push(t);
+        this.i++;
+      }
+
+      const loopNode = this.makeNode('exec_list_iteration_loop', 'List Iteration Loop', 'execution');
+      const ann = this.readNodeId();
+      if (ann && !this.takenIds.has(ann)) { loopNode.id = ann; this.takenIds.add(ann); }
+      loopNode.varName = varName;
+      this.placeFlow(loopNode);
+      this.nodes.push(loopNode);
+
+      if (exprTokens.length > 0) {
+        const listVal = this.parseExprTokens(exprTokens, false);
+        this.applyValueTo(loopNode, 'List', listVal);
+        if (listVal) {
+          let detectedType = listVal.dataType;
+          if (!detectedType && listVal.node) {
+            const bp = getNodeBlueprint(listVal.node.blueprintId) || getNodeBlueprint(listVal.node.name);
+            const outDef = bp?.outputs?.find(o => o.name === (listVal.outputPin || 'Result'));
+            detectedType = outDef?.type || listVal.node.dataType;
+          }
+          if (detectedType) {
+            const elemType = detectedType.replace(/\s+list$/i, '').trim();
+            loopNode.dataType = elemType;
+            const bp = getNodeBlueprint('exec_list_iteration_loop');
+            if (bp) applyDataTypeToNode(loopNode, bp, elemType);
+          }
+        }
+      }
+
+      const prevActiveLoop = this.activeLoopNode;
+      this.activeLoopNode = loopNode;
+
+      const prevVar = this.varToNode.get(varName);
+      this.varToNode.set(varName, {
+        isVar: true,
+        nodeId: loopNode.id,
+        outputPin: 'Value',
+        dataType: loopNode.dataType || 'generic',
+        node: loopNode
+      });
+
+      const bodyRes = this.parseBlock();
+      if (this.T[this.i]?.t === 'ln') this.i++;
+      if (this.T[this.i]?.t === 'id' && this.T[this.i].v === 'end') {
+        this.i++;
+      }
+      if (bodyRes.first) {
+        this.wires.push({
+          id: this.nextWireId(),
+          fromNode: loopNode.id,
+          fromPin: 'Loop Body',
+          toNode: (bodyRes.first).id,
+          toPin: 'execIn',
+          isExec: true
+        });
+      }
+
+      this.activeLoopNode = prevActiveLoop;
+      if (prevVar) this.varToNode.set(varName, prevVar);
+      else this.varToNode.delete(varName);
+
+      return { first: loopNode, last: loopNode };
+    } else if ((nextTk?.t === 'id' && nextTk.v === 'from') || nextTk?.t === '=') {
+      this.i++; // skip 'from' or '='
+      const startTokens = [];
+      let depth = 0;
+      while (this.i < this.T.length) {
+        const t = this.T[this.i];
+        if (t.t === '(' || t.t === '{') depth++;
+        else if (t.t === ')' || t.t === '}') { if (depth > 0) depth--; }
+        if (depth === 0 && ((t.t === 'id' && t.v === 'to') || t.t === ',')) {
+          this.i++;
+          break;
+        }
+        startTokens.push(t);
+        this.i++;
+      }
+
+      const endTokens = [];
+      depth = 0;
+      while (this.i < this.T.length) {
+        const t = this.T[this.i];
+        if (t.t === '(' || t.t === '{') depth++;
+        else if (t.t === ')' || t.t === '}') { if (depth > 0) depth--; }
+        if (depth === 0 && t.t === 'id' && t.v === 'do') {
+          this.i++;
+          break;
+        }
+        endTokens.push(t);
+        this.i++;
+      }
+
+      const loopNode = this.makeNode('exec_finite_loop', 'Finite Loop', 'execution');
+      const ann = this.readNodeId();
+      if (ann && !this.takenIds.has(ann)) { loopNode.id = ann; this.takenIds.add(ann); }
+      loopNode.varName = varName;
+      this.placeFlow(loopNode);
+      this.nodes.push(loopNode);
+
+      if (startTokens.length > 0) {
+        const startVal = this.parseExprTokens(startTokens, false);
+        this.applyValueTo(loopNode, 'Start', startVal);
+      }
+      if (endTokens.length > 0) {
+        const endVal = this.parseExprTokens(endTokens, false);
+        this.applyValueTo(loopNode, 'End', endVal);
+      }
+
+      const prevActiveLoop = this.activeLoopNode;
+      this.activeLoopNode = loopNode;
+
+      const prevVar = this.varToNode.get(varName);
+      this.varToNode.set(varName, {
+        isVar: true,
+        nodeId: loopNode.id,
+        outputPin: 'Current',
+        dataType: 'int',
+        node: loopNode
+      });
+
+      const bodyRes = this.parseBlock();
+      if (this.T[this.i]?.t === 'ln') this.i++;
+      if (this.T[this.i]?.t === 'id' && this.T[this.i].v === 'end') {
+        this.i++;
+      }
+      if (bodyRes.first) {
+        this.wires.push({
+          id: this.nextWireId(),
+          fromNode: loopNode.id,
+          fromPin: 'Loop Body',
+          toNode: (bodyRes.first).id,
+          toPin: 'execIn',
+          isExec: true
+        });
+      }
+
+      this.activeLoopNode = prevActiveLoop;
+      if (prevVar) this.varToNode.set(varName, prevVar);
+      else this.varToNode.delete(varName);
+
+      return { first: loopNode, last: loopNode };
+    }
+
+    return null;
   }
 
   parseBody() {
