@@ -269,17 +269,8 @@ class CavemanApp {
       clearTimeout(this._statsDebounceTimer);
       this._statsDebounceTimer = setTimeout(() => this.updateStats(), 300);
 
-      // 4. Line count change check for line numbers (zero memory allocation)
-      let lineCount = 1;
-      for (let i = 0; i < text.length; i++) {
-        if (text.charCodeAt(i) === 10) lineCount++;
-      }
-      if (lineCount !== this.lastRenderedLineCount) {
-        this.requestFastLineNumbers(true);
-      } else {
-        clearTimeout(this._lineNumbersDebounceTimer);
-        this._lineNumbersDebounceTimer = setTimeout(() => this.requestFastLineNumbers(), 250);
-      }
+      // 4. Update line numbers immediately on next frame with forced metrics check for wrapped lines
+      this.requestFastLineNumbers(true);
 
       // 5. Debounced search update if search widget is open (150ms)
       if (!this.editorSearchWidget.classList.contains('hidden')) {
@@ -394,7 +385,20 @@ class CavemanApp {
     this.togglePreviewBtn.addEventListener('click', () => this.toggleEditorMode());
     this.canvasModeBtn.addEventListener('click', () => this.toggleCanvasMode());
     this.deleteNoteBtn.addEventListener('click', () => this.deleteCurrentNote());
-    this.editorEl.addEventListener('paste', (e) => this.handlePaste(e));
+    this.editorEl.addEventListener('paste', (e) => {
+      // Snapshot state immediately prior to paste for clean undo
+      this.pushHistory();
+      this.handlePaste(e);
+      // Ensure post-paste text is rendered cleanly and recorded
+      setTimeout(() => {
+        this.pushHistory();
+        this.cachedLines = null;
+        this.cachedHighlightedLines = null;
+        this.lastRenderedText = null;
+        this.renderHighlightsImmediate();
+        this.updateLineNumbers(true);
+      }, 0);
+    });
     this.exportBtn.addEventListener('click', () => this.exportVault());
     this.exportNoteBtn.addEventListener('click', () => {
       if (this.viewMode === 'canvas') {
@@ -1447,6 +1451,9 @@ class CavemanApp {
     const history = this.historyStack.get(this.currentNote.id);
     if (!history) return;
 
+    clearTimeout(this.historyTimer);
+    this.historyTimer = null;
+
     const content = this.editorEl.value;
     const last = history.undo[history.undo.length - 1];
     
@@ -1465,7 +1472,26 @@ class CavemanApp {
   undo() {
     if (!this.currentNote) return;
     const history = this.historyStack.get(this.currentNote.id);
-    if (!history || history.undo.length <= 1) return;
+    if (!history) return;
+
+    clearTimeout(this.historyTimer);
+    this.historyTimer = null;
+
+    const currentText = this.editorEl.value;
+    const currentStart = this.editorEl.selectionStart;
+    const currentEnd = this.editorEl.selectionEnd;
+
+    // Ensure the top of the undo stack accurately captures what was in the editor before undoing
+    const lastUndo = history.undo[history.undo.length - 1];
+    if (lastUndo && lastUndo.content !== currentText) {
+      history.undo.push({
+        content: currentText,
+        start: currentStart,
+        end: currentEnd
+      });
+    }
+
+    if (history.undo.length <= 1) return;
 
     const current = history.undo.pop();
     history.redo.push(current);
@@ -1474,9 +1500,13 @@ class CavemanApp {
     this.editorEl.value = prev.content;
     this.editorEl.setSelectionRange(prev.start, prev.end);
     
+    // Clear diff cache to avoid any flash of stale highlighting
+    this.cachedLines = null;
+    this.cachedHighlightedLines = null;
+    this.lastRenderedText = null;
     this.handleInput(false, true); // true = skip history push
-    setTimeout(() => this.renderHighlights(), 0);
-    this.updateLineNumbers();
+    this.renderHighlightsImmediate();
+    this.updateLineNumbers(true);
     this.editorEl.focus();
   }
 
@@ -1485,15 +1515,22 @@ class CavemanApp {
     const history = this.historyStack.get(this.currentNote.id);
     if (!history || history.redo.length === 0) return;
 
+    clearTimeout(this.historyTimer);
+    this.historyTimer = null;
+
     const next = history.redo.pop();
     history.undo.push(next);
     
     this.editorEl.value = next.content;
     this.editorEl.setSelectionRange(next.start, next.end);
     
+    // Clear diff cache to avoid any flash of stale highlighting
+    this.cachedLines = null;
+    this.cachedHighlightedLines = null;
+    this.lastRenderedText = null;
     this.handleInput(false, true); // true = skip history push
-    setTimeout(() => this.renderHighlights(), 0);
-    this.updateLineNumbers();
+    this.renderHighlightsImmediate();
+    this.updateLineNumbers(true);
     this.editorEl.focus();
   }
 
@@ -2190,21 +2227,17 @@ class CavemanApp {
     let prismLang = null;
 
     if (hasLang && typeof Prism !== 'undefined') {
-      const effectiveLang = codeBlockLang.trim().toLowerCase();
+      let effectiveLang = codeBlockLang.trim().toLowerCase();
+      if (effectiveLang === 'js') effectiveLang = 'javascript';
+      else if (effectiveLang === 'ts') effectiveLang = 'typescript';
+      else if (effectiveLang === 'py') effectiveLang = 'python';
+      else if (effectiveLang === 'sh' || effectiveLang === 'shell' || effectiveLang === 'zsh') effectiveLang = 'bash';
+      else if (effectiveLang === 'html' || effectiveLang === 'xml' || effectiveLang === 'svg') effectiveLang = 'markup';
+      else if (effectiveLang === 'md') effectiveLang = 'markdown';
+      else if (effectiveLang === 'yml') effectiveLang = 'yaml';
+
       if (Prism.languages[effectiveLang]) {
         prismLang = effectiveLang;
-      } else if (effectiveLang === 'js' && Prism.languages.javascript) {
-        prismLang = 'javascript';
-      } else if (effectiveLang === 'ts' && Prism.languages.typescript) {
-        prismLang = 'typescript';
-      } else if (effectiveLang === 'py' && Prism.languages.python) {
-        prismLang = 'python';
-      } else if (effectiveLang === 'sh' && Prism.languages.bash) {
-        prismLang = 'bash';
-      } else if ((effectiveLang === 'html' || effectiveLang === 'xml') && Prism.languages.markup) {
-        prismLang = 'markup';
-      } else if (effectiveLang === 'jus' && Prism.languages.lua) {
-        prismLang = 'lua';
       }
     }
 
@@ -2407,17 +2440,35 @@ class CavemanApp {
       const line1 = newLines[splitIdx];
       const line2 = newLines[splitIdx + 1];
 
-      if (line1.includes('color') || line2.includes('color') || (this.cachedLines[splitIdx] && this.cachedLines[splitIdx].includes('color'))) {
+      // If backticks, fences or colors are touched, trigger immediate full pass
+      if (line1.includes('```') || line2.includes('```') || (this.cachedLines[splitIdx] && this.cachedLines[splitIdx].includes('```')) ||
+          line1.includes('color') || line2.includes('color') || (this.cachedLines[splitIdx] && this.cachedLines[splitIdx].includes('color'))) {
         this.renderHighlightsImmediate();
         this.requestFastLineNumbers(true);
         return;
       }
 
-      const formatted1 = this.formatSingleLine(line1, splitIdx, inCodeBlock, codeBlockLang);
-      const formatted2 = this.formatSingleLine(line2, splitIdx + 1, inCodeBlock, codeBlockLang);
+      const splitState = this.cachedCodeBlockStates ? Boolean(this.cachedCodeBlockStates[splitIdx]) : false;
+      const splitLang = this.cachedCodeBlockLangs ? (this.cachedCodeBlockLangs[splitIdx] || '') : '';
+
+      const formatted1 = this.formatSingleLine(line1, splitIdx, splitState, splitLang);
+      const formatted2 = this.formatSingleLine(line2, splitIdx + 1, splitState, splitLang);
 
       this.cachedLines.splice(splitIdx, 1, line1, line2);
       this.cachedHighlightedLines.splice(splitIdx, 1, formatted1, formatted2);
+
+      // Keep codeblock states and langs arrays exactly aligned with the spliced line count
+      if (this.cachedCodeBlockStates) {
+        const nextStates = new Uint8Array(newLength);
+        nextStates.set(this.cachedCodeBlockStates.subarray(0, splitIdx), 0);
+        nextStates[splitIdx] = splitState ? 1 : 0;
+        nextStates[splitIdx + 1] = splitState ? 1 : 0;
+        nextStates.set(this.cachedCodeBlockStates.subarray(splitIdx + 1), splitIdx + 2);
+        this.cachedCodeBlockStates = nextStates;
+      }
+      if (this.cachedCodeBlockLangs) {
+        this.cachedCodeBlockLangs.splice(splitIdx, 1, splitLang, splitLang);
+      }
       
       if (!this._fastHighlightRaf) {
         this._fastHighlightRaf = requestAnimationFrame(() => {
@@ -2440,16 +2491,36 @@ class CavemanApp {
       if (mergeIdx === -1) mergeIdx = cursorLineIdx;
 
       const mergedLine = newLines[mergeIdx];
-      if (mergedLine.includes('color') || (this.cachedLines[mergeIdx] && this.cachedLines[mergeIdx].includes('color')) || (this.cachedLines[mergeIdx + 1] && this.cachedLines[mergeIdx + 1].includes('color'))) {
+      if (mergedLine.includes('```') || 
+          (this.cachedLines[mergeIdx] && this.cachedLines[mergeIdx].includes('```')) || 
+          (this.cachedLines[mergeIdx + 1] && this.cachedLines[mergeIdx + 1].includes('```')) ||
+          mergedLine.includes('color') || 
+          (this.cachedLines[mergeIdx] && this.cachedLines[mergeIdx].includes('color')) || 
+          (this.cachedLines[mergeIdx + 1] && this.cachedLines[mergeIdx + 1].includes('color'))) {
         this.renderHighlightsImmediate();
         this.requestFastLineNumbers(true);
         return;
       }
 
-      const formatted = this.formatSingleLine(mergedLine, mergeIdx, inCodeBlock, codeBlockLang);
+      const mergeState = this.cachedCodeBlockStates ? Boolean(this.cachedCodeBlockStates[mergeIdx]) : false;
+      const mergeLang = this.cachedCodeBlockLangs ? (this.cachedCodeBlockLangs[mergeIdx] || '') : '';
+
+      const formatted = this.formatSingleLine(mergedLine, mergeIdx, mergeState, mergeLang);
 
       this.cachedLines.splice(mergeIdx, 2, mergedLine);
       this.cachedHighlightedLines.splice(mergeIdx, 2, formatted);
+
+      // Keep codeblock states and langs arrays exactly aligned with the spliced line count
+      if (this.cachedCodeBlockStates) {
+        const nextStates = new Uint8Array(newLength);
+        nextStates.set(this.cachedCodeBlockStates.subarray(0, mergeIdx), 0);
+        nextStates[mergeIdx] = mergeState ? 1 : 0;
+        nextStates.set(this.cachedCodeBlockStates.subarray(mergeIdx + 2), mergeIdx + 1);
+        this.cachedCodeBlockStates = nextStates;
+      }
+      if (this.cachedCodeBlockLangs) {
+        this.cachedCodeBlockLangs.splice(mergeIdx, 2, mergeLang);
+      }
       
       if (!this._fastHighlightRaf) {
         this._fastHighlightRaf = requestAnimationFrame(() => {
@@ -2628,14 +2699,32 @@ class CavemanApp {
           const deltaStates = [];
           const deltaLangs = [];
 
+          let hasFenceInDiff = false;
+          for (let i = p; i < newEnd; i++) {
+            if (rawLines[i].includes('```')) { hasFenceInDiff = true; break; }
+          }
+          if (!hasFenceInDiff) {
+            for (let i = p; i < oldEnd; i++) {
+              if (this.cachedLines[i] && this.cachedLines[i].includes('```')) { hasFenceInDiff = true; break; }
+            }
+          }
+
           for (let i = p; i < newEnd; i++) {
             const line = rawLines[i];
             const trimmed = line.trim();
 
             if (trimmed.startsWith('```')) {
               if (!inCodeBlock) {
-                inCodeBlock = true;
-                codeBlockLang = trimmed.slice(3).trim().toLowerCase().split(/\s+/)[0];
+                const afterOpening = trimmed.slice(3);
+                const closingIdx = afterOpening.indexOf('```');
+                if (closingIdx !== -1) {
+                  // Single line code block (opens and closes on same line)
+                  inCodeBlock = false;
+                  codeBlockLang = '';
+                } else {
+                  inCodeBlock = true;
+                  codeBlockLang = afterOpening.trim().toLowerCase().split(/\s+/)[0] || '';
+                }
               } else {
                 inCodeBlock = false;
                 codeBlockLang = '';
@@ -2652,7 +2741,7 @@ class CavemanApp {
             const lineColorEvents = lineTagMap.get(i);
             const hasColorMacro = Boolean(lineColorEvents && lineColorEvents.length > 0);
             const cacheKey = !hasColorMacro && !line.includes('color') && !line.includes('FOLD:')
-              ? `${inCodeBlock ? codeBlockLang : 'md'}:${line}`
+              ? `${inCodeBlock ? (codeBlockLang || 'plain_code') : 'md'}:${line}`
               : null;
 
             let formatted = cacheKey ? this._lineHighlightCache.get(cacheKey) : null;
@@ -2666,12 +2755,15 @@ class CavemanApp {
             deltaHighlights.push(formatted);
           }
 
-          // Verify if suffix codeblock state is unperturbed
+          // Verify if suffix codeblock state and language are completely unperturbed
           const expectedSuffixState = (oldEnd < this.cachedCodeBlockStates.length)
             ? (this.cachedCodeBlockStates[oldEnd] === 1)
             : false;
+          const expectedSuffixLang = (oldEnd < this.cachedCodeBlockLangs.length)
+            ? (this.cachedCodeBlockLangs[oldEnd] || '')
+            : '';
           
-          if (inCodeBlock === expectedSuffixState) {
+          if (!hasFenceInDiff && inCodeBlock === expectedSuffixState && (!inCodeBlock || codeBlockLang === expectedSuffixLang)) {
             highlightedLines = [
               ...this.cachedHighlightedLines.slice(0, p),
               ...deltaHighlights,
@@ -2707,9 +2799,18 @@ class CavemanApp {
           // Track fenced code blocks continuously across the entire document
           if (trimmed.startsWith('```')) {
             if (!inCodeBlock) {
-              inCodeBlock = true;
-              codeBlockLang = trimmed.slice(3).trim().toLowerCase().split(/\s+/)[0];
-              codeBlockStartLine = i;
+              const afterOpening = trimmed.slice(3);
+              const closingIdx = afterOpening.indexOf('```');
+              if (closingIdx !== -1) {
+                // Single line code block (opens and closes on same line, e.g. ```lua test ``` or ``` this ```)
+                inCodeBlock = false;
+                codeBlockLang = '';
+                codeBlockStartLine = -1;
+              } else {
+                inCodeBlock = true;
+                codeBlockLang = afterOpening.trim().toLowerCase().split(/\s+/)[0] || '';
+                codeBlockStartLine = i;
+              }
             } else {
               inCodeBlock = false;
               codeBlockLang = '';
@@ -2736,7 +2837,7 @@ class CavemanApp {
           
           // Use cached formatted line if available and no dynamic macros/folding
           const cacheKey = !hasColorMacro && !line.includes('color') && !line.includes('FOLD:')
-            ? `${inCodeBlock ? codeBlockLang : 'md'}:${line}`
+            ? `${inCodeBlock ? (codeBlockLang || 'plain_code') : 'md'}:${line}`
             : null;
 
           let formatted = cacheKey ? this._lineHighlightCache.get(cacheKey) : null;
@@ -3127,10 +3228,13 @@ class CavemanApp {
   }
 
   requestFastLineNumbers(force = false) {
+    if (force) this._lineNumberForce = true;
     if (this._lineNumberRaf) return;
     this._lineNumberRaf = requestAnimationFrame(() => {
       this._lineNumberRaf = null;
-      this.updateLineNumbers(force);
+      const shouldForce = Boolean(this._lineNumberForce);
+      this._lineNumberForce = false;
+      this.updateLineNumbers(shouldForce);
     });
   }
 
@@ -3148,12 +3252,14 @@ class CavemanApp {
     const maxCharsPerLine = Math.max(10, Math.floor(usableWidth / charWidth));
 
     const needsMetrics = force || 
+                         text !== this._lastGutterText ||
                          totalLines !== this.lastRenderedLineCount || 
                          editorWidth !== this.lastRenderedEditorWidth || 
                          !this._gutterLineTops || 
                          this._gutterLineTops.length !== totalLines + 1;
 
     if (needsMetrics) {
+      this._lastGutterText = text;
       this.lastRenderedLineCount = totalLines;
       this.lastRenderedEditorWidth = editorWidth;
 
