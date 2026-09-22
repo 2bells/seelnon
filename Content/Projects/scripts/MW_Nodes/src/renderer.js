@@ -913,16 +913,60 @@ export class GraphRenderer {
 
   syncNodeInputValuesToDom(node, el) {
     if (!node || !el) return;
-    const inputs = el.querySelectorAll('.param-input, .param-select');
-    for (const inp of inputs) {
-      if (inp === document.activeElement) continue;
-      const pinRow = inp.closest('.pin-row');
-      const pinName = pinRow ? pinRow.dataset.pinName : null;
-      if (!pinName) continue;
-      if (inp.classList.contains('vector-axis-input')) continue;
-      if (node.inputValues && node.inputValues[pinName] !== undefined) {
-        if (inp.value !== String(node.inputValues[pinName])) {
-          inp.value = node.inputValues[pinName];
+    const pinRows = el.querySelectorAll('.pin-row');
+    for (const pinRow of pinRows) {
+      const pinName = pinRow.dataset.pinName;
+      if (!pinName || !node.inputValues || node.inputValues[pinName] === undefined) continue;
+      const rawVal = node.inputValues[pinName];
+
+      const vecContainer = pinRow.querySelector('.vector3-input-container');
+      if (vecContainer) {
+        const currentVec = parseVec3(rawVal);
+        const axisInputs = vecContainer.querySelectorAll('.vector-axis-input');
+        axisInputs.forEach((inp, idx) => {
+          if (inp === document.activeElement) return;
+          const axis = idx === 0 ? 'x' : (idx === 1 ? 'y' : 'z');
+          const v = currentVec[axis] !== undefined ? String(currentVec[axis]) : '0';
+          if (inp.value !== v) inp.value = v;
+        });
+        continue;
+      }
+
+      const inp = pinRow.querySelector('.param-input, .param-select');
+      if (!inp || inp === document.activeElement) continue;
+
+      if (inp.tagName === 'SELECT') {
+        const s = String(rawVal).trim().toLowerCase();
+        const isBoolVal = s === 'true' || s === 'false' || s === '1' || s === '0' || s === 'yes' || s === 'no' || s === 'on' || s === 'off';
+        let matched = false;
+        for (let optIdx = 0; optIdx < inp.options.length; optIdx++) {
+          const opt = inp.options[optIdx];
+          if (opt.value === String(rawVal)) {
+            inp.selectedIndex = optIdx;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched && isBoolVal) {
+          const isT = s === '1' || s === 'true' || s === 'yes' || s === 'on';
+          for (let optIdx = 0; optIdx < inp.options.length; optIdx++) {
+            const optVal = inp.options[optIdx].value;
+            const optS = optVal.toLowerCase();
+            if (isT && (optVal === '1' || optS === 'true' || optS === 'yes' || optS === 'on')) {
+              inp.selectedIndex = optIdx;
+              matched = true;
+              break;
+            }
+            if (!isT && (optVal === '0' || optS === 'false' || optS === 'no' || optS === 'off')) {
+              inp.selectedIndex = optIdx;
+              matched = true;
+              break;
+            }
+          }
+        }
+      } else {
+        if (inp.value !== String(rawVal)) {
+          inp.value = rawVal;
         }
       }
     }
@@ -1690,11 +1734,13 @@ export class GraphRenderer {
               this.state.setInputValue(node.id, inp.name, e.target.value);
             });
             rightWidget.appendChild(select);
-          } else if (pinType === 'bool') {
+          } else if (pinType === 'bool' || inp.type === 'bool') {
             const select = document.createElement('select');
             select.className = 'param-select';
             select.addEventListener('mousedown', (e) => e.stopPropagation());
             select.addEventListener('click', (e) => e.stopPropagation());
+            const curVal = node.inputValues[inp.name] !== undefined ? node.inputValues[inp.name] : (inp.defaultVal !== undefined ? inp.defaultVal : '1');
+            const isT = normalizeBool(curVal) === 'True';
             [
               { val: '1', label: 'True (1)' },
               { val: '0', label: 'False (0)' }
@@ -1702,8 +1748,7 @@ export class GraphRenderer {
               const optEl = document.createElement('option');
               optEl.value = b.val;
               optEl.textContent = b.label;
-              const curVal = node.inputValues[inp.name] !== undefined ? String(node.inputValues[inp.name]) : '1';
-              if (curVal === b.val || (curVal === 'True' && b.val === '1') || (curVal === 'False' && b.val === '0') || (curVal === 'Yes' && b.val === '1') || (curVal === 'No' && b.val === '0')) {
+              if ((isT && b.val === '1') || (!isT && b.val === '0')) {
                 optEl.selected = true;
               }
               select.appendChild(optEl);

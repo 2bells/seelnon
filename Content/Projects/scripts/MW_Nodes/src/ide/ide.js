@@ -891,6 +891,12 @@ export class MiliastraIde {
       for (const orphan of orphanEntityQueryNodes) {
         state.removeNode?.(orphan.id);
       }
+
+      state.saveSnapshot?.();
+      state.notify?.('node_update');
+      if (this.renderer) {
+        this.renderer.render();
+      }
     } catch (err) {
       this.log(`✗ could not apply code → graph: ${err.message}`, 'error');
     } finally {

@@ -104,6 +104,15 @@ export function formatVec3(val) {
   return s;
 }
 
+function normalizeBool(val) {
+  if (val === true || val === 1) return 'True';
+  if (val === false || val === 0) return 'False';
+  const s = String(val ?? '').trim().toLowerCase();
+  if (s === '1' || s === 'true' || s === 'yes' || s === 'on') return 'True';
+  if (s === '0' || s === 'false' || s === 'no' || s === 'off') return 'False';
+  return s;
+}
+
 function lit(v) {
   if (v === null || v === undefined) return "''";
   if (typeof v === 'boolean') return v ? 'true' : 'false';
@@ -536,10 +545,6 @@ class _LuaGen {
       }
 
       if (bi === 'query_get_local_variable' || nm === 'get local variable') {
-        const hasSetNode = this.wires.some(w => !w.isExec && w.fromNode === n.id && w.fromPin === 'Local Variable');
-        if (n.isExplicitLocal || n.varName || !hasSetNode) {
-          return true;
-        }
         return false;
       }
 
@@ -578,13 +583,10 @@ class _LuaGen {
     let out = '';
     for (const id of orderIds) {
       const n = this.byId.get(id);
-      const vn = this.validVarName(n.varName) ? n.varName : (this.var.get(n.id) || n.varName || this.nextVar('d'));
-      if (this.emittedLocals && this.emittedLocals.has(vn)) continue;
+      if (this.var.has(n.id)) continue;
+      const vn = this.validVarName(n.varName) ? n.varName : this.nextVar('d');
       this.var.set(n.id, vn);
-      if (!this.emittedLocals) this.emittedLocals = new Set();
-      this.emittedLocals.add(vn);
-      const dt = n.declaredType || n.dataType;
-      const typeAnno = dt ? `: ${dt}` : '';
+      const typeAnno = n.declaredType ? `: ${n.declaredType}` : '';
       let rhs = '';
       if (n.blueprintId === 'query_get_local_variable' || (n.name || '').toLowerCase() === 'get local variable') {
         const initVal = this.argOut(n, 'Initial Value');
@@ -852,7 +854,11 @@ class _LuaGen {
 
   cond(node) {
     const w = this.wires.find(x => !x.isExec && x.toNode === node.id && (x.toPin === 'Condition' || x.toPin === 'Control Expression'));
-    if (!w) return lit(node.inputValues?.['Condition'] ?? true);
+    if (!w) {
+      const raw = node.inputValues?.['Condition'];
+      if (raw === undefined || raw === null || raw === '') return 'true';
+      return normalizeBool(raw) === 'True' ? 'true' : 'false';
+    }
     const src = this.byId.get(w.fromNode);
     if (!src) return 'true';
     if (this.var.has(src.id)) return this.var.get(src.id);
@@ -1201,9 +1207,17 @@ class _LuaGen {
       }
     }
     const val = node.inputValues?.[pinName];
-    const pinType = this.g?.getPinType ? this.g.getPinType(node.id, pinName) : '';
+    const bp = getNodeBlueprint(node.blueprintId) || getNodeBlueprint(node.name);
+    const pinDef = bp?.inputs?.find(i => i.name === pinName);
+    const pinType = (this.g?.getPinType ? this.g.getPinType(node.id, pinName) : '') || pinDef?.type || '';
     if (pinType === 'vector3' || (typeof val === 'string' && val.startsWith('(') && val.endsWith(')'))) {
       return formatVec3(val || '(x = 0.0, y = 0.0, z = 0.0)');
+    }
+    if (pinType === 'bool') {
+      if (val === undefined || val === null || val === '') {
+        return (pinDef?.defaultVal === '0' || pinDef?.defaultVal === 'False' || pinDef?.defaultVal === 'false' || pinDef?.defaultVal === 'No') ? 'false' : 'true';
+      }
+      return normalizeBool(val) === 'True' ? 'true' : 'false';
     }
     return lit(val ?? '');
   }
