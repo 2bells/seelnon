@@ -9,6 +9,7 @@ import { GiaCodec } from '../giaCodec.js';
 import { highlightLua, highlightLuaLine } from './utils/highlighter.js';
 import { getNodeBlueprint, applyDataTypeToNode } from '../nodesData.js';
 import { IdeAutocomplete } from './autocomplete.js';
+import { wasmEngine } from '../wasmEngine.js';
 
 const THE_LANG = {
   label: 'Lua',
@@ -136,7 +137,10 @@ export class MiliastraIde {
                 <div class="ide-drawer-tab active" id="tabCompilerLogs">Compiler Output</div>
                 <div class="ide-drawer-tab" id="tabGraphStats">Graph Diagnostics</div>
               </div>
-              <span style="font-size:10px; color:#5C6370;">Miliastra · interactive · Lua</span>
+              <div id="ideWasmBadge" title="Native WebAssembly binary engine active (Check-THIS.cpp architecture)" style="display:inline-flex; align-items:center; background:#1e2227; border:1px solid #3e4451; border-radius:3px; padding:2px 7px; font-size:11px; font-family:monospace; user-select:none; margin-right:4px;">
+                <span style="color:#98C379; font-weight:600;">⚡ wasm</span>
+                <span id="ideWasmSpeed" style="color:#61afef; margin-left:4px;">0ms 45L</span>
+              </div>
             </div>
             <div class="ide-drawer-body" id="ideDrawerLogs">
               <div class="ide-log-line">
@@ -335,6 +339,10 @@ export class MiliastraIde {
     const val = this.textarea.value;
     const sel = this.textarea.selectionStart;
 
+    // Fast linear memory analysis via wasmEngine
+    const docStats = wasmEngine.analyzeDocument(val);
+    this.updateWasmBadge(docStats);
+
     if (!this._linesCache) {
       this.updateHighlighting(true);
       this.updateLineNumbers(true);
@@ -463,6 +471,9 @@ export class MiliastraIde {
     this.updateHighlighting();
     this.updateLineNumbers(true);
     this.updateCursorPos();
+
+    const docStats = wasmEngine.analyzeDocument(code);
+    this.updateWasmBadge(docStats);
 
     // Update status items
     const nameEl = this.element.querySelector('#ideStatusGraphName');
@@ -983,8 +994,19 @@ setMirrorState(state) {
     }
   }
 
+  updateWasmBadge(stats) {
+    const speedEl = this.element.querySelector('#ideWasmSpeed');
+    if (speedEl && stats) {
+      speedEl.textContent = `${stats.parse_time_ms}ms ${stats.total_lines}L`;
+    }
+  }
+
   showGraphDiagnostics() {
-    let html = `<div class="ide-log-line ide-log-info">Graph '${this.state.name}' (${this.state.type})</div>`;
+    const stats = wasmEngine.analyzeDocument(this.textarea.value);
+    let html = `<div class="ide-log-line ide-log-info">⚡ <strong>WASM Binary Engine (Check-THIS.cpp Architecture)</strong></div>`;
+    html += `<div class="ide-log-line">⚡ Memory Buffer: <strong>4MB Contiguous Linear Memory</strong> | Parsed in: <strong>${stats.parse_time_ms}ms</strong></div>`;
+    html += `<div class="ide-log-line">⚡ Document Stats: <strong>${stats.total_lines} lines</strong>, <strong>${stats.total_words} words</strong>, <strong>${stats.total_chars} chars</strong>, <strong>${stats.total_macros} tokens/macros</strong></div>`;
+    html += `<div class="ide-log-line" style="margin-top:6px; color:#61AFEF;">Graph '${this.state.name}' (${this.state.type}):</div>`;
     this.state.nodes.forEach((n, i) => {
       const inWires = this.state.wires.filter(w => w.toNode === n.id).length;
       const outWires = this.state.wires.filter(w => w.fromNode === n.id).length;

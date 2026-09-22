@@ -536,6 +536,10 @@ class _LuaGen {
       }
 
       if (bi === 'query_get_local_variable' || nm === 'get local variable') {
+        const hasSetNode = this.wires.some(w => !w.isExec && w.fromNode === n.id && w.fromPin === 'Local Variable');
+        if (n.isExplicitLocal || n.varName || !hasSetNode) {
+          return true;
+        }
         return false;
       }
 
@@ -574,10 +578,13 @@ class _LuaGen {
     let out = '';
     for (const id of orderIds) {
       const n = this.byId.get(id);
-      if (this.var.has(n.id)) continue;
-      const vn = this.validVarName(n.varName) ? n.varName : this.nextVar('d');
+      const vn = this.validVarName(n.varName) ? n.varName : (this.var.get(n.id) || n.varName || this.nextVar('d'));
+      if (this.emittedLocals && this.emittedLocals.has(vn)) continue;
       this.var.set(n.id, vn);
-      const typeAnno = n.declaredType ? `: ${n.declaredType}` : '';
+      if (!this.emittedLocals) this.emittedLocals = new Set();
+      this.emittedLocals.add(vn);
+      const dt = n.declaredType || n.dataType;
+      const typeAnno = dt ? `: ${dt}` : '';
       let rhs = '';
       if (n.blueprintId === 'query_get_local_variable' || (n.name || '').toLowerCase() === 'get local variable') {
         const initVal = this.argOut(n, 'Initial Value');

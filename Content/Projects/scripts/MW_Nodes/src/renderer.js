@@ -5,6 +5,7 @@
 
 import { getNodeBlueprint, CATEGORIES, PIN_COLORS, DATA_TYPES } from './nodesData.js';
 import { signalsManager, getPinTypeFromSignalType } from './signalsManager.js';
+import { wasmEngine } from './wasmEngine.js';
 
 function normalizeBool(val) {
   const s = String(val).trim().toLowerCase();
@@ -2391,22 +2392,31 @@ export class GraphRenderer {
     }
   }
 
-  renderWires() {
+  renderWires(targetNodeIds = null) {
     const currentWireIds = new Set(this.state.wires.map(w => w.id));
 
-    // Remove obsolete wires
-    for (const [id, group] of this.wireElements.entries()) {
-      if (!currentWireIds.has(id)) {
-        if (group.hitbox) group.hitbox.remove();
-        if (group.path) group.path.remove();
-        this.wireElements.delete(id);
+    // Remove obsolete wires when performing a full render pass
+    if (!targetNodeIds) {
+      for (const [id, group] of this.wireElements.entries()) {
+        if (!currentWireIds.has(id)) {
+          if (group.hitbox) group.hitbox.remove();
+          if (group.path) group.path.remove();
+          this.wireElements.delete(id);
+        }
       }
     }
+
+    const targetSet = targetNodeIds ? (targetNodeIds instanceof Set ? targetNodeIds : new Set(targetNodeIds)) : null;
 
     // Identify collapsed comment trays to hide purely internal wires
     const collapsedTrays = (this.state.comments || []).filter(c => c.collapsed);
 
     for (const wire of this.state.wires) {
+      // Differential wire update fast-path: skip wires not touching targeted nodes
+      if (targetSet && !targetSet.has(wire.fromNode) && !targetSet.has(wire.toNode)) {
+        continue;
+      }
+
       // If both endpoints are inside the SAME collapsed comment tray, hide wire path
       const isInternalCollapsed = collapsedTrays.some(tray => {
         const set = new Set(tray.collapsedNodeIds || []);
@@ -3157,22 +3167,7 @@ export class GraphRenderer {
 
   calculateWirePath(x1, y1, x2, y2, isExec) {
     if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return '';
-    const dx = Math.abs(x2 - x1);
-    const dy = Math.abs(y2 - y1);
-    if (dx < 2 && dy < 2) return ''; // Coincident points: prevent dangling phantom loop
-
-    if (this.state.wireStyle === 'orthogonal') {
-      const midX = (x1 + x2) / 2;
-      return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
-    }
-
-    // Authentic Miliastra Wonderland Smooth Cubic Bezier Curves
-    const offset = Math.max(dx * 0.5, 50);
-    const cp1x = x1 + offset;
-    const cp1y = y1;
-    const cp2x = x2 - offset;
-    const cp2y = y2;
-    return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+    return wasmEngine.calculateWireBezier(x1, y1, x2, y2, this.state.wireStyle);
   }
 
   attachEvents() {
@@ -3242,6 +3237,7 @@ export class GraphRenderer {
           const n = this.state.nodes.find(x => x.id === id);
           return { id, origX: n.x, origY: n.y };
         });
+        this.draggedNodeIdsSet = new Set(this.state.selectedNodeIds);
         this.nodeDragStart = { x: e.clientX, y: e.clientY };
         document.body.classList.add('is-dragging-node');
         return;
@@ -3269,7 +3265,14 @@ export class GraphRenderer {
       }
     });
 
-    window.addEventListener('mousemove', (e) => {
+    let moveRafPending = false;
+    let latestMouseEvent = null;
+
+    const processMouseMove = () => {
+      moveRafPending = false;
+      const e = latestMouseEvent;
+      if (!e) return;
+
       this.lastMouseCanvasPos = this.screenToCanvas(e.clientX, e.clientY);
 
       // Panning
@@ -3286,7 +3289,7 @@ export class GraphRenderer {
         return;
       }
 
-      // Node dragging (fluid 60fps update)
+      // Node dragging (fluid 120fps hardware-accelerated update)
       if (this.draggedNodes) {
         const dx = (e.clientX - this.nodeDragStart.x) / this.state.zoom;
         const dy = (e.clientY - this.nodeDragStart.y) / this.state.zoom;
@@ -3305,7 +3308,7 @@ export class GraphRenderer {
             }
           }
         }
-        this.renderWires();
+        this.renderWires(this.draggedNodeIdsSet);
         if (window.miliastraCompositeManager && window.miliastraCompositeManager.isEditingComposite()) {
           window.miliastraCompositeManager.renderStickingOutPins(true);
         }
@@ -3355,12 +3358,21 @@ export class GraphRenderer {
         this.dragWirePath.setAttribute('d', this.calculateWirePath(x1, y1, x2, y2, this.activeDragWire.isExec));
         this.dragWirePath.style.display = 'block';
       }
+    };
+
+    window.addEventListener('mousemove', (e) => {
+      latestMouseEvent = e;
+      if (!moveRafPending) {
+        moveRafPending = true;
+        requestAnimationFrame(processMouseMove);
+      }
     });
 
     window.addEventListener('mouseup', (e) => {
       document.body.classList.remove('is-dragging-node');
       document.body.classList.remove('is-panning');
       document.body.classList.remove('is-dragging-wire');
+      this.draggedNodeIdsSet = null;
 
       if (this.isPanning) {
         this.isPanning = false;

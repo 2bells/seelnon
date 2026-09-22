@@ -743,7 +743,13 @@ class _LuaParser {
       }
 
       // Whitespace
-      if (/\s/.test(c)) { i++; continue; }
+      if (/\s/.test(c)) {
+        if (c === '\n') {
+          T.push({ t: 'nl' });
+        }
+        i++;
+        continue;
+      }
 
       // Strings
       if (c === '"' || c === "'") {
@@ -757,10 +763,25 @@ class _LuaParser {
         continue;
       }
 
-      // Numbers
+      // Numbers (with strict exponent handling)
       if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1] || ''))) {
         let s = '';
-        while (i < n && /[0-9.eE+-]/.test(src[i])) { s += src[i]; i++; }
+        while (i < n) {
+          const ch = src[i];
+          if (/[0-9.]/.test(ch)) {
+            s += ch;
+            i++;
+          } else if ((ch === 'e' || ch === 'E') && (src[i + 1] === '+' || src[i + 1] === '-' || /[0-9]/.test(src[i + 1] || ''))) {
+            s += ch;
+            i++;
+            if (src[i] === '+' || src[i] === '-') {
+              s += src[i];
+              i++;
+            }
+          } else {
+            break;
+          }
+        }
         T.push({ t: 'num', v: parseFloat(s), raw: s });
         continue;
       }
@@ -2017,7 +2038,7 @@ class _LuaParser {
     while (this.i < this.T.length) {
       const tk = this.T[this.i];
       if (tk.t === 'id' && (tk.v === 'end' || tk.v === 'elseif' || tk.v === 'else')) return { first, last: chainTail };
-      if (tk.t === 'ln') { this.i++; continue; }
+      if (tk.t === 'ln' || tk.t === 'nl') { this.i++; continue; }
       if (tk.t === ';' || tk.t === ',') { this.i++; continue; }
       if (tk.t === 'id' && tk.v === 'local') {
         const n = this.parseLocalDeclarationStmt();
@@ -2094,6 +2115,22 @@ class _LuaParser {
     return { first, last: chainTail };
   }
 
+  isStmtStartAt(idx) {
+    if (idx >= this.T.length) return true;
+    const tk = this.T[idx];
+    if (!tk) return true;
+    if (tk.t === 'ln' || tk.t === 'nl') return true;
+    if (tk.t === 'id') {
+      const v = tk.v;
+      if (v === 'local' || v === 'if' || v === 'for' || v === 'break' || v === 'while' || v === 'end' || v === 'function' || v === 'else' || v === 'elseif' || v === 'return') return true;
+      if (PREFIX.has(v) && this.T[idx + 1]?.t === '.') return true;
+      if ((v === 'self' || v === 'guid') && this.T[idx + 1]?.t === '.') return true;
+      const nxt = this.T[idx + 1]?.t;
+      if (nxt === '=' || nxt === '+=' || nxt === '-=' || nxt === '*=' || nxt === '/=' || nxt === '++' || nxt === '--') return true;
+    }
+    return false;
+  }
+
   parseLocalDeclarationStmt() {
     this.i++; // 'local'
     if (this.T[this.i]?.t !== 'id') return null;
@@ -2128,8 +2165,10 @@ class _LuaParser {
       else if (tk.t === ')' || tk.t === '}') {
         if (parenDepth > 0) parenDepth--;
       }
-      if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-      if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'for' || tk.v === 'break' || tk.v === 'while' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+      if (parenDepth === 0 && this.isStmtStartAt(this.i)) {
+        if (tk.t === 'ln' || tk.t === 'nl') this.i++;
+        break;
+      }
       exprTokens.push(tk);
       this.i++;
     }
@@ -2145,47 +2184,36 @@ class _LuaParser {
       }
     }
 
-    // 1. Create exec_set_local_var (the execution node in the flow chain)
-    const setLocalNode = this.makeNode('exec_set_local_var', 'Set Local Variable', 'execution');
-    setLocalNode.varName = varName;
-    setLocalNode.dataType = resolvedType;
-    if (declaredType) setLocalNode.declaredType = declaredType;
-    const bpSet = getNodeBlueprint('exec_set_local_var');
-    if (bpSet) applyDataTypeToNode(setLocalNode, bpSet, resolvedType);
-    this.placeFlow(setLocalNode);
-    this.nodes.push(setLocalNode);
-
-    // Apply the RHS expression/value into Set Local Variable's "Value" pin
-    this.applyValueTo(setLocalNode, 'Value', valResult);
-
-    // 2. Create query_get_local_variable (holding hands via Local Variable pin)
+    // Create ONLY query_get_local_variable (Get Local Variable) as a standalone query node
     const getLocalNode = this.makeNode('query_get_local_variable', 'Get Local Variable', 'query');
     getLocalNode.varName = varName;
     getLocalNode.dataType = resolvedType;
     if (declaredType) getLocalNode.declaredType = declaredType;
+    getLocalNode.isExplicitLocal = true;
     const bpGet = getNodeBlueprint('query_get_local_variable');
     if (bpGet) applyDataTypeToNode(getLocalNode, bpGet, resolvedType);
 
-    // Position getLocalNode below/left of setLocalNode
-    getLocalNode.x = setLocalNode.x - 260;
-    getLocalNode.y = setLocalNode.y + 110;
-    getLocalNode.inputValues['Initial Value'] = '0';
+    // Apply the RHS expression/value into Get Local Variable's "Initial Value" pin
+    this.applyValueTo(getLocalNode, 'Initial Value', valResult);
+
+    // Position getLocalNode floating directly above current logic position in graph space
+    if (this.localCount === undefined) this.localCount = 0;
+    getLocalNode.x = this.LX + (this.localCount % 3) * 260;
+    getLocalNode.y = Math.max(60, this.LY - 180 - Math.floor(this.localCount / 3) * 120);
+    this.localCount++;
+
     this.nodes.push(getLocalNode);
 
-    // Wire query_get_local_variable's "Local Variable" pin to exec_set_local_var's "Local Variable" pin
-    this.wires.push({
-      id: this.nextWireId(),
-      fromNode: getLocalNode.id,
-      fromPin: 'Local Variable',
-      toNode: setLocalNode.id,
-      toPin: 'Local Variable',
-      isExec: false
+    this.varToLocalVar.set(varName, getLocalNode);
+    this.varToNode.set(varName, {
+      isVar: true,
+      nodeId: getLocalNode.id,
+      outputPin: 'Value',
+      dataType: resolvedType,
+      node: getLocalNode
     });
 
-    this.varToLocalVar.set(varName, getLocalNode);
-    this.varToNode.set(varName, getLocalNode.id);
-
-    return setLocalNode;
+    return null;
   }
 
   parseAssignmentStmt(varName) {
@@ -2208,8 +2236,10 @@ class _LuaParser {
         else if (tk.t === ')' || tk.t === '}') {
           if (parenDepth > 0) parenDepth--;
         }
-        if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'for' || tk.v === 'break' || tk.v === 'while' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+        if (parenDepth === 0 && this.isStmtStartAt(this.i)) {
+          if (tk.t === 'ln' || tk.t === 'nl') this.i++;
+          break;
+        }
         rawRhsTokens.push(tk);
         this.i++;
       }
@@ -2322,8 +2352,10 @@ class _LuaParser {
         else if (tk.t === ')' || tk.t === '}') {
           if (parenDepth > 0) parenDepth--;
         }
-        if (tk.t === 'ln' && parenDepth === 0) { this.i++; break; }
-        if (tk.t === 'id' && (tk.v === 'local' || tk.v === 'if' || tk.v === 'for' || tk.v === 'break' || tk.v === 'while' || tk.v === 'end' || tk.v === 'function' || tk.v === 'else' || tk.v === 'elseif') && parenDepth === 0) break;
+        if (parenDepth === 0 && this.isStmtStartAt(this.i)) {
+          if (tk.t === 'ln' || tk.t === 'nl') this.i++;
+          break;
+        }
         rawRhsTokens.push(tk);
         this.i++;
       }

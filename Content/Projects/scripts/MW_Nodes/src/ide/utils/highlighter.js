@@ -24,11 +24,11 @@ const TOKEN_RE = new RegExp(
 );
 
 const KEYWORD_OF_FN = new Set([
-  'import', 'export', 'from', 'const', 'let', 'var', 'function', 'return',
+  'import', 'export', 'from', 'to', 'const', 'let', 'var', 'function', 'return',
   'new', 'if', 'else', 'for', 'while', 'do', 'typeof', 'void', 'delete', 'in',
   'of', 'yield', 'await', 'async', 'class', 'interface', 'type', 'extends',
   'implements', 'public', 'private', 'protected', 'readonly', 'static', 'this',
-  'super', 'true', 'false', 'null', 'undefined', 'globalThis'
+  'super', 'true', 'false', 'null', 'undefined', 'globalThis', 'break'
 ]);
 const BUILTIN_TYPES = new Set([
   'string', 'number', 'boolean', 'void', 'any', 'unknown', 'never',
@@ -119,7 +119,7 @@ export function highlightTs(code) {
 // High-performance tokenization for Lua in the IDE
 const LUA_KEYWORDS = new Set([
   'local', 'function', 'end', 'if', 'then', 'else', 'elseif', 'for', 'while',
-  'do', 'from', 'to', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until',
+  'do', 'from', 'to', 'step', 'by', 'break', 'return', 'in', 'and', 'or', 'not', 'require', 'nil', 'true', 'false', 'repeat', 'until',
   'random', 'randomFloat', 'toInt', 'toFloat', 'toBool', 'tostring', 'toVector3', 'math', 'self', 'guid', 'get',
   'cos', 'sin', 'tan', 'sqrt', 'acos', 'asin', 'atan', 'abs', 'deg', 'rad', 'min', 'max', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'pi'
 ]);

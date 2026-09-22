@@ -52,6 +52,7 @@
   overflow: visible !important;
   pointer-events: none;
   z-index: 5;
+  shape-rendering: geometricPrecision;
 }
 
 .nodes-layer {
@@ -102,6 +103,9 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
   pointer-events: auto;
   cursor: grab;
+  contain: layout style;
+  will-change: transform;
+  backface-visibility: hidden;
   transition: box-shadow 0.15s, border-color 0.15s;
 }
 
@@ -996,6 +1000,8 @@ body.is-panning * {
 .wire {
   fill: none;
   stroke-linecap: round;
+  stroke-linejoin: round;
+  shape-rendering: geometricPrecision;
   cursor: pointer;
   pointer-events: stroke;
   transition: stroke 0.15s, stroke-width 0.15s;
