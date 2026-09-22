@@ -913,13 +913,14 @@ export class GraphRenderer {
 
   syncNodeInputValuesToDom(node, el) {
     if (!node || !el) return;
-    const pinRows = el.querySelectorAll('.pin-row');
-    for (const pinRow of pinRows) {
-      const pinName = pinRow.dataset.pinName;
+    const rows = el.querySelectorAll('.param-in-row, .param-row, .pin-row, .pins-in > div');
+    for (const row of rows) {
+      const socket = row.querySelector('.socket.socket-in') || row.querySelector('.socket');
+      const pinName = socket?.dataset?.pinName || row.dataset?.pinName;
       if (!pinName || !node.inputValues || node.inputValues[pinName] === undefined) continue;
       const rawVal = node.inputValues[pinName];
 
-      const vecContainer = pinRow.querySelector('.vector3-input-container');
+      const vecContainer = row.querySelector('.vector3-input-container');
       if (vecContainer) {
         const currentVec = parseVec3(rawVal);
         const axisInputs = vecContainer.querySelectorAll('.vector-axis-input');
@@ -932,7 +933,7 @@ export class GraphRenderer {
         continue;
       }
 
-      const inp = pinRow.querySelector('.param-input, .param-select');
+      const inp = row.querySelector('.param-input, .param-select, input, select');
       if (!inp || inp === document.activeElement) continue;
 
       if (inp.tagName === 'SELECT') {
@@ -941,8 +942,8 @@ export class GraphRenderer {
         let matched = false;
         for (let optIdx = 0; optIdx < inp.options.length; optIdx++) {
           const opt = inp.options[optIdx];
-          if (opt.value === String(rawVal)) {
-            inp.selectedIndex = optIdx;
+          if (opt.value === String(rawVal) || opt.textContent.trim() === String(rawVal)) {
+            if (inp.selectedIndex !== optIdx) inp.selectedIndex = optIdx;
             matched = true;
             break;
           }
@@ -951,22 +952,25 @@ export class GraphRenderer {
           const isT = s === '1' || s === 'true' || s === 'yes' || s === 'on';
           for (let optIdx = 0; optIdx < inp.options.length; optIdx++) {
             const optVal = inp.options[optIdx].value;
+            const optText = inp.options[optIdx].textContent.trim();
             const optS = optVal.toLowerCase();
-            if (isT && (optVal === '1' || optS === 'true' || optS === 'yes' || optS === 'on')) {
-              inp.selectedIndex = optIdx;
+            const optTS = optText.toLowerCase();
+            if (isT && (optVal === '1' || optVal === 'True' || optVal === 'Yes' || optS === 'true' || optS === 'yes' || optS === 'on' || optTS.startsWith('true') || optTS.startsWith('yes'))) {
+              if (inp.selectedIndex !== optIdx) inp.selectedIndex = optIdx;
               matched = true;
               break;
             }
-            if (!isT && (optVal === '0' || optS === 'false' || optS === 'no' || optS === 'off')) {
-              inp.selectedIndex = optIdx;
+            if (!isT && (optVal === '0' || optVal === 'False' || optVal === 'No' || optS === 'false' || optS === 'no' || optS === 'off' || optTS.startsWith('false') || optTS.startsWith('no'))) {
+              if (inp.selectedIndex !== optIdx) inp.selectedIndex = optIdx;
               matched = true;
               break;
             }
           }
         }
       } else {
-        if (inp.value !== String(rawVal)) {
-          inp.value = rawVal;
+        const strVal = String(rawVal ?? '');
+        if (inp.value !== strVal) {
+          inp.value = strVal;
         }
       }
     }
@@ -1210,6 +1214,7 @@ export class GraphRenderer {
       dynamicKeys.forEach((keyName, idx) => {
         const pinRow = document.createElement('div');
         pinRow.className = 'param-row param-in-row';
+        pinRow.dataset.pinName = keyName;
 
         const pinType = this.state.getPinType(node.id, keyName, 'generic');
         const pinColor = PIN_COLORS[pinType] || PIN_COLORS.generic;
@@ -1390,6 +1395,7 @@ export class GraphRenderer {
         signalParams.forEach((param) => {
           const pinRow = document.createElement('div');
           pinRow.className = 'param-row param-in-row';
+          pinRow.dataset.pinName = param.name;
 
           const pinType = this.state.getPinType(node.id, param.name, getPinTypeFromSignalType(param.type));
           const pinColor = PIN_COLORS[pinType] || PIN_COLORS.generic;
@@ -1535,6 +1541,7 @@ export class GraphRenderer {
 
         const pinRow = document.createElement('div');
         pinRow.className = 'param-row param-in-row';
+        pinRow.dataset.pinName = inp.name;
 
         const pinType = this.state.getPinType(node.id, inp.name, inp.type);
         const lowerInpName = String(inp.name || '').toLowerCase();
