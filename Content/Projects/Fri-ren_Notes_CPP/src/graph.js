@@ -1,412 +1,336 @@
-export class GraphModule {
-  constructor(app) {
-    this.app = app;
-    this.menuEl = document.getElementById('graph-menu');
-    this.waterEl = document.getElementById('graph-water');
-    this.canvas = document.getElementById('graph-canvas');
-    this.ctx = this.canvas.getContext('2d');
-    
-    // Wave Sim State
-    this.gridW = 0;
-    this.gridH = 0;
-    this.water = null;
-    this.velocity = null;
-    this.charW = 10;
-    this.charH = 15;
-    
-    // Physics State
-    this.nodes = [];
-    this.mouse = { x: -1000, y: -1000, down: false };
-    this.isActive = false;
-    
-    this.damping = 0.99;
-    this.dt = 0.05;
-    this.charMap = [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'];
-    
-    this.initEvents();
-  }
-
-  initEvents() {
-    window.addEventListener('resize', () => {
-      this.measureChars();
-      this.resize();
-    });
-    
-    this.canvas.addEventListener('mousemove', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      this.mouse.x = x;
-      this.mouse.y = y;
-      this.addRipple(x, y, 4);
-    });
-
-    this.canvas.addEventListener('mousedown', () => this.mouse.down = true);
-    window.addEventListener('mouseup', () => this.mouse.down = false);
-
-    this.canvas.addEventListener('click', (e) => {
-      const node = this.getNodeAt(this.mouse.x, this.mouse.y);
-      if (node) {
-        this.close();
-        this.app.selectNote(node.note);
-      }
-    });
-
-    // Close on ESC
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !this.menuEl.classList.contains('hidden')) {
-        this.close();
-      }
-    });
-  }
-
-  measureChars() {
-    const temp = document.createElement('span');
-    temp.style.fontFamily = 'monospace';
-    temp.style.fontSize = '10px';
-    temp.style.lineHeight = '15px';
-    temp.style.visibility = 'hidden';
-    temp.style.position = 'absolute';
-    temp.style.whiteSpace = 'pre';
-    temp.textContent = 'MMMMMMMMMM';
-    document.body.appendChild(temp);
-    const rect = temp.getBoundingClientRect();
-    this.charW = rect.width / 10;
-    this.charH = 11; // Reduced from 15 to fix vertical elongation
-    document.body.removeChild(temp);
-  }
-
-  resize() {
-    if (!this.isActive) return;
-    const rect = this.canvas.parentElement.getBoundingClientRect();
-    
-    // Align grid to parent dimensions
-    this.gridW = Math.floor(rect.width / this.charW);
-    this.gridH = Math.floor(rect.height / this.charH);
-    
-    // CRITICAL: Set canvas to match the character grid pixel-for-pixel
-    this.canvas.width = this.gridW * this.charW;
-    this.canvas.height = this.gridH * this.charH;
-    
-    this.water = new Float32Array(this.gridW * this.gridH);
-    this.nextWater = new Float32Array(this.gridW * this.gridH);
-    this.velocity = new Float32Array(this.gridW * this.gridH);
-  }
-
-  open() {
-    this.isActive = true;
-    this.menuEl.classList.remove('hidden');
-    this.measureChars();
-    this.resize();
-    this.buildGraph();
-    this.loop();
-  }
-
-  close() {
-    this.isActive = false;
-    this.menuEl.classList.add('hidden');
-    if (this.app.graphBtn) this.app.graphBtn.classList.remove('active');
-  }
-
-  buildGraph() {
-    const current = this.app.currentNote;
-    if (!current) return;
-
-    // Find links
-    const linkedTo = this.app.notes.filter(n => {
-      if (n.id === current.id) return false;
-      return current.content.includes(`[[${n.title}]]`);
-    });
-
-    const linkedFrom = this.app.notes.filter(n => {
-      if (n.id === current.id) return false;
-      return n.content.includes(`[[${current.title}]]`);
-    });
-
-    const neighbors = Array.from(new Set([...linkedTo, ...linkedFrom]));
-
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-
-    this.nodes = [];
-    
-    // Main Node (Core of the graph)
-    this.nodes.push({
-      id: current.id,
-      note: current,
-      x: w / 2,
-      y: h / 2,
-      vx: 0, vy: 0,
-      isMain: true,
-      label: current.title
-    });
-
-    // Surroundings
-    neighbors.forEach((note, i) => {
-      const angle = (i / neighbors.length) * Math.PI * 2;
-      const radius = Math.min(w, h) * 0.25;
-      this.nodes.push({
-        id: note.id,
-        note: note,
-        x: w/2 + Math.cos(angle) * (radius + Math.random() * 50),
-        y: h/2 + Math.sin(angle) * (radius + Math.random() * 50),
-        vx: (Math.random() - 0.5) * 2, 
-        vy: (Math.random() - 0.5) * 2,
-        isMain: false,
-        label: note.title
-      });
-    });
-  }
-
-  addRipple(x, y, strength) {
-    if (!this.water) return;
-    // Map pixels to character grid 1:1 (removing offsets to fix desync)
-    const gx = Math.floor(x / this.charW);
-    const gy = Math.floor(y / this.charH);
-    
-    if (gx > 1 && gx < this.gridW - 2 && gy > 1 && gy < this.gridH - 2) {
-      const i = gy * this.gridW + gx;
-      this.water[i] += strength;
-      const rippleSpread = strength * 0.4;
-      this.water[i - 1] += rippleSpread;
-      this.water[i + 1] += rippleSpread;
-      this.water[i - this.gridW] += rippleSpread;
-      this.water[i + this.gridW] += rippleSpread;
-    }
-  }
-
-  updatePhysics() {
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    const mainNode = this.nodes.find(n => n.isMain);
-
-    this.nodes.forEach((n1, i) => {
-      // 1. HUB ANCHOR (Ported from ai_app.js)
-      // Only apply central pull to the main node (the center point)
-      if (mainNode && n1.id === mainNode.id) {
-        const centerX = w / 2;
-        const centerY = h / 2;
-        const dx_center = centerX - n1.x;
-        const dy_center = centerY - n1.y;
-
-        const mdx = n1.x - this.mouse.x;
-        const mdy = n1.y - this.mouse.y;
-        const distMouse = Math.hypot(mdx, mdy);
-        const interactionRadius = 30;
-
-        if (distMouse > interactionRadius && !this.mouse.down) {
-          const anchorStrength = 0.0007; // Very gentle pull back to center
-          n1.vx += dx_center * anchorStrength;
-          n1.vy += dy_center * anchorStrength;
-        }
-      }
-
-      // 2. MOUSE ATTRACTION/DEADZONE (Slightly more intimate)
-      const dx_mouse = this.mouse.x - n1.x;
-      const dy_mouse = this.mouse.y - n1.y;
-      const dist_mouse = Math.hypot(dx_mouse, dy_mouse);
-      const attraction_radius = 180; // Reduced radius for closer interaction
-      const deadzone_radius = 20;
-      const attraction_strength = 0.001; // Reduced pull strength
-
-      // Slow Playful Drift (Wind/Water currents)
-      const time = Date.now() * 0.001;
-      n1.vx += Math.sin(time + i) * 0.015;
-      n1.vy += Math.cos(time * 0.8 + i) * 0.015;
-
-      if (dist_mouse > deadzone_radius && dist_mouse < attraction_radius) {
-          const effective_dist = dist_mouse - deadzone_radius;
-          const effective_radius = attraction_radius - deadzone_radius;
-
-          const force = (effective_radius - effective_dist) * attraction_strength;
-          n1.vx += (dx_mouse / dist_mouse) * force;
-          n1.vy += (dy_mouse / dist_mouse) * force;
-
-          // Side-friction inside gravity field
-          const frictionFactor = (attraction_radius - dist_mouse) / attraction_radius;
-          const frictionStrength = 0.15;
-          n1.vx *= (1 - frictionFactor * frictionStrength);
-          n1.vy *= (1 - frictionFactor * frictionStrength);
-      } else if (dist_mouse <= deadzone_radius) {
-          // Deadzone stability
-          const deadzoneDamping = 0.8;
-          n1.vx *= (1 - deadzoneDamping);
-          n1.vy *= (1 - deadzoneDamping);
-      }
-
-      // 3. NODE-TO-NODE & TETHERS
-      for (let j = i + 1; j < this.nodes.length; j++) {
-        const n2 = this.nodes[j];
-        const dx_nodes = n1.x - n2.x;
-        const dy_nodes = n1.y - n2.y;
-        const dist_nodes = Math.hypot(dx_nodes, dy_nodes);
-
-        if (dist_nodes === 0) continue;
-
-        const ux = dx_nodes / dist_nodes;
-        const uy = dy_nodes / dist_nodes;
-
-        // Repulsion (Softer)
-        const repulsion_const = 50; 
-        const rForce = repulsion_const / Math.max(10, dist_nodes * dist_nodes);
-        n1.vx += ux * rForce;
-        n1.vy += uy * rForce;
-        n2.vx -= ux * rForce;
-        n2.vy -= uy * rForce;
-
-        // Hooke's Law Tether (Chill attraction)
-        const isMainN1 = n1.id === mainNode?.id;
-        const isMainN2 = n2.id === mainNode?.id;
-        
-        if (isMainN1 || isMainN2) {
-          const spring_k = 0.0005; // Half strength
-          const rest_length = 200; 
-          const extension = dist_nodes - rest_length;
-          const aForce = -spring_k * extension;
-
-          n1.vx += ux * aForce;
-          n1.vy += uy * aForce;
-          n2.vx -= ux * aForce;
-          n2.vy -= uy * aForce;
-        }
-      }
-
-      // 4. DAMPING & POSITION (Balanced speed feel)
-      n1.vx *= 0.95;
-      n1.vy *= 0.95;
-      
-      const speedLimit = 3.0; // Restored and increased speed limit
-      const speed = Math.hypot(n1.vx, n1.vy);
-      if (speed > speedLimit) {
-        n1.vx = (n1.vx / speed) * speedLimit;
-        n1.vy = (n1.vy / speed) * speedLimit;
-      }
-
-      n1.x += n1.vx; 
-      n1.y += n1.vy;
-      
-      if (speed > 0.1) {
-        this.addRipple(n1.x, n1.y, Math.min(speed * 3.5, 8));
-      }
-    });
-  }
-
-  updateWater() {
-    // Ported from water_pool.js "perfect" logic
-    for (let i = this.gridW + 1; i < this.gridW * this.gridH - this.gridW - 1; i++) {
-        const x = i % this.gridW;
-        const y = Math.floor(i / this.gridW);
-        
-        const w_negX = this.water[i - 1];
-        const w_posX = this.water[i + 1];
-        const w_negY = this.water[i - this.gridW];
-        const w_posY = this.water[i + this.gridW];
-
-        const avgHeight = (w_negY + w_posY + w_negX + w_posX) * 0.25;
-        const acceleration = (avgHeight - this.water[i]) * 9.81;
-        this.velocity[i] += acceleration * this.dt;
-        this.velocity[i] *= this.damping;
-        this.nextWater[i] = this.water[i] + this.velocity[i] * this.dt;
-        
-        // Slight natural drain
-        this.nextWater[i] *= 0.98;
-    }
-
-    let temp = this.water;
-    this.water = this.nextWater;
-    this.nextWater = temp;
-  }
-
-  draw() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const isNight = document.body.classList.contains('night-mode');
-
-    // 1. Connection Lines (Spider Web)
-    const mainNode = this.nodes.find(n => n.isMain);
-    if (mainNode) {
-      this.ctx.strokeStyle = isNight ? 'rgba(161, 138, 94, 0.15)' : 'rgba(255,255,255,0.08)'; // Muted brown spiderweb for coffee theme
-      this.ctx.lineWidth = 1;
-      this.nodes.forEach(n => {
-        if (n === mainNode) return;
-        this.ctx.beginPath();
-        this.ctx.moveTo(mainNode.x, mainNode.y);
-        this.ctx.lineTo(n.x, n.y);
-        this.ctx.stroke();
-      });
-    }
-
-    // 2. ASCII Wave Rendering
-    let asciiContent = '';
-    for (let y = 0; y < this.gridH; y++) {
-      for (let x = 0; x < this.gridW; x++) {
-        const val = this.water[y * this.gridW + x];
-        const absVal = Math.abs(val);
-        
-        if (absVal < 0.05) {
-          asciiContent += ' ';
-        } else {
-          // Night mode uses "bubbles", normal uses classic lines
-          const coffeeChars = [' ', '.', 'o', 'o', 'O', '0', '0', '@', '#', '%'];
-          const activeMap = isNight ? coffeeChars : this.charMap;
-          
-          const charIdx = Math.min(Math.floor(absVal * 6) + 1, activeMap.length - 1);
-          asciiContent += activeMap[charIdx];
-        }
-      }
-      asciiContent += '\n';
-    }
-    this.waterEl.textContent = asciiContent;
-    this.waterEl.style.color = isNight ? 'rgba(161, 138, 94, 0.6)' : 'rgba(255, 255, 255, 0.4)'; // Muted brown ripples
-    this.waterEl.style.textShadow = isNight ? '0 0 2px rgba(0, 0, 0, 0.8)' : '0 0 4px rgba(0,0,0,0.8)';
-
-    // 3. Node Rendering (@ symbols as Boats)
-    this.nodes.forEach(n => {
-      const hover = Math.hypot(n.x - this.mouse.x, n.y - this.mouse.y) < 25;
-      
-      // Node Colors - Theme Aware
-      const mainColor = isNight ? '#bdab84' : '#d4af37'; // Slightly brighter muted paper color for main node
-      const nodeColor = isNight ? '#a18a5e' : '#fff';
-      const highlightColor = isNight ? '#fff' : '#fff';
-
-      this.ctx.fillStyle = n.isMain ? mainColor : nodeColor;
-      if (hover) this.ctx.fillStyle = highlightColor;
-      
-      // Node Core (@)
-      this.ctx.font = 'bold 16px monospace';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText('@', n.x, n.y);
-      
-      // Label
-      this.ctx.fillStyle = hover ? highlightColor : (isNight ? '#a18a5e' : 'rgba(255,255,255,0.6)');
-      this.ctx.font = '10px monospace';
-      this.ctx.fillText(n.label.toUpperCase(), n.x, n.y + 24);
-      
-      // Boat Hull (Square/Square outline)
-      this.ctx.strokeStyle = n.isMain ? mainColor : (isNight ? 'rgba(161, 138, 94, 0.5)' : 'rgba(255,255,255,0.2)');
-      if (hover) this.ctx.strokeStyle = highlightColor;
-      this.ctx.lineWidth = 1;
-      this.ctx.strokeRect(n.x - 12, n.y - 12, 24, 24);
-      
-      // Hover Glow
-      if (hover) {
-        this.ctx.strokeStyle = isNight ? 'rgba(161, 138, 94, 0.3)' : 'rgba(255,255,255,0.1)';
-        this.ctx.beginPath();
-        this.ctx.arc(n.x, n.y, 18, 0, Math.PI * 2);
-        this.ctx.stroke();
-      }
-    });
-  }
-
-  loop() {
-    if (!this.isActive) return;
-    this.updatePhysics();
-    this.updateWater();
-    this.draw();
-    requestAnimationFrame(() => this.loop());
-  }
-
-  getNodeAt(x, y) {
-    return this.nodes.find(n => Math.hypot(n.x - x, n.y - y) < 20);
-  }
+/* Night Mode Theme - Altus Plateau / Vintage Dark Brown Aesthetic */
+.night-mode {
+  --bg-main: #241f1a;      /* Dark Brown Paper */
+  --bg-workspace: #1c1814; /* Deepened workspace */
+  --bg-secondary: #2e2821; /* Lighter bark/paper for headers */
+  --text-primary: #a18a5e; /* Burnished Elden Gold */
+  --border-thick: 2px solid #3d342b;
 }
+
+body.night-mode {
+  background: #14110e;     /* Frame background - dark and moody */
+}
+
+body.night-mode #app {
+  border-color: #4a3e34;
+  background: var(--bg-main);
+}
+
+body.night-mode #top-bar {
+  border-bottom-color: #4a3e34;
+  background: #241f1a;
+}
+
+body.night-mode .sidebar-header,
+body.night-mode .sidebar-search {
+  background: #2a241e;
+  border-bottom: 2px solid #4a3e34;
+}
+
+body.night-mode .sidebar-search input {
+  border-color: #5a4b3a;
+  color: #a18a5e;
+  background: #1c1814;
+}
+
+body.night-mode .sidebar-search input::placeholder {
+  color: #7d6b4a;
+}
+
+body.night-mode .note-item.active {
+  background: #a18a5e;
+  color: #1c1814;
+}
+
+body.night-mode .note-item:hover:not(.active) {
+  background: #2e2821;
+}
+
+body.night-mode #editor-wrapper {
+  background: var(--bg-workspace);
+}
+
+body.night-mode #line-numbers {
+  background: rgba(0, 0, 0, 0.2);
+  color: #a18a5e; /* Light coffee gold */
+  opacity: 0.8;
+  border-right: 1px dashed #a18a5e;
+}
+
+body.night-mode #editor {
+  color: #a18a5e; /* Light coffee gold text */
+  background: transparent;
+  caret-color: #a18a5e;
+}
+
+body.night-mode #editor-highlights mark {
+  background-color: rgba(255, 230, 0, 0.15) !important; /* Faint yellow glow for matches */
+}
+
+body.night-mode #editor-highlights mark.current {
+  background-color: rgba(255, 120, 0, 0.25) !important; /* High contrast orange for current */
+  border-bottom: 2px solid #ff7800 !important;
+}
+
+body.night-mode #preview {
+  background: #241f1a;
+  color: #a18a5e;
+}
+
+/* Elden Ring Style Links */
+body.night-mode #preview a {
+  background: #2e2821;
+  color: #d4af37;
+  padding: 2px 8px;
+  border: 1px solid #5a4b3a;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  display: inline-block;
+  margin: 0 2px;
+  box-shadow: 2px 2px 0px #000;
+  transition: all 0.1s;
+}
+
+body.night-mode #preview a::after {
+  content: ' _';
+  animation: blink 1s steps(1) infinite;
+  color: #d4af37;
+}
+
+body.night-mode #preview a:hover {
+  background: #d4af37;
+  color: #1a1612;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #000;
+}
+
+body.night-mode button, 
+body.night-mode .button {
+  background: #241f1a;
+  color: #a18a5e;
+  border-color: #5a4b3a;
+}
+
+body.night-mode button:hover, 
+body.night-mode .button:hover {
+  background: #a18a5e;
+  color: #241f1a;
+}
+
+body.night-mode #preview h2 {
+  border-bottom-color: #5a4b3a;
+  color: #bdab84;
+}
+
+body.night-mode #preview blockquote {
+  border-left-color: #d4af37;
+  background: #2a241e;
+  color: #bdab84;
+  box-shadow: inset -2px 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+body.night-mode #preview img {
+  border-color: #5a4b3a;
+  filter: sepia(0.2) brightness(0.9);
+}
+
+body.night-mode #status-bar {
+  background: #1c1814;
+  color: #7d6b4a; /* Lower contrast gold */
+  border-top: 1px solid #3d342b;
+}
+
+body.night-mode .indicator {
+  background: #d4af37; /* Golden indicator */
+  box-shadow: 0 0 5px #d4af37;
+}
+
+body.night-mode .note-status input,
+body.night-mode .note-status span {
+  color: #a18a5e;
+}
+
+body.night-mode #note-folder,
+body.night-mode #note-title {
+  color: #a18a5e;
+  opacity: 1 !important;
+}
+
+body.night-mode #note-folder::placeholder,
+body.night-mode #note-title::placeholder {
+  color: #7d6b4a; /* Lighter than before for better visibility */
+}
+
+body.night-mode .sidebar-folder-label {
+  background: #2e2821;
+  color: #bdab84;
+  border-bottom: 1px solid #4a3e34;
+}
+
+body.night-mode .dot {
+  background: #a18a5e;
+}
+
+/* UI interactions - comprehensive selection blocking */
+.brand, .top-nav, .sidebar-folder-label, .sidebar-label, .button, button, footer, .note-item, .note-status span {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.night-mode .sidebar-folder-label::after {
+  color: #a18a5e;
+}
+
+body.night-mode #preview hr {
+  border: none;
+  border-top: 2px solid #5a4b3a;
+  margin: 24px 0;
+}
+
+body.night-mode #preview pre {
+  background: #000;
+  color: #eab308;
+  border: 1px solid #3d342b;
+  box-shadow: inset 4px 4px 10px rgba(0,0,0,1);
+}
+
+body.night-mode #preview code {
+  background: #000;
+  border: none;
+  color: #eab308;
+}
+
+body.night-mode input[type="checkbox"], body.night-mode #preview input[type="checkbox"] {
+  border-color: #a18a5e;
+  background: #000;
+}
+
+body.night-mode input[type="checkbox"]:checked, body.night-mode #preview input[type="checkbox"]:checked {
+  background: #a18a5e;
+}
+
+body.night-mode input[type="checkbox"]:checked::after, body.night-mode #preview input[type="checkbox"]:checked::after {
+  color: #1c1814;
+}
+
+/* Night Mode Scrollbars */
+body.night-mode ::-webkit-scrollbar-track {
+  background: #1c1814;
+}
+
+body.night-mode ::-webkit-scrollbar-thumb {
+  background: #a18a5e;
+}
+
+body.night-mode ::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
+
+/* Night Mode Overlays */
+body.night-mode #graph-menu .overlay-full {
+  background: rgba(12, 10, 8, 0.95); /* Deep Espresso Vibe */
+  backdrop-filter: blur(12px);
+}
+
+body.night-mode .graph-header {
+  border-bottom-color: rgba(212, 175, 55, 0.1);
+  background: rgba(10, 8, 5, 0.7);
+  color: #a18a5e; /* Match main text color */
+}
+
+body.night-mode .graph-header .close-overlay {
+  color: #a18a5e;
+  background: #2a241e;
+  border: none !important;
+}
+
+body.night-mode .graph-header .close-overlay:hover {
+  color: #14110e;
+  background: #a18a5e;
+}
+
+body.night-mode #graph-water {
+  color: #a18a5e; /* Muted bubbles */
+  opacity: 0.4;
+}
+
+body.night-mode .overlay-content {
+  background: #1c1814;
+  border-color: #a18a5e;
+  color: #a18a5e;
+  box-shadow: 10px 10px 0px #000;
+}
+
+body.night-mode .overlay-content h3 {
+  border-bottom-color: #a18a5e;
+}
+
+body.night-mode button.btn-danger {
+  background: #d4af37 !important;
+  color: #1c1814 !important;
+  border-color: #a18a5e !important;
+}
+
+body.night-mode button.btn-danger:hover {
+  background: #bd9a2d !important;
+}
+
+body.night-mode .top-nav span.active {
+  border-bottom-color: #a18a5e;
+}
+body.night-mode .zoom-btn.active {
+  background: #a18a5e;
+  color: #1c1814;
+}
+
+body.night-mode .db-stats {
+  border-bottom-color: rgba(161, 138, 94, 0.4);
+}
+
+body.night-mode #canvas-lite-root {
+  background: #14110e;
+}
+
+body.night-mode .lazy-vault-img {
+  background: rgba(255,255,255,0.05) !important;
+}
+
+body.night-mode .danger-zone {
+  border-color: #cc0000;
+}
+
+/* Night Mode Backlinks  */
+body.night-mode .backlinks-section {
+  border-top-color: #3d342b;
+}
+
+body.night-mode .backlinks-section h4 {
+  color: #7d6b4a;
+}
+
+body.night-mode .backlink-item {
+  background: #241f1a !important;
+  border-color: #3d342b !important;
+  color: #a18a5e !important;
+  box-shadow: 4px 4px 0px #000 !important;
+}
+
+body.night-mode .backlink-item:hover {
+  background: #a18a5e !important;
+  color: #1c1814 !important;
+  border-color: #a18a5e !important;
+  box-shadow: 6px 6px 0px #000 !important;
+}
+
+body.night-mode #preview a.wikilink {
+  background: #2e2821 !important;
+  color: #d4af37 !important;
+  border-color: #5a4b3a !important;
+}
+
+body.night-mode #preview a.wikilink:hover {
+  background: #d4af37 !important;
+  color: #1a1612 !important;
+}
+

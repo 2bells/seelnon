@@ -1,12 +1,8 @@
 /**
  * Fri-ren Notes - Vector Sketch Module (sketch.js)
  * Native, zero-dependency, high-performance vector sketching engine
- * Implements "Canvas Injection": An isolated, self-contained vector drawing canvas
- * that gets the space it needs as an opening in the editor while having zero messy
- * interactions with text editing.
- *
- * Default background is ALWAYS dark (#241f1a) for both normal and night mode,
- * with a "BG" button near the color wheel allowing users to customize background colors.
+ * Supports [sketch W H], smooth ink strokes, circular color wheel, themes & preview SVG
+ * Implements Dormant/Baked mode to eliminate idle overhead and CPU leaks
  */
 
 export class SketchManager {
@@ -38,7 +34,7 @@ export class SketchManager {
   }
 
   getThemeBgColor() {
-    return '#241f1a';
+    return document.body.classList.contains('night-mode') ? '#241f1a' : '#E4E3E0';
   }
 
   getSketchData(sketchId) {
@@ -56,14 +52,9 @@ export class SketchManager {
     }
     this.app.currentNote.sketches[sketchId] = data;
 
-    // Snapshot into history so text undo/redo preserves vector strokes and custom BG
-    if (typeof this.app.pushHistory === 'function') {
-      this.app.pushHistory();
-    }
-
     // Cache SVG string in vault
     const isNight = document.body.classList.contains('night-mode');
-    const svgStr = this.renderSVGString(data.width || 300, data.height || 300, data.strokes || [], isNight, data.bgColor);
+    const svgStr = this.renderSVGString(data.width || 300, data.height || 300, data.strokes || [], isNight);
     const svgDataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgStr);
     if (this.app.vault) {
       this.app.vault.saveImage(sketchId, svgDataUrl).catch(() => {});
@@ -73,7 +64,7 @@ export class SketchManager {
 
   parseSketchTag(tagLine) {
     if (!tagLine || typeof tagLine !== 'string') return null;
-    // Matches anywhere in the line: [sketch], [sketch 300 300], [sketch:sk-123 400 300], etc.
+    // Matches: [sketch], [sketch 300 300], [sketch:sk-123 400 300], [sketch sk-123 300 300]
     const m = tagLine.match(/\[sketch(?::([a-zA-Z0-9_-]+))?(?:\s+([a-zA-Z0-9_-]+))?(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+([a-zA-Z0-9_-]+))?\]/i);
     if (!m) return null;
 
@@ -118,62 +109,70 @@ export class SketchManager {
 
     const activeSketchIds = new Set();
     const totalLines = lines.length;
-    const lh = this.app.getLineHeight ? this.app.getLineHeight() : 24;
 
     for (let i = 0; i < totalLines; i++) {
       const line = lines[i];
       if (!line) continue;
+      const trimmed = line.trim();
 
-      const parsed = this.parseSketchTag(line);
-      if (parsed) {
-        const startLine = i;
-        let sketchId = parsed.id;
-        if (!sketchId) {
-          sketchId = 'sk-' + Math.random().toString(36).substring(2, 8);
-        }
-
-        activeSketchIds.add(sketchId);
-
-        // Position injection row directly below the opening tag line (+ lineHeight)
-        const lineTop = (lineTops ? (lineTops[startLine] || 0) : startLine * lh);
-        const topPos = 32 + lineTop + lh;
-
-        let widget = this.widgets.get(sketchId);
-        if (!widget) {
-          const initialData = this.getSketchData(sketchId) || {
-            id: sketchId,
-            width: parsed.width,
-            height: parsed.height,
-            bgColor: '#241f1a',
-            strokes: []
-          };
-          widget = new SketchWidget(this, sketchId, parsed.width, parsed.height, initialData);
-          this.widgets.set(sketchId, widget);
-          this.scrollPane.appendChild(widget.el);
-        } else {
-          widget.updateDimensions(parsed.width, parsed.height);
-          const savedData = this.getSketchData(sketchId);
-          if (savedData) {
-            if (savedData.bgColor && savedData.bgColor !== widget.bgColor) {
-              widget.setBgColor(savedData.bgColor, false);
-            }
-            if (savedData.strokes && JSON.stringify(savedData.strokes) !== JSON.stringify(widget.strokes)) {
-              widget.strokes = [...savedData.strokes];
-              widget.redrawSVG();
-            }
+      if (/^\[sketch/i.test(trimmed)) {
+        const parsed = this.parseSketchTag(trimmed);
+        if (parsed) {
+          const startLine = i;
+          let sketchId = parsed.id;
+          if (!sketchId) {
+            sketchId = 'sk-' + Math.random().toString(36).substring(2, 8);
           }
-        }
 
-        widget.setPosition(topPos);
+          activeSketchIds.add(sketchId);
+
+          // Position widget directly below the opening tag line (+24px)
+          const topPos = 32 + (lineTops ? (lineTops[startLine] || 0) : startLine * 24) + 24;
+
+          let widget = this.widgets.get(sketchId);
+          if (!widget) {
+            const initialData = this.getSketchData(sketchId) || {
+              id: sketchId,
+              width: parsed.width,
+              height: parsed.height,
+              strokes: []
+            };
+            widget = new SketchWidget(this, sketchId, parsed.width, parsed.height, initialData);
+            this.widgets.set(sketchId, widget);
+            this.scrollPane.appendChild(widget.el);
+          } else {
+            widget.updateDimensions(parsed.width, parsed.height);
+            widget.redrawSVG();
+          }
+
+          widget.setPosition(topPos, 20);
+        }
       }
     }
 
-    // Cleanly destroy and remove DOM widgets that are no longer in the document
+    // Cleanly destroy and remove widgets that are no longer in the document
     for (const [id, widget] of this.widgets.entries()) {
       if (!activeSketchIds.has(id)) {
         if (this.activeWidget === widget) this.activeWidget = null;
         widget.destroy();
         this.widgets.delete(id);
+      }
+    }
+
+    // Cleanly delete from currentNote.sketches so deleted sketches are completely gone from memory and storage
+    if (this.app.currentNote && this.app.currentNote.sketches) {
+      let modified = false;
+      for (const savedId of Object.keys(this.app.currentNote.sketches)) {
+        if (!activeSketchIds.has(savedId)) {
+          delete this.app.currentNote.sketches[savedId];
+          modified = true;
+          if (this.app.vault) {
+            this.app.vault.deleteImage(savedId).catch(() => {});
+          }
+        }
+      }
+      if (modified && this.app.vault) {
+        this.app.vault.saveNote(this.app.currentNote).catch(() => {});
       }
     }
   }
@@ -219,14 +218,15 @@ export class SketchManager {
     }
   }
 
-  renderSVGString(width, height, strokes, isNightMode, customBg) {
-    const bgColor = customBg || '#241f1a';
+  renderSVGString(width, height, strokes, isNightMode) {
+    const isNight = isNightMode !== undefined ? isNightMode : document.body.classList.contains('night-mode');
+    const bgColor = isNight ? '#241f1a' : '#E4E3E0';
     let pathsHtml = '';
 
     for (const s of strokes) {
       let color = s.color;
       if (!color || color === 'theme-ink') {
-        color = '#e5c07b';
+        color = isNight ? '#e5c07b' : '#141414';
       }
       const opacity = s.opacity !== undefined ? s.opacity : 1;
       const strokeWidth = s.width || 2.5;
@@ -270,40 +270,35 @@ export class SketchWidget {
     this.sketchId = sketchId;
     this.width = width;
     this.height = height;
-    this.bgColor = (initialData && initialData.bgColor) || '#241f1a';
     this.strokes = initialData && initialData.strokes ? [...initialData.strokes] : [];
     this.redoStack = [];
 
-    // State: starts baked (dormant) by default to eliminate idle CPU overhead
+    // State: starts baked (dormant) by default to prevent leaks and idle CPU overhead
     this.isBaked = true;
     this.isDrawing = false;
     this.currentPoints = [];
     this.activeTool = 'pen'; // 'pen', 'highlighter', 'eraser'
-    this.activeColor = '#e5c07b'; // Crisp Altus Gold on dark background by default
+    const isNight = document.body.classList.contains('night-mode');
+    this.activeColor = isNight ? '#e5c07b' : '#141414';
     this.activeWidth = 3;
     this.colorWheelOpen = false;
-    this.bgPopoverOpen = false;
 
     this.initDOM();
     this.initCanvas();
     this.bindEvents();
     this.redrawSVG();
-    this.bake();
+    this.bake(); // Enter dormant baked mode initially
   }
 
   initDOM() {
-    // Outer injection row wrapper: covers full editor line width with pointer-events: auto
-    // so no click or caret can ever bleed through into the textarea opening!
     this.el = document.createElement('div');
-    this.el.className = 'sketch-injection-row';
-    this.el.style.height = `${this.height + 64}px`;
+    this.el.className = 'sketch-widget-block baked';
+    this.el.style.width = `${this.width + 4}px`;
 
-    // Inner card widget containing the canvas, header, toolbar and popover
-    this.card = document.createElement('div');
-    this.card.className = 'sketch-widget-card sketch-widget-block baked';
-    this.card.style.width = `${this.width + 4}px`;
+    const isNight = document.body.classList.contains('night-mode');
+    const initialDefaultInk = isNight ? '#e5c07b' : '#141414';
 
-    this.card.innerHTML = `
+    this.el.innerHTML = `
       <div class="sketch-widget-header">
         <div class="sketch-widget-title">
           <span class="sketch-dot"></span>
@@ -318,8 +313,8 @@ export class SketchWidget {
         </div>
       </div>
 
-      <div class="sketch-canvas-container" style="width: ${this.width}px; height: ${this.height}px; background-color: ${this.bgColor};">
-        <svg class="sketch-svg-layer" width="${this.width}" height="${this.height}" viewBox="0 0 ${this.width} ${this.height}" style="width: 100%; height: 100%; display: block; background-color: ${this.bgColor};"></svg>
+      <div class="sketch-canvas-container" style="width: ${this.width}px; height: ${this.height}px;">
+        <svg class="sketch-svg-layer" width="${this.width}" height="${this.height}" viewBox="0 0 ${this.width} ${this.height}" style="width: 100%; height: 100%; display: block;"></svg>
         <canvas class="sketch-active-canvas hidden" width="${this.width}" height="${this.height}" style="width: 100%; height: 100%; display: block;"></canvas>
         <div class="sketch-baked-overlay" title="Click to edit sketch"></div>
       </div>
@@ -339,8 +334,8 @@ export class SketchWidget {
         </div>
 
         <div class="sketch-palette-group">
-          <button type="button" class="sketch-swatch-chip active" data-color="#e5c07b" style="background-color: #e5c07b;" title="Altus Gold (Default Ink)"></button>
-          <button type="button" class="sketch-swatch-chip" data-color="#d4af37" style="background-color: #d4af37;" title="Elden Gold"></button>
+          <button type="button" class="sketch-swatch-chip active" data-color="${initialDefaultInk}" style="background-color: ${initialDefaultInk};" title="Default Ink"></button>
+          <button type="button" class="sketch-swatch-chip" data-color="#a18a5e" style="background-color: #a18a5e;" title="Altus Gold"></button>
           <button type="button" class="sketch-swatch-chip" data-color="#e06c75" style="background-color: #e06c75;" title="Crimson"></button>
           <button type="button" class="sketch-swatch-chip" data-color="#61afef" style="background-color: #61afef;" title="Magic Blue"></button>
           <button type="button" class="sketch-swatch-chip" data-color="#98c379" style="background-color: #98c379;" title="Poison Green"></button>
@@ -349,19 +344,13 @@ export class SketchWidget {
           <button type="button" class="sketch-color-wheel-btn" title="Color Wheel & Custom Picker">
             <span class="color-wheel-icon"></span>
           </button>
-
-          <!-- BG Color Button -->
-          <button type="button" class="sketch-bg-btn" title="Canvas Background Color">
-            <span class="sketch-bg-preview" style="background-color: ${this.bgColor};"></span>
-            <span class="sketch-bg-label">BG</span>
-          </button>
         </div>
       </div>
 
-      <!-- Circular Color Wheel Popover (for Ink) -->
+      <!-- Circular Color Wheel Popover -->
       <div class="sketch-wheel-popover hidden">
         <div class="wheel-popover-header">
-          <span>INK COLOR</span>
+          <span>COLOR WHEEL</span>
           <button type="button" class="wheel-close-btn">×</button>
         </div>
         <div class="wheel-canvas-wrap">
@@ -374,87 +363,33 @@ export class SketchWidget {
         </div>
         <div class="wheel-footer">
           <span class="wheel-preview-chip"></span>
-          <input type="text" class="wheel-hex-input" maxlength="7" value="${this.activeColor}" />
+          <input type="text" class="wheel-hex-input" maxlength="7" value="${initialDefaultInk}" />
           <button type="button" class="wheel-apply-btn">OK</button>
-        </div>
-      </div>
-
-      <!-- Background Color Popover -->
-      <div class="sketch-bg-popover hidden">
-        <div class="wheel-popover-header">
-          <span>CANVAS BACKGROUND</span>
-          <button type="button" class="bg-popover-close-btn">×</button>
-        </div>
-        <div class="bg-presets-label">PRESET BACKGROUNDS</div>
-        <div class="bg-presets-grid">
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#241f1a' ? 'active' : ''}" data-bg="#241f1a" style="background-color: #241f1a;" title="Dark Coffee (Default)"></button>
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#1c1814' ? 'active' : ''}" data-bg="#1c1814" style="background-color: #1c1814;" title="Deep Workspace"></button>
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#2e2821' ? 'active' : ''}" data-bg="#2e2821" style="background-color: #2e2821;" title="Bark Paper"></button>
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#141414' ? 'active' : ''}" data-bg="#141414" style="background-color: #141414;" title="Pitch Black"></button>
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#E4E3E0' ? 'active' : ''}" data-bg="#E4E3E0" style="background-color: #E4E3E0;" title="Parchment Light"></button>
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#f0ede9' ? 'active' : ''}" data-bg="#f0ede9" style="background-color: #f0ede9;" title="Linen Gray"></button>
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#ffffff' ? 'active' : ''}" data-bg="#ffffff" style="background-color: #ffffff; border: 1px solid #777;" title="Pure White"></button>
-          <button type="button" class="bg-swatch-chip ${this.bgColor === '#1e293b' ? 'active' : ''}" data-bg="#1e293b" style="background-color: #1e293b;" title="Slate"></button>
-        </div>
-        <div class="wheel-canvas-wrap">
-          <canvas class="bg-disc-canvas" width="130" height="130"></canvas>
-          <div class="bg-disc-pin"></div>
-        </div>
-        <div class="wheel-slider-wrap">
-          <label>LIGHTNESS</label>
-          <input type="range" class="bg-val-slider" min="0" max="100" value="15" />
-        </div>
-        <div class="wheel-footer">
-          <span class="bg-preview-chip" style="background-color: ${this.bgColor};"></span>
-          <input type="text" class="bg-hex-input" maxlength="7" value="${this.bgColor}" />
-          <button type="button" class="bg-apply-btn">OK</button>
         </div>
       </div>
     `;
 
-    this.el.appendChild(this.card);
-
-    // Prevent clicks inside the card from reaching the underlying textarea
-    this.card.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-    });
-    this.card.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-
-    this.canvasContainer = this.card.querySelector('.sketch-canvas-container');
-    this.svgLayer = this.card.querySelector('.sketch-svg-layer');
-    this.activeCanvas = this.card.querySelector('.sketch-active-canvas');
+    this.canvasContainer = this.el.querySelector('.sketch-canvas-container');
+    this.svgLayer = this.el.querySelector('.sketch-svg-layer');
+    this.activeCanvas = this.el.querySelector('.sketch-active-canvas');
     this.ctx = this.activeCanvas.getContext('2d');
-    this.bakedOverlay = this.card.querySelector('.sketch-baked-overlay');
-    this.statusBadge = this.card.querySelector('.sketch-status-badge');
-    this.toolbar = this.card.querySelector('.sketch-widget-toolbar');
+    this.bakedOverlay = this.el.querySelector('.sketch-baked-overlay');
+    this.statusBadge = this.el.querySelector('.sketch-status-badge');
+    this.toolbar = this.el.querySelector('.sketch-widget-toolbar');
 
-    this.undoBtn = this.card.querySelector('.sketch-undo-btn');
-    this.redoBtn = this.card.querySelector('.sketch-redo-btn');
-    this.clearBtn = this.card.querySelector('.sketch-clear-btn');
-    this.bakeBtn = this.card.querySelector('.sketch-bake-btn');
+    this.undoBtn = this.el.querySelector('.sketch-undo-btn');
+    this.redoBtn = this.el.querySelector('.sketch-redo-btn');
+    this.clearBtn = this.el.querySelector('.sketch-clear-btn');
+    this.bakeBtn = this.el.querySelector('.sketch-bake-btn');
 
-    // Ink Wheel elements
-    this.wheelPopover = this.card.querySelector('.sketch-wheel-popover');
-    this.wheelCanvas = this.card.querySelector('.wheel-disc-canvas');
-    this.wheelPin = this.card.querySelector('.wheel-disc-pin');
-    this.wheelSlider = this.card.querySelector('.wheel-val-slider');
-    this.wheelPreviewChip = this.card.querySelector('.wheel-preview-chip');
-    this.wheelHexInput = this.card.querySelector('.wheel-hex-input');
-
-    // BG elements
-    this.bgBtn = this.card.querySelector('.sketch-bg-btn');
-    this.bgBtnPreview = this.card.querySelector('.sketch-bg-preview');
-    this.bgPopover = this.card.querySelector('.sketch-bg-popover');
-    this.bgCanvas = this.card.querySelector('.bg-disc-canvas');
-    this.bgPin = this.card.querySelector('.bg-disc-pin');
-    this.bgSlider = this.card.querySelector('.bg-val-slider');
-    this.bgPreviewChip = this.card.querySelector('.bg-preview-chip');
-    this.bgHexInput = this.card.querySelector('.bg-hex-input');
+    this.wheelPopover = this.el.querySelector('.sketch-wheel-popover');
+    this.wheelCanvas = this.el.querySelector('.wheel-disc-canvas');
+    this.wheelPin = this.el.querySelector('.wheel-disc-pin');
+    this.wheelSlider = this.el.querySelector('.wheel-val-slider');
+    this.wheelPreviewChip = this.el.querySelector('.wheel-preview-chip');
+    this.wheelHexInput = this.el.querySelector('.wheel-hex-input');
 
     this.initWheelDisc();
-    this.initBgDisc();
   }
 
   initCanvas() {
@@ -465,18 +400,16 @@ export class SketchWidget {
     this.svgLayer.setAttribute('height', this.height);
   }
 
-  setPosition(top) {
+  setPosition(top, left) {
     this.el.style.top = `${top}px`;
+    this.el.style.left = `${left}px`;
   }
 
   updateDimensions(width, height) {
     if (this.width === width && this.height === height) return;
     this.width = width;
     this.height = height;
-    this.el.style.height = `${this.height + 64}px`;
-    if (this.card) {
-      this.card.style.width = `${this.width + 4}px`;
-    }
+    this.el.style.width = `${this.width + 4}px`;
     if (this.canvasContainer) {
       this.canvasContainer.style.width = `${this.width}px`;
       this.canvasContainer.style.height = `${this.height}px`;
@@ -485,37 +418,18 @@ export class SketchWidget {
     this.redrawSVG();
   }
 
-  setHeight(newHeight) {
-    if (this.height === newHeight) return;
-    const editor = this.manager.app.editorEl;
-    if (!editor) return;
-    const text = editor.value;
-    const lines = text.split('\n');
-    let found = false;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const parsed = this.manager.parseSketchTag(line);
-      if (parsed && parsed.id === this.id) {
-        lines[i] = `[sketch:${this.id} ${this.width} ${newHeight}]`;
-        found = true;
-        break;
-      }
-    }
-    if (found) {
-      editor.value = lines.join('\n');
-      const sel = editor.selectionStart;
-      const res = this.manager.app.reconcileSketchSpacers(editor.value, sel);
-      if (res.modified) {
-        editor.value = res.text;
-        editor.setSelectionRange(res.cursor, res.cursor);
-      }
-      this.manager.app.handleInput();
-      this.manager.app.requestFastLineNumbers(true);
-    }
-  }
-
   updateTheme(isNightMode) {
-    // Dark background and gold ink remain preserved regardless of overall app theme
+    const isNight = isNightMode !== undefined ? isNightMode : document.body.classList.contains('night-mode');
+    const defaultInk = isNight ? '#e5c07b' : '#141414';
+    const firstSwatch = this.el.querySelector('.sketch-swatch-chip');
+    if (firstSwatch) {
+      firstSwatch.dataset.color = defaultInk;
+      firstSwatch.style.backgroundColor = defaultInk;
+    }
+    // Update active color if user was using default ink
+    if (this.activeColor === '#141414' || this.activeColor === '#e5c07b') {
+      this.setColor(defaultInk);
+    }
     this.redrawSVG();
   }
 
@@ -524,8 +438,8 @@ export class SketchWidget {
     this.manager.deactivateAllExcept(this);
     this.isBaked = false;
 
-    this.card.classList.remove('baked');
-    this.card.classList.add('active-editing');
+    this.el.classList.remove('baked');
+    this.el.classList.add('active-editing');
     if (this.bakedOverlay) this.bakedOverlay.style.display = 'none';
     if (this.activeCanvas) {
       this.activeCanvas.style.display = 'block';
@@ -550,9 +464,8 @@ export class SketchWidget {
     this.isBaked = true;
 
     this.closeWheelPopover();
-    this.closeBgPopover();
-    this.card.classList.add('baked');
-    this.card.classList.remove('active-editing');
+    this.el.classList.add('baked');
+    this.el.classList.remove('active-editing');
     if (this.bakedOverlay) this.bakedOverlay.style.display = 'flex';
     if (this.activeCanvas) {
       this.activeCanvas.style.display = 'none';
@@ -573,7 +486,6 @@ export class SketchWidget {
   }
 
   initWheelDisc() {
-    if (!this.wheelCanvas) return;
     const wCtx = this.wheelCanvas.getContext('2d');
     const size = 130;
     const radius = size / 2;
@@ -581,41 +493,6 @@ export class SketchWidget {
     const data = imgData.data;
 
     const val = parseInt(this.wheelSlider.value, 10) / 100;
-
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const dx = x - radius;
-        const dy = y - radius;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const idx = (y * size + x) * 4;
-
-        if (dist <= radius) {
-          let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-          if (angle < 0) angle += 360;
-          const sat = dist / radius;
-
-          const rgb = this.hsvToRgb(angle, sat, val);
-          data[idx] = rgb.r;
-          data[idx + 1] = rgb.g;
-          data[idx + 2] = rgb.b;
-          data[idx + 3] = 255;
-        } else {
-          data[idx + 3] = 0;
-        }
-      }
-    }
-    wCtx.putImageData(imgData, 0, 0);
-  }
-
-  initBgDisc() {
-    if (!this.bgCanvas) return;
-    const wCtx = this.bgCanvas.getContext('2d');
-    const size = 130;
-    const radius = size / 2;
-    const imgData = wCtx.createImageData(size, size);
-    const data = imgData.data;
-
-    const val = parseInt(this.bgSlider.value, 10) / 100;
 
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
@@ -689,50 +566,49 @@ export class SketchWidget {
     });
 
     // Tool buttons
-    this.card.querySelectorAll('.sketch-tool-btn').forEach(btn => {
+    this.el.querySelectorAll('.sketch-tool-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.card.querySelectorAll('.sketch-tool-btn').forEach(b => b.classList.remove('active'));
+        this.el.querySelectorAll('.sketch-tool-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeTool = btn.dataset.tool;
       });
     });
 
     // Size buttons
-    this.card.querySelectorAll('.sketch-size-btn').forEach(btn => {
+    this.el.querySelectorAll('.sketch-size-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.card.querySelectorAll('.sketch-size-btn').forEach(b => b.classList.remove('active'));
+        this.el.querySelectorAll('.sketch-size-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeWidth = parseFloat(btn.dataset.size);
       });
     });
 
-    // Swatches (Ink)
-    this.card.querySelectorAll('.sketch-swatch-chip').forEach(chip => {
+    // Swatches
+    this.el.querySelectorAll('.sketch-swatch-chip').forEach(chip => {
       chip.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.card.querySelectorAll('.sketch-swatch-chip').forEach(c => c.classList.remove('active'));
+        this.el.querySelectorAll('.sketch-swatch-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         this.setColor(chip.dataset.color);
       });
     });
 
-    // Ink Color Wheel Button
-    const wheelBtn = this.card.querySelector('.sketch-color-wheel-btn');
+    // Color Wheel Button
+    const wheelBtn = this.el.querySelector('.sketch-color-wheel-btn');
     wheelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.closeBgPopover();
       this.toggleWheelPopover();
     });
 
-    const wheelClose = this.card.querySelector('.wheel-close-btn');
+    const wheelClose = this.el.querySelector('.wheel-close-btn');
     wheelClose.addEventListener('click', (e) => {
       e.stopPropagation();
       this.closeWheelPopover();
     });
 
-    const wheelApply = this.card.querySelector('.wheel-apply-btn');
+    const wheelApply = this.el.querySelector('.wheel-apply-btn');
     wheelApply.addEventListener('click', (e) => {
       e.stopPropagation();
       this.setColor(this.wheelHexInput.value);
@@ -752,7 +628,7 @@ export class SketchWidget {
       }
     });
 
-    // Ink wheel disc click / drag
+    // Wheel disc click / drag
     let draggingWheel = false;
     const handleWheelDisc = (e) => {
       const rect = this.wheelCanvas.getBoundingClientRect();
@@ -798,108 +674,6 @@ export class SketchWidget {
     this.wheelCanvas.addEventListener('pointerup', stopWheel);
     this.wheelCanvas.addEventListener('pointercancel', stopWheel);
 
-    // BG Button & Popover Events
-    if (this.bgBtn) {
-      this.bgBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.closeWheelPopover();
-        this.toggleBgPopover();
-      });
-    }
-
-    const bgClose = this.card.querySelector('.bg-popover-close-btn');
-    if (bgClose) {
-      bgClose.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.closeBgPopover();
-      });
-    }
-
-    // BG preset swatch buttons
-    this.card.querySelectorAll('.bg-swatch-chip').forEach(chip => {
-      chip.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const selectedBg = chip.dataset.bg;
-        if (selectedBg) {
-          this.setBgColor(selectedBg);
-        }
-      });
-    });
-
-    const bgApply = this.card.querySelector('.bg-apply-btn');
-    if (bgApply) {
-      bgApply.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.setBgColor(this.bgHexInput.value);
-        this.closeBgPopover();
-      });
-    }
-
-    if (this.bgSlider) {
-      this.bgSlider.addEventListener('input', () => {
-        this.initBgDisc();
-      });
-    }
-
-    if (this.bgHexInput) {
-      this.bgHexInput.addEventListener('input', () => {
-        let hex = (this.bgHexInput.value || '').trim();
-        if (!hex) return;
-        if (!hex.startsWith('#')) hex = '#' + hex;
-        if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-          this.bgPreviewChip.style.backgroundColor = hex;
-        }
-      });
-    }
-
-    // BG wheel disc click / drag
-    let draggingBgWheel = false;
-    const handleBgDisc = (e) => {
-      const rect = this.bgCanvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const radius = 130 / 2;
-      const x = clientX - rect.left - radius;
-      const y = clientY - rect.top - radius;
-
-      const dist = Math.min(radius, Math.sqrt(x * x + y * y));
-      let angle = Math.atan2(y, x) * (180 / Math.PI);
-      if (angle < 0) angle += 360;
-
-      const sat = dist / radius;
-      const val = parseInt(this.bgSlider.value, 10) / 100;
-      const rgb = this.hsvToRgb(angle, sat, val);
-      const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
-
-      const pinX = radius + Math.cos(angle * Math.PI / 180) * dist;
-      const pinY = radius + Math.sin(angle * Math.PI / 180) * dist;
-      this.bgPin.style.left = `${pinX}px`;
-      this.bgPin.style.top = `${pinY}px`;
-      this.bgPin.style.display = 'block';
-
-      this.bgPreviewChip.style.backgroundColor = hex;
-      this.bgHexInput.value = hex;
-    };
-
-    if (this.bgCanvas) {
-      this.bgCanvas.addEventListener('pointerdown', (e) => {
-        draggingBgWheel = true;
-        this.bgCanvas.setPointerCapture(e.pointerId);
-        handleBgDisc(e);
-      });
-      this.bgCanvas.addEventListener('pointermove', (e) => {
-        if (draggingBgWheel) handleBgDisc(e);
-      });
-      const stopBgWheel = (e) => {
-        if (draggingBgWheel) {
-          draggingBgWheel = false;
-          try { this.bgCanvas.releasePointerCapture(e.pointerId); } catch (_) {}
-        }
-      };
-      this.bgCanvas.addEventListener('pointerup', stopBgWheel);
-      this.bgCanvas.addEventListener('pointercancel', stopBgWheel);
-    }
-
     // Canvas pointer events for drawing
     this.activeCanvas.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -922,12 +696,23 @@ export class SketchWidget {
     this.undoBtn.addEventListener('click', (e) => { e.stopPropagation(); this.undo(); });
     this.redoBtn.addEventListener('click', (e) => { e.stopPropagation(); this.redo(); });
     this.clearBtn.addEventListener('click', (e) => { e.stopPropagation(); this.clear(); });
-    this.card.querySelector('.sketch-copy-btn').addEventListener('click', (e) => { e.stopPropagation(); this.copySVG(); });
+    this.el.querySelector('.sketch-copy-btn').addEventListener('click', (e) => { e.stopPropagation(); this.copySVG(); });
+
+    // Shortcuts when active on this widget
+    this.el.addEventListener('keydown', (e) => {
+      if (this.isBaked) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) this.redo();
+        else this.undo();
+      }
+    });
   }
 
   setColor(hex) {
     if (!hex || typeof hex !== 'string') {
-      hex = '#e5c07b';
+      const isNight = document.body.classList.contains('night-mode');
+      hex = isNight ? '#e5c07b' : '#141414';
     }
     if (!hex.startsWith('#')) hex = '#' + hex;
     this.activeColor = hex;
@@ -935,7 +720,7 @@ export class SketchWidget {
     if (this.wheelHexInput) this.wheelHexInput.value = hex;
 
     let found = false;
-    this.card.querySelectorAll('.sketch-swatch-chip').forEach(c => {
+    this.el.querySelectorAll('.sketch-swatch-chip').forEach(c => {
       const chipColor = c.dataset.color || '';
       if (chipColor.toLowerCase() === hex.toLowerCase()) {
         c.classList.add('active');
@@ -945,37 +730,9 @@ export class SketchWidget {
       }
     });
 
-    const wheelIcon = this.card.querySelector('.color-wheel-icon');
+    const wheelIcon = this.el.querySelector('.color-wheel-icon');
     if (wheelIcon && !found) {
       wheelIcon.style.borderColor = hex;
-    }
-  }
-
-  setBgColor(hex, shouldSave = true) {
-    if (!hex || typeof hex !== 'string') {
-      hex = '#241f1a';
-    }
-    if (!hex.startsWith('#')) hex = '#' + hex;
-    this.bgColor = hex;
-
-    if (this.canvasContainer) this.canvasContainer.style.backgroundColor = hex;
-    if (this.svgLayer) this.svgLayer.style.backgroundColor = hex;
-    if (this.bgPreviewChip) this.bgPreviewChip.style.backgroundColor = hex;
-    if (this.bgBtnPreview) this.bgBtnPreview.style.backgroundColor = hex;
-    if (this.bgHexInput) this.bgHexInput.value = hex;
-
-    this.card.querySelectorAll('.bg-swatch-chip').forEach(c => {
-      const chipBg = c.dataset.bg || '';
-      if (chipBg.toLowerCase() === hex.toLowerCase()) {
-        c.classList.add('active');
-      } else {
-        c.classList.remove('active');
-      }
-    });
-
-    this.redrawSVG();
-    if (shouldSave) {
-      this.save();
     }
   }
 
@@ -991,22 +748,7 @@ export class SketchWidget {
 
   closeWheelPopover() {
     this.colorWheelOpen = false;
-    if (this.wheelPopover) this.wheelPopover.classList.add('hidden');
-  }
-
-  toggleBgPopover() {
-    this.bgPopoverOpen = !this.bgPopoverOpen;
-    if (this.bgPopover) this.bgPopover.classList.toggle('hidden', !this.bgPopoverOpen);
-    if (this.bgPopoverOpen) {
-      this.initBgDisc();
-      if (this.bgPreviewChip) this.bgPreviewChip.style.backgroundColor = this.bgColor;
-      if (this.bgHexInput) this.bgHexInput.value = this.bgColor;
-    }
-  }
-
-  closeBgPopover() {
-    this.bgPopoverOpen = false;
-    if (this.bgPopover) this.bgPopover.classList.add('hidden');
+    this.wheelPopover.classList.add('hidden');
   }
 
   getPointerPos(e) {
@@ -1149,12 +891,13 @@ export class SketchWidget {
   }
 
   redrawSVG() {
+    const isNight = document.body.classList.contains('night-mode');
     let pathsHtml = '';
 
     for (const s of this.strokes) {
       let color = s.color;
       if (!color || color === 'theme-ink') {
-        color = '#e5c07b';
+        color = isNight ? '#e5c07b' : '#141414';
       }
       const opacity = s.opacity !== undefined ? s.opacity : 1;
       const strokeWidth = s.width || 2.5;
@@ -1164,19 +907,13 @@ export class SketchWidget {
       }
     }
 
-    const currentBg = this.bgColor || '#241f1a';
     this.svgLayer.innerHTML = pathsHtml;
-    this.svgLayer.style.backgroundColor = currentBg;
-    if (this.canvasContainer) {
-      this.canvasContainer.style.backgroundColor = currentBg;
-    }
   }
 
   undo() {
     if (this.strokes.length === 0) return;
     const stroke = this.strokes.pop();
     this.redoStack.push(stroke);
-    if (this.ctx) this.ctx.clearRect(0, 0, this.width, this.height);
     this.redrawSVG();
     this.save();
   }
@@ -1185,7 +922,6 @@ export class SketchWidget {
     if (this.redoStack.length === 0) return;
     const stroke = this.redoStack.pop();
     this.strokes.push(stroke);
-    if (this.ctx) this.ctx.clearRect(0, 0, this.width, this.height);
     this.redrawSVG();
     this.save();
   }
@@ -1194,14 +930,13 @@ export class SketchWidget {
     if (this.strokes.length === 0) return;
     this.redoStack = [...this.strokes];
     this.strokes = [];
-    if (this.ctx) this.ctx.clearRect(0, 0, this.width, this.height);
     this.redrawSVG();
     this.save();
   }
 
   async copySVG() {
     const isNight = document.body.classList.contains('night-mode');
-    const svgStr = this.manager.renderSVGString(this.width, this.height, this.strokes, isNight, this.bgColor);
+    const svgStr = this.manager.renderSVGString(this.width, this.height, this.strokes, isNight);
     try {
       await navigator.clipboard.writeText(svgStr);
       if (this.manager.app.statusMessenger) {
@@ -1215,14 +950,12 @@ export class SketchWidget {
       id: this.sketchId,
       width: this.width,
       height: this.height,
-      bgColor: this.bgColor,
       strokes: this.strokes
     });
   }
 
   destroy() {
     this.closeWheelPopover();
-    this.closeBgPopover();
     if (this.el && this.el.parentNode) {
       this.el.parentNode.removeChild(this.el);
     }

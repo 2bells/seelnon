@@ -345,83 +345,10 @@ class CavemanApp {
         }
       }
     });
-    // =========================================================================
-    // Unified Smooth Scrolling Controller for Edit Mode
-    // Unifies mouse wheel & trackpad scrolling across the entire editor:
-    // Text, Line numbers gutter, and Sketches (whether 300, 500, or any height).
-    // Completely eliminates speed discrepancies, stutter, and jumpiness.
-    // =========================================================================
-    this._targetScrollTop = 0;
-    this._targetScrollLeft = 0;
-    this._scrollAnimRaf = null;
-
-    const clampTarget = () => {
-      const maxScrollY = Math.max(0, this.editorEl.scrollHeight - this.editorEl.clientHeight);
-      const maxScrollX = Math.max(0, this.editorEl.scrollWidth - this.editorEl.clientWidth);
-      this._targetScrollTop = Math.max(0, Math.min(maxScrollY, this._targetScrollTop));
-      this._targetScrollLeft = Math.max(0, Math.min(maxScrollX, this._targetScrollLeft));
-    };
-
-    const animateScroll = () => {
-      const currTop = this.editorEl.scrollTop;
-      const currLeft = this.editorEl.scrollLeft;
-      const diffY = this._targetScrollTop - currTop;
-      const diffX = this._targetScrollLeft - currLeft;
-
-      if (Math.abs(diffY) <= 1 && Math.abs(diffX) <= 1) {
-        this.editorEl.scrollTop = this._targetScrollTop;
-        this.editorEl.scrollLeft = this._targetScrollLeft;
-        this._scrollAnimRaf = null;
-        return;
-      }
-
-      this.editorEl.scrollTop = Math.round(currTop + diffY * 0.35);
-      this.editorEl.scrollLeft = Math.round(currLeft + diffX * 0.35);
-
-      this._scrollAnimRaf = requestAnimationFrame(animateScroll);
-    };
-
     this.editorEl.addEventListener('scroll', () => {
-      if (!this._scrollAnimRaf) {
-        this._targetScrollTop = this.editorEl.scrollTop;
-        this._targetScrollLeft = this.editorEl.scrollLeft;
-      }
       this.syncAllEditorScrolls();
       this.onEditorScroll();
     });
-
-    if (this.editorWrapper) {
-      this.editorWrapper.addEventListener('wheel', (e) => {
-        if (!this.editorEl || this.viewMode !== 'editor') return;
-
-        let deltaY = e.deltaY;
-        let deltaX = e.deltaX;
-
-        if (e.deltaMode === 1) { // Lines
-          const lh = this.getLineHeight ? this.getLineHeight() : 24;
-          deltaY *= lh;
-          deltaX *= lh;
-        } else if (e.deltaMode === 2) { // Pages
-          deltaY *= (this.editorEl.clientHeight || 400);
-          deltaX *= (this.editorEl.clientWidth || 600);
-        }
-
-        if (!this._scrollAnimRaf) {
-          this._targetScrollTop = this.editorEl.scrollTop;
-          this._targetScrollLeft = this.editorEl.scrollLeft;
-        }
-
-        this._targetScrollTop += deltaY;
-        this._targetScrollLeft += deltaX;
-        clampTarget();
-
-        if (!this._scrollAnimRaf) {
-          this._scrollAnimRaf = requestAnimationFrame(animateScroll);
-        }
-
-        e.preventDefault();
-      }, { passive: false });
-    }
     window.addEventListener('resize', () => {
       this.cachedCharWidth = null;
       this.cachedLineHeight = null;
@@ -432,7 +359,6 @@ class CavemanApp {
       this.renderHighlights();
     });
     this.editorEl.addEventListener('click', (e) => {
-      this.preventCaretInSketchSpacers();
       // 1. Direct hit-test for actual swatch or color box element ONLY
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
       const sw = elements.find(el => el.classList && (el.classList.contains('macro-inline-swatch') || el.classList.contains('editor-swatch-box') || el.classList.contains('macro-color-box-slot')));
@@ -485,177 +411,34 @@ class CavemanApp {
         this.editorEl.style.cursor = 'text';
       }
     });
-    this.editorEl.addEventListener('keyup', (e) => {
-      if (e.key && (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End' || e.key === 'PageDown' || e.key === 'PageUp')) {
-        this.preventCaretInSketchSpacers();
-      }
-    });
-
-    document.addEventListener('selectionchange', () => {
-      if (document.activeElement === this.editorEl) {
-        this.preventCaretInSketchSpacers();
-      }
-    });
-
     this.titleInput.addEventListener('input', () => this.handleInput());
     this.folderInput.addEventListener('input', () => this.handleInput());
     this.togglePreviewBtn.addEventListener('click', () => this.toggleEditorMode());
     this.canvasModeBtn.addEventListener('click', () => this.toggleCanvasMode());
     this.deleteNoteBtn.addEventListener('click', () => this.deleteCurrentNote());
 
-    // Arrow navigation & Sketch Block Auto-expansion
+    // Sketch Block Auto-expansion on Enter
     this.editorEl.addEventListener('keydown', (e) => {
-      // Active sketch shortcut interception inside textarea
-      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
-        if (this.sketchManager && this.sketchManager.activeWidget && !this.sketchManager.activeWidget.isBaked) {
-          e.preventDefault();
-          if (e.key.toLowerCase() === 'y' || e.shiftKey) {
-            this.sketchManager.activeWidget.redo();
-          } else {
-            this.sketchManager.activeWidget.undo();
-          }
-          return;
-        }
-      }
-
-      // Fast single-arrow jump across sketch blocks
-      if (e.key === 'ArrowDown' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        const text = this.editorEl.value;
-        const selStart = this.editorEl.selectionStart;
-        const selEnd = this.editorEl.selectionEnd;
-        if (selStart === selEnd) {
-          const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
-          const lineEnd = text.indexOf('\n', selStart);
-          const actualLineEnd = lineEnd === -1 ? text.length : lineEnd;
-          const currentLine = text.slice(lineStart, actualLineEnd);
-
-          const parsed = this.sketchManager ? this.sketchManager.parseSketchTag(currentLine) : null;
-          if (parsed) {
-            const spacerCount = this.getSketchSpacerCount(parsed.height);
-            const lines = text.split('\n');
-            const currentLineIdx = text.slice(0, lineStart).split('\n').length - 1;
-            
-            let actualSpacers = 0;
-            while (currentLineIdx + 1 + actualSpacers < lines.length && lines[currentLineIdx + 1 + actualSpacers].trim() === '' && actualSpacers < spacerCount) {
-              actualSpacers++;
-            }
-            const targetLineIdx = currentLineIdx + actualSpacers + 1;
-
-            let targetOffset = 0;
-            for (let i = 0; i < Math.min(lines.length, targetLineIdx); i++) {
-              targetOffset += lines[i].length + 1;
-            }
-            if (targetLineIdx >= lines.length) {
-              targetOffset = text.length;
-            }
-            e.preventDefault();
-            this.editorEl.setSelectionRange(targetOffset, targetOffset);
-            this.updateLineNumbers();
-            return;
-          }
-        }
-      }
-
-      if (e.key === 'ArrowUp' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        const text = this.editorEl.value;
-        const selStart = this.editorEl.selectionStart;
-        const selEnd = this.editorEl.selectionEnd;
-        if (selStart === selEnd) {
-          const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
-          const lines = text.split('\n');
-          const currentLineIdx = text.slice(0, lineStart).split('\n').length - 1;
-
-          if (currentLineIdx > 0) {
-            let sketchLineIdx = -1;
-            for (let checkIdx = currentLineIdx - 1; checkIdx >= Math.max(0, currentLineIdx - 60); checkIdx--) {
-              const checkLine = lines[checkIdx] || '';
-              const parsed = this.sketchManager ? this.sketchManager.parseSketchTag(checkLine) : null;
-              if (parsed) {
-                const spacerCount = this.getSketchSpacerCount(parsed.height);
-                if (currentLineIdx <= checkIdx + spacerCount + 1) {
-                  sketchLineIdx = checkIdx;
-                }
-                break;
-              }
-              if (checkLine.trim() !== '') break;
-            }
-
-            if (sketchLineIdx !== -1) {
-              let targetOffset = 0;
-              for (let i = 0; i < sketchLineIdx; i++) {
-                targetOffset += lines[i].length + 1;
-              }
-              targetOffset += lines[sketchLineIdx].length;
-              e.preventDefault();
-              this.editorEl.setSelectionRange(targetOffset, targetOffset);
-              this.updateLineNumbers();
-              return;
-            }
-          }
-        }
-      }
-
-      // Backspace guard: when at beginning of line below a sketch opening, jump to sketch tag instead of deleting single spacer line
-      if (e.key === 'Backspace' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        const text = this.editorEl.value;
-        const selStart = this.editorEl.selectionStart;
-        const selEnd = this.editorEl.selectionEnd;
-        if (selStart === selEnd) {
-          const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
-          if (selStart === lineStart && selStart > 0) {
-            const lines = text.split('\n');
-            const currentLineIdx = text.slice(0, lineStart).split('\n').length - 1;
-            if (currentLineIdx > 0) {
-              let sketchLineIdx = -1;
-              for (let checkIdx = currentLineIdx - 1; checkIdx >= Math.max(0, currentLineIdx - 60); checkIdx--) {
-                const checkLine = lines[checkIdx] || '';
-                const parsed = this.sketchManager ? this.sketchManager.parseSketchTag(checkLine) : null;
-                if (parsed) {
-                  const spacerCount = this.getSketchSpacerCount(parsed.height);
-                  if (currentLineIdx <= checkIdx + spacerCount + 1) {
-                    sketchLineIdx = checkIdx;
-                  }
-                  break;
-                }
-                if (checkLine.trim() !== '') break;
-              }
-
-              if (sketchLineIdx !== -1) {
-                e.preventDefault();
-                let targetOffset = 0;
-                for (let i = 0; i < sketchLineIdx; i++) {
-                  targetOffset += lines[i].length + 1;
-                }
-                targetOffset += lines[sketchLineIdx].length;
-                this.editorEl.setSelectionRange(targetOffset, targetOffset);
-                this.updateLineNumbers();
-                return;
-              }
-            }
-          }
-        }
-      }
-
       if (e.key === 'Enter') {
         const selStart = this.editorEl.selectionStart;
         const text = this.editorEl.value;
         const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
         const lineEnd = text.indexOf('\n', selStart);
         const actualLineEnd = lineEnd === -1 ? text.length : lineEnd;
-        const currentLine = text.slice(lineStart, actualLineEnd);
+        const currentLine = text.slice(lineStart, actualLineEnd).trim();
 
-        const parsed = this.sketchManager ? this.sketchManager.parseSketchTag(currentLine) : null;
-        if (parsed) {
+        if (/^\[sketch(?::([a-zA-Z0-9_-]+))?(?:\s+([a-zA-Z0-9_-]+))?(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+([a-zA-Z0-9_-]+))?\]$/i.test(currentLine)) {
           e.preventDefault();
           this.pushHistory();
 
-          let sketchId = parsed.id;
+          const parsed = this.sketchManager.parseSketchTag(currentLine);
+          let sketchId = parsed?.id;
           if (!sketchId) {
             sketchId = 'sk-' + Math.random().toString(36).substring(2, 8);
           }
-          const sketchW = parsed.width || 300;
-          const sketchH = parsed.height || 300;
-          const blankLinesCount = this.getSketchSpacerCount(sketchH);
+          const sketchW = parsed?.width || 300;
+          const sketchH = parsed?.height || 300;
+          const blankLinesCount = Math.max(4, Math.ceil((sketchH + 70) / 24));
           const blankLines = '\n'.repeat(blankLinesCount);
 
           const updatedTag = `[sketch:${sketchId} ${sketchW} ${sketchH}]`;
@@ -783,9 +566,6 @@ class CavemanApp {
     document.body.classList.toggle('print-continuous', savedPrintContinuous);
 
     window.addEventListener('beforeprint', () => {
-      if (this.currentNote && this.currentNote.title) {
-        document.title = this.currentNote.title;
-      }
       if (document.body.classList.contains('print-continuous')) {
         const previewHeight = this.previewEl.scrollHeight;
         const heightCm = Math.ceil(previewHeight / 37.8) + 2; 
@@ -803,11 +583,6 @@ class CavemanApp {
     });
 
     window.addEventListener('afterprint', () => {
-      if (this.currentNote && this.currentNote.title) {
-        document.title = `${this.currentNote.title} - Fri-ren Notes`;
-      } else {
-        document.title = 'Fri-ren Notes';
-      }
       const style = document.getElementById('continuous-print-style');
       if (style) style.remove();
     });
@@ -858,16 +633,6 @@ class CavemanApp {
       // Undo/Redo
       if (isCtrlOrMeta && keyLower === 'z') {
         e.preventDefault();
-        // If an active sketch widget is currently focused/active, route Undo to the sketch
-        if (this.sketchManager && this.sketchManager.activeWidget && !this.sketchManager.activeWidget.isBaked) {
-          if (e.shiftKey) {
-            this.sketchManager.activeWidget.redo();
-          } else {
-            this.sketchManager.activeWidget.undo();
-          }
-          return;
-        }
-
         if (e.shiftKey) {
           this.redo();
         } else {
@@ -876,10 +641,6 @@ class CavemanApp {
       }
       if (isCtrlOrMeta && keyLower === 'y') {
         e.preventDefault();
-        if (this.sketchManager && this.sketchManager.activeWidget && !this.sketchManager.activeWidget.isBaked) {
-          this.sketchManager.activeWidget.redo();
-          return;
-        }
         this.redo();
       }
     });
@@ -1534,21 +1295,11 @@ class CavemanApp {
     }
     this.currentNote = note;
     this.titleInput.value = note.title;
-    document.title = note.title ? `${note.title} - Fri-ren Notes` : 'Fri-ren Notes';
     this.folderInput.value = note.folder || '';
-    let noteContent = note.rawContent || note.content || '';
-    if (this.expandSketchSpacers) {
-      noteContent = this.expandSketchSpacers(noteContent);
-    }
-    this.editorEl.value = noteContent;
+    this.editorEl.value = note.rawContent || note.content;
     
     this.editorFoldMap.clear();
     this.foldIdCounter = 1;
-    if (note.foldMap) {
-      for (const [k, v] of Object.entries(note.foldMap)) {
-        this.editorFoldMap.set(k, v);
-      }
-    }
     
     // Auto-restore folded headings
     try {
@@ -1600,12 +1351,7 @@ class CavemanApp {
     // Initialize history for this note if it doesn't exist
     if (!this.historyStack.has(note.id)) {
       this.historyStack.set(note.id, {
-        undo: [{ 
-          content: note.rawContent || note.content, 
-          start: 0, 
-          end: 0,
-          sketches: note.sketches ? JSON.parse(JSON.stringify(note.sketches)) : {}
-        }],
+        undo: [{ content: note.content, start: 0, end: 0 }],
         redo: []
       });
     }
@@ -1639,12 +1385,6 @@ class CavemanApp {
     this.updateStats();
 
     // Final scroll reset to ensure we are at the top regardless of previous note's state
-    if (this._scrollAnimRaf) {
-      cancelAnimationFrame(this._scrollAnimRaf);
-      this._scrollAnimRaf = null;
-    }
-    this._targetScrollTop = 0;
-    this._targetScrollLeft = 0;
     this.editorEl.scrollTop = 0;
     this.editorEl.scrollLeft = 0;
     this.previewEl.scrollTop = 0;
@@ -1711,7 +1451,6 @@ class CavemanApp {
     if (!this.currentNote) return;
 
     const newTitle = this.titleInput.value;
-    document.title = newTitle ? `${newTitle} - Fri-ren Notes` : 'Fri-ren Notes';
     const newFolder = this.folderInput.value;
     const rawContent = this.editorEl.value;
     
@@ -1797,16 +1536,14 @@ class CavemanApp {
     this.historyTimer = null;
 
     const content = this.editorEl.value;
-    const sketches = this.currentNote.sketches ? JSON.parse(JSON.stringify(this.currentNote.sketches)) : {};
     const last = history.undo[history.undo.length - 1];
     
-    if (last && last.content === content && JSON.stringify(last.sketches || {}) === JSON.stringify(sketches)) return;
+    if (last && last.content === content) return;
 
     history.undo.push({
       content,
       start: this.editorEl.selectionStart,
-      end: this.editorEl.selectionEnd,
-      sketches
+      end: this.editorEl.selectionEnd
     });
 
     if (history.undo.length > 100) history.undo.shift();
@@ -1824,16 +1561,14 @@ class CavemanApp {
     const currentText = this.editorEl.value;
     const currentStart = this.editorEl.selectionStart;
     const currentEnd = this.editorEl.selectionEnd;
-    const currentSketches = this.currentNote.sketches ? JSON.parse(JSON.stringify(this.currentNote.sketches)) : {};
 
     // Ensure the top of the undo stack accurately captures what was in the editor before undoing
     const lastUndo = history.undo[history.undo.length - 1];
-    if (lastUndo && (lastUndo.content !== currentText || JSON.stringify(lastUndo.sketches || {}) !== JSON.stringify(currentSketches))) {
+    if (lastUndo && lastUndo.content !== currentText) {
       history.undo.push({
         content: currentText,
         start: currentStart,
-        end: currentEnd,
-        sketches: currentSketches
+        end: currentEnd
       });
     }
 
@@ -1843,12 +1578,6 @@ class CavemanApp {
     history.redo.push(current);
     
     const prev = history.undo[history.undo.length - 1];
-    if (prev.sketches) {
-      this.currentNote.sketches = {
-        ...(this.currentNote.sketches || {}),
-        ...JSON.parse(JSON.stringify(prev.sketches))
-      };
-    }
     this.editorEl.value = prev.content;
     this.editorEl.setSelectionRange(prev.start, prev.end);
     
@@ -1873,12 +1602,6 @@ class CavemanApp {
     const next = history.redo.pop();
     history.undo.push(next);
     
-    if (next.sketches) {
-      this.currentNote.sketches = {
-        ...(this.currentNote.sketches || {}),
-        ...JSON.parse(JSON.stringify(next.sketches))
-      };
-    }
     this.editorEl.value = next.content;
     this.editorEl.setSelectionRange(next.start, next.end);
     
@@ -1918,87 +1641,9 @@ class CavemanApp {
     this.lastSavedEl.textContent = `Saved: ${new Date().toLocaleTimeString()}`;
   }
 
-  preventCaretInSketchSpacers() {
-    if (!this.editorEl) return;
-    const selStart = this.editorEl.selectionStart;
-    const selEnd = this.editorEl.selectionEnd;
-    if (typeof selStart !== 'number' || selStart !== selEnd) return;
-
-    const text = this.editorEl.value;
-    if (!text.includes('[sketch')) return;
-
-    const lines = text.split('\n');
-    let currentOffset = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const lineLen = lines[i].length;
-      const lineEnd = currentOffset + lineLen;
-      const trimmed = lines[i].trim();
-
-      if (/^\[sketch(?::([a-zA-Z0-9_-]+))?(?:\s+([a-zA-Z0-9_-]+))?(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+([a-zA-Z0-9_-]+))?\]$/i.test(trimmed)) {
-        const parsed = this.sketchManager ? this.sketchManager.parseSketchTag(trimmed) : null;
-        const spacerCount = parsed ? this.getSketchSpacerCount(parsed.height) : 15;
-        
-        // Spacer region is strictly the blank lines following the sketch line
-        const spacerStart = lineEnd + 1;
-        let spacerEnd = spacerStart;
-        let spacersFound = 0;
-        
-        while (i + 1 + spacersFound < lines.length && spacersFound < spacerCount && lines[i + 1 + spacersFound].trim() === '') {
-          spacerEnd += lines[i + 1 + spacersFound].length + 1;
-          spacersFound++;
-        }
-        
-        // If caret is strictly inside the hidden spacer lines, snap directly to start of content line below
-        if (selStart >= spacerStart && selStart < spacerEnd) {
-          this.editorEl.setSelectionRange(spacerEnd, spacerEnd);
-          return;
-        }
-        i += spacersFound;
-        currentOffset = spacerEnd;
-        continue;
-      }
-
-      currentOffset += lineLen + 1;
-    }
-  }
-
-  getSketchSpacerCount(height) {
-    const lh = this.getLineHeight ? this.getLineHeight() : 24;
-    // Header (30px) + Toolbar when active (34px) + Borders/padding (8px) = 72px
-    const minHeight = (height || 300) + 72;
-    return Math.max(3, Math.ceil(minHeight / lh));
-  }
-
-  expandSketchSpacers(text) {
-    if (!text || !text.includes('[sketch')) return text;
-    const lines = text.split('\n');
-    const out = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      out.push(line);
-      const parsed = this.sketchManager ? this.sketchManager.parseSketchTag(line) : null;
-      if (parsed) {
-        const h = parsed.height || 300;
-        const neededSpacers = this.getSketchSpacerCount(h);
-        
-        let existingBlanks = 0;
-        while (i + 1 + existingBlanks < lines.length && lines[i + 1 + existingBlanks].trim() === '') {
-          existingBlanks++;
-        }
-        const toAdd = Math.max(0, neededSpacers - existingBlanks);
-        for (let k = 0; k < toAdd; k++) {
-          out.push('');
-        }
-      }
-    }
-    return out.join('\n');
-  }
-
   updateStats() {
     if (!this.editorEl || !this.charCountEl) return;
-    const raw = this.editorEl.value;
-    const text = this.getCleanMarkdown(raw);
+    const text = this.editorEl.value;
     if (this.wasmEngine && this.wasmEngine.ready) {
       const stats = this.wasmEngine.analyze(text);
       if (stats) {
@@ -3753,10 +3398,7 @@ class CavemanApp {
       const lineHeights = new Int32Array(totalLines);
       const lineTops = new Int32Array(totalLines + 1);
       const headingLevels = new Int8Array(totalLines);
-      const lineDisplayNumbers = new Int32Array(totalLines);
       let runningTop = 0;
-      let currentDocLine = 1;
-      let inSketchSpacerUntil = -1;
 
       for (let i = 0; i < totalLines; i++) {
         const lineText = lines[i];
@@ -3771,34 +3413,12 @@ class CavemanApp {
 
         const match = lineText.match(/^(\s*#{1,6})\s+/);
         headingLevels[i] = match ? match[1].trim().length : 0;
-
-        const parsedSketch = this.sketchManager ? this.sketchManager.parseSketchTag(lineText) : null;
-        if (parsedSketch) {
-          const sketchH = parsedSketch.height;
-          const spacerCount = this.getSketchSpacerCount(sketchH);
-          lineDisplayNumbers[i] = currentDocLine++;
-          inSketchSpacerUntil = i + spacerCount;
-          continue;
-        }
-
-        if (i <= inSketchSpacerUntil) {
-          if (lineText.trim() === '') {
-            // Inside sketch spacer rows - skip numbering
-            lineDisplayNumbers[i] = 0;
-            continue;
-          } else {
-            inSketchSpacerUntil = -1;
-          }
-        }
-
-        lineDisplayNumbers[i] = currentDocLine++;
       }
       lineTops[totalLines] = runningTop;
 
       this._gutterLineHeights = lineHeights;
       this._gutterLineTops = lineTops;
       this._gutterHeadingLevels = headingLevels;
-      this._gutterLineDisplayNumbers = lineDisplayNumbers;
 
       if (this.sketchManager && this.viewMode === 'editor') {
         this.sketchManager.syncWidgets(lines, lineTops);
@@ -3878,12 +3498,7 @@ class CavemanApp {
         }
       }
 
-      const dispNum = this._gutterLineDisplayNumbers ? this._gutterLineDisplayNumbers[i] : (i + 1);
-      const numText = dispNum > 0 ? `${dispNum}` : '';
-      const isSpacer = dispNum === 0;
-      const spacerClass = isSpacer ? ' sketch-spacer-gutter' : '';
-
-      rowsHtml += `<div class="line-number-row${foldClass}${spacerClass}" style="position: absolute; top: ${top}px; height: ${h}px; line-height: ${lineHeight}px; left: 0; right: 0;">${indicatorHtml}<span class="line-num-text">${numText}</span></div>`;
+      rowsHtml += `<div class="line-number-row${foldClass}" style="position: absolute; top: ${top}px; height: ${h}px; line-height: ${lineHeight}px; left: 0; right: 0;">${indicatorHtml}<span class="line-num-text">${i + 1}</span></div>`;
     }
 
     this.lineNumbersEl.innerHTML = `<div class="line-numbers-virtual-container" style="position: relative; height: ${this._gutterTotalHeight}px; width: 100%; min-height: 100%;">${rowsHtml}</div>`;
@@ -3955,7 +3570,7 @@ class CavemanApp {
           const id = 'sk-' + Math.random().toString(36).substring(2, 8);
           const w = parsed.width || 300;
           const h = parsed.height || 300;
-          const blankCount = this.getSketchSpacerCount(h);
+          const blankCount = Math.max(3, Math.ceil((h + 70) / 24));
 
           newLines.push(`[sketch:${id} ${w} ${h}]`);
 
@@ -3981,90 +3596,36 @@ class CavemanApp {
 
   getCleanMarkdown(text) {
     if (!text) return '';
-    
-    // Strip sketch spacer blank lines so note content is clean 1-line declarations
-    const rawLines = text.split('\n');
-    const cleanLinesNoSpacers = [];
-    let inSpacerUntil = -1;
-
-    for (let i = 0; i < rawLines.length; i++) {
-      const line = rawLines[i];
-      const trimmed = line.trim();
-
-      const parsed = this.sketchManager ? this.sketchManager.parseSketchTag(line) : null;
-      if (parsed) {
-        const h = parsed.height || 300;
-        const spacerCount = this.getSketchSpacerCount(h);
-        cleanLinesNoSpacers.push(line);
-        inSpacerUntil = i + spacerCount;
-        continue;
-      }
-
-      if (i <= inSpacerUntil && trimmed === '') {
-        continue;
-      }
-
-      if (i <= inSpacerUntil && trimmed !== '') {
-        inSpacerUntil = -1;
-      }
-
-      cleanLinesNoSpacers.push(line);
-    }
-
-    let processedText = cleanLinesNoSpacers.join('\n');
-    if (!processedText.includes('<!-- FOLD:')) return processedText;
-
-    // Safely expand fold markers iteratively (up to 5 passes) to avoid Maximum call stack size exceeded
-    for (let depth = 0; depth < 5; depth++) {
-      if (!processedText.includes('<!-- FOLD:')) break;
-      const lines = processedText.split('\n');
-      const cleanLines = [];
-      let expandedAny = false;
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const match = line.match(/^<!--\s*FOLD:(.*?)\s*-->$/);
-        if (match) {
-          const id = match[1].trim();
-          let foldContent = '';
-          if (this.editorFoldMap && this.editorFoldMap.has(id)) {
-            foldContent = this.editorFoldMap.get(id);
-            expandedAny = true;
-          } else if (this.currentNote && this.currentNote.foldMap && this.currentNote.foldMap[id]) {
-            foldContent = this.currentNote.foldMap[id];
-            expandedAny = true;
-          } else if (!id.startsWith('f_')) {
-            if (/^[A-Za-z0-9+/=]+$/.test(id)) {
-              try {
-                foldContent = decodeURIComponent(escape(atob(id)));
-                expandedAny = true;
-              } catch (_) {}
+    if (!text.includes('<!-- FOLD:')) return text;
+    const lines = text.split('\n');
+    const cleanLines = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const match = line.match(/^<!--\s*FOLD:(.*?)\s*-->$/);
+      if (match) {
+        const id = match[1].trim();
+        if (this.editorFoldMap && this.editorFoldMap.has(id)) {
+          const content = this.editorFoldMap.get(id);
+          cleanLines.push(this.getCleanMarkdown(content));
+        } else if (!id.startsWith('f_')) {
+          if (/^[A-Za-z0-9+/=]+$/.test(id)) {
+            try {
+              const decoded = decodeURIComponent(escape(atob(id)));
+              cleanLines.push(this.getCleanMarkdown(decoded));
+            } catch (_) {
+              // Silently omit corrupted fold markers
             }
           }
-          if (foldContent) {
-            cleanLines.push(foldContent);
-          }
-        } else {
-          cleanLines.push(line);
         }
+      } else {
+        cleanLines.push(line);
       }
-      processedText = cleanLines.join('\n');
-      if (!expandedAny) break;
     }
-
-    return processedText;
+    return cleanLines.join('\n');
   }
 
   saveFoldedHeadingsState() {
     if (!this.currentNote) return;
-    
-    // Save foldMap directly on currentNote for persistent storage
-    if (this.editorFoldMap && this.editorFoldMap.size > 0) {
-      this.currentNote.foldMap = Object.fromEntries(this.editorFoldMap);
-    } else {
-      delete this.currentNote.foldMap;
-    }
-
     const noteKey = `caveman-folded-${this.currentNote.id || this.currentNote.title || 'default'}`;
     const text = this.editorEl ? this.editorEl.value : '';
     if (!text || !text.includes('<!-- FOLD:')) {
