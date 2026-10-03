@@ -16,7 +16,6 @@ export class Editor {
            • connect notes with <b>[[note title]]</b><br>
            • use <b>![video]</b> for mp4/webm/YouTube<br>
            • resize: <b>![image 500 300](link)</b> or <b>![[img 300 300]]</b><br>
-           • sketch: <b>[sketch 300 300]</b> vector ink with color wheel<br>
            • check <b>canvas</b> mode for visual thinking
         </div>
       </div>`;
@@ -127,7 +126,7 @@ export class Editor {
     // Image resizing support: ![alt width height alignment](url)
     md = md.replace(/!\[([^\]\n]*)\]\(([^)\n]+)\)/g, (match, bracketContent, url) => {
       // Skip if it was already processed as video placeholder or something else
-      if (bracketContent && typeof bracketContent === 'string' && bracketContent.trim().startsWith('video')) return match; 
+      if (bracketContent.trim().startsWith('video')) return match; 
       
       const params = parseImageParams(bracketContent);
       return renderImageHtml({
@@ -186,45 +185,6 @@ export class Editor {
 
     // 3. Remove stray closing tags if any remain
     md = md.replace(/(?:\[\/color\]|<\/color>)/gi, '');
-    md = md.replace(/\[\/sketch\]/gi, '');
-
-    // Extract and hide sketch blocks before Marked parses
-    const sketchPlaceholders = [];
-    md = md.replace(/\[sketch(?::([a-zA-Z0-9_-]+))?(?:\s+([a-zA-Z0-9_-]+))?(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+([a-zA-Z0-9_-]+))?\]/gi, (match, id1, arg2, arg3, arg4, arg5) => {
-      let id = id1 || null;
-      let width = 300;
-      let height = 300;
-
-      const tokens = [arg2, arg3, arg4, arg5].filter(Boolean);
-      const numTokens = [];
-      const strTokens = [];
-
-      for (const t of tokens) {
-        if (/^\d+$/.test(t)) {
-          numTokens.push(parseInt(t, 10));
-        } else {
-          strTokens.push(t);
-        }
-      }
-
-      if (!id && strTokens.length > 0) {
-        id = strTokens[0];
-      }
-      if (numTokens.length >= 2) {
-        width = numTokens[0];
-        height = numTokens[1];
-      } else if (numTokens.length === 1) {
-        width = numTokens[0];
-        height = numTokens[0];
-      }
-
-      width = Math.max(100, Math.min(1600, width));
-      height = Math.max(80, Math.min(2000, height));
-
-      const placeholder = `SKETCHBLOCKA${sketchPlaceholders.length}A`;
-      sketchPlaceholders.push({ placeholder, id, width, height, sketchIndex: sketchPlaceholders.length });
-      return '\n\n' + placeholder + '\n\n';
-    });
 
     // Ensure marked is configured for GFM
     if (typeof marked !== 'undefined') {
@@ -301,14 +261,6 @@ export class Editor {
           html = html.replace(math.placeholder, () => fb);
         }
       }
-
-      // Render and restore sketch blocks cleanly (no code blocks or markdown mangling)
-      for (const item of sketchPlaceholders) {
-        const sketchHtml = this.renderPreviewSketchHtml(item);
-        html = html.split(`<p>${item.placeholder}</p>`).join(sketchHtml);
-        html = html.split(`<p>\n${item.placeholder}\n</p>`).join(sketchHtml);
-        html = html.split(item.placeholder).join(sketchHtml);
-      }
       
       // Brutalist Hack: marked makes checkboxes 'disabled' by default. 
       // We strip that so they are interactive and we can catch the click.
@@ -334,46 +286,5 @@ export class Editor {
 
   generateImageId() {
     return `img-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  }
-
-  renderPreviewSketchHtml(item) {
-    const width = item.width || 300;
-    const height = item.height || 300;
-    const isNight = document.body.classList.contains('night-mode');
-
-    let sketchData = null;
-    const noteSketches = window.app?.currentNote?.sketches;
-    if (item.id && noteSketches && noteSketches[item.id]) {
-      sketchData = noteSketches[item.id];
-    } else if (item.id && window.app?.sketchManager?.getSketchData(item.id)) {
-      sketchData = window.app.sketchManager.getSketchData(item.id);
-    } else if (item.id && window.app?.sketchManager?.widgets?.has(item.id)) {
-      const w = window.app.sketchManager.widgets.get(item.id);
-      sketchData = { id: item.id, width: w.width, height: w.height, strokes: w.strokes };
-    }
-
-    const strokes = sketchData && sketchData.strokes ? sketchData.strokes : [];
-    let pathsHtml = '';
-
-    for (const s of strokes) {
-      let color = s.color;
-      if (!color || color === 'theme-ink') {
-        color = isNight ? '#e5c07b' : '#141414';
-      }
-      const opacity = s.opacity !== undefined ? s.opacity : 1;
-      const strokeWidth = s.width || 2.5;
-      const d = s.d || (window.app?.sketchManager ? window.app.sketchManager.pointsToPath(s.points) : '');
-      if (d) {
-        pathsHtml += `<path d="${d}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${opacity}" />`;
-      }
-    }
-
-    const displayId = (sketchData && sketchData.id) || item.id || 'SKETCH';
-    const bgColor = isNight ? '#241f1a' : '#E4E3E0';
-
-    return `<div class="sketch-preview-block" style="width: ${width}px; max-width: 100%; margin: 16px 0;">` +
-      `<div class="sketch-preview-header"><span>SKETCH // ${displayId}</span><span>${width}×${height}</span></div>` +
-      `<svg class="sketch-preview-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" style="background-color: ${bgColor}; width: 100%; height: auto; display: block;">${pathsHtml}</svg>` +
-    `</div>`;
   }
 }

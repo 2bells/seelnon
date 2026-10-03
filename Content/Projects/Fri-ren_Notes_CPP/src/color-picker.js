@@ -166,8 +166,7 @@ export class ColorPicker {
 
     // Manual Hex Input
     this.hexInput.addEventListener('input', () => {
-      let val = (this.hexInput.value || '').trim();
-      if (!val) return;
+      let val = this.hexInput.value.trim();
       if (!val.startsWith('#')) val = '#' + val;
       if (/^#[0-9a-fA-F]{3,6}$/.test(val)) {
         this.setColor(val, true, false);
@@ -227,7 +226,7 @@ export class ColorPicker {
     this.onClose = onClose;
     this.isOpen = true;
 
-    const startColor = initialColor && typeof initialColor === 'string' && initialColor.startsWith('#') ? initialColor : '#141414';
+    const startColor = initialColor && initialColor.startsWith('#') ? initialColor : '#141414';
     this.setColor(startColor, false);
 
     this.popover.classList.remove('hidden');
@@ -272,7 +271,6 @@ export class ColorPicker {
   }
 
   setColor(hex, triggerCallback = false, updateHexInput = true) {
-    if (!hex || typeof hex !== 'string') hex = '#141414';
     let cleanHex = hex.trim();
     if (!cleanHex.startsWith('#')) cleanHex = '#' + cleanHex;
     if (cleanHex.length === 4) {
