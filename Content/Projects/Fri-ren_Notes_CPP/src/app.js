@@ -783,6 +783,9 @@ class CavemanApp {
     document.body.classList.toggle('print-continuous', savedPrintContinuous);
 
     window.addEventListener('beforeprint', () => {
+      if (this.currentNote && this.currentNote.title) {
+        document.title = this.currentNote.title;
+      }
       if (document.body.classList.contains('print-continuous')) {
         const previewHeight = this.previewEl.scrollHeight;
         const heightCm = Math.ceil(previewHeight / 37.8) + 2; 
@@ -800,6 +803,11 @@ class CavemanApp {
     });
 
     window.addEventListener('afterprint', () => {
+      if (this.currentNote && this.currentNote.title) {
+        document.title = `${this.currentNote.title} - Fri-ren Notes`;
+      } else {
+        document.title = 'Fri-ren Notes';
+      }
       const style = document.getElementById('continuous-print-style');
       if (style) style.remove();
     });
@@ -1526,6 +1534,7 @@ class CavemanApp {
     }
     this.currentNote = note;
     this.titleInput.value = note.title;
+    document.title = note.title ? `${note.title} - Fri-ren Notes` : 'Fri-ren Notes';
     this.folderInput.value = note.folder || '';
     let noteContent = note.rawContent || note.content || '';
     if (this.expandSketchSpacers) {
@@ -1697,6 +1706,7 @@ class CavemanApp {
     if (!this.currentNote) return;
 
     const newTitle = this.titleInput.value;
+    document.title = newTitle ? `${newTitle} - Fri-ren Notes` : 'Fri-ren Notes';
     const newFolder = this.folderInput.value;
     const rawContent = this.editorEl.value;
     
