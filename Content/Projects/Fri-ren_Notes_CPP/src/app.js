@@ -926,18 +926,19 @@ class CavemanApp {
 
   async loadPublicNotes() {
     try {
-      const response = await fetch('./server/server.json');
+      const response = await fetch(`./server/server.json?_t=${Date.now()}`, { cache: 'no-store' });
       if (!response.ok) return;
       const data = await response.json();
       this.publicNotes = [];
       
       for (const p of data.public_notes) {
-        const md = await fetch(`./server/${p.file}`);
+        const md = await fetch(`./server/${p.file}?_t=${Date.now()}`, { cache: 'no-store' });
         const content = await md.text();
         this.publicNotes.push({
           ...p,
           id: `public:${p.file}`,
           content,
+          rawContent: content,
           updatedAt: Date.now(),
           isPublic: true
         });
@@ -1140,6 +1141,7 @@ class CavemanApp {
   }
 
   async loadNotes() {
+    await this.loadPublicNotes();
     const localNotes = await this.vault.getNotes();
     const publicNotes = this.publicNotes || [];
     
@@ -1531,6 +1533,18 @@ class CavemanApp {
     if (this.sketchManager) {
       this.sketchManager.bakeAll();
       this.sketchManager.clearWidgets();
+    }
+    if (note.isPublic && note.file) {
+      try {
+        const res = await fetch(`./server/${note.file}?_t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const fresh = await res.text();
+          note.content = fresh;
+          note.rawContent = fresh;
+        }
+      } catch (err) {
+        console.warn("Could not fetch fresh public note:", err);
+      }
     }
     this.currentNote = note;
     this.titleInput.value = note.title;
