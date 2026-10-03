@@ -2851,6 +2851,12 @@ class CavemanApp {
       lineHtml = lineHtml.replace(/<!--\s*FOLD:.*?\s*-->/gi, match => `<span class="editor-fold-marker">${this.escapeHtml(match)}</span>`);
     }
 
+    // Size tags & Liner tags highlight in editor
+    if (lineHtml.includes('size') || lineHtml.includes('liner') || lineHtml.includes('[line]')) {
+      lineHtml = lineHtml.replace(/(\[size\s*=\s*['"]?[0-9a-zA-Z.%]+['"]?\]|\[\/size\])/gi, '<span class="token tag editor-size-tag">$1</span>');
+      lineHtml = lineHtml.replace(/(\[(?:liner|line|divider)\])/gi, '<span class="token tag editor-size-tag">$1</span>');
+    }
+
     return lineHtml;
   }
 
