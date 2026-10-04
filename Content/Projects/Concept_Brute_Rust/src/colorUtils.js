@@ -1,4 +1,6 @@
 
+import { wasmCore } from './wasm/wasmBridge.js';
+
 export function hexToRgb(hex) {
     if (!hex || typeof hex !== 'string') return { r: 0, g: 0, b: 0 };
     let colorStr = hex.trim().toLowerCase();
@@ -143,12 +145,33 @@ export function rgbToHsv(r, g, b) {
 }
 
 export function isCanvasEmpty(canvas) {
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return true;
     const ctx = canvas.getContext('2d', { alpha: true });
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    // Check alpha channel for any non-zero value
-    for (let i = 3; i < data.length; i += 4) {
-        if (data[i] > 0) return false;
+    const u32 = new Uint32Array(imageData.data.buffer);
+    if (wasmCore && wasmCore.ready) {
+        return wasmCore.isBufferEmpty(u32);
+    }
+    const len = u32.length;
+    // 32-bit fast scan unrolled by 8
+    let i = 0;
+    const len8 = len & ~7;
+    while (i < len8) {
+        if ((u32[i] & 0xFF000000) !== 0 ||
+            (u32[i+1] & 0xFF000000) !== 0 ||
+            (u32[i+2] & 0xFF000000) !== 0 ||
+            (u32[i+3] & 0xFF000000) !== 0 ||
+            (u32[i+4] & 0xFF000000) !== 0 ||
+            (u32[i+5] & 0xFF000000) !== 0 ||
+            (u32[i+6] & 0xFF000000) !== 0 ||
+            (u32[i+7] & 0xFF000000) !== 0) {
+            return false;
+        }
+        i += 8;
+    }
+    while (i < len) {
+        if ((u32[i] & 0xFF000000) !== 0) return false;
+        i++;
     }
     return true;
 }

@@ -332,17 +332,17 @@ async function serializeHistoryState(historyArray) {
     }
 
     if (action.chunks) {
-      const chunksArr = [];
-      for (const [chunkId, data] of action.chunks.entries()) {
+      const chunkEntries = Array.from(action.chunks.entries());
+      const chunksArr = await Promise.all(chunkEntries.map(async ([chunkId, data]) => {
         const dataUrl = data.canvas ? await canvasToDataURLAsync(data.canvas, 'image/png') : null;
-        chunksArr.push({
+        return {
           chunkId,
           layer: data.layer,
           dataUrl,
           width: data.canvas ? data.canvas.width : 1024,
           height: data.canvas ? data.canvas.height : 1024
-        });
-      }
+        };
+      }));
       act.chunks = chunksArr;
     }
 
@@ -370,9 +370,8 @@ async function serializeHistoryState(historyArray) {
 }
 
 async function deserializeHistoryState(serializedArray) {
-  if (!serializedArray) return [];
-  const deserialized = [];
-  for (const act of serializedArray) {
+  if (!serializedArray || !Array.isArray(serializedArray)) return [];
+  const deserialized = await Promise.all(serializedArray.map(async (act) => {
     const action = {
       type: act.type,
       path: act.path ? JSON.parse(JSON.stringify(act.path)) : null,
@@ -381,18 +380,12 @@ async function deserializeHistoryState(serializedArray) {
     };
 
     if (act.referenceImagesState) {
-      action.referenceImagesState = [];
-      for (const ref of act.referenceImagesState) {
+      action.referenceImagesState = act.referenceImagesState.map(ref => {
         const img = new Image();
-        img.src = ref.img.src;
-        img.width = ref.img.width;
-        img.height = ref.img.height;
-        await new Promise(resolve => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          if (!ref.img.src) resolve();
-        });
-        action.referenceImagesState.push({
+        img.src = ref.img ? (ref.img.src || '') : '';
+        img.width = ref.img ? (ref.img.width || 100) : 100;
+        img.height = ref.img ? (ref.img.height || 100) : 100;
+        return {
           id: ref.id,
           name: ref.name,
           img: img,
@@ -404,13 +397,13 @@ async function deserializeHistoryState(serializedArray) {
           mirrorX: ref.mirrorX,
           mirrorY: ref.mirrorY,
           extractedPalette: ref.extractedPalette ? [...ref.extractedPalette] : null
-        });
-      }
+        };
+      });
     }
 
     if (act.chunks) {
       const chunksMap = new Map();
-      for (const chunkItem of act.chunks) {
+      await Promise.all(act.chunks.map(async (chunkItem) => {
         const cv = document.createElement('canvas');
         cv.width = chunkItem.width;
         cv.height = chunkItem.height;
@@ -418,19 +411,18 @@ async function deserializeHistoryState(serializedArray) {
         if (chunkItem.dataUrl) {
           const img = new Image();
           await new Promise(resolve => {
-            img.onload = () => {
-              ctx.drawImage(img, 0, 0);
-              resolve();
-            };
-            img.onerror = () => resolve();
+            img.onload = img.onerror = resolve;
             img.src = chunkItem.dataUrl;
           });
+          if (img.width > 0) {
+            ctx.drawImage(img, 0, 0);
+          }
         }
         chunksMap.set(chunkItem.chunkId, {
           layer: chunkItem.layer,
           canvas: cv
         });
-      }
+      }));
       action.chunks = chunksMap;
     }
 
@@ -442,57 +434,53 @@ async function deserializeHistoryState(serializedArray) {
       if (act.selection.canvasDataUrl) {
         const img = new Image();
         await new Promise(resolve => {
-          img.onload = () => {
-            ctx.drawImage(img, 0, 0);
-            resolve();
-          };
-          img.onerror = () => resolve();
+          img.onload = img.onerror = resolve;
           img.src = act.selection.canvasDataUrl;
         });
+        if (img.width > 0) {
+          ctx.drawImage(img, 0, 0);
+        }
       }
       action.selection = {
-        x: act.selection.x,
-        y: act.selection.y,
-        width: act.selection.width,
-        height: act.selection.height,
-        scale: act.selection.scale,
-        scaleX: act.selection.scaleX !== undefined ? act.selection.scaleX : act.selection.scale,
-        scaleY: act.selection.scaleY !== undefined ? act.selection.scaleY : act.selection.scale,
-        rotation: act.selection.rotation,
-        opacity: act.selection.opacity,
-        mirrorX: act.selection.mirrorX,
-        mirrorY: act.selection.mirrorY,
+        ...act.selection,
         canvas: cv
       };
     }
 
-    deserialized.push(action);
-  }
+    return action;
+  }));
   return deserialized;
 }
 
-export async function saveHistoryStackToStorage() {
+export async function saveHistoryStackToStorage(explicitProjectId = null) {
   if (!this.storage) return;
 
   try {
-    const serializedHistory = await serializeHistoryState(this.history);
-    const serializedRedo = await serializeHistoryState(this.redoStack);
+    if (!this.history || this.history.length === 0) {
+      await this.storage.saveSetting('historyStack', [], explicitProjectId);
+      await this.storage.saveSetting('redoStack', [], explicitProjectId);
+      return;
+    }
+    // Only serialize the last 1 action for storage persistence to prevent massive project-switching lags!
+    const historyToSave = this.history.slice(-1);
+    const serializedHistory = await serializeHistoryState(historyToSave);
+    const serializedRedo = [];
 
-    await this.storage.saveSetting('historyStack', serializedHistory);
-    await this.storage.saveSetting('redoStack', serializedRedo);
+    await this.storage.saveSetting('historyStack', serializedHistory, explicitProjectId);
+    await this.storage.saveSetting('redoStack', serializedRedo, explicitProjectId);
   } catch (err) {
     console.warn('Failed to save history stacks to storage:', err);
   }
 }
 
-export async function loadHistoryStackFromStorage() {
+export async function loadHistoryStackFromStorage(explicitProjectId = null) {
   if (!this.storage) return;
 
   try {
-    const serializedHistory = await this.storage.loadSetting('historyStack');
-    const serializedRedo = await this.storage.loadSetting('redoStack');
+    const serializedHistory = await this.storage.loadSetting('historyStack', explicitProjectId);
+    const serializedRedo = await this.storage.loadSetting('redoStack', explicitProjectId);
 
-    if (serializedHistory && Array.isArray(serializedHistory)) {
+    if (serializedHistory && Array.isArray(serializedHistory) && serializedHistory.length > 0) {
       this._clearStack(this.history);
       this.history = await deserializeHistoryState(serializedHistory);
     } else {
@@ -500,7 +488,7 @@ export async function loadHistoryStackFromStorage() {
       this.history = [];
     }
 
-    if (serializedRedo && Array.isArray(serializedRedo)) {
+    if (serializedRedo && Array.isArray(serializedRedo) && serializedRedo.length > 0) {
       this._clearStack(this.redoStack);
       this.redoStack = await deserializeHistoryState(serializedRedo);
     } else {

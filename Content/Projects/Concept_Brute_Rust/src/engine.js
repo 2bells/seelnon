@@ -1,6 +1,5 @@
 import { CHUNK_SIZE as DEFAULT_CHUNK_SIZE, LAYERS_COUNT, TOOLS } from './constants.js';
-import * as liquifyNew from './tools/liquify.js';
-import * as liquifyOld from './tools/liquify_was_fast.js';
+import * as liquify from './tools/liquify.js';
 import { paintWireframeIncrementally } from './tools/wireframe.js';
 import { GPURenderer } from './engine/gpuRenderer.js';
 import { wasmCore } from './wasm/wasmBridge.js';
@@ -3546,39 +3545,27 @@ export class Engine {
   }
 
   _displaceLiquifyCoords(p0, p1, affectedThisFrame, forceStepOne = false) {
-    const isFast = (this.brush.liquifyQuality === 1);
-    const mod = isFast ? liquifyOld : liquifyNew;
-    return mod.displaceLiquifyCoords(this, p0, p1, affectedThisFrame, forceStepOne);
+    return liquify.displaceLiquifyCoords(this, p0, p1, affectedThisFrame, forceStepOne);
   }
 
   _getOriginalChunkDataFromId(id) {
-    const isFast = (this.brush.liquifyQuality === 1);
-    const mod = isFast ? liquifyOld : liquifyNew;
-    return mod.getOriginalChunkDataFromId(this, id);
+    return liquify.getOriginalChunkDataFromId(this, id);
   }
 
   _getIntPixelDataAndIdx(wx, wy, chunkCache) {
-    const isFast = (this.brush.liquifyQuality === 1);
-    const mod = isFast ? liquifyOld : liquifyNew;
-    return mod.getIntPixelDataAndIdx(this, wx, wy, chunkCache);
+    return liquify.getIntPixelDataAndIdx(this, wx, wy, chunkCache);
   }
 
   _sampleOriginalWorldPixel(wx, wy, chunkCache, dstData, dstIdx) {
-    const isFast = (this.brush.liquifyQuality === 1);
-    const mod = isFast ? liquifyOld : liquifyNew;
-    return mod.sampleOriginalWorldPixel(this, wx, wy, chunkCache, dstData, dstIdx);
+    return liquify.sampleOriginalWorldPixel(this, wx, wy, chunkCache, dstData, dstIdx);
   }
 
   _renderLiquifyChunks(affectedThisFrame, forceBilinear = false) {
-    const isFast = (this.brush.liquifyQuality === 1);
-    const mod = isFast ? liquifyOld : liquifyNew;
-    return mod.renderLiquifyChunks(this, affectedThisFrame, forceBilinear);
+    return liquify.renderLiquifyChunks(this, affectedThisFrame, forceBilinear);
   }
 
   _bilinearSampleImageData(srcData, w, h, x, y, dstData, dstIdx) {
-    const isFast = (this.brush.liquifyQuality === 1);
-    const mod = isFast ? liquifyOld : liquifyNew;
-    return mod.bilinearSampleImageData(this, srcData, w, h, x, y, dstData, dstIdx);
+    return liquify.bilinearSampleImageData(this, srcData, w, h, x, y, dstData, dstIdx);
   }
 
   _bilinearSample(srcData, w, h, x, y, dstData, dstIdx) {

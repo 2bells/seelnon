@@ -2,6 +2,7 @@ import { TOOLS } from '../constants.js';
 import { paintWireframeIncrementally } from '../tools/wireframe.js';
 import { paintSmudgeOnChunks } from '../tools/smudge.js';
 import { paintFluidOnChunks } from '../tools/fluidPaint.js';
+import { startLiquifyStroke, paintLiquifyStroke, endLiquifyStroke } from '../tools/liquify.js';
 import { paintAirIncrementally, clearAirParticles, startAirPaintStroke, endAirPaintStroke } from '../tools/airPaint.js';
 import { isMobileDevice } from '../colorUtils.js';
 import { wasmCore } from '../wasm/wasmBridge.js';
@@ -194,6 +195,7 @@ export function _startStroke(e) {
   this.currentStrokeDirtyChunks = new Map();
   if (this.brush.type === TOOLS.LIQUIFY) {
       this.liquifySteps = [];
+      startLiquifyStroke(this, worldPos);
   }
   if (this.brush.type === TOOLS.AIR) {
       startAirPaintStroke(this);
@@ -504,78 +506,24 @@ export function _moveStroke(e) {
       const lastP = this.strokePoints[this.strokePoints.length - 1];
       const dist = Math.sqrt((worldTo.x - lastP.x)**2 + (worldTo.y - lastP.y)**2);
       
-      // Adaptive minimum drag distance scaled with brush size (prevents micro-stepping on 1500px brushes)
-      const minWarpDist = Math.max(1.5, Math.min(24.0, this.brush.size * 0.025));
-      
+      const minWarpDist = Math.max(1.0, Math.min(20.0, dynamicSize * 0.02));
       if (dist >= minWarpDist) {
-          // Determine intermediate points to create "arcs that are smooth" (interpolation)
-          // Adaptive Step Size: scales up when dragging quickly or when brush size is large
-          let stepSize = Math.max(4, this.brush.size * 0.06);
-          if (this.brush.liquifyQuality === 1) {
-              // FAST mode: huge steps
-              stepSize = Math.max(30, this.brush.size * 0.35);
-          } else if (this.brush.liquifyQuality === 3) {
-              // ULTRA mode: tighter spacing for precision work
-              stepSize = Math.max(3, this.brush.size * 0.03);
+          const maxStepDist = Math.max(16.0, dynamicSize * 0.25);
+          if (dist > maxStepDist) {
+              const steps = Math.min(4, Math.ceil(dist / maxStepDist));
+              let prev = lastP;
+              for (let s = 1; s <= steps; s++) {
+                  const t = s / steps;
+                  const subTo = {
+                      x: lastP.x + (worldTo.x - lastP.x) * t,
+                      y: lastP.y + (worldTo.y - lastP.y) * t
+                  };
+                  paintLiquifyStroke(this, prev, subTo, dynamicSize, pressure);
+                  prev = subTo;
+              }
+          } else {
+              paintLiquifyStroke(this, lastP, worldTo, dynamicSize, pressure);
           }
-
-          // For large brushes, small movements are a fraction of the brush radius; scale up stepSize
-          if (this.brush.size > 150) {
-              stepSize = Math.max(stepSize, this.brush.size * 0.15);
-          }
-          if (this.brush.size > 500) {
-              stepSize = Math.max(stepSize, this.brush.size * 0.35);
-          }
-          
-          // Speed throttle: if distance (velocity) is high, scale up stepSize so we run far fewer steps
-          const velocityThreshold = this.brush.size * 0.25;
-          if (dist > velocityThreshold) {
-              const speedRatio = dist / velocityThreshold;
-              // Dampen speed scale to retain smooth curves near stroke boundaries
-              stepSize *= Math.max(1.0, Math.min(3.5, 1.0 + (speedRatio - 1.0) * 0.8));
-          }
-          
-          let numSteps = Math.max(1, Math.floor(dist / stepSize));
-          
-          // Enforce absolute stable frame rate lock upper ceiling
-          let maxSteps = 8;
-          if (this.brush.liquifyQuality === 1) maxSteps = 3;
-          else if (this.brush.liquifyQuality === 3) maxSteps = 16;
-          // For large brushes, 1-2 steps per mouse frame provides identical warp quality with zero lag
-          if (this.brush.size > 150) maxSteps = Math.min(maxSteps, 2);
-          if (this.brush.size > 400) maxSteps = 1;
-          
-          if (numSteps > maxSteps) {
-              numSteps = maxSteps;
-          }
-          
-          let prevPt = lastP;
-          const affectedThisFrame = new Map();
-          for (let i = 1; i <= numSteps; i++) {
-              const t = i / numSteps;
-              const subPt = {
-                  x: lastP.x + (worldTo.x - lastP.x) * t,
-                  y: lastP.y + (worldTo.y - lastP.y) * t,
-                  size: lastP.size + (dynamicSize - lastP.size) * t
-              };
-              this._displaceLiquifyCoords(prevPt, subPt, affectedThisFrame);
-              
-              if (!this.liquifySteps) this.liquifySteps = [];
-              this.liquifySteps.push({
-                  p0: { x: prevPt.x, y: prevPt.y, size: prevPt.size },
-                  p1: { x: subPt.x, y: subPt.y, size: subPt.size },
-                  brushSize: this.brush.size,
-                  brushFlow: this.brush.flow || 0.40,
-                  brushFalloff: this.brush.falloff ?? 0.50
-              });
-              
-              prevPt = subPt;
-          }
-          
-          // Execute the single efficient pixel rendering draw call for this move frame
-          this._renderLiquifyChunks(affectedThisFrame);
-          
-          // Add the final point of this step to our permanent stroke points tracking
           this.strokePoints.push(worldPos);
       }
   } else {
@@ -894,8 +842,12 @@ export function _endStroke(e = null) {
       });
   }
 
-  this.liquifyChunkData = null;
-  wasmCore.liquifyEndAllSessions();
+  if (this.brush.type === TOOLS.LIQUIFY) {
+      endLiquifyStroke(this);
+  } else {
+      this.liquifyChunkData = null;
+      wasmCore.liquifyEndAllSessions();
+  }
 
   // Store the dirty chunks as a history state
   if (this.currentStrokeDirtyChunks.size > 0) {

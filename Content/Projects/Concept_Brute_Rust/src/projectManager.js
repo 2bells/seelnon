@@ -1,6 +1,18 @@
 import { LAYERS_COUNT, SECTOR_SIZE } from './constants.js';
 import { isCanvasEmpty, isMobileDevice } from './colorUtils.js';
 
+export function canvasToBlobAsync(canvas, type = 'image/webp', quality = 0.95) {
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => {
+        resolve(blob || null);
+      }, type, quality);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
 export function canvasToDataURLAsync(canvas, type = 'image/png', quality) {
   return new Promise((resolve) => {
     try {
@@ -22,6 +34,51 @@ export function canvasToDataURLAsync(canvas, type = 'image/png', quality) {
       resolve(canvas.toDataURL(type, quality));
     }
   });
+}
+
+export async function decodeChunkData(chunkData) {
+    if (!chunkData) return null;
+    if (chunkData instanceof Blob) {
+        if (typeof createImageBitmap === 'function') {
+            try {
+                return await createImageBitmap(chunkData);
+            } catch (e) {}
+        }
+        return new Promise(resolve => {
+            const url = URL.createObjectURL(chunkData);
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+            img.src = url;
+        });
+    }
+    if (typeof chunkData === 'string') {
+        if (chunkData.startsWith('data:') && typeof createImageBitmap === 'function') {
+            try {
+                const res = await fetch(chunkData);
+                const blob = await res.blob();
+                return await createImageBitmap(blob);
+            } catch (e) {}
+        }
+        return new Promise(resolve => {
+            const img = new Image();
+            const timer = setTimeout(() => { img.src = ''; resolve(null); }, 2000);
+            img.onload = () => { clearTimeout(timer); resolve(img); };
+            img.onerror = () => { clearTimeout(timer); resolve(null); };
+            img.src = chunkData;
+        });
+    }
+    return null;
+}
+
+export async function decodeAndDrawChunk(chunkData, chunk, layerId) {
+    if (!chunk || !chunk.ctxs[layerId] || !chunkData) return;
+    const bmp = await decodeChunkData(chunkData);
+    if (bmp) {
+        chunk.ctxs[layerId].drawImage(bmp, 0, 0);
+        if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
+        if (bmp.close) bmp.close();
+    }
 }
 
 export async function initProjectSystem(app) {
@@ -59,6 +116,7 @@ export async function renderProjectList(app) {
     app.projects.forEach(proj => {
         const item = document.createElement('div');
         item.className = 'project-item';
+        item.dataset.projId = proj.id;
         if (proj.id === app.currentProjectId) item.classList.add('active');
 
         const thumbContainer = document.createElement('div');
@@ -124,52 +182,117 @@ export async function renderProjectList(app) {
             item.appendChild(delBtn);
         }
 
-        item.onclick = () => switchProject(app, proj.id);
+        // Instant visual tactile touch/click feedback on pointerdown
+        item.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.btn-delete-proj')) return;
+            if (proj.id !== app.currentProjectId) {
+                item.classList.add('active', 'switching');
+            }
+        });
+
+        item.onclick = (e) => {
+            e.stopPropagation();
+            switchProject(app, proj.id);
+        };
         container.appendChild(item);
     });
 }
 
 export async function switchProject(app, id) {
-    if (id === app.currentProjectId) return;
-    if (app._isSwitchingProject) return;
+    if (!id || (id === app.currentProjectId && !app._isSwitchingProject)) return;
+
+    // STEP 1: INSTANT VISUAL FEEDBACK (0 ms)
+    // Update the project-list DOM immediately so the clicked card displays the active & switching state!
+    const container = document.getElementById('project-list');
+    if (container) {
+        const items = container.querySelectorAll('.project-item');
+        items.forEach(el => {
+            if (el.dataset.projId === id) {
+                el.classList.add('active', 'switching');
+            } else {
+                el.classList.remove('active', 'switching');
+            }
+        });
+    }
+
+    const targetProj = app.projects.find(p => p.id === id);
+    const targetName = targetProj ? (targetProj.name || id) : id;
+
+    app._status(`SAVING PREVIOUS PROJECT...`);
+    // Yield to the browser so the UI paints the selected state and status bar immediately!
+    await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+
+    // Track generation to prevent race conditions or superseded loads
+    const switchToken = ++app._switchProjectGeneration;
+
+    // If another switch is actively running, queue this target and return
+    if (app._isSwitchingProject) {
+        app._queuedSwitchId = id;
+        return;
+    }
     app._isSwitchingProject = true;
 
     try {
-        app._status('SAVING...');
-        
+        const outgoingId = app.currentProjectId;
+
         if (app.engine && app.engine.isDrawing) {
             app.engine._endStroke();
         }
         if (app._clearSaveTimer) {
             app._clearSaveTimer();
         }
-        
-        // Generate thumbnail before switching
-        const thumbnail = await generateThumbnail(app);
-        const currentProj = app.projects.find(p => p.id === app.currentProjectId);
-        if (currentProj) currentProj.thumbnail = thumbnail;
-        await app.storage.saveGlobalSetting('projects_list', app.projects);
-        await renderProjectList(app);
 
-        await saveProject(app, true);
-        
-        // Save previous viewport before switching ID
-        if (app.engine) {
-            app.engine.saveViewport();
+        // Wait for any in-flight auto-save to finish cleanly
+        if (app._activeSavePromise) {
+            try { await app._activeSavePromise; } catch (e) {}
         }
-        
-        app._status('SWITCHING...');
+
+        // Save outgoing project if valid
+        if (outgoingId) {
+            const isDirty = (app.engine && app.engine.dirtyChunks && app.engine.dirtyChunks.size > 0) || (app.engine && app.engine.refsDirty);
+            const currentProj = app.projects ? app.projects.find(p => p.id === outgoingId) : null;
+
+            // Generate thumbnail only if canvas was actually modified or thumbnail is missing
+            if (isDirty || !currentProj || !currentProj.thumbnail) {
+                const thumbnail = await generateThumbnail(app);
+                if (currentProj && thumbnail) currentProj.thumbnail = thumbnail;
+                await app.storage.saveGlobalSetting('projects_list', app.projects);
+            }
+
+            // Save outgoing project with explicit outgoing ID so nothing can leak
+            await saveProject(app, true, outgoingId);
+
+            // Save previous viewport before switching ID
+            if (app.engine && app.engine.saveViewport) {
+                app.engine.saveViewport(outgoingId);
+            }
+        }
+
+        // Check if user clicked a different project while we were saving
+        if (app._queuedSwitchId) {
+            const nextId = app._queuedSwitchId;
+            app._queuedSwitchId = null;
+            app._isSwitchingProject = false;
+            return switchProject(app, nextId);
+        }
+
+        // STEP 2: SHOWCASE LOADING NEW PROJECT
+        app._status(`LOADING ${targetName.toUpperCase()}...`);
+        await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+
+        // Safely set the new project ID across all subsystems
         app.currentProjectId = id;
         app.storage.setProjectId(id);
+        if (app.engine) app.engine.currentProjectId = id;
         await app.storage.saveGlobalSetting('current_project_id', id);
-        
+
         // Load non-canvas project-specific settings (background, palette, grid)
-        await app.loadProjectSettings();
-        
+        await app.loadProjectSettings(id);
+
         // Load project settings
         const project = app.projects.find(p => p.id === id);
         const settings = project ? project.settings : {};
-        
+
         // Update Engine with new settings
         app.engine.chunkSize = settings.chunkSize || 1024;
         app.engine.saveQuality = settings.quality || 0.92;
@@ -181,29 +304,44 @@ export async function switchProject(app, id) {
             app.engine.setupBoard();
         }
         syncStaticSettingsUI(app);
-        
-        // Wipe engine state
+
+        // Wipe engine state completely
         app.engine.resetEngineState();
-        
+
         app.engine._updateSelectionPreview();
         app.engine.loadViewport(id);
-        
+
         // Sync UI settings
         const spacingEl = document.getElementById('settings-brush-spacing');
         if (spacingEl) spacingEl.value = app.engine.brush.spacing;
-        
-        await loadProject(app);
+
+        // Load incoming project data
+        await loadProject(app, id, switchToken);
+
+        if (switchToken !== app._switchProjectGeneration) return;
+
         app._updateRefImageList();
         await renderProjectList(app);
 
         if (app.recorder && typeof app.recorder.onProjectSwitched === 'function') {
-            app.recorder.onProjectSwitched();
+            app.recorder.onProjectSwitched(id);
         }
+        app._status('READY');
     } catch (err) {
         console.error("Project switch failed:", err);
         app._status('SWITCH ERROR');
     } finally {
         app._isSwitchingProject = false;
+        if (container) {
+            const items = container.querySelectorAll('.project-item');
+            items.forEach(el => el.classList.remove('switching'));
+        }
+        // If another switch was requested, process it now
+        if (app._queuedSwitchId) {
+            const nextId = app._queuedSwitchId;
+            app._queuedSwitchId = null;
+            switchProject(app, nextId);
+        }
     }
 }
 
@@ -225,30 +363,14 @@ export async function deleteProject(app, id) {
     app.projects = app.projects.filter(p => p.id !== id);
     await app.storage.saveGlobalSetting('projects_list', app.projects);
     
-    // If we deleted the active project, fallback to default
+    // If we deleted the active project, cleanly switch to default
     if (id === app.currentProjectId) {
-        app.currentProjectId = 'default';
-        app.storage.setProjectId('default');
-        await app.storage.saveGlobalSetting('current_project_id', 'default');
-        
-        // Reset Engine
-        app.engine.resetEngineState();
-        app.engine.chunkSize = 1024;
-        app.engine.saveQuality = 0.92;
-        app.engine.isStatic = false;
-        app.engine.staticWidth = 2400;
-        app.engine.staticHeight = 3600;
-        if (app.engine.setupBoard) {
-            app.engine.setupBoard();
-        }
-        app.engine.loadViewport('default');
-        
-        await loadProject(app);
-        app._updateRefImageList();
+        app._isSwitchingProject = false;
+        await switchProject(app, 'default');
+    } else {
+        await renderProjectList(app);
+        app._status('PROJECT DELETED');
     }
-    
-    await renderProjectList(app);
-    app._status('PROJECT DELETED');
 }
 
 // Process tasks in controlled batches to avoid thread/layout exhaustion (especially on mobile devices!)
@@ -264,17 +386,21 @@ async function runInBatches(tasks, batchSize = 12, onProgress = null) {
     }
 }
 
-export async function loadProject(app) {
-    console.log('[PERF] loadProject() started');
+export async function loadProject(app, targetProjectId = null, switchToken = null) {
+    const projId = targetProjectId || app.currentProjectId;
+    console.log(`[PERF] loadProject(${projId}) started`);
     const tLoadStart = performance.now();
     app._status('LOADING...');
     app.engine.selectedRefIndex = -1; // Ensure de-selected on load
     try {
+        if (switchToken !== null && switchToken !== app._switchProjectGeneration) return;
+
         const tRefsStart = performance.now();
-        const refs = await app.storage.loadSetting('referenceImages');
+        const refs = await app.storage.loadSetting('referenceImages', projId);
         console.log(`[PERF] Loaded reference settings from storage in ${(performance.now() - tRefsStart).toFixed(2)}ms`);
 
-        if (refs && Array.isArray(refs)) {
+        if (refs && Array.isArray(refs) && refs.length > 0) {
+            if (switchToken !== null && switchToken !== app._switchProjectGeneration) return;
             const tRefsImagesStart = performance.now();
             const refPromises = refs.map((r) => {
                 return () => (async () => {
@@ -283,7 +409,7 @@ export async function loadProject(app) {
                         const timer = setTimeout(() => {
                             img.src = '';
                             res();
-                        }, 1000);
+                        }, 1200);
                         img.onload = () => { clearTimeout(timer); res(); };
                         img.onerror = () => { clearTimeout(timer); res(); };
                         img.src = r.src;
@@ -302,19 +428,17 @@ export async function loadProject(app) {
                     }
                 })();
             });
-            await runInBatches(refPromises, 3);
+            await runInBatches(refPromises, 6);
             app._updateRefImageList();
             console.log(`[PERF] Reference images decoding and layout took ${(performance.now() - tRefsImagesStart).toFixed(2)}ms`);
         }
 
-        // 1. LEGACY MIGRATION
-        const tLegacyStart = performance.now();
-        const legacyKeys = await app.storage.getAllLegacyKeys();
-        console.log(`[PERF] Checked legacy keys in ${(performance.now() - tLegacyStart).toFixed(2)}ms`);
+        if (switchToken !== null && switchToken !== app._switchProjectGeneration) return;
 
+        // 1. LEGACY MIGRATION
+        const legacyKeys = await app.storage.getAllLegacyKeys(projId);
         if (legacyKeys.length > 0) {
             app._status('MIGRATING...');
-            const tMigrationStart = performance.now();
             const legacyPromises = legacyKeys.map((key) => {
                 return () => (async () => {
                     const parts = key.split('_');
@@ -322,44 +446,35 @@ export async function loadProject(app) {
                     const cx = parseInt(parts[parts.length - 2]);
                     const layerId = parseInt(parts[parts.length - 3]);
                     
-                    if (isNaN(layerId) || layerId < 0 || layerId >= LAYERS_COUNT) {
+                    if (isNaN(layerId) || layerId <= 0 || layerId >= LAYERS_COUNT) {
                         return;
                     }
 
-                    if (layerId === 0) return;
-
                     const dataUrl = await app.storage.loadLegacyChunk(key);
                     if (dataUrl) {
-                        const img = new Image();
-                        await new Promise(r => { 
-                            const timer = setTimeout(() => {
-                                img.src = '';
-                                r();
-                            }, 1000);
-                            img.onload = () => { clearTimeout(timer); r(); };
-                            img.onerror = () => { clearTimeout(timer); r(); };
-                            img.src = dataUrl; 
-                        });
-                        if (img.width > 0) {
+                        const bmp = await decodeChunkData(dataUrl);
+                        if (bmp) {
                             const chunk = app.engine._getChunk(cx, cy);
                             if (chunk && chunk.ctxs[layerId]) {
-                                chunk.ctxs[layerId].drawImage(img, 0, 0);
+                                chunk.ctxs[layerId].drawImage(bmp, 0, 0);
                                 if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
                                 app.engine._markDirty(`${cx},${cy}`, layerId, false);
                             }
+                            if (bmp.close) bmp.close();
                         }
                     }
                     await app.storage.deleteLegacyChunk(key);
                 })();
             });
-            await runInBatches(legacyPromises, 8);
-            console.log(`[PERF] Legacy migration of ${legacyKeys.length} keys took ${(performance.now() - tMigrationStart).toFixed(2)}ms`);
+            await runInBatches(legacyPromises, 12);
         }
+
+        if (switchToken !== null && switchToken !== app._switchProjectGeneration) return;
 
         // 2. SECTOR LOADING
         const tSectorKeysStart = performance.now();
-        const sectorKeys = await app.storage.getAllSectorKeys();
-        console.log(`[PERF] Retrieved ${sectorKeys.length} sector keys in ${(performance.now() - tSectorKeysStart).toFixed(2)}ms`);
+        const sectorKeys = await app.storage.getAllSectorKeys(projId);
+        console.log(`[PERF] Retrieved ${sectorKeys.length} sector keys for ${projId} in ${(performance.now() - tSectorKeysStart).toFixed(2)}ms`);
         
         const tSectorsLoadStart = performance.now();
         // Load all sectors in a single batch transaction from the indexedDB store
@@ -370,10 +485,11 @@ export async function loadProject(app) {
             const sx = parseInt(parts[parts.length - 2]);
             return { sx, sy, sector };
         });
-        console.log(`[PERF] Loading sector metadata from store took ${(performance.now() - tSectorsLoadStart).toFixed(2)}ms`);
+        console.log(`[PERF] Loading sector metadata took ${(performance.now() - tSectorsLoadStart).toFixed(2)}ms`);
 
-        // Map and load all chunk images concurrently
-        const tChunksStart = performance.now();
+        if (switchToken !== null && switchToken !== app._switchProjectGeneration) return;
+
+        // Map and load all chunk images concurrently with high-speed bitmap decoding
         const chunkLoadPromises = [];
         for (const { sector } of sectors) {
             if (sector && sector.chunks) {
@@ -382,26 +498,23 @@ export async function loadProject(app) {
                     const cy = parseInt(cParts[cParts.length - 1]);
                     const cx = parseInt(cParts[cParts.length - 2]);
                     const layerId = parseInt(cParts[cParts.length - 3]);
-                    const dataUrl = sector.chunks[chunkKey];
+                    const chunkData = sector.chunks[chunkKey];
                     
-                    if (dataUrl && !isNaN(layerId) && layerId >= 0 && layerId < LAYERS_COUNT) {
+                    if (chunkData && !isNaN(layerId) && layerId >= 0 && layerId < LAYERS_COUNT) {
                         chunkLoadPromises.push(() => (async () => {
-                            const img = new Image();
-                            await new Promise(r => { 
-                                const timer = setTimeout(() => {
-                                    img.src = '';
-                                    r();
-                                }, 1000);
-                                img.onload = () => { clearTimeout(timer); r(); };
-                                img.onerror = () => { clearTimeout(timer); r(); };
-                                img.src = dataUrl; 
-                            });
-                            if (img.width > 0) {
+                            if (switchToken !== null && switchToken !== app._switchProjectGeneration) return;
+                            const bmp = await decodeChunkData(chunkData);
+                            if (bmp) {
+                                if (switchToken !== null && switchToken !== app._switchProjectGeneration) {
+                                    if (bmp.close) bmp.close();
+                                    return;
+                                }
                                 const chunk = app.engine._getChunk(cx, cy);
                                 if (chunk && chunk.ctxs[layerId]) {
-                                    chunk.ctxs[layerId].drawImage(img, 0, 0);
+                                    chunk.ctxs[layerId].drawImage(bmp, 0, 0);
                                     if (chunk.isEmpty) chunk.isEmpty[layerId] = false;
                                 }
+                                if (bmp.close) bmp.close();
                             }
                         })());
                     }
@@ -411,25 +524,34 @@ export async function loadProject(app) {
         
         console.log(`[PERF] Prepared ${chunkLoadPromises.length} chunk loaders. Starting runInBatches...`);
         const tBatchRunStart = performance.now();
-        await runInBatches(chunkLoadPromises, 12, (loaded, total) => {
-            const pct = Math.min(100, Math.round((loaded / total) * 100));
-            app._status(`LOADING (${pct}%)`);
-        });
+        if (chunkLoadPromises.length > 0) {
+            await runInBatches(chunkLoadPromises, 24, (loaded, total) => {
+                const pct = Math.min(100, Math.round((loaded / total) * 100));
+                app._status(`LOADING (${pct}%)`);
+            });
+        }
         console.log(`[PERF] runInBatches() completed in ${(performance.now() - tBatchRunStart).toFixed(2)}ms for ${chunkLoadPromises.length} chunks`);
 
+        if (switchToken !== null && switchToken !== app._switchProjectGeneration) return;
+
         app.engine.refresh();
+        if (app.engine.gpuRenderer) {
+            app.engine.gpuRenderer.requestRender();
+        }
         if (app.engine && app.engine.loadHistoryStackFromStorage) {
-            await app.engine.loadHistoryStackFromStorage();
+            await app.engine.loadHistoryStackFromStorage(projId);
         }
         app._status('READY');
-        console.log(`[PERF] loadProject() completed in ${(performance.now() - tLoadStart).toFixed(2)}ms`);
+        console.log(`[PERF] loadProject(${projId}) completed in ${(performance.now() - tLoadStart).toFixed(2)}ms`);
     } catch (e) {
         console.error("Load failed", e);
         app._status('LOAD ERROR');
     }
 }
 
-export async function saveProject(app, force = false) {
+export async function saveProject(app, force = false, targetProjectId = null) {
+    const projId = targetProjectId || app.currentProjectId;
+
     if (app.engine.isDrawing && !force) {
         app._triggerAutoSave();
         return;
@@ -437,15 +559,30 @@ export async function saveProject(app, force = false) {
     if (app.engine.isDrawing && force) {
         app.engine._endStroke();
     }
-    
+
+    const isDirty = (app.engine.dirtyChunks && app.engine.dirtyChunks.size > 0) || app.engine.refsDirty;
+    if (!isDirty && !force) {
+        app._status('SAVED');
+        app._showSaved();
+        return;
+    }
+
+    if (app._isSavingProject) {
+        try { await app._activeSavePromise; } catch (e) {}
+    }
+
+    let finishSave;
+    app._activeSavePromise = new Promise(r => { finishSave = r; });
+    app._isSavingProject = true;
     app._status('SAVING...');
+
     try {
         if (app.recorder && typeof app.recorder.saveCurrentSession === 'function') {
-            await app.recorder.saveCurrentSession();
+            await app.recorder.saveCurrentSession(projId);
         }
 
         if (app.engine && app.engine.saveHistoryStackToStorage) {
-            await app.engine.saveHistoryStackToStorage();
+            await app.engine.saveHistoryStackToStorage(projId);
         }
 
         if (app.engine.refsDirty) {
@@ -462,7 +599,7 @@ export async function saveProject(app, force = false) {
                 mirrorY: r.mirrorY,
                 extractedPalette: r.extractedPalette || null
             }));
-            await app.storage.saveSetting('referenceImages', refData);
+            await app.storage.saveSetting('referenceImages', refData, projId);
             app.engine.refsDirty = false;
         }
 
@@ -499,7 +636,7 @@ export async function saveProject(app, force = false) {
             const [sx, sy] = sKey.split(',').map(Number);
             
             promises.push((async () => {
-                let sector = await app.storage.loadSector(sx, sy);
+                let sector = await app.storage.loadSector(sx, sy, projId);
                 if (!sector) {
                     sector = { chunks: {} };
                 }
@@ -523,14 +660,14 @@ export async function saveProject(app, force = false) {
                         if (isEmpty) {
                             delete sector.chunks[chunkKey];
                         } else {
-                            // Obtain data URL from our canvas asynchronously on background thread
-                            const dataUrl = await canvasToDataURLAsync(sourceCanvas, 'image/png'); 
-                            sector.chunks[chunkKey] = dataUrl;
+                            // High-speed binary Blob storage in IndexedDB (zero base64 conversion overhead!)
+                            const blob = await canvasToBlobAsync(sourceCanvas, 'image/webp', 0.95);
+                            sector.chunks[chunkKey] = blob || (await canvasToDataURLAsync(sourceCanvas, 'image/png'));
                         }
                     }
                 }
 
-                await app.storage.saveSector(sx, sy, sector);
+                await app.storage.saveSector(sx, sy, sector, projId);
             })());
         }
         
@@ -546,6 +683,10 @@ export async function saveProject(app, force = false) {
     } catch (e) {
         console.error("Save failed", e);
         app._status('SAVE ERROR');
+    } finally {
+        app._isSavingProject = false;
+        app._activeSavePromise = null;
+        if (finishSave) finishSave();
     }
 }
 
@@ -603,7 +744,7 @@ export async function generateThumbnail(app) {
 }
 
 export async function updateStorageStat(app) {
-    const stats = await app.storage.getStorageStats();
+    const stats = await app.storage.getStorageStats(app.currentProjectId);
     
     const chunksEl = document.getElementById('storage-chunks');
     if (chunksEl) {

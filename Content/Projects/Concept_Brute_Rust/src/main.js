@@ -207,6 +207,11 @@ class App {
     
     this.projects = [];
     this.currentProjectId = 'default';
+    this._switchProjectGeneration = 0;
+    this._isSwitchingProject = false;
+    this._queuedSwitchId = null;
+    this._isSavingProject = false;
+    this._activeSavePromise = null;
 
     this.windowPositions = {};
 
@@ -476,7 +481,8 @@ class App {
     }
   }
 
-  async loadProjectSettings() {
+  async loadProjectSettings(targetProjectId = null) {
+    const pid = targetProjectId || this.currentProjectId;
     let settings = {};
     try {
         const keys = [
@@ -495,7 +501,7 @@ class App {
             'lastColor'
         ];
         
-        settings = await this.storage.loadSettingsBatch(keys);
+        settings = await this.storage.loadSettingsBatch(keys, pid);
 
         // Load autosave settings
         const savedAutosaveSlider = settings['autosaveDelaySlider'];
@@ -526,7 +532,7 @@ class App {
         this.engine.gridIntensity = 0.5;
         this.engine.showGrid = true;
 
-        const project = this.projects ? this.projects.find(p => p.id === this.currentProjectId) : null;
+        const project = this.projects ? this.projects.find(p => p.id === pid) : null;
         const projSet = (project && project.settings) ? project.settings : {};
 
         const canvasBg = projSet.canvasBg !== undefined ? projSet.canvasBg : settings['canvasBg'];
@@ -1802,12 +1808,12 @@ class App {
     }
   }
 
-  async load() {
-    await loadProject(this);
+  async load(targetProjectId = null) {
+    await loadProject(this, targetProjectId);
   }
 
-  async save() {
-    await saveProject(this);
+  async save(force = false, targetProjectId = null) {
+    await saveProject(this, force, targetProjectId);
   }
 
   _showSaved() {

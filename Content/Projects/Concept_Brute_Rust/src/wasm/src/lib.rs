@@ -9,10 +9,10 @@ fn panic(_info: &PanicInfo) -> ! {
 
 // Simple deterministic arena allocator in WASM linear memory.
 // Memory layout:
-// Static data + stack live below `__heap_base`.
-// We manage heap allocations starting at 64KB (65536) upward, growing WASM pages (64KB each) on demand.
-static mut HEAP_TOP: usize = 65536;
-static mut SCRATCH_BASE: usize = 65536;
+// Static data + stack live below 1MB (1048576).
+// We manage heap allocations starting at 2MB (2097152) upward, growing WASM pages (64KB each) on demand.
+static mut HEAP_TOP: usize = 2097152;
+static mut SCRATCH_BASE: usize = 2097152;
 
 #[inline(always)]
 unsafe fn ensure_capacity(required_end: usize) -> bool {
@@ -32,7 +32,7 @@ unsafe fn ensure_capacity(required_end: usize) -> bool {
 #[no_mangle]
 pub unsafe extern "C" fn wasm_init_heap(base: usize) -> usize {
     let aligned = (base + 15) & !15;
-    let start = if aligned < 65536 { 65536 } else { aligned };
+    let start = if aligned < 2097152 { 2097152 } else { aligned };
     HEAP_TOP = start;
     SCRATCH_BASE = start;
     start
@@ -426,10 +426,10 @@ pub unsafe extern "C" fn liquify_displace_grid(
                 let pull_gx = clamp_f32((pull_x - chunk_lx) * inv_cell, 0.0, max_gx_f);
                 let pull_gy = clamp_f32((pull_y - chunk_ly) * inv_cell, 0.0, max_gy_f);
 
-                let gx0 = floor_f32(pull_gx);
-                let gy0 = floor_f32(pull_gy);
-                let gx1 = if gx0 + 1 < grid_w { gx0 + 1 } else { gx0 };
-                let gy1 = if gy0 + 1 < grid_h { gy0 + 1 } else { gy0 };
+                let gx0 = clamp_i32(floor_f32(pull_gx), s_min_gx, s_max_gx);
+                let gy0 = clamp_i32(floor_f32(pull_gy), s_min_gy, s_max_gy);
+                let gx1 = clamp_i32(gx0 + 1, s_min_gx, s_max_gx);
+                let gy1 = clamp_i32(gy0 + 1, s_min_gy, s_max_gy);
 
                 let tx = pull_gx - (gx0 as f32);
                 let ty = pull_gy - (gy0 as f32);
@@ -899,9 +899,25 @@ pub unsafe extern "C" fn rgba_to_tip_mask(pixels_ptr: *mut u8, pixel_count: usiz
 
 #[no_mangle]
 pub unsafe extern "C" fn is_buffer_empty(pixels_u32: *const u32, pixel_count: usize) -> u32 {
+    if pixels_u32.is_null() || pixel_count == 0 {
+        return 1;
+    }
     let mut i = 0;
+    while i + 8 <= pixel_count {
+        if (*pixels_u32.add(i) & 0xFF00_0000) != 0
+            || (*pixels_u32.add(i + 1) & 0xFF00_0000) != 0
+            || (*pixels_u32.add(i + 2) & 0xFF00_0000) != 0
+            || (*pixels_u32.add(i + 3) & 0xFF00_0000) != 0
+            || (*pixels_u32.add(i + 4) & 0xFF00_0000) != 0
+            || (*pixels_u32.add(i + 5) & 0xFF00_0000) != 0
+            || (*pixels_u32.add(i + 6) & 0xFF00_0000) != 0
+            || (*pixels_u32.add(i + 7) & 0xFF00_0000) != 0
+        {
+            return 0;
+        }
+        i += 8;
+    }
     while i < pixel_count {
-        // Check alpha channel (top 8 bits in little-endian RGBA u32)
         if (*pixels_u32.add(i) & 0xFF00_0000) != 0 {
             return 0;
         }
@@ -1402,5 +1418,322 @@ pub unsafe extern "C" fn fluid_stamp_bristle(
             }
         }
     }
+}
+
+// ============================================================================
+// LIQUIFY UNIFIED STROKE SESSION KERNEL
+// ============================================================================
+
+struct LiquifySession {
+    w: i32,
+    h: i32,
+    grid_w: i32,
+    grid_h: i32,
+    cell_size: f32,
+    inv_cell: f32,
+    origin_x: f32,
+    origin_y: f32,
+    src_ptr: *mut u8,
+    grid_ptr: *mut f32,
+    scratch_ptr: *mut f32,
+}
+
+static mut LIQUIFY_SESSION: LiquifySession = LiquifySession {
+    w: 0,
+    h: 0,
+    grid_w: 0,
+    grid_h: 0,
+    cell_size: 8.0,
+    inv_cell: 0.125,
+    origin_x: 0.0,
+    origin_y: 0.0,
+    src_ptr: core::ptr::null_mut(),
+    grid_ptr: core::ptr::null_mut(),
+    scratch_ptr: core::ptr::null_mut(),
+};
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_start(
+    w: i32,
+    h: i32,
+    cell_size: f32,
+    origin_x: f32,
+    origin_y: f32,
+) -> i32 {
+    if w <= 0 || h <= 0 || cell_size <= 0.0 {
+        return 0;
+    }
+    wasm_reset_scratch();
+
+    let grid_w = ceil_f32((w as f32) / cell_size) + 1;
+    let grid_h = ceil_f32((h as f32) / cell_size) + 1;
+    let inv_cell = 1.0 / cell_size;
+
+    let img_bytes = (w as usize) * (h as usize) * 4;
+    let grid_len = (grid_w as usize) * (grid_h as usize) * 2;
+    let grid_bytes = grid_len * 4;
+
+    let src_ptr = wasm_alloc(img_bytes) as *mut u8;
+    let grid_ptr = wasm_alloc(grid_bytes) as *mut f32;
+    let scratch_ptr = wasm_alloc(grid_bytes) as *mut f32;
+
+    if src_ptr.is_null() || grid_ptr.is_null() || scratch_ptr.is_null() {
+        return 0;
+    }
+
+    core::ptr::write_bytes(src_ptr, 0, img_bytes);
+    core::ptr::write_bytes(grid_ptr as *mut u8, 0, grid_bytes);
+    core::ptr::write_bytes(scratch_ptr as *mut u8, 0, grid_bytes);
+
+    LIQUIFY_SESSION = LiquifySession {
+        w,
+        h,
+        grid_w,
+        grid_h,
+        cell_size,
+        inv_cell,
+        origin_x,
+        origin_y,
+        src_ptr,
+        grid_ptr,
+        scratch_ptr,
+    };
+
+    wasm_mark_scratch();
+    1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_stamp_src(
+    chunk_ptr: *const u8,
+    chunk_w: i32,
+    chunk_h: i32,
+    dst_x: i32,
+    dst_y: i32,
+) -> i32 {
+    if LIQUIFY_SESSION.src_ptr.is_null() || chunk_ptr.is_null() || chunk_w <= 0 || chunk_h <= 0 {
+        return 0;
+    }
+    let sess = &raw const LIQUIFY_SESSION;
+    let cw_usize = chunk_w as usize;
+    let sw_usize = (*sess).w as usize;
+
+    let x0 = clamp_i32(dst_x, 0, (*sess).w);
+    let x1 = clamp_i32(dst_x + chunk_w, 0, (*sess).w);
+    let y0 = clamp_i32(dst_y, 0, (*sess).h);
+    let y1 = clamp_i32(dst_y + chunk_h, 0, (*sess).h);
+
+    if x0 >= x1 || y0 >= y1 {
+        return 0;
+    }
+
+    let copy_w = (x1 - x0) as usize;
+    let copy_bytes = copy_w * 4;
+
+    for y in y0..y1 {
+        let cy = (y - dst_y) as usize;
+        let cx = (x0 - dst_x) as usize;
+        let src_offset = (cy * cw_usize + cx) * 4;
+        let dst_offset = ((y as usize) * sw_usize + (x0 as usize)) * 4;
+        core::ptr::copy_nonoverlapping(
+            chunk_ptr.add(src_offset),
+            (*sess).src_ptr.add(dst_offset),
+            copy_bytes,
+        );
+    }
+    1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_displace(
+    p0_x: f32,
+    p0_y: f32,
+    mv_x: f32,
+    mv_y: f32,
+    r: f32,
+    falloff: f32,
+) -> i32 {
+    if LIQUIFY_SESSION.grid_ptr.is_null() || r <= 0.0 {
+        return 0;
+    }
+    let sess = &raw mut LIQUIFY_SESSION;
+    liquify_displace_grid(
+        (*sess).grid_ptr,
+        (*sess).scratch_ptr,
+        (*sess).grid_w,
+        (*sess).grid_h,
+        (*sess).cell_size,
+        (*sess).origin_x,
+        (*sess).origin_y,
+        p0_x,
+        p0_y,
+        mv_x,
+        mv_y,
+        r,
+        falloff,
+        core::ptr::null_mut(),
+    )
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_warp_box(
+    min_x: i32,
+    max_x: i32,
+    min_y: i32,
+    max_y: i32,
+    out_ptr: *mut u8,
+) -> i32 {
+    if LIQUIFY_SESSION.src_ptr.is_null() || out_ptr.is_null() {
+        return 0;
+    }
+    let sess = &raw const LIQUIFY_SESSION;
+    let min_x = clamp_i32(min_x, 0, (*sess).w - 1);
+    let max_x = clamp_i32(max_x, 0, (*sess).w - 1);
+    let min_y = clamp_i32(min_y, 0, (*sess).h - 1);
+    let max_y = clamp_i32(max_y, 0, (*sess).h - 1);
+
+    if min_x > max_x || min_y > max_y {
+        return 0;
+    }
+
+    let box_w = (max_x - min_x + 1) as usize;
+    let w_usize = (*sess).w as usize;
+    let gw_usize = (*sess).grid_w as usize;
+    let max_x_f = ((*sess).w - 1) as f32;
+    let max_y_f = ((*sess).h - 1) as f32;
+    let max_x_idx = (*sess).w - 1;
+    let max_y_idx = (*sess).h - 1;
+    let max_gx_idx = (*sess).grid_w - 2;
+    let max_gy_idx = (*sess).grid_h - 2;
+
+    let src_u8 = (*sess).src_ptr as *const u8;
+    let src_u32 = (*sess).src_ptr as *const u32;
+    let out_u32 = out_ptr as *mut u32;
+
+    for y in min_y..=max_y {
+        let local_y = (y - min_y) as usize;
+        let out_row_offset = local_y * box_w;
+        let src_row_offset = (y as usize) * w_usize;
+
+        let gy_f = (y as f32) * (*sess).inv_cell;
+        let gy0 = clamp_i32(gy_f as i32, 0, max_gy_idx);
+        let gy1 = gy0 + 1;
+        let ty = gy_f - (gy0 as f32);
+        let inv_ty = 1.0 - ty;
+
+        let row0_offset = (gy0 as usize) * gw_usize;
+        let row1_offset = (gy1 as usize) * gw_usize;
+
+        for x in min_x..=max_x {
+            let local_x = (x - min_x) as usize;
+            let out_pixel_idx = out_row_offset + local_x;
+
+            let gx_f = (x as f32) * (*sess).inv_cell;
+            let gx0 = clamp_i32(gx_f as i32, 0, max_gx_idx);
+            let gx1 = gx0 + 1;
+            let tx = gx_f - (gx0 as f32);
+            let inv_tx = 1.0 - tx;
+
+            let i00 = (row0_offset + (gx0 as usize)) * 2;
+            let i10 = (row0_offset + (gx1 as usize)) * 2;
+            let i01 = (row1_offset + (gx0 as usize)) * 2;
+            let i11 = (row1_offset + (gx1 as usize)) * 2;
+
+            let w00 = inv_tx * inv_ty;
+            let w10 = tx * inv_ty;
+            let w01 = inv_tx * ty;
+            let w11 = tx * ty;
+
+            let dx = (*(*sess).grid_ptr.add(i00)) * w00
+                + (*(*sess).grid_ptr.add(i10)) * w10
+                + (*(*sess).grid_ptr.add(i01)) * w01
+                + (*(*sess).grid_ptr.add(i11)) * w11;
+
+            let dy = (*(*sess).grid_ptr.add(i00 + 1)) * w00
+                + (*(*sess).grid_ptr.add(i10 + 1)) * w10
+                + (*(*sess).grid_ptr.add(i01 + 1)) * w01
+                + (*(*sess).grid_ptr.add(i11 + 1)) * w11;
+
+            if dx > -0.001 && dx < 0.001 && dy > -0.001 && dy < 0.001 {
+                *out_u32.add(out_pixel_idx) = *src_u32.add(src_row_offset + (x as usize));
+                continue;
+            }
+
+            let sx = clamp_f32((x as f32) - dx, 0.0, max_x_f);
+            let sy = clamp_f32((y as f32) - dy, 0.0, max_y_f);
+
+            let x0 = sx as i32;
+            let y0 = sy as i32;
+            let x1 = if x0 < max_x_idx { x0 + 1 } else { x0 };
+            let y1 = if y0 < max_y_idx { y0 + 1 } else { y0 };
+
+            let fx = sx - (x0 as f32);
+            let fy = sy - (y0 as f32);
+            let ifx = 1.0 - fx;
+            let ify = 1.0 - fy;
+
+            let pw00 = ifx * ify;
+            let pw10 = fx * ify;
+            let pw01 = ifx * fy;
+            let pw11 = fx * fy;
+
+            let p00 = ((y0 as usize) * w_usize + (x0 as usize)) * 4;
+            let p10 = ((y0 as usize) * w_usize + (x1 as usize)) * 4;
+            let p01 = ((y1 as usize) * w_usize + (x0 as usize)) * 4;
+            let p11 = ((y1 as usize) * w_usize + (x1 as usize)) * 4;
+
+            let a00 = (*src_u8.add(p00 + 3) as f32) * pw00;
+            let a10 = (*src_u8.add(p10 + 3) as f32) * pw10;
+            let a01 = (*src_u8.add(p01 + 3) as f32) * pw01;
+            let a11 = (*src_u8.add(p11 + 3) as f32) * pw11;
+            let out_a = a00 + a10 + a01 + a11;
+
+            let dst_byte_idx = out_pixel_idx * 4;
+            if out_a < 0.5 {
+                *out_u32.add(out_pixel_idx) = 0;
+            } else {
+                let inv_a = 1.0 / out_a;
+                let r = ((*src_u8.add(p00) as f32) * a00
+                    + (*src_u8.add(p10) as f32) * a10
+                    + (*src_u8.add(p01) as f32) * a01
+                    + (*src_u8.add(p11) as f32) * a11)
+                    * inv_a;
+                let g = ((*src_u8.add(p00 + 1) as f32) * a00
+                    + (*src_u8.add(p10 + 1) as f32) * a10
+                    + (*src_u8.add(p01 + 1) as f32) * a01
+                    + (*src_u8.add(p11 + 1) as f32) * a11)
+                    * inv_a;
+                let b = ((*src_u8.add(p00 + 2) as f32) * a00
+                    + (*src_u8.add(p10 + 2) as f32) * a10
+                    + (*src_u8.add(p01 + 2) as f32) * a01
+                    + (*src_u8.add(p11 + 2) as f32) * a11)
+                    * inv_a;
+
+                *out_ptr.add(dst_byte_idx) = (r + 0.5) as u8;
+                *out_ptr.add(dst_byte_idx + 1) = (g + 0.5) as u8;
+                *out_ptr.add(dst_byte_idx + 2) = (b + 0.5) as u8;
+                *out_ptr.add(dst_byte_idx + 3) = (out_a + 0.5) as u8;
+            }
+        }
+    }
+    1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_end() {
+    LIQUIFY_SESSION = LiquifySession {
+        w: 0,
+        h: 0,
+        grid_w: 0,
+        grid_h: 0,
+        cell_size: 8.0,
+        inv_cell: 0.125,
+        origin_x: 0.0,
+        origin_y: 0.0,
+        src_ptr: core::ptr::null_mut(),
+        grid_ptr: core::ptr::null_mut(),
+        scratch_ptr: core::ptr::null_mut(),
+    };
+    wasm_reset_scratch();
 }
 

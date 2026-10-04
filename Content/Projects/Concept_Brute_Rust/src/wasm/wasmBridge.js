@@ -22,7 +22,7 @@ class WasmCanvasCore {
       this.instance = new WebAssembly.Instance(mod, {});
       this.exports = this.instance.exports;
       this.memory = this.exports.memory;
-      const heapBase = this.exports.__heap_base ? this.exports.__heap_base.value : 65536;
+      const heapBase = this.exports.__heap_base ? this.exports.__heap_base.value : 2097152;
       this.exports.wasm_init_heap(heapBase);
       this.exports.wasm_mark_scratch();
       this.ready = true;
@@ -229,10 +229,10 @@ class WasmCanvasCore {
     ex.wasm_reset_scratch();
 
     const mapLen = mapF32.length;
-    const mapBytes = mapLen * 4;
-    const mapPtr = ex.wasm_alloc(mapBytes);
-    const scratchPtr = ex.wasm_alloc(mapBytes);
-    const boundsPtr = ex.wasm_alloc(16);
+    const mapBytes = (mapLen * 4) >>> 0;
+    const mapPtr = (ex.wasm_alloc(mapBytes)) >>> 0;
+    const scratchPtr = (ex.wasm_alloc(mapBytes)) >>> 0;
+    const boundsPtr = (ex.wasm_alloc(16)) >>> 0;
 
     let memF32 = new Float32Array(this.memory.buffer, mapPtr, mapLen);
     memF32.set(mapF32);
@@ -280,13 +280,13 @@ class WasmCanvasCore {
     const ex = this.exports;
     ex.wasm_reset_scratch();
 
-    const pixelBytes = w * h * 4;
+    const pixelBytes = (w * h * 4) >>> 0;
     const mapLen = mapF32.length;
-    const mapBytes = mapLen * 4;
+    const mapBytes = (mapLen * 4) >>> 0;
 
-    const srcPtr = ex.wasm_alloc(pixelBytes);
-    const dstPtr = ex.wasm_alloc(pixelBytes);
-    const mapPtr = ex.wasm_alloc(mapBytes);
+    const srcPtr = (ex.wasm_alloc(pixelBytes)) >>> 0;
+    const dstPtr = (ex.wasm_alloc(pixelBytes)) >>> 0;
+    const mapPtr = (ex.wasm_alloc(mapBytes)) >>> 0;
 
     const buf = this.memory.buffer;
     new Uint8Array(buf, srcPtr, pixelBytes).set(srcU8);
@@ -470,10 +470,66 @@ class WasmCanvasCore {
   liquifyEndAllSessions() {
     this.liquifySessions.clear();
     if (this.ready) {
-      const heapBase = this.exports.__heap_base ? this.exports.__heap_base.value : 65536;
+      this.exports.liquify_session_end();
+      const heapBase = this.exports.__heap_base ? this.exports.__heap_base.value : 2097152;
       this.exports.wasm_init_heap(heapBase);
       this.exports.wasm_mark_scratch();
     }
+  }
+
+  /**
+   * Unified Liquify Stroke Session in Rust WASM
+   */
+  liquifySessionStart(w, h, cellSize, originX, originY) {
+    if (!this.ready || w <= 0 || h <= 0) return false;
+    const res = this.exports.liquify_session_start(w, h, cellSize, originX, originY);
+    return res === 1;
+  }
+
+  liquifySessionStampSrc(chunkU8, chunkW, chunkH, dstX, dstY) {
+    if (!this.ready || !chunkU8 || chunkW <= 0 || chunkH <= 0) return false;
+    const ex = this.exports;
+    const byteLen = (chunkW * chunkH * 4) >>> 0;
+    const chunkPtr = (ex.wasm_alloc(byteLen)) >>> 0;
+    if (!chunkPtr) return false;
+    new Uint8Array(this.memory.buffer, chunkPtr, byteLen).set(chunkU8);
+    const res = ex.liquify_session_stamp_src(chunkPtr, chunkW, chunkH, dstX, dstY);
+    return res === 1;
+  }
+
+  liquifySessionDisplace(p0X, p0Y, mvX, mvY, r, falloff) {
+    if (!this.ready || r <= 0) return false;
+    const res = this.exports.liquify_session_displace(p0X, p0Y, mvX, mvY, r, falloff);
+    return res === 1;
+  }
+
+  liquifySessionWarpBox(minX, maxX, minY, maxY, dstBoxU8) {
+    if (!this.ready || !dstBoxU8) return false;
+    const cMinX = Math.max(0, Math.floor(minX));
+    const cMaxX = Math.max(0, Math.ceil(maxX));
+    const cMinY = Math.max(0, Math.floor(minY));
+    const cMaxY = Math.max(0, Math.ceil(maxY));
+    if (cMaxX < cMinX || cMaxY < cMinY) return false;
+
+    const boxW = cMaxX - cMinX + 1;
+    const boxH = cMaxY - cMinY + 1;
+    const boxBytes = (boxW * boxH * 4) >>> 0;
+    if (dstBoxU8.byteLength < boxBytes) return false;
+
+    const ex = this.exports;
+    const outPtr = (ex.wasm_alloc(boxBytes)) >>> 0;
+    if (!outPtr) return false;
+
+    const ok = ex.liquify_session_warp_box(cMinX, cMaxX, cMinY, cMaxY, outPtr);
+    if (!ok) return false;
+
+    dstBoxU8.set(new Uint8Array(this.memory.buffer, outPtr, boxBytes));
+    return true;
+  }
+
+  liquifySessionEnd() {
+    if (!this.ready) return;
+    this.exports.liquify_session_end();
   }
 
   /**
@@ -518,6 +574,23 @@ class WasmCanvasCore {
     pixelsU8.set(new Uint8Array(buf, pixPtr, pixBytes));
     heightF32.set(new Float32Array(buf, hgtPtr, count));
     return true;
+  }
+
+  /**
+   * Fast buffer empty check in Rust WASM (SIMD / 32-bit word scanning)
+   */
+  isBufferEmpty(u32Array) {
+    if (!this.ready || !u32Array || u32Array.length === 0) return true;
+    const count = u32Array.length;
+    const byteLen = count * 4;
+    const ex = this.exports;
+    ex.wasm_reset_scratch();
+    const ptr = ex.wasm_alloc(byteLen) >>> 0;
+    if (!ptr) return false;
+    new Uint32Array(this.memory.buffer, ptr, count).set(u32Array);
+    const res = ex.is_buffer_empty(ptr, count);
+    ex.wasm_reset_scratch();
+    return res === 1;
   }
 
   /**

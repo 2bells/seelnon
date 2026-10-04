@@ -145,8 +145,9 @@ export function fitZoom() {
   this.setZoom(1);
 }
 
-export function saveViewport() {
-  const prefix = this.currentProjectId ? `v_${this.currentProjectId}_` : 'v_';
+export function saveViewport(projectId = null) {
+  const pid = projectId || this.currentProjectId;
+  const prefix = pid ? `v_${pid}_` : 'v_';
   localStorage.setItem(prefix + 'zoom', this.zoom);
   localStorage.setItem(prefix + 'pan', JSON.stringify(this.pan));
 }

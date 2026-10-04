@@ -122,7 +122,7 @@ export class TimelapseRecorder {
     this.updateUI();
   }
 
-  async saveCurrentSession() {
+  async saveCurrentSession(explicitProjectId = null) {
     if (!this.app || !this.app.storage) return;
     const data = {
       sessionId: this.sessionId,
@@ -135,7 +135,7 @@ export class TimelapseRecorder {
       playbackFps: this.playbackFps
     };
     try {
-      await this.app.storage.saveSetting('timelapse_data', data);
+      await this.app.storage.saveSetting('timelapse_data', data, explicitProjectId);
     } catch (e) {
       console.warn("Failed saving timelapse_data session", e);
     }
@@ -1041,7 +1041,7 @@ export class TimelapseRecorder {
     if (exportVideoBtn) exportVideoBtn.onclick = () => this.exportVideo();
   }
 
-  async onProjectSwitched() {
+  async onProjectSwitched(explicitProjectId = null) {
     // 1. If currently playing, stop it cleanly
     if (this.isPlaying) {
       this.togglePlayback();
@@ -1067,7 +1067,7 @@ export class TimelapseRecorder {
     let data = null;
     try {
       if (this.app && this.app.storage) {
-        data = await this.app.storage.loadSetting('timelapse_data');
+        data = await this.app.storage.loadSetting('timelapse_data', explicitProjectId);
       }
     } catch (e) {
       console.warn("Failed to load timelapse data on switch", e);

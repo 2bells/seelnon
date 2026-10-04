@@ -115,17 +115,19 @@ export class SketchStorage {
     });
   }
 
-  _getSectorKey(sx, sy) {
-    return `p_${this.projectId}_s_${sx}_${sy}`;
+  _getSectorKey(sx, sy, explicitProjectId = null) {
+    const pid = explicitProjectId || this.projectId;
+    return `p_${pid}_s_${sx}_${sy}`;
   }
 
-  _getSettingKey(id) {
-    return `p_${this.projectId}_s_${id}`;
+  _getSettingKey(id, explicitProjectId = null) {
+    const pid = explicitProjectId || this.projectId;
+    return `p_${pid}_s_${id}`;
   }
 
-  async saveSector(sx, sy, sectorData) {
+  async saveSector(sx, sy, sectorData, explicitProjectId = null) {
     this._ensureDb();
-    const key = this._getSectorKey(sx, sy);
+    const key = this._getSectorKey(sx, sy, explicitProjectId);
 
     if (this.isFallback) {
       if (!sectorData || Object.keys(sectorData.chunks || {}).length === 0) {
@@ -155,9 +157,9 @@ export class SketchStorage {
     });
   }
 
-  async loadSector(sx, sy) {
+  async loadSector(sx, sy, explicitProjectId = null) {
     this._ensureDb();
-    const key = this._getSectorKey(sx, sy);
+    const key = this._getSectorKey(sx, sy, explicitProjectId);
 
     if (this.isFallback) {
       return this.fallbackStore.sectors[key] || null;
@@ -213,10 +215,11 @@ export class SketchStorage {
     });
   }
 
-  async getAllSectorKeys() {
+  async getAllSectorKeys(explicitProjectId = null) {
     this._ensureDb();
+    const pid = explicitProjectId || this.projectId;
     if (this.isFallback) {
-      const prefix = `p_${this.projectId}_s_`;
+      const prefix = `p_${pid}_s_`;
       return Object.keys(this.fallbackStore.sectors).filter(k => k.startsWith(prefix));
     }
 
@@ -225,7 +228,7 @@ export class SketchStorage {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['sectors'], 'readonly');
       const store = transaction.objectStore('sectors');
-      const range = IDBKeyRange.bound(`p_${this.projectId}_s_`, `p_${this.projectId}_s_\uffff`);
+      const range = IDBKeyRange.bound(`p_${pid}_s_`, `p_${pid}_s_\uffff`);
       const request = store.getAllKeys(range);
       
       request.onsuccess = () => resolve(request.result || []);
@@ -233,10 +236,11 @@ export class SketchStorage {
     });
   }
 
-  async getAllLegacyKeys() {
+  async getAllLegacyKeys(explicitProjectId = null) {
     this._ensureDb();
+    const pid = explicitProjectId || this.projectId;
     if (this.isFallback) {
-      const prefix = `p_${this.projectId}_c_`;
+      const prefix = `p_${pid}_c_`;
       return Object.keys(this.fallbackStore.chunks).filter(k => k.startsWith(prefix));
     }
 
@@ -245,7 +249,7 @@ export class SketchStorage {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['chunks'], 'readonly');
       const store = transaction.objectStore('chunks');
-      const range = IDBKeyRange.bound(`p_${this.projectId}_c_`, `p_${this.projectId}_c_\uffff`);
+      const range = IDBKeyRange.bound(`p_${pid}_c_`, `p_${pid}_c_\uffff`);
       const request = store.getAllKeys(range);
       
       request.onsuccess = () => resolve(request.result || []);
@@ -290,9 +294,9 @@ export class SketchStorage {
     });
   }
 
-  async saveSetting(id, value) {
+  async saveSetting(id, value, explicitProjectId = null) {
     this._ensureDb();
-    const key = this._getSettingKey(id);
+    const key = this._getSettingKey(id, explicitProjectId);
 
     if (this.isFallback) {
       this.fallbackStore.settings[key] = value;
@@ -312,9 +316,9 @@ export class SketchStorage {
     });
   }
 
-  async loadSetting(id) {
+  async loadSetting(id, explicitProjectId = null) {
     this._ensureDb();
-    const key = this._getSettingKey(id);
+    const key = this._getSettingKey(id, explicitProjectId);
 
     if (this.isFallback) {
       if (this.fallbackStore.settings[key] !== undefined) {
@@ -340,12 +344,12 @@ export class SketchStorage {
     });
   }
 
-  async loadSettingsBatch(keys) {
+  async loadSettingsBatch(keys, explicitProjectId = null) {
     this._ensureDb();
     if (this.isFallback) {
       const results = {};
       keys.forEach(k => {
-        const key = this._getSettingKey(k);
+        const key = this._getSettingKey(k, explicitProjectId);
         if (this.fallbackStore.settings[key] !== undefined) {
           results[k] = this.fallbackStore.settings[key];
         } else {
@@ -371,7 +375,7 @@ export class SketchStorage {
       let failed = false;
 
       keys.forEach((k) => {
-        const key = this._getSettingKey(k);
+        const key = this._getSettingKey(k, explicitProjectId);
         const request = store.get(key);
         request.onsuccess = () => {
           if (failed) return;
@@ -436,12 +440,13 @@ export class SketchStorage {
     });
   }
 
-  async getStorageStats() {
+  async getStorageStats(explicitProjectId = null) {
+    const pid = explicitProjectId || this.projectId;
     if (this.isFallback) {
       let size = 0;
       let sectors = 0;
       let chunks = 0;
-      const prefix = `p_${this.projectId}_s_`;
+      const prefix = `p_${pid}_s_`;
       
       for (const key in this.fallbackStore.sectors) {
         if (key.startsWith(prefix)) {
@@ -449,7 +454,7 @@ export class SketchStorage {
           const chunkData = this.fallbackStore.sectors[key].chunks || {};
           for (const k in chunkData) {
             chunks++;
-            size += (chunkData[k]?.length || 0);
+            size += (chunkData[k]?.size || chunkData[k]?.length || 0);
           }
         }
       }
@@ -465,7 +470,7 @@ export class SketchStorage {
       
       const transaction = this.db.transaction(['sectors'], 'readonly');
       const store = transaction.objectStore('sectors');
-      const range = IDBKeyRange.bound(`p_${this.projectId}_s_`, `p_${this.projectId}_s_\uffff`);
+      const range = IDBKeyRange.bound(`p_${pid}_s_`, `p_${pid}_s_\uffff`);
       const request = store.openCursor(range);
       
       request.onsuccess = (event) => {
@@ -475,7 +480,7 @@ export class SketchStorage {
           const chunkData = cursor.value.chunks || {};
           for (const key in chunkData) {
             chunks++;
-            size += (chunkData[key]?.length || 0);
+            size += (chunkData[key]?.size || chunkData[key]?.length || 0);
           }
           cursor.continue();
         } else {
