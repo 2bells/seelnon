@@ -480,6 +480,11 @@ class WasmCanvasCore {
   /**
    * Unified Liquify Stroke Session in Rust WASM
    */
+  liquifyPrewarm(w = 2048, h = 2048, cellSize = 8) {
+    if (!this.ready) return false;
+    return this.exports.liquify_session_start(w, h, cellSize, 0, 0) === 1;
+  }
+
   liquifySessionStart(w, h, cellSize, originX, originY) {
     if (!this.ready || w <= 0 || h <= 0) return false;
     const res = this.exports.liquify_session_start(w, h, cellSize, originX, originY);
@@ -489,6 +494,34 @@ class WasmCanvasCore {
   liquifySessionStampSrc(chunkU8, chunkW, chunkH, dstX, dstY) {
     if (!this.ready || !chunkU8 || chunkW <= 0 || chunkH <= 0) return false;
     const ex = this.exports;
+    const srcPtr = ex.liquify_session_get_src_ptr ? (ex.liquify_session_get_src_ptr() >>> 0) : 0;
+    const sessW = ex.liquify_session_get_w ? ex.liquify_session_get_w() : 2048;
+    const sessH = ex.liquify_session_get_h ? ex.liquify_session_get_h() : 2048;
+
+    if (srcPtr !== 0 && sessW > 0 && sessH > 0) {
+      // Direct fast row-by-row write into WASM memory - 0 allocations!
+      const x0 = Math.max(0, Math.min(sessW, dstX));
+      const x1 = Math.max(0, Math.min(sessW, dstX + chunkW));
+      const y0 = Math.max(0, Math.min(sessH, dstY));
+      const y1 = Math.max(0, Math.min(sessH, dstY + chunkH));
+      if (x0 >= x1 || y0 >= y1) return true;
+
+      const copyW = x1 - x0;
+      const copyBytes = copyW * 4;
+      const buf = this.memory.buffer;
+
+      for (let y = y0; y < y1; y++) {
+        const cy = y - dstY;
+        const cx = x0 - dstX;
+        const srcOffset = (cy * chunkW + cx) * 4;
+        const dstOffset = srcPtr + ((y * sessW + x0) * 4);
+        new Uint8Array(buf, dstOffset, copyBytes).set(
+          new Uint8Array(chunkU8.buffer, chunkU8.byteOffset + srcOffset, copyBytes)
+        );
+      }
+      return true;
+    }
+
     const byteLen = (chunkW * chunkH * 4) >>> 0;
     const chunkPtr = (ex.wasm_alloc(byteLen)) >>> 0;
     if (!chunkPtr) return false;
@@ -517,7 +550,8 @@ class WasmCanvasCore {
     if (dstBoxU8.byteLength < boxBytes) return false;
 
     const ex = this.exports;
-    const outPtr = (ex.wasm_alloc(boxBytes)) >>> 0;
+    const staticOutPtr = ex.liquify_session_get_warp_out_ptr ? (ex.liquify_session_get_warp_out_ptr() >>> 0) : 0;
+    const outPtr = staticOutPtr || (ex.wasm_alloc(boxBytes) >>> 0);
     if (!outPtr) return false;
 
     const ok = ex.liquify_session_warp_box(cMinX, cMaxX, cMinY, cMaxY, outPtr);

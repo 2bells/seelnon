@@ -126,3 +126,42 @@ export function paintSmudgeOnChunks(engine, stamps, affectedChunks, flow, opacit
         });
     }
 }
+
+/**
+ * Pre-warms the smudge stroke on pointerdown.
+ * Samples initial color at worldPos and marks smudgeDirty so step 1 immediately smudges with zero lag.
+ */
+export function startSmudgeStroke(engine, worldPos) {
+    if (!engine.segmentCanvas) {
+        engine.segmentCanvas = document.createElement('canvas');
+        engine.segmentCtx = engine.segmentCanvas.getContext('2d', isMobileDevice ? undefined : { willReadFrequently: true });
+    }
+    const sz = engine.brush.size || 50;
+    const sR = sz / 2;
+    const cx = engine.isStatic ? 0 : Math.floor(worldPos.x / engine.chunkSize);
+    const cy = engine.isStatic ? 0 : Math.floor(worldPos.y / engine.chunkSize);
+    const chunk = engine._getChunk(cx, cy);
+    if (chunk) {
+        const id = `${cx},${cy}`;
+        if (!engine.currentStrokeDirtyChunks.has(id)) {
+            const srcCanvas = chunk.canvases[engine.activeLayer];
+            const backup = document.createElement('canvas');
+            backup.width = srcCanvas.width;
+            backup.height = srcCanvas.height;
+            backup.getContext('2d').drawImage(srcCanvas, 0, 0);
+            engine.currentStrokeDirtyChunks.set(id, { layer: engine.activeLayer, canvas: backup });
+            engine._markDirty(id, engine.activeLayer);
+        }
+
+        const lx = engine.isStatic ? -engine.staticWidth / 2 : cx * engine.chunkSize;
+        const ly = engine.isStatic ? -engine.staticHeight / 2 : cy * engine.chunkSize;
+        const px = worldPos.x - lx;
+        const py = worldPos.y - ly;
+
+        engine.smudgeCtx.save();
+        engine.smudgeCtx.clearRect(0, 0, 128, 128);
+        engine.smudgeCtx.drawImage(chunk.canvases[engine.activeLayer], px - sR, py - sR, sz, sz, 0, 0, 128, 128);
+        engine.smudgeCtx.restore();
+        engine.smudgeDirty = true;
+    }
+}

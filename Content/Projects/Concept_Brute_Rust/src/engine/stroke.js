@@ -1,7 +1,7 @@
 import { TOOLS } from '../constants.js';
 import { paintWireframeIncrementally } from '../tools/wireframe.js';
-import { paintSmudgeOnChunks } from '../tools/smudge.js';
-import { paintFluidOnChunks } from '../tools/fluidPaint.js';
+import { paintSmudgeOnChunks, startSmudgeStroke } from '../tools/smudge.js';
+import { paintFluidOnChunks, startFluidPaintStroke } from '../tools/fluidPaint.js';
 import { startLiquifyStroke, paintLiquifyStroke, endLiquifyStroke } from '../tools/liquify.js';
 import { paintAirIncrementally, clearAirParticles, startAirPaintStroke, endAirPaintStroke } from '../tools/airPaint.js';
 import { isMobileDevice } from '../colorUtils.js';
@@ -187,17 +187,16 @@ export function _startStroke(e) {
   this._hueJitterStampCount = 0;
   this._lastHueJitterBaseColor = null;
 
-  if (this.brush.type === TOOLS.SMUDGE) {
-      this.smudgeDirty = false;
-  }
-  
   // Clear dirty chunks tracking for this stroke
   this.currentStrokeDirtyChunks = new Map();
-  if (this.brush.type === TOOLS.LIQUIFY) {
+  if (this.brush.type === TOOLS.SMUDGE) {
+      startSmudgeStroke(this, worldPos);
+  } else if (this.brush.type === TOOLS.FLUID) {
+      startFluidPaintStroke(this, worldPos);
+  } else if (this.brush.type === TOOLS.LIQUIFY) {
       this.liquifySteps = [];
       startLiquifyStroke(this, worldPos);
-  }
-  if (this.brush.type === TOOLS.AIR) {
+  } else if (this.brush.type === TOOLS.AIR) {
       startAirPaintStroke(this);
   }
   this._clearStack(this.redoStack);
@@ -864,6 +863,7 @@ export function _endStroke(e = null) {
   }
   
   if (this.brush.type === TOOLS.LIQUIFY) {
+      endLiquifyStroke(this);
       this.clearAllOffscreenCanvases();
   }
   

@@ -1433,9 +1433,13 @@ struct LiquifySession {
     inv_cell: f32,
     origin_x: f32,
     origin_y: f32,
+    src_capacity: usize,
+    grid_capacity: usize,
     src_ptr: *mut u8,
     grid_ptr: *mut f32,
     scratch_ptr: *mut f32,
+    warp_out_capacity: usize,
+    warp_out_ptr: *mut u8,
 }
 
 static mut LIQUIFY_SESSION: LiquifySession = LiquifySession {
@@ -1447,9 +1451,13 @@ static mut LIQUIFY_SESSION: LiquifySession = LiquifySession {
     inv_cell: 0.125,
     origin_x: 0.0,
     origin_y: 0.0,
+    src_capacity: 0,
+    grid_capacity: 0,
     src_ptr: core::ptr::null_mut(),
     grid_ptr: core::ptr::null_mut(),
     scratch_ptr: core::ptr::null_mut(),
+    warp_out_capacity: 0,
+    warp_out_ptr: core::ptr::null_mut(),
 };
 
 #[no_mangle]
@@ -1463,7 +1471,6 @@ pub unsafe extern "C" fn liquify_session_start(
     if w <= 0 || h <= 0 || cell_size <= 0.0 {
         return 0;
     }
-    wasm_reset_scratch();
 
     let grid_w = ceil_f32((w as f32) / cell_size) + 1;
     let grid_h = ceil_f32((h as f32) / cell_size) + 1;
@@ -1473,34 +1480,64 @@ pub unsafe extern "C" fn liquify_session_start(
     let grid_len = (grid_w as usize) * (grid_h as usize) * 2;
     let grid_bytes = grid_len * 4;
 
-    let src_ptr = wasm_alloc(img_bytes) as *mut u8;
-    let grid_ptr = wasm_alloc(grid_bytes) as *mut f32;
-    let scratch_ptr = wasm_alloc(grid_bytes) as *mut f32;
+    // Check if existing allocated capacity can be reused without touching wasm_alloc!
+    if LIQUIFY_SESSION.src_ptr.is_null() || LIQUIFY_SESSION.src_capacity < img_bytes {
+        wasm_reset_scratch();
+        let alloc_img = if img_bytes < 16 * 1024 * 1024 { 16 * 1024 * 1024 } else { img_bytes };
+        let alloc_grid = if grid_bytes < 1024 * 1024 { 1024 * 1024 } else { grid_bytes };
+        let alloc_out = if img_bytes < 16 * 1024 * 1024 { 16 * 1024 * 1024 } else { img_bytes };
 
-    if src_ptr.is_null() || grid_ptr.is_null() || scratch_ptr.is_null() {
+        LIQUIFY_SESSION.src_ptr = wasm_alloc(alloc_img) as *mut u8;
+        LIQUIFY_SESSION.src_capacity = alloc_img;
+
+        LIQUIFY_SESSION.grid_ptr = wasm_alloc(alloc_grid) as *mut f32;
+        LIQUIFY_SESSION.scratch_ptr = wasm_alloc(alloc_grid) as *mut f32;
+        LIQUIFY_SESSION.grid_capacity = alloc_grid;
+
+        LIQUIFY_SESSION.warp_out_ptr = wasm_alloc(alloc_out) as *mut u8;
+        LIQUIFY_SESSION.warp_out_capacity = alloc_out;
+
+        wasm_mark_scratch();
+    }
+
+    if LIQUIFY_SESSION.src_ptr.is_null() || LIQUIFY_SESSION.grid_ptr.is_null() {
         return 0;
     }
 
-    core::ptr::write_bytes(src_ptr, 0, img_bytes);
-    core::ptr::write_bytes(grid_ptr as *mut u8, 0, grid_bytes);
-    core::ptr::write_bytes(scratch_ptr as *mut u8, 0, grid_bytes);
+    // Only zero the active grid displacement! (Only ~133KB -> 0.01ms!)
+    // DO NOT zero the entire 16MB image buffer, as stamped pixels overwrite it and unstamped pixels are untouched!
+    core::ptr::write_bytes(LIQUIFY_SESSION.grid_ptr as *mut u8, 0, grid_bytes);
 
-    LIQUIFY_SESSION = LiquifySession {
-        w,
-        h,
-        grid_w,
-        grid_h,
-        cell_size,
-        inv_cell,
-        origin_x,
-        origin_y,
-        src_ptr,
-        grid_ptr,
-        scratch_ptr,
-    };
+    LIQUIFY_SESSION.w = w;
+    LIQUIFY_SESSION.h = h;
+    LIQUIFY_SESSION.grid_w = grid_w;
+    LIQUIFY_SESSION.grid_h = grid_h;
+    LIQUIFY_SESSION.cell_size = cell_size;
+    LIQUIFY_SESSION.inv_cell = inv_cell;
+    LIQUIFY_SESSION.origin_x = origin_x;
+    LIQUIFY_SESSION.origin_y = origin_y;
 
-    wasm_mark_scratch();
     1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_get_src_ptr() -> *mut u8 {
+    LIQUIFY_SESSION.src_ptr
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_get_warp_out_ptr() -> *mut u8 {
+    LIQUIFY_SESSION.warp_out_ptr
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_get_w() -> i32 {
+    LIQUIFY_SESSION.w
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn liquify_session_get_h() -> i32 {
+    LIQUIFY_SESSION.h
 }
 
 #[no_mangle]
@@ -1583,10 +1620,19 @@ pub unsafe extern "C" fn liquify_session_warp_box(
     max_y: i32,
     out_ptr: *mut u8,
 ) -> i32 {
-    if LIQUIFY_SESSION.src_ptr.is_null() || out_ptr.is_null() {
+    if LIQUIFY_SESSION.src_ptr.is_null() {
         return 0;
     }
     let sess = &raw const LIQUIFY_SESSION;
+    let dst_ptr = if !out_ptr.is_null() {
+        out_ptr
+    } else {
+        (*sess).warp_out_ptr
+    };
+    if dst_ptr.is_null() {
+        return 0;
+    }
+
     let min_x = clamp_i32(min_x, 0, (*sess).w - 1);
     let max_x = clamp_i32(max_x, 0, (*sess).w - 1);
     let min_y = clamp_i32(min_y, 0, (*sess).h - 1);
@@ -1608,7 +1654,7 @@ pub unsafe extern "C" fn liquify_session_warp_box(
 
     let src_u8 = (*sess).src_ptr as *const u8;
     let src_u32 = (*sess).src_ptr as *const u32;
-    let out_u32 = out_ptr as *mut u32;
+    let out_u32 = dst_ptr as *mut u32;
 
     for y in min_y..=max_y {
         let local_y = (y - min_y) as usize;
@@ -1709,10 +1755,10 @@ pub unsafe extern "C" fn liquify_session_warp_box(
                     + (*src_u8.add(p11 + 2) as f32) * a11)
                     * inv_a;
 
-                *out_ptr.add(dst_byte_idx) = (r + 0.5) as u8;
-                *out_ptr.add(dst_byte_idx + 1) = (g + 0.5) as u8;
-                *out_ptr.add(dst_byte_idx + 2) = (b + 0.5) as u8;
-                *out_ptr.add(dst_byte_idx + 3) = (out_a + 0.5) as u8;
+                *dst_ptr.add(dst_byte_idx) = (r + 0.5) as u8;
+                *dst_ptr.add(dst_byte_idx + 1) = (g + 0.5) as u8;
+                *dst_ptr.add(dst_byte_idx + 2) = (b + 0.5) as u8;
+                *dst_ptr.add(dst_byte_idx + 3) = (out_a + 0.5) as u8;
             }
         }
     }
@@ -1721,19 +1767,10 @@ pub unsafe extern "C" fn liquify_session_warp_box(
 
 #[no_mangle]
 pub unsafe extern "C" fn liquify_session_end() {
-    LIQUIFY_SESSION = LiquifySession {
-        w: 0,
-        h: 0,
-        grid_w: 0,
-        grid_h: 0,
-        cell_size: 8.0,
-        inv_cell: 0.125,
-        origin_x: 0.0,
-        origin_y: 0.0,
-        src_ptr: core::ptr::null_mut(),
-        grid_ptr: core::ptr::null_mut(),
-        scratch_ptr: core::ptr::null_mut(),
-    };
-    wasm_reset_scratch();
+    LIQUIFY_SESSION.w = 0;
+    LIQUIFY_SESSION.h = 0;
+    LIQUIFY_SESSION.origin_x = 0.0;
+    LIQUIFY_SESSION.origin_y = 0.0;
+    // Retain allocated buffers in LIQUIFY_SESSION for subsequent strokes (0-lag reuse)
 }
 

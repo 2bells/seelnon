@@ -21,6 +21,7 @@ import { setupIgnoreSystem } from './ignore.js';
 import { TimelapseRecorder } from './recording.js';
 import { initFluidPaint, activateFluidPaint, deactivateFluidPaint } from './tools/fluidPaint.js';
 import { initAirPaint, activateAirPaint, deactivateAirPaint } from './tools/airPaint.js';
+import { wasmCore } from './wasm/wasmBridge.js';
 
 class App {
   constructor() {
@@ -1690,6 +1691,16 @@ class App {
     // Apply per-brush settings
     const settings = this.brushSettings[tool];
     this.engine.brush.type = tool;
+
+    // Instant tool pre-warming (zero-lag initialization)
+    if (tool === TOOLS.LIQUIFY) {
+        wasmCore.liquifyPrewarm();
+    } else if (tool === TOOLS.SMUDGE || tool === TOOLS.FLUID) {
+        if (!this.engine.segmentCanvas) {
+            this.engine.segmentCanvas = document.createElement('canvas');
+            this.engine.segmentCtx = this.engine.segmentCanvas.getContext('2d', { willReadFrequently: true });
+        }
+    }
 
     // Restore this tool's specific active tip in the panel
     if (this.tipManager && (tool === TOOLS.BRUSH || tool === TOOLS.WIREFRAME || tool === TOOLS.ERASER || tool === TOOLS.SMUDGE || tool === TOOLS.FLUID)) {

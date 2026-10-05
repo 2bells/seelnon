@@ -1,8 +1,77 @@
 import { wasmCore } from '../wasm/wasmBridge.js';
 
 /**
+ * Stamps chunk image data into the WASM session for the given world region.
+ * Avoids redundant DOM allocations and reads only the session sub-rect in static mode.
+ */
+function _stampChunksInRegion(engine, stroke, minWorldX, maxWorldX, minWorldY, maxWorldY) {
+    const sCX = engine.isStatic ? 0 : Math.floor(minWorldX / engine.chunkSize);
+    const eCX = engine.isStatic ? 0 : Math.floor(maxWorldX / engine.chunkSize);
+    const sCY = engine.isStatic ? 0 : Math.floor(minWorldY / engine.chunkSize);
+    const eCY = engine.isStatic ? 0 : Math.floor(maxWorldY / engine.chunkSize);
+
+    const touchedChunks = [];
+    for (let cx = sCX; cx <= eCX; cx++) {
+        for (let cy = sCY; cy <= eCY; cy++) {
+            const chunk = engine._getChunk(cx, cy);
+            if (!chunk) continue;
+            const id = `${cx},${cy}`;
+            touchedChunks.push({ id, chunk, cx, cy });
+
+            // Back up chunk for undo/redo (once per stroke)
+            if (!engine.currentStrokeDirtyChunks.has(id)) {
+                const srcCanvas = chunk.canvases[engine.activeLayer];
+                const backup = document.createElement('canvas');
+                backup.width = srcCanvas.width;
+                backup.height = srcCanvas.height;
+                backup.getContext('2d').drawImage(srcCanvas, 0, 0);
+                engine.currentStrokeDirtyChunks.set(id, { layer: engine.activeLayer, canvas: backup });
+                engine._markDirty(id, engine.activeLayer);
+            }
+
+            // Stamp pristine image into WASM session once per chunk
+            if (!stroke.stampedChunks.has(id)) {
+                const backupCanvas = engine.currentStrokeDirtyChunks.get(id).canvas;
+                const backupCtx = backupCanvas.getContext('2d');
+                const clx = engine.isStatic ? -engine.staticWidth / 2 : cx * engine.chunkSize;
+                const cly = engine.isStatic ? -engine.staticHeight / 2 : cy * engine.chunkSize;
+
+                if (engine.isStatic) {
+                    // For static canvas: only read the active session sub-rectangle (0 lag!)
+                    const clipMinX = Math.max(clx, stroke.originX);
+                    const clipMaxX = Math.min(clx + engine.staticWidth, stroke.originX + stroke.width);
+                    const clipMinY = Math.max(cly, stroke.originY);
+                    const clipMaxY = Math.min(cly + engine.staticHeight, stroke.originY + stroke.height);
+
+                    if (clipMaxX > clipMinX && clipMaxY > clipMinY) {
+                        const srcX = Math.round(clipMinX - clx);
+                        const srcY = Math.round(clipMinY - cly);
+                        const stampW = Math.round(clipMaxX - clipMinX);
+                        const stampH = Math.round(clipMaxY - clipMinY);
+                        const dstX = Math.round(clipMinX - stroke.originX);
+                        const dstY = Math.round(clipMinY - stroke.originY);
+
+                        const imgData = backupCtx.getImageData(srcX, srcY, stampW, stampH);
+                        wasmCore.liquifySessionStampSrc(imgData.data, stampW, stampH, dstX, dstY);
+                    }
+                } else {
+                    // Infinite canvas chunk (512x512)
+                    const imgData = backupCtx.getImageData(0, 0, backupCanvas.width, backupCanvas.height);
+                    const dstX = Math.round(clx - stroke.originX);
+                    const dstY = Math.round(cly - stroke.originY);
+                    wasmCore.liquifySessionStampSrc(imgData.data, backupCanvas.width, backupCanvas.height, dstX, dstY);
+                }
+                stroke.stampedChunks.add(id);
+            }
+        }
+    }
+    return touchedChunks;
+}
+
+/**
  * Initializes a new Liquify stroke session.
- * Allocates the continuous 2D displacement grid and image buffer in Rust WebAssembly.
+ * Reuses persistent WebAssembly memory for 0-lag instant responsiveness.
+ * Immediately pre-warms the starting chunk so the first movement has zero hesitation.
  */
 export function startLiquifyStroke(engine, worldPos) {
     if (engine.activeLayer === 0) return;
@@ -24,10 +93,17 @@ export function startLiquifyStroke(engine, worldPos) {
 
     let originX, originY, width, height;
     if (engine.isStatic) {
-        originX = -engine.staticWidth / 2;
-        originY = -engine.staticHeight / 2;
-        width = engine.staticWidth;
-        height = engine.staticHeight;
+        // Generous continuous session centered around starting brush position
+        width = Math.min(2048, engine.staticWidth);
+        height = Math.min(2048, engine.staticHeight);
+        originX = Math.floor((worldPos.x - width / 2) / 64) * 64;
+        originY = Math.floor((worldPos.y - height / 2) / 64) * 64;
+
+        // Keep session inside static bounds
+        const clx = -engine.staticWidth / 2;
+        const cly = -engine.staticHeight / 2;
+        originX = Math.max(clx, Math.min(clx + engine.staticWidth - width, originX));
+        originY = Math.max(cly, Math.min(cly + engine.staticHeight - height, originY));
     } else {
         // Continuous region centered around the starting brush position
         width = 2048;
@@ -38,7 +114,7 @@ export function startLiquifyStroke(engine, worldPos) {
 
     wasmCore.liquifySessionStart(width, height, cellSize, originX, originY);
 
-    engine.liquifyStroke = {
+    const stroke = {
         originX,
         originY,
         width,
@@ -48,6 +124,12 @@ export function startLiquifyStroke(engine, worldPos) {
         lastPos: { x: worldPos.x, y: worldPos.y },
         active: true
     };
+    engine.liquifyStroke = stroke;
+
+    // Pre-stamp the chunk(s) under the cursor immediately upon pointerdown!
+    // This completely eliminates any initialization lag when dragging begins!
+    const R = Math.max(4.0, (engine.brush.size || 50) / 2);
+    _stampChunksInRegion(engine, stroke, worldPos.x - R - 16, worldPos.x + R + 16, worldPos.y - R - 16, worldPos.y + R + 16);
 }
 
 /**
@@ -89,53 +171,13 @@ export function paintLiquifyStroke(engine, from, to, dynamicSize, pressure) {
         }
     }
 
-    // 1. Identify all chunks overlapping the brush bounding box
+    // 1. Identify all chunks overlapping the brush bounding box & ensure stamped
     const minWorldX = Math.floor(Math.min(from.x, to.x) - R - 8);
     const maxWorldX = Math.ceil(Math.max(from.x, to.x) + R + 8);
     const minWorldY = Math.floor(Math.min(from.y, to.y) - R - 8);
     const maxWorldY = Math.ceil(Math.max(from.y, to.y) + R + 8);
 
-    const sCX = engine.isStatic ? 0 : Math.floor(minWorldX / engine.chunkSize);
-    const eCX = engine.isStatic ? 0 : Math.floor(maxWorldX / engine.chunkSize);
-    const sCY = engine.isStatic ? 0 : Math.floor(minWorldY / engine.chunkSize);
-    const eCY = engine.isStatic ? 0 : Math.floor(maxWorldY / engine.chunkSize);
-
-    const touchedChunks = [];
-    for (let cx = sCX; cx <= eCX; cx++) {
-        for (let cy = sCY; cy <= eCY; cy++) {
-            const chunk = engine._getChunk(cx, cy);
-            if (!chunk) continue;
-            const id = `${cx},${cy}`;
-            touchedChunks.push({ id, chunk, cx, cy });
-
-            // Back up chunk for undo/redo
-            if (!engine.currentStrokeDirtyChunks.has(id)) {
-                const srcCanvas = chunk.canvases[engine.activeLayer];
-                const backup = document.createElement('canvas');
-                backup.width = srcCanvas.width;
-                backup.height = srcCanvas.height;
-                backup.getContext('2d').drawImage(srcCanvas, 0, 0);
-                engine.currentStrokeDirtyChunks.set(id, { layer: engine.activeLayer, canvas: backup });
-                engine._markDirty(id, engine.activeLayer);
-            }
-
-            // Stamp original image into WASM session once per touched chunk
-            if (!stroke.stampedChunks.has(id)) {
-                const backupCanvas = engine.currentStrokeDirtyChunks.get(id).canvas;
-                const backupCtx = backupCanvas.getContext('2d');
-                const imgData = backupCtx.getImageData(0, 0, backupCanvas.width, backupCanvas.height);
-
-                const clx = engine.isStatic ? -engine.staticWidth / 2 : cx * engine.chunkSize;
-                const cly = engine.isStatic ? -engine.staticHeight / 2 : cy * engine.chunkSize;
-                const dstX = Math.round(clx - stroke.originX);
-                const dstY = Math.round(cly - stroke.originY);
-
-                wasmCore.liquifySessionStampSrc(imgData.data, backupCanvas.width, backupCanvas.height, dstX, dstY);
-                stroke.stampedChunks.add(id);
-            }
-        }
-    }
-
+    const touchedChunks = _stampChunksInRegion(engine, stroke, minWorldX, maxWorldX, minWorldY, maxWorldY);
     if (touchedChunks.length === 0) return;
 
     // 2. Displace the 2D grid inside Rust WASM (Semi-Lagrangian advection kernel)

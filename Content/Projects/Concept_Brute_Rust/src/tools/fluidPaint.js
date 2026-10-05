@@ -1163,3 +1163,29 @@ function meltActiveLayer(app) {
   engine.refresh();
   app._status('CANVAS LIVE LAYER MELTED!');
 }
+
+/**
+ * Pre-warms the fluid paint stroke on pointerdown.
+ * Ensures the segment canvas and initial chunk undo backup exist so the first drag move has 0 lag.
+ */
+export function startFluidPaintStroke(engine, worldPos) {
+  if (!engine.segmentCanvas) {
+    engine.segmentCanvas = document.createElement('canvas');
+    engine.segmentCtx = engine.segmentCanvas.getContext('2d', { willReadFrequently: true });
+  }
+  const cx = engine.isStatic ? 0 : Math.floor(worldPos.x / engine.chunkSize);
+  const cy = engine.isStatic ? 0 : Math.floor(worldPos.y / engine.chunkSize);
+  const chunk = engine._getChunk(cx, cy);
+  if (chunk) {
+    const id = `${cx},${cy}`;
+    if (!engine.currentStrokeDirtyChunks.has(id)) {
+      const srcCanvas = chunk.canvases[engine.activeLayer];
+      const backup = document.createElement('canvas');
+      backup.width = srcCanvas.width;
+      backup.height = srcCanvas.height;
+      backup.getContext('2d').drawImage(srcCanvas, 0, 0);
+      engine.currentStrokeDirtyChunks.set(id, { layer: engine.activeLayer, canvas: backup });
+      engine._markDirty(id, engine.activeLayer);
+    }
+  }
+}
