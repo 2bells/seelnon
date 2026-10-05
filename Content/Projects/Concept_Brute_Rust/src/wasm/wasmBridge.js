@@ -87,67 +87,96 @@ class WasmCanvasCore {
   }
 
   /**
-   * Unified David Li Fluid Paint Session in Rust WASM
+   * Computes the 2D fluid velocity grid in Rust WASM
    */
-  fluidSessionStart(w, h, cellSize = 4.0) {
-    if (!this.ready || w <= 0 || h <= 0) return false;
-    return this.exports.fluid_session_start(w, h, cellSize) === 1;
-  }
+  fluidComputeVelocityField(uF32, vF32, cols, rows, cellSize, ax, ay, bx, by, capDx, capDy, localActiveRadius, brushPowerDamping, speedCap, valVortex, valTurb) {
+    if (!this.ready || !uF32 || !vF32 || cols <= 0 || rows <= 0) return false;
+    const count = (cols * rows) >>> 0;
+    const byteLen = count * 4;
 
-  fluidSessionSetInputs(pixelsU8, heightF32, w, h) {
-    if (!this.ready || !pixelsU8 || !heightF32 || w <= 0 || h <= 0) return false;
     const ex = this.exports;
-    const srcPixPtr = ex.fluid_session_get_src_pixels ? (ex.fluid_session_get_src_pixels() >>> 0) : 0;
-    const srcHgtPtr = ex.fluid_session_get_src_height ? (ex.fluid_session_get_src_height() >>> 0) : 0;
-    if (!srcPixPtr || !srcHgtPtr) return false;
+    ex.wasm_reset_scratch();
 
-    const count = (w * h) >>> 0;
-    const pixBytes = count * 4;
+    const uPtr = ex.wasm_alloc(byteLen) >>> 0;
+    const vPtr = ex.wasm_alloc(byteLen) >>> 0;
+
+    ex.fluid_compute_velocity_field(
+      uPtr,
+      vPtr,
+      cols,
+      rows,
+      cellSize,
+      ax,
+      ay,
+      bx,
+      by,
+      capDx,
+      capDy,
+      localActiveRadius,
+      brushPowerDamping,
+      speedCap,
+      valVortex,
+      valTurb
+    );
+
     const buf = this.memory.buffer;
-
-    new Uint8Array(buf, srcPixPtr, pixBytes).set(pixelsU8);
-    new Float32Array(buf, srcHgtPtr, count).set(heightF32);
+    uF32.set(new Float32Array(buf, uPtr, count));
+    vF32.set(new Float32Array(buf, vPtr, count));
     return true;
   }
 
-  fluidSessionStep(
-    ax, ay, bx, by, radius,
-    brushR, brushG, brushB,
-    opacity, flow, fluidity,
-    valVortex, valTurb, valRetention,
-    valPickup, valDepth, valGloss,
-    bristles, isImpasto
-  ) {
-    if (!this.ready) return false;
-    return this.exports.fluid_session_step(
-      ax, ay, bx, by, radius,
-      brushR, brushG, brushB,
-      opacity, flow, fluidity,
-      valVortex, valTurb, valRetention,
-      valPickup, valDepth, valGloss,
-      bristles, isImpasto ? 1 : 0
-    ) === 1;
-  }
+  /**
+   * Semi-Lagrangian Advection + 3D Impasto Surface Shading in Rust WASM
+   */
+  fluidAdvectAndShade(srcU8, dstU8, srcHeightF32, dstHeightF32, uF32, vF32, w, h, cols, rows, cellSize, ax, ay, bx, by, calcSize, dt, valGloss, isImpasto) {
+    if (!this.ready || !srcU8 || !dstU8 || !srcHeightF32 || !dstHeightF32 || !uF32 || !vF32 || w <= 0 || h <= 0) return false;
+    const pixelCount = (w * h) >>> 0;
+    const pixelBytes = pixelCount * 4;
+    const gridCount = (cols * rows) >>> 0;
+    const gridBytes = gridCount * 4;
 
-  fluidSessionGetOutputs(dstPixelsU8, dstHeightF32, w, h) {
-    if (!this.ready || !dstPixelsU8 || !dstHeightF32 || w <= 0 || h <= 0) return false;
     const ex = this.exports;
-    const dstPixPtr = ex.fluid_session_get_dst_pixels ? (ex.fluid_session_get_dst_pixels() >>> 0) : 0;
-    const dstHgtPtr = ex.fluid_session_get_dst_height ? (ex.fluid_session_get_dst_height() >>> 0) : 0;
-    if (!dstPixPtr || !dstHgtPtr) return false;
+    ex.wasm_reset_scratch();
 
-    const count = (w * h) >>> 0;
-    const pixBytes = count * 4;
-    const buf = this.memory.buffer;
+    const srcPixPtr = ex.wasm_alloc(pixelBytes) >>> 0;
+    const dstPixPtr = ex.wasm_alloc(pixelBytes) >>> 0;
+    const srcHgtPtr = ex.wasm_alloc(pixelBytes) >>> 0;
+    const dstHgtPtr = ex.wasm_alloc(pixelBytes) >>> 0;
+    const uPtr = ex.wasm_alloc(gridBytes) >>> 0;
+    const vPtr = ex.wasm_alloc(gridBytes) >>> 0;
 
-    dstPixelsU8.set(new Uint8Array(buf, dstPixPtr, pixBytes));
-    dstHeightF32.set(new Float32Array(buf, dstHgtPtr, count));
+    let buf = this.memory.buffer;
+    new Uint8Array(buf, srcPixPtr, pixelBytes).set(srcU8);
+    new Float32Array(buf, srcHgtPtr, pixelCount).set(srcHeightF32);
+    new Float32Array(buf, uPtr, gridCount).set(uF32);
+    new Float32Array(buf, vPtr, gridCount).set(vF32);
+
+    ex.fluid_advect_and_shade(
+      srcPixPtr,
+      dstPixPtr,
+      srcHgtPtr,
+      dstHgtPtr,
+      uPtr,
+      vPtr,
+      w,
+      h,
+      cols,
+      rows,
+      cellSize,
+      ax,
+      ay,
+      bx,
+      by,
+      calcSize,
+      dt,
+      valGloss,
+      isImpasto ? 1 : 0
+    );
+
+    buf = this.memory.buffer;
+    dstU8.set(new Uint8Array(buf, dstPixPtr, pixelBytes));
+    dstHeightF32.set(new Float32Array(buf, dstHgtPtr, pixelCount));
     return true;
-  }
-
-  fluidSessionEnd() {
-    if (!this.ready) return;
-    this.exports.fluid_session_end();
   }
 
   /**
@@ -535,6 +564,50 @@ class WasmCanvasCore {
   liquifySessionEnd() {
     if (!this.ready) return;
     this.exports.liquify_session_end();
+  }
+
+  /**
+   * Fast Fluid Bristle Stamp in Rust WASM
+   */
+  fluidStampBristle(pixelsU8, heightF32, w, h, px, py, bristleRadius, bristleR, bristleG, bristleB, bristleAlpha, opacity, flow, valDepth, nx, ny) {
+    if (!this.ready || !pixelsU8 || !heightF32 || w <= 0 || h <= 0) return false;
+    const count = (w * h) >>> 0;
+    const pixBytes = count * 4;
+    const hgtBytes = count * 4;
+
+    const ex = this.exports;
+    ex.wasm_reset_scratch();
+
+    const pixPtr = ex.wasm_alloc(pixBytes) >>> 0;
+    const hgtPtr = ex.wasm_alloc(hgtBytes) >>> 0;
+
+    let buf = this.memory.buffer;
+    new Uint8Array(buf, pixPtr, pixBytes).set(pixelsU8);
+    new Float32Array(buf, hgtPtr, count).set(heightF32);
+
+    ex.fluid_stamp_bristle(
+      pixPtr,
+      hgtPtr,
+      w,
+      h,
+      px,
+      py,
+      bristleRadius,
+      bristleR,
+      bristleG,
+      bristleB,
+      bristleAlpha,
+      opacity,
+      flow,
+      valDepth,
+      nx,
+      ny
+    );
+
+    buf = this.memory.buffer;
+    pixelsU8.set(new Uint8Array(buf, pixPtr, pixBytes));
+    heightF32.set(new Float32Array(buf, hgtPtr, count));
+    return true;
   }
 
   /**
