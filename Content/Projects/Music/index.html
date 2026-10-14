@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BRUTAL // AUDIO - Brutalist Music Player</title>
+    <meta name="description" content="Zero-dependency brutalist audio player supporting local file imports, ID3 tag & embedded cover extraction, synchronized LRC/SRT lyrics, dynamic metadata playlists, and persistent cache." />
+    <meta property="og:title" content="BRUTAL // AUDIO - Brutalist Music Player" />
+    <meta property="og:description" content="Zero-dependency brutalist audio player supporting local file imports, ID3 tag & embedded cover extraction, synchronized LRC/SRT lyrics, dynamic metadata playlists, and persistent cache." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- MASTER TOP HEADER -->
+      <header class="master-header">
+        <div class="brand-section">
+          <div class="brand-title">BRUTAL // AUDIO</div>
+          <span class="brand-tag">REV 4.0 // ZERO-BLOAT</span>
+        </div>
+
+        <div class="status-cluster">
+          <div class="led-indicator">
+            <span class="led-dot"></span>
+            <span style="font-weight: 800; color: #00ff66;">CORE: ACTIVE</span>
+          </div>
+          <div class="tape-counter" id="tape-counter">00:00:00</div>
+          <div style="font-size: 10px; color: #888;" id="system-clock">2026-10-14 00:00:00</div>
+          <span class="spec-badge spec-badge-yellow" id="cache-status">CACHE: LOADING</span>
+        </div>
+
+        <div class="header-actions">
+          <button class="brutal-btn brutal-btn-yellow" id="btn-open-json-modal" title="Load playlist manifest via JSON or URL">
+            <span>[+] LOAD .JSON</span>
+          </button>
+          <button class="brutal-btn brutal-btn-green" id="btn-open-import-modal" title="Import local audio, covers, and lyrics files">
+            <span>[▲] IMPORT FILES</span>
+          </button>
+          <button class="brutal-btn" id="btn-export-json" title="Export current library to JSON">
+            <span>[▼] EXPORT .JSON</span>
+          </button>
+          <button class="brutal-btn brutal-btn-red" id="btn-clear-cache" title="Reset all cached tracks">
+            <span>[X] CLEAR CACHE</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- MAIN PLAYBACK WORKSPACE -->
+      <main class="player-grid">
+        <!-- LEFT COLUMN: DECK, VISUALIZER, TRANSPORT, AUDIO MATRIX -->
+        <section class="deck-left">
+          <!-- TURNTABLE & COVER MODULE -->
+          <div class="deck-module">
+            <div class="module-header">
+              <span class="module-title">DECK A // RECEPTOR</span>
+              <span class="module-sub">DIRECT AUDIO BUS</span>
+            </div>
+
+            <!-- FULL-WIDTH COVER VIEWPORT (NO MOTOR SPEED) -->
+            <div class="cover-viewport-full">
+              <img id="deck-cover-img" src="" alt="Album Cover" style="display: none;" />
+              <div class="cover-placeholder" id="deck-cover-placeholder">
+                <div style="font-size: 32px; margin-bottom: 6px;">[■]</div>
+                <div style="font-size: 13px; font-weight: 900; letter-spacing: 1px;">NO COVER ARTWORK</div>
+                <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">ID3 APIC FRAME EMPTY // DROP IMAGE TO ATTACH</div>
+              </div>
+            </div>
+
+            <!-- VISUALIZER CANVAS -->
+            <div class="visualizer-wrapper">
+              <div class="vis-controls">
+                <span style="font-size: 9px; font-weight: 800; color: #888;">REAL-TIME SIGNAL TELEMETRY</span>
+                <button class="brutal-btn brutal-btn-dark" id="vis-mode-toggle" style="padding: 2px 6px; font-size: 9px;">MODE: SPECTRUM</button>
+              </div>
+              <canvas id="visualizer-canvas" class="vis-canvas" height="110"></canvas>
+            </div>
+          </div>
+
+          <!-- NOW PLAYING BANNER -->
+          <div class="now-playing-banner">
+            <div class="track-headline" id="now-title">INITIALIZING SYSTEM...</div>
+            <div class="track-byline">
+              <span id="now-artist">STANDBY</span>
+              <span id="now-album" style="color: #666;"></span>
+            </div>
+            <div class="track-specs-row">
+              <span class="spec-badge spec-badge-yellow" id="now-genre-badge">GENRE: --</span>
+              <span class="spec-badge spec-badge-green" id="now-bpm-badge">TEMPO: --</span>
+              <span class="spec-badge" id="now-format-badge">FORMAT: --</span>
+            </div>
+          </div>
+
+          <!-- SCRUB & TRANSPORT MODULE -->
+          <div class="deck-module">
+            <div class="scrub-container">
+              <div class="time-row">
+                <span id="current-time-display">00:00</span>
+                <span style="letter-spacing: 2px; color: #666;">// TIMECODE //</span>
+                <span id="duration-display">00:00</span>
+              </div>
+              <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" step="0.1" />
+            </div>
+
+            <!-- PRIMARY TRANSPORT -->
+            <div class="transport-bar">
+              <button class="brutal-btn transport-btn" id="btn-prev" title="Previous Track (or restart current track)">
+                <span>|◀◀</span>
+                <span>PREV</span>
+              </button>
+              <button class="brutal-btn transport-btn transport-btn-play" id="btn-play" title="Play / Pause">
+                <span>PLAY ▶</span>
+              </button>
+              <button class="brutal-btn transport-btn" id="btn-next" title="Next Track">
+                <span>▶▶|</span>
+                <span>NEXT</span>
+              </button>
+              <button class="brutal-btn transport-btn" id="btn-stop" title="Stop">
+                <span>■</span>
+                <span>STOP</span>
+              </button>
+              <button class="brutal-btn transport-btn" id="btn-speed" title="Cycle Playback Speed">
+                <span>1.0x</span>
+                <span>SPEED</span>
+              </button>
+            </div>
+
+            <div class="transport-sub-bar">
+              <button class="brutal-btn" id="btn-shuffle" style="flex: 1;">SHUF: OFF</button>
+              <button class="brutal-btn active" id="btn-repeat" style="flex: 1;">REP: ALL</button>
+            </div>
+
+            <!-- AUDIO MATRIX CONTROLS -->
+            <div class="controls-matrix">
+              <div class="control-item">
+                <label>
+                  <span>MASTER GAIN</span>
+                  <span id="volume-val">85%</span>
+                </label>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <input type="range" class="brutal-slider" id="volume-slider" min="0" max="100" value="85" />
+                  <button class="brutal-btn brutal-btn-icon" id="btn-mute" style="padding: 2px 5px; font-size: 9px;">MUTE</button>
+                </div>
+              </div>
+
+              <div class="control-item">
+                <label>
+                  <span>STEREO PAN</span>
+                  <span id="pan-val">CENTER</span>
+                </label>
+                <input type="range" class="brutal-slider" id="pan-slider" min="-100" max="100" value="0" />
+              </div>
+            </div>
+
+            <!-- A-B REPEAT LOOP PANEL -->
+            <div class="ab-loop-cluster">
+              <span class="ab-label">A-B LOOP: <span id="loop-status" style="color: #666;">OFF</span></span>
+              <div style="display: flex; gap: 4px;">
+                <button class="brutal-btn" id="btn-loop-a" style="padding: 3px 6px; font-size: 9px;">SET A</button>
+                <button class="brutal-btn" id="btn-loop-b" style="padding: 3px 6px; font-size: 9px;">SET B</button>
+                <button class="brutal-btn brutal-btn-red" id="btn-loop-clear" style="padding: 3px 6px; font-size: 9px;">CLR</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT COLUMN: TABS (PLAYLIST, LYRICS, EXTENDED INFO, EQ) -->
+        <section class="deck-right">
+          <!-- NAVIGATION TABS -->
+          <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="tab-panel-playlist">[1] PLAYLIST & QUEUE</button>
+            <button class="tab-btn" data-tab="tab-panel-lyrics">[2] LYRICS / SUBTITLES</button>
+            <button class="tab-btn" data-tab="tab-panel-extended">[3] EXTENDED TRACK INFO</button>
+            <button class="tab-btn" data-tab="tab-panel-eq">[4] 5-BAND EQUALIZER</button>
+          </nav>
+
+          <!-- TAB PANEL 1: PLAYLIST & QUEUE -->
+          <div class="tab-content-panel active" id="tab-panel-playlist">
+            <!-- Filter Group Chips -->
+            <div class="filter-row">
+              <span style="font-size: 10px; font-weight: 900; color: #888;">FILTER:</span>
+              <button class="filter-chip active" data-filter="ALL">ALL TRACKS</button>
+              <button class="filter-chip" data-filter="ARTIST">BY ARTIST</button>
+              <button class="filter-chip" data-filter="ALBUM">BY ALBUM</button>
+              <button class="filter-chip" data-filter="GENRE">BY GENRE</button>
+              <button class="filter-chip" data-filter="DECADE">BY DECADE</button>
+              <button class="filter-chip" data-filter="FAVORITES">FAVORITES ★</button>
+            </div>
+
+            <!-- Dynamic Sub-Filter Pill Bar (populated when Artist/Album/Genre clicked) -->
+            <div class="dynamic-sub-bar" id="dynamic-sub-bar" style="display: none;"></div>
+
+            <!-- Search & Sort Row -->
+            <div class="search-sort-bar">
+              <input type="text" class="brutal-input" id="playlist-search" placeholder="QUICK SEARCH: TITLE, ARTIST, GENRE, YEAR..." />
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <span style="font-size: 10px; font-weight: 800; color: #888;">SORT:</span>
+                <select class="brutal-input" id="playlist-sort" style="width: auto; padding: 4px 8px;">
+                  <option value="DEFAULT">DEFAULT (TRACK #)</option>
+                  <option value="TITLE">TITLE (A-Z)</option>
+                  <option value="ARTIST">ARTIST (A-Z)</option>
+                  <option value="ALBUM">ALBUM (A-Z)</option>
+                  <option value="DURATION">DURATION</option>
+                  <option value="BPM">TEMPO (BPM)</option>
+                </select>
+              </div>
+              <span class="spec-badge spec-badge-yellow" id="track-count-badge">0 TRACKS</span>
+            </div>
+
+            <!-- Track List Table Header -->
+            <div style="display: grid; grid-template-columns: 36px 36px 1fr 120px 70px 50px 70px; gap: 8px; padding: 4px 10px; background: #000; color: #888; font-size: 9px; font-weight: 900; letter-spacing: 1px;">
+              <span>#</span>
+              <span>ART</span>
+              <span>TITLE & ARTIST</span>
+              <span>GENRE</span>
+              <span>BPM / YR</span>
+              <span style="text-align: right;">TIME</span>
+              <span style="text-align: right;">ACTIONS</span>
+            </div>
+
+            <!-- Track Rows Body -->
+            <div class="playlist-container" id="track-list-body"></div>
+          </div>
+
+          <!-- TAB PANEL 2: SYNCHRONIZED LYRICS TELEPROMPTER -->
+          <div class="tab-content-panel" id="tab-panel-lyrics">
+            <div class="lyrics-container">
+              <div class="module-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="module-title">SYNCHRONIZED TELEPROMPTER</span>
+                  <span id="lyrics-track-title" style="color: #fff; font-size: 11px; font-weight: 800;"></span>
+                </div>
+                <span class="spec-badge spec-badge-green" id="lyrics-status">STANDBY</span>
+              </div>
+              <div style="font-size: 10px; color: #888;">
+                Click any line to seek directly to that exact timestamp. Supports LRC tags, SRT subtitle timestamps, and embedded ID3 USLT lyrics frames.
+              </div>
+              <div class="lyrics-teleprompter" id="lyrics-teleprompter"></div>
+            </div>
+          </div>
+
+          <!-- TAB PANEL 3: EXTENDED TRACK INFORMATION -->
+          <div class="tab-content-panel" id="tab-panel-extended">
+            <div class="meta-inspector-grid" id="meta-inspector-grid"></div>
+          </div>
+
+          <!-- TAB PANEL 4: 5-BAND EQUALIZER -->
+          <div class="tab-content-panel" id="tab-panel-eq">
+            <div class="eq-panel">
+              <div class="module-header">
+                <span class="module-title">5-BAND ACTIVE CASCADE EQUALIZER</span>
+                <span class="module-sub">±15dB HARDWARE FILTER GRAPH</span>
+              </div>
+
+              <!-- Presets -->
+              <div class="eq-presets-bar">
+                <span style="font-size: 10px; font-weight: 900; color: #888;">PRESETS:</span>
+                <button class="brutal-btn eq-preset-btn active" data-preset="FLAT">FLAT</button>
+                <button class="brutal-btn eq-preset-btn" data-preset="BASS_BOOST">BASS BOOST</button>
+                <button class="brutal-btn eq-preset-btn" data-preset="TECHNO_PUNCH">TECHNO PUNCH</button>
+                <button class="brutal-btn eq-preset-btn" data-preset="BRUTAL_CRUNCH">BRUTAL CRUNCH</button>
+                <button class="brutal-btn eq-preset-btn" data-preset="VOCAL_CLARITY">VOCAL CLARITY</button>
+                <button class="brutal-btn eq-preset-btn" data-preset="LO_FI_TAPE">LO-FI TAPE</button>
+              </div>
+
+              <!-- Sliders Rack -->
+              <div class="eq-sliders-rack">
+                <div class="eq-band-col">
+                  <span class="eq-gain-display">0dB</span>
+                  <input type="range" class="eq-slider-vertical" min="-15" max="15" value="0" step="0.5" data-band="0" />
+                  <span class="eq-freq-label">60 Hz</span>
+                  <span style="font-size: 8px; color: #666;">SUB / BASS</span>
+                </div>
+
+                <div class="eq-band-col">
+                  <span class="eq-gain-display">0dB</span>
+                  <input type="range" class="eq-slider-vertical" min="-15" max="15" value="0" step="0.5" data-band="1" />
+                  <span class="eq-freq-label">250 Hz</span>
+                  <span style="font-size: 8px; color: #666;">LOW MID</span>
+                </div>
+
+                <div class="eq-band-col">
+                  <span class="eq-gain-display">0dB</span>
+                  <input type="range" class="eq-slider-vertical" min="-15" max="15" value="0" step="0.5" data-band="2" />
+                  <span class="eq-freq-label">1 kHz</span>
+                  <span style="font-size: 8px; color: #666;">MID / PUNCH</span>
+                </div>
+
+                <div class="eq-band-col">
+                  <span class="eq-gain-display">0dB</span>
+                  <input type="range" class="eq-slider-vertical" min="-15" max="15" value="0" step="0.5" data-band="3" />
+                  <span class="eq-freq-label">4 kHz</span>
+                  <span style="font-size: 8px; color: #666;">PRESENCE</span>
+                </div>
+
+                <div class="eq-band-col">
+                  <span class="eq-gain-display">0dB</span>
+                  <input type="range" class="eq-slider-vertical" min="-15" max="15" value="0" step="0.5" data-band="4" />
+                  <span class="eq-freq-label">12 kHz</span>
+                  <span style="font-size: 8px; color: #666;">AIR / HISS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- MODAL: LOAD VIA JSON MANIFEST -->
+      <div class="brutal-modal-overlay" id="modal-json">
+        <div class="brutal-modal">
+          <div class="modal-header">
+            <span class="modal-title">[+] LOAD PLAYLIST MANIFEST (.JSON)</span>
+            <button class="brutal-btn brutal-btn-red" id="btn-close-json-modal" style="padding: 2px 8px;">✕</button>
+          </div>
+
+          <p style="font-size: 11px; color: #444;">
+            Load playlists via standard JavaScript <code>fetch()</code> from any remote URL or local JSON manifest file. Perfect for static setups with no server-side Vite blobs.
+          </p>
+
+          <!-- Option 1: URL Fetch -->
+          <div style="display: flex; flex-direction: column; gap: 6px; border: 2px solid #000; padding: 10px; background: #fafafa;">
+            <label style="font-weight: 800; font-size: 11px;">1. FETCH REMOTE JSON VIA URL:</label>
+            <div style="display: flex; gap: 6px;">
+              <input type="url" class="brutal-input" id="json-url-input" placeholder="https://example.com/playlist.json" />
+              <button class="brutal-btn brutal-btn-yellow" id="btn-fetch-json-url">FETCH</button>
+            </div>
+          </div>
+
+          <!-- Option 2: Upload File -->
+          <div style="display: flex; flex-direction: column; gap: 6px; border: 2px solid #000; padding: 10px; background: #fafafa;">
+            <label style="font-weight: 800; font-size: 11px;">2. UPLOAD LOCAL .JSON PLAYLIST FILE:</label>
+            <input type="file" class="brutal-input" id="json-file-input" accept=".json,application/json" />
+          </div>
+
+          <!-- Option 3: Raw JSON Paste -->
+          <div style="display: flex; flex-direction: column; gap: 6px; border: 2px solid #000; padding: 10px; background: #fafafa;">
+            <label style="font-weight: 800; font-size: 11px;">3. PASTE RAW PLAYLIST JSON:</label>
+            <textarea class="brutal-input" id="json-paste-area" rows="4" placeholder='[ { "title": "Track Name", "artist": "Artist", "audioUrl": "...", "bpm": 128 } ]'></textarea>
+            <button class="brutal-btn brutal-btn-cyan" id="btn-apply-json-paste">PARSE & IMPORT</button>
+          </div>
+
+          <!-- Option 4: Reload built-in demo -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #ddd;">
+            <span style="font-size: 10px; color: #666;">Need sample data?</span>
+            <button class="brutal-btn" id="btn-load-demo-json">RELOAD BRUTALIST DEMO PRESET</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: IMPORT LOCAL FILES & DRAG-AND-DROP -->
+      <div class="brutal-modal-overlay" id="modal-import">
+        <div class="brutal-modal">
+          <div class="modal-header">
+            <span class="modal-title">[▲] IMPORT LOCAL FILES INTO CACHE</span>
+            <button class="brutal-btn brutal-btn-red" id="btn-close-import-modal" style="padding: 2px 8px;">✕</button>
+          </div>
+
+          <p style="font-size: 11px; color: #444;">
+            Drop or select audio files (MP3, WAV, FLAC, OGG, M4A), companion cover images (JPG, PNG, WEBP), and subtitle/lyrics files (LRC, SRT, VTT).
+          </p>
+
+          <div class="dropzone" id="main-dropzone">
+            <div class="dropzone-icon">⤓</div>
+            <div class="dropzone-label">DRAG & DROP FILES OR CLICK TO BROWSE</div>
+            <div class="dropzone-sub">
+              Automatically parses binary ID3v1/ID3v2 tags, extracts embedded APIC artwork, pairs companion lyrics (.lrc/.srt) by filename, and stores files persistently in IndexedDB cache.
+            </div>
+            <input type="file" id="file-picker-input" multiple accept="audio/*,image/*,.lrc,.srt,.vtt,.json" style="display: none;" />
+          </div>
+
+          <div style="background: #f0f0f0; border: 1px dashed #000; padding: 10px; font-size: 11px; line-height: 1.5;">
+            <strong>Companion Pairing Protocol:</strong><br>
+            • If you drop <code>song.mp3</code> and <code>song.jpg</code> or <code>song.lrc</code>, they will be automatically bound together.<br>
+            • Files named <code>cover.jpg</code> or <code>album.png</code> apply as covers to audio in the batch.<br>
+            • Audio Blobs are cached in browser IndexedDB so they remain playable across restarts!
+          </div>
+        </div>
+      </div>
+
+      <!-- TOAST NOTIFICATION -->
+      <div class="brutal-toast" id="brutal-toast"></div>
+    </div>
+
+    <!-- PURE JAVASCRIPT BOOTSTRAP (NO REACT, NO TSX, NO TAILWIND) -->
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

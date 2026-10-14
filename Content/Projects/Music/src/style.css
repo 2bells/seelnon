@@ -1,0 +1,1155 @@
+/* =========================================================
+   BRUTAL // AUDIO - FRI-REN RETRO TERMINAL & ANCIENT SCROLL CSS
+   Inspired by Fri-Ren Notes & Canvas Lite aesthetics:
+   Warm dark charcoal-sepia, Altus Gold, Crimson Fire & Magic Blue.
+   Zero dependencies, pure CSS, no tailwind, no bloat.
+   ========================================================= */
+
+:root {
+  /* Warm Dark Sepia/Charcoal Foundation (from Img 1 & 3) */
+  --bg: #151310;
+  --bg-grid: #1a1713;
+  --panel-bg: #1b1814;
+  --panel-bg-alt: #221e18;
+  --surface: #26211a;
+  --surface-alt: #2e2820;
+  
+  /* Borders: Crisp, precise retro lines (1px - 2px) */
+  --border-color: #3b3226;
+  --border-subtle: #29231a;
+  --border-focus: #5c4e3b;
+  --border-highlight: #c8a96e;
+
+  /* Typography & Text */
+  --text-main: #dfcfaf;
+  --text-heading: #c8a96e;
+  --text-muted: #82735e;
+  --text-dim: #54493b;
+  --text-inverse: #151310;
+
+  /* The Signature Palette (Img 1: Altus Gold, Crimson Fire, Magic Blue) */
+  --accent-gold: #c8a96e;       /* Altus Gold */
+  --accent-gold-bright: #edd6a4;
+  --accent-crimson: #c85252;    /* Crimson Fire */
+  --accent-blue: #4ea8d8;       /* Magic Blue */
+  --accent-green: #7da564;      /* Moss / Sage */
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Background Ancient Coordinate Grid (from Img 1 & Img 3 Canvas Lite) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(200, 169, 110, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(200, 169, 110, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* =========================================================
+   BUTTONS & CONTROLS (FRI-REN / CANVAS LITE STYLE)
+   ========================================================= */
+
+.brutal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+  white-space: nowrap;
+}
+
+.brutal-btn:hover {
+  background: var(--surface-alt);
+  border-color: var(--border-focus);
+  color: var(--text-heading);
+}
+
+.brutal-btn:active {
+  transform: translateY(1px);
+}
+
+/* Selected state: Altus Gold background with dark charcoal text (like TUTORIAL_SCROLL) */
+.brutal-btn.active,
+.brutal-btn[aria-pressed="true"] {
+  background: var(--accent-gold);
+  color: var(--text-inverse);
+  border-color: var(--accent-gold);
+  font-weight: 800;
+}
+
+.brutal-btn-yellow,
+.brutal-btn-gold {
+  background: var(--accent-gold);
+  color: var(--text-inverse);
+  border-color: var(--accent-gold);
+  font-weight: 800;
+}
+.brutal-btn-yellow:hover,
+.brutal-btn-gold:hover {
+  background: var(--accent-gold-bright);
+  color: var(--text-inverse);
+}
+
+.brutal-btn-red {
+  background: #2b1818;
+  color: #ff9999;
+  border-color: var(--accent-crimson);
+}
+.brutal-btn-red:hover {
+  background: var(--accent-crimson);
+  color: #ffffff;
+}
+
+.brutal-btn-green {
+  background: #1c2618;
+  color: #b8e09f;
+  border-color: var(--accent-green);
+}
+.brutal-btn-green:hover {
+  background: var(--accent-green);
+  color: var(--text-inverse);
+}
+
+.brutal-btn-cyan,
+.brutal-btn-blue {
+  background: #15222b;
+  color: #9fe0ff;
+  border-color: var(--accent-blue);
+}
+.brutal-btn-cyan:hover,
+.brutal-btn-blue:hover {
+  background: var(--accent-blue);
+  color: var(--text-inverse);
+}
+
+.brutal-btn-dark {
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+.brutal-btn-dark:hover {
+  background: var(--surface);
+  color: var(--text-main);
+}
+
+.brutal-btn-icon {
+  padding: 4px 8px;
+  min-width: 28px;
+}
+
+.brutal-input {
+  background: var(--panel-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s ease;
+}
+.brutal-input:focus {
+  border-color: var(--accent-gold);
+  background: var(--panel-bg-alt);
+}
+.brutal-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   HEADER / MASTER BAR (FRI-REN TOPBAR STYLE)
+   ========================================================= */
+
+.master-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-focus);
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-title {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-title::before {
+  content: "●";
+  font-size: 10px;
+  color: var(--accent-gold);
+}
+
+.brand-tag {
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border: 1px solid var(--border-subtle);
+  letter-spacing: 0.5px;
+}
+
+.status-cluster {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+}
+
+.led-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.led-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px rgba(125, 165, 100, 0.6);
+}
+
+.tape-counter {
+  background: var(--bg);
+  color: var(--accent-gold);
+  border: 1px solid var(--border-color);
+  padding: 3px 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* =========================================================
+   MAIN WORKSPACE GRID
+   ========================================================= */
+
+.player-grid {
+  display: grid;
+  grid-template-columns: 440px 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 1080px) {
+  .player-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   DECK LEFT: FULL-WIDTH COVER, VISUALIZER, TRANSPORT
+   ========================================================= */
+
+.deck-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.deck-module {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.module-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+}
+
+.module-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+}
+
+.module-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------
+   FULL-WIDTH COVER VIEWPORT (NO MOTOR SPEED, IMAGE ON FULL)
+   --------------------------------------------------------- */
+
+.cover-viewport-full {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  max-height: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-viewport-full img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-bg-alt);
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px;
+  border: 1px dashed var(--border-color);
+}
+
+/* Visualizer Container */
+.visualizer-wrapper {
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vis-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vis-canvas {
+  width: 100%;
+  height: 100px;
+  background: var(--bg);
+  display: block;
+}
+
+/* Big Display Track Info (Ancient Scroll Header Style) */
+.now-playing-banner {
+  background: var(--panel-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-gold);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.track-headline {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-byline {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  justify-content: space-between;
+}
+
+.track-specs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.spec-badge {
+  background: var(--surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  letter-spacing: 0.5px;
+}
+
+.spec-badge-yellow,
+.spec-badge-gold {
+  background: #2b2417;
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+.spec-badge-green {
+  background: #1c2618;
+  color: #b8e09f;
+  border-color: var(--accent-green);
+}
+
+/* Scrub Bar & Timers */
+.scrub-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.seek-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  outline: none;
+  cursor: pointer;
+}
+
+.seek-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 18px;
+  background: var(--accent-gold);
+  border: 1px solid var(--bg);
+  cursor: pointer;
+}
+
+.seek-slider::-moz-range-thumb {
+  width: 14px;
+  height: 18px;
+  background: var(--accent-gold);
+  border: 1px solid var(--bg);
+  cursor: pointer;
+}
+
+/* Master Transport Buttons */
+.transport-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.transport-btn {
+  padding: 10px 4px;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.transport-btn-play {
+  background: var(--accent-gold);
+  color: var(--text-inverse);
+  border-color: var(--accent-gold);
+  font-weight: 900;
+}
+.transport-btn-play:hover {
+  background: var(--accent-gold-bright);
+}
+
+.transport-sub-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+/* Secondary controls (Volume, Pan) */
+.controls-matrix {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--panel-bg-alt);
+  border: 1px solid var(--border-color);
+  padding: 8px;
+}
+
+.control-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-item label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.brutal-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  outline: none;
+  cursor: pointer;
+}
+
+.brutal-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 14px;
+  background: var(--accent-gold);
+  border: 1px solid var(--bg);
+  cursor: pointer;
+}
+
+/* A-B Loop Panel */
+.ab-loop-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: var(--panel-bg-alt);
+  border: 1px solid var(--border-color);
+  padding: 6px 8px;
+}
+
+.ab-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+/* =========================================================
+   DECK RIGHT: TABS (PLAYLIST, LYRICS, EXTENDED INFO, EQ)
+   ========================================================= */
+
+.deck-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.tab-btn {
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.tab-btn:hover {
+  background: var(--surface);
+  color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+/* Active tab styled like Fri-Ren active header */
+.tab-btn.active {
+  background: var(--accent-gold);
+  color: var(--text-inverse);
+  border-color: var(--accent-gold);
+  font-weight: 800;
+}
+
+.tab-content-panel {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tab-content-panel.active {
+  display: flex;
+}
+
+/* Category Filter Chips */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-chip {
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.filter-chip:hover {
+  background: var(--surface);
+  color: var(--text-main);
+}
+
+.filter-chip.active {
+  background: var(--surface-alt);
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+  font-weight: 800;
+}
+
+/* Dynamic Sub-filter Pill Bar */
+.dynamic-sub-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: var(--panel-bg-alt);
+  border: 1px dashed var(--border-color);
+  max-height: 90px;
+  overflow-y: auto;
+}
+
+.sub-chip {
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.sub-chip:hover {
+  color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+.sub-chip.active {
+  background: var(--accent-blue);
+  color: var(--text-inverse);
+  border-color: var(--accent-blue);
+  font-weight: 800;
+}
+
+/* Search & Sort Controls */
+.search-sort-bar {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Playlist Table / Track list */
+.playlist-container {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.track-row {
+  display: grid;
+  grid-template-columns: 36px 36px 1fr 120px 70px 50px 70px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.track-row:hover {
+  background: var(--panel-bg-alt);
+}
+
+/* Currently Playing Track: Styled exactly like TUTORIAL_SCROLL in Img 1 */
+.track-row.playing {
+  background: var(--accent-gold);
+  color: var(--text-inverse);
+  font-weight: 800;
+  border-left: 4px solid var(--accent-gold-bright);
+}
+
+.track-row.playing .track-meta-title {
+  color: var(--text-inverse);
+  font-weight: 900;
+}
+
+.track-row.playing .track-meta-artist,
+.track-row.playing .track-genre,
+.track-row.playing .track-duration,
+.track-row.playing .track-num {
+  color: #3d3220;
+}
+
+.track-num {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.track-cover-mini {
+  width: 28px;
+  height: 28px;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  object-fit: cover;
+}
+
+.track-info-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.track-meta-title {
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-meta-artist {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-genre {
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-duration {
+  font-weight: 700;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.track-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.fav-star {
+  color: var(--border-focus);
+  cursor: pointer;
+  user-select: none;
+}
+.fav-star.active {
+  color: var(--accent-gold);
+}
+
+.track-row.playing .fav-star {
+  color: #3d3220;
+}
+.track-row.playing .fav-star.active {
+  color: #151310;
+}
+
+/* =========================================================
+   LYRICS TELEPROMPTER ("THE ANCIENT SCROLL" STYLE)
+   ========================================================= */
+
+.lyrics-container {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lyrics-teleprompter {
+  max-height: 400px;
+  min-height: 240px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+}
+
+.lyric-line {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.5;
+}
+
+.lyric-line:hover {
+  color: var(--text-main);
+  background: var(--panel-bg);
+}
+
+/* Active Lyric Line: Warm Altus Gold Highlight */
+.lyric-line.active {
+  color: var(--text-inverse);
+  background: var(--accent-gold);
+  border-left: 5px solid var(--accent-gold-bright);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.lyric-timestamp {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.7;
+  margin-right: 8px;
+}
+
+.empty-lyrics-notice {
+  text-align: center;
+  padding: 40px 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+/* =========================================================
+   EXTENDED TRACK INFORMATION INSPECTOR (CANVAS LITE STYLE)
+   ========================================================= */
+
+.meta-inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.inspector-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inspector-card-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 4px;
+}
+
+.meta-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  border-bottom: 1px dashed var(--border-subtle);
+  padding-bottom: 3px;
+}
+
+.meta-k {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.meta-v {
+  color: var(--text-main);
+  font-weight: 700;
+  text-align: right;
+  word-break: break-all;
+}
+
+/* =========================================================
+   5-BAND EQUALIZER PANEL
+   ========================================================= */
+
+.eq-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eq-presets-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.eq-sliders-rack {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  align-items: center;
+  background: var(--bg);
+  padding: 20px 10px;
+  border: 1px solid var(--border-color);
+}
+
+.eq-band-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.eq-gain-display {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  background: var(--panel-bg);
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  width: 44px;
+  text-align: center;
+}
+
+.eq-slider-vertical {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  writing-mode: bt-lr;
+  width: 20px;
+  height: 120px;
+  background: var(--panel-bg-alt);
+  cursor: pointer;
+}
+
+.eq-freq-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   MODALS / DRAWERS / DIALOGS
+   ========================================================= */
+
+.brutal-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 9, 7, 0.88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.brutal-modal-overlay.open {
+  display: flex;
+}
+
+.brutal-modal {
+  background: var(--panel-bg);
+  color: var(--text-main);
+  border: 1px solid var(--accent-gold);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+  max-width: 620px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.modal-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+}
+
+.dropzone {
+  border: 1px dashed var(--accent-gold);
+  background: var(--panel-bg-alt);
+  padding: 30px 16px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  transition: background 0.1s ease;
+}
+
+.dropzone:hover, .dropzone.drag-over {
+  background: var(--surface);
+  border-color: var(--accent-gold-bright);
+}
+
+.dropzone-icon {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--accent-gold);
+}
+
+.dropzone-label {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-heading);
+}
+
+.dropzone-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Notification Toast */
+.brutal-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--accent-gold);
+  color: var(--text-inverse);
+  border: 1px solid var(--bg);
+  padding: 10px 16px;
+  font-weight: 800;
+  font-size: 12px;
+  z-index: 10000;
+  display: none;
+  animation: slide-up 0.2s ease;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-gold);
+}
