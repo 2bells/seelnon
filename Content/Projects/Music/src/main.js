@@ -9,7 +9,7 @@ import { AudioVisualizer } from './visualizer.js';
 import { parseAudioMetadata } from './id3-parser.js';
 import { parseLyrics, getActiveCueIndex, formatTime } from './lyrics-parser.js';
 import { PlaylistManager } from './playlist-manager.js';
-import { DEFAULT_DEMO_TRACKS, renderSynthAudio } from './synth-tracks.js';
+import { SERVER_DEMO_TRACKS } from './server-playlist.js';
 import {
   initStorage,
   getAllTracks,
@@ -221,20 +221,12 @@ async function loadInitialTracks() {
       playlist.setTracks(cached);
       showToast(`RESTORED ${cached.length} TRACKS FROM PERSISTENT CACHE`);
     } else {
-      // Boot default demo tracks
-      showToast('SYNTHESIZING BRUTALIST AUDIO ARTIFACTS...');
-      const demos = [...DEFAULT_DEMO_TRACKS];
-
-      for (const d of demos) {
-        if (d.synthType) {
-          const synth = await renderSynthAudio(d.synthType, d.duration);
-          d.audioBlob = synth.blob;
-          d.audioUrl = synth.url;
-        }
-      }
+      // Boot server demo tracks
+      showToast('LOADING SERVER PLAYLIST MANIFEST...');
+      const demos = [...SERVER_DEMO_TRACKS];
       playlist.setTracks(demos);
       await saveTracks(demos);
-      showToast('DEMO PLAYLIST ONLINE // READY');
+      showToast('SERVER PLAYLIST ONLINE // READY');
     }
 
     renderPlaylist();
