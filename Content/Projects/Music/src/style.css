@@ -476,7 +476,7 @@ body::before {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 220px;
+  min-width: 0;
   max-width: 320px;
   flex: 1 1 auto;
 }
@@ -652,8 +652,8 @@ body::before {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 300px;
-  flex: 0 1 auto;
+  min-width: 0;
+  flex: 1 1 auto;
   justify-content: flex-end;
 }
 
@@ -661,8 +661,10 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  width: 220px;
-  min-width: 180px;
+  width: 100%;
+  max-width: 160px;
+  min-width: 40px;
+  flex: 1 1 120px;
 }
 
 .bottom-volume-label-row {
@@ -729,24 +731,15 @@ body::before {
 }
 
 /* Responsive Window Handling */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .bottom-bar-main {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     padding: 6px 10px;
     gap: 8px;
-    justify-content: center;
   }
-  .bottom-track-info {
-    order: 1;
-    min-width: 180px;
-    max-width: 100%;
-  }
-  .bottom-transport-group {
-    order: 2;
-  }
-  .bottom-volume-group {
-    order: 3;
-    min-width: 140px;
+  .bottom-volume-slider-box {
+    width: 140px;
+    min-width: 100px;
   }
   .master-top-bar {
     flex-direction: column;
@@ -762,15 +755,76 @@ body::before {
   }
 }
 
+@media (max-width: 850px) {
+  .bottom-bar-main {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 4px 6px;
+  }
+  .bottom-track-info {
+    min-width: 130px;
+    max-width: 180px;
+  }
+  .bottom-transport-group .transport-btn,
+  .bottom-volume-group .btn-mute-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  .bottom-volume-slider-box {
+    width: 90px;
+    min-width: 70px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bottom-bar-main {
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 4px;
+  }
+  .bottom-track-info {
+    min-width: 90px;
+    max-width: 130px;
+  }
+  .bottom-mini-artwork {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    font-size: 11px;
+  }
+  .bottom-transport-group {
+    gap: 2px;
+  }
+  .bottom-transport-group .transport-btn,
+  .bottom-volume-group .btn-mute-icon {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+  }
+  .btn-svg {
+    width: 12px;
+    height: 12px;
+  }
+  .bottom-volume-slider-box {
+    width: 50px;
+    min-width: 40px;
+  }
+  .bottom-volume-group {
+    min-width: auto;
+    gap: 4px;
+  }
+}
+
 @media (max-width: 600px) {
   .bottom-transport-group .transport-btn {
     padding: 4px 6px;
     min-width: 38px;
     min-height: 36px;
   }
-  .bottom-transport-group .transport-btn-play {
-    min-width: 64px;
-  }
+
   .bottom-transport-group .transport-label {
     display: none;
   }
@@ -1076,23 +1130,32 @@ body::before {
   display: flex;
 }
 
-/* Category Filter Chips */
+/* Category Filter Chips & Dropdown */
 .filter-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.filter-row::-webkit-scrollbar {
+  display: none;
 }
 
 .filter-chip {
   background: var(--panel-bg);
   color: var(--text-muted);
   border: 1px solid var(--border-color);
-  padding: 4px 8px;
-  font-size: 10px;
+  padding: 3px 6px;
+  font-size: 9px;
   font-weight: 700;
   cursor: pointer;
   text-transform: uppercase;
+  flex-shrink: 1;
+  white-space: nowrap;
 }
 
 .filter-chip:hover {
@@ -1105,6 +1168,31 @@ body::before {
   color: var(--accent-gold);
   border-color: var(--accent-gold);
   font-weight: 800;
+}
+
+/* Brutalist Sub-filter Dropdown */
+.sub-filter-select {
+  background: var(--panel-bg);
+  color: var(--accent-gold);
+  border: 1px solid var(--accent-gold);
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  flex-shrink: 1;
+  outline: none;
+  border-radius: 0;
+}
+
+.sub-filter-select:hover {
+  background: var(--surface);
+}
+
+.sub-filter-select option {
+  background: var(--panel-bg);
+  color: var(--text-main);
 }
 
 /* Dynamic Sub-filter Pill Bar */
