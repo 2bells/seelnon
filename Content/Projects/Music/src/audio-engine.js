@@ -17,7 +17,6 @@ export const EQ_PRESETS = {
 export class AudioEngine {
   constructor() {
     this.audio = new Audio();
-    this.audio.crossOrigin = 'anonymous';
     this.audio.preload = 'auto';
 
     this.audioContext = null;
@@ -134,7 +133,16 @@ export class AudioEngine {
         sampleRate: this.audioContext?.sampleRate || 44100
       });
     });
-    this.audio.addEventListener('error', (err) => this._emit('error', err));
+    this.audio.addEventListener('error', (event) => {
+      const mediaErr = this.audio.error;
+      const errorDetail = {
+        code: mediaErr ? mediaErr.code : 0,
+        message: mediaErr ? mediaErr.message : 'Unknown audio error',
+        source: this.audio.src
+      };
+      console.warn('AudioEngine error detail:', errorDetail);
+      this._emit('error', errorDetail);
+    });
   }
 
   on(event, callback) {
@@ -151,6 +159,11 @@ export class AudioEngine {
 
   async load(src) {
     this._ensureAudioContext();
+    if (src && (src.startsWith('http://') || src.startsWith('https://'))) {
+      this.audio.crossOrigin = 'anonymous';
+    } else {
+      this.audio.removeAttribute('crossorigin');
+    }
     this.audio.src = src;
     this.audio.load();
   }

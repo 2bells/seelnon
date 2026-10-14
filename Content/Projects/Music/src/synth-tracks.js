@@ -215,7 +215,10 @@ export async function renderSynthAudio(type = 'techno', durationSec = 32) {
   // RENDER AUDIO BUFFER
   const renderedBuffer = await offlineCtx.startRendering();
   const wavBlob = audioBufferToWavBlob(renderedBuffer);
-  return URL.createObjectURL(wavBlob);
+  return {
+    blob: wavBlob,
+    url: URL.createObjectURL(wavBlob)
+  };
 }
 
 /**

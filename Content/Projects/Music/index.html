@@ -13,51 +13,18 @@
   </head>
   <body>
     <div id="app">
-      <!-- MASTER TOP HEADER -->
-      <header class="master-header">
-        <div class="brand-section">
-          <div class="brand-title">BRUTAL // AUDIO</div>
-          <span class="brand-tag">REV 4.0 // ZERO-BLOAT</span>
-        </div>
-
-        <div class="status-cluster">
-          <div class="led-indicator">
-            <span class="led-dot"></span>
-            <span style="font-weight: 800; color: #00ff66;">CORE: ACTIVE</span>
-          </div>
-          <div class="tape-counter" id="tape-counter">00:00:00</div>
-          <div style="font-size: 10px; color: #888;" id="system-clock">2026-10-14 00:00:00</div>
-          <span class="spec-badge spec-badge-yellow" id="cache-status">CACHE: LOADING</span>
-        </div>
-
-        <div class="header-actions">
-          <button class="brutal-btn brutal-btn-yellow" id="btn-open-json-modal" title="Load playlist manifest via JSON or URL">
-            <span>[+] LOAD .JSON</span>
-          </button>
-          <button class="brutal-btn brutal-btn-green" id="btn-open-import-modal" title="Import local audio, covers, and lyrics files">
-            <span>[▲] IMPORT FILES</span>
-          </button>
-          <button class="brutal-btn" id="btn-export-json" title="Export current library to JSON">
-            <span>[▼] EXPORT .JSON</span>
-          </button>
-          <button class="brutal-btn brutal-btn-red" id="btn-clear-cache" title="Reset all cached tracks">
-            <span>[X] CLEAR CACHE</span>
-          </button>
-        </div>
-      </header>
-
       <!-- MAIN PLAYBACK WORKSPACE -->
       <main class="player-grid">
-        <!-- LEFT COLUMN: DECK, VISUALIZER, TRANSPORT, AUDIO MATRIX -->
+        <!-- LEFT COLUMN: DECK, VISUALIZER, NOW PLAYING -->
         <section class="deck-left">
           <!-- TURNTABLE & COVER MODULE -->
           <div class="deck-module">
             <div class="module-header">
-              <span class="module-title">DECK A // RECEPTOR</span>
-              <span class="module-sub">DIRECT AUDIO BUS</span>
+              <span class="module-title" id="deck-track-title">INITIALIZING SYSTEM...</span>
+              <span class="module-sub spec-badge spec-badge-yellow" id="deck-track-genre">STANDBY</span>
             </div>
 
-            <!-- FULL-WIDTH COVER VIEWPORT (NO MOTOR SPEED) -->
+            <!-- FULL-WIDTH COVER VIEWPORT -->
             <div class="cover-viewport-full">
               <img id="deck-cover-img" src="" alt="Album Cover" style="display: none;" />
               <div class="cover-placeholder" id="deck-cover-placeholder">
@@ -77,106 +44,14 @@
             </div>
           </div>
 
-          <!-- NOW PLAYING BANNER -->
-          <div class="now-playing-banner">
-            <div class="track-headline" id="now-title">INITIALIZING SYSTEM...</div>
-            <div class="track-byline">
-              <span id="now-artist">STANDBY</span>
-              <span id="now-album" style="color: #666;"></span>
-            </div>
-            <div class="track-specs-row">
-              <span class="spec-badge spec-badge-yellow" id="now-genre-badge">GENRE: --</span>
-              <span class="spec-badge spec-badge-green" id="now-bpm-badge">TEMPO: --</span>
-              <span class="spec-badge" id="now-format-badge">FORMAT: --</span>
-            </div>
-          </div>
-
-          <!-- SCRUB & TRANSPORT MODULE -->
-          <div class="deck-module">
-            <div class="scrub-container">
-              <div class="time-row">
-                <span id="current-time-display">00:00</span>
-                <span style="letter-spacing: 2px; color: #666;">// TIMECODE //</span>
-                <span id="duration-display">00:00</span>
-              </div>
-              <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" step="0.1" />
-            </div>
-
-            <!-- PRIMARY TRANSPORT -->
-            <div class="transport-bar">
-              <button class="brutal-btn transport-btn" id="btn-prev" title="Previous Track (or restart current track)">
-                <span>|◀◀</span>
-                <span>PREV</span>
-              </button>
-              <button class="brutal-btn transport-btn transport-btn-play" id="btn-play" title="Play / Pause">
-                <span>PLAY ▶</span>
-              </button>
-              <button class="brutal-btn transport-btn" id="btn-next" title="Next Track">
-                <span>▶▶|</span>
-                <span>NEXT</span>
-              </button>
-              <button class="brutal-btn transport-btn" id="btn-stop" title="Stop">
-                <span>■</span>
-                <span>STOP</span>
-              </button>
-              <button class="brutal-btn transport-btn" id="btn-speed" title="Cycle Playback Speed">
-                <span>1.0x</span>
-                <span>SPEED</span>
-              </button>
-            </div>
-
-            <div class="transport-sub-bar">
-              <button class="brutal-btn" id="btn-shuffle" style="flex: 1;">SHUF: OFF</button>
-              <button class="brutal-btn active" id="btn-repeat" style="flex: 1;">REP: ALL</button>
-            </div>
-
-            <!-- AUDIO MATRIX CONTROLS -->
-            <div class="controls-matrix">
-              <div class="control-item">
-                <label>
-                  <span>MASTER GAIN</span>
-                  <span id="volume-val">85%</span>
-                </label>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  <input type="range" class="brutal-slider" id="volume-slider" min="0" max="100" value="85" />
-                  <button class="brutal-btn brutal-btn-icon" id="btn-mute" style="padding: 2px 5px; font-size: 9px;">MUTE</button>
-                </div>
-              </div>
-
-              <div class="control-item">
-                <label>
-                  <span>STEREO PAN</span>
-                  <span id="pan-val">CENTER</span>
-                </label>
-                <input type="range" class="brutal-slider" id="pan-slider" min="-100" max="100" value="0" />
-              </div>
-            </div>
-
-            <!-- A-B REPEAT LOOP PANEL -->
-            <div class="ab-loop-cluster">
-              <span class="ab-label">A-B LOOP: <span id="loop-status" style="color: #666;">OFF</span></span>
-              <div style="display: flex; gap: 4px;">
-                <button class="brutal-btn" id="btn-loop-a" style="padding: 3px 6px; font-size: 9px;">SET A</button>
-                <button class="brutal-btn" id="btn-loop-b" style="padding: 3px 6px; font-size: 9px;">SET B</button>
-                <button class="brutal-btn brutal-btn-red" id="btn-loop-clear" style="padding: 3px 6px; font-size: 9px;">CLR</button>
-              </div>
-            </div>
-          </div>
         </section>
 
-        <!-- RIGHT COLUMN: TABS (PLAYLIST, LYRICS, EXTENDED INFO, EQ) -->
+        <!-- RIGHT COLUMN: TAB PANELS (PLAYLIST, LYRICS, EXTENDED INFO, EQ) -->
         <section class="deck-right">
-          <!-- NAVIGATION TABS -->
-          <nav class="tab-nav">
-            <button class="tab-btn active" data-tab="tab-panel-playlist">[1] PLAYLIST & QUEUE</button>
-            <button class="tab-btn" data-tab="tab-panel-lyrics">[2] LYRICS / SUBTITLES</button>
-            <button class="tab-btn" data-tab="tab-panel-extended">[3] EXTENDED TRACK INFO</button>
-            <button class="tab-btn" data-tab="tab-panel-eq">[4] 5-BAND EQUALIZER</button>
-          </nav>
 
           <!-- TAB PANEL 1: PLAYLIST & QUEUE -->
           <div class="tab-content-panel active" id="tab-panel-playlist">
-            <!-- Filter Group Chips -->
+            <!-- Filter Group Chips & Dropdown -->
             <div class="filter-row">
               <span style="font-size: 10px; font-weight: 900; color: #888;">FILTER:</span>
               <button class="filter-chip active" data-filter="ALL">ALL TRACKS</button>
@@ -185,10 +60,8 @@
               <button class="filter-chip" data-filter="GENRE">BY GENRE</button>
               <button class="filter-chip" data-filter="DECADE">BY DECADE</button>
               <button class="filter-chip" data-filter="FAVORITES">FAVORITES ★</button>
+              <select class="sub-filter-select" id="sub-filter-select" style="display: none;" title="Filter by specific item"></select>
             </div>
-
-            <!-- Dynamic Sub-Filter Pill Bar (populated when Artist/Album/Genre clicked) -->
-            <div class="dynamic-sub-bar" id="dynamic-sub-bar" style="display: none;"></div>
 
             <!-- Search & Sort Row -->
             <div class="search-sort-bar">
@@ -304,6 +177,183 @@
           </div>
         </section>
       </main>
+
+      <!-- FULLY PERSISTENT FIXED BOTTOM CONTROL BAR -->
+      <footer class="persistent-bottom-bar" id="persistent-bottom-bar">
+        <!-- EDGE-TO-EDGE FLUSH SCRUBBER -->
+        <div class="bottom-scrub-wrapper">
+          <input type="range" class="seek-slider bottom-seek-slider" id="seek-slider" min="0" max="100" value="0" step="0.1" title="Scrub audio position" />
+        </div>
+
+        <!-- PERSISTENT CONTROLS ROW -->
+        <div class="bottom-bar-main">
+          <!-- LEFT: NOW-PLAYING PREVIEW & TIMECODE -->
+          <div class="bottom-track-info">
+            <div class="bottom-mini-artwork" id="bottom-mini-artwork">
+              <img id="bottom-thumb-img" src="" alt="Cover" style="display: none;" />
+              <div id="bottom-thumb-icon">■</div>
+            </div>
+            <div class="bottom-meta-text">
+              <div class="bottom-meta-title" id="bottom-title">INITIALIZING SYSTEM...</div>
+              <div class="bottom-meta-sub">
+                <span id="bottom-artist">STANDBY</span>
+                <span class="bottom-time-cluster">
+                  <span id="current-time-display">00:00</span> / <span id="duration-display">00:00</span>
+                </span>
+                <span class="tape-counter bottom-tape-counter" id="tape-counter">00:00:00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CENTER: MASTER PLAYBACK TRANSPORT (All buttons identical 42x42 size, balanced 14px icons) -->
+          <div class="bottom-transport-group">
+            <button class="brutal-btn transport-btn" id="btn-prev" title="Previous Track (|◀◀)">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"></line>
+              </svg>
+            </button>
+            <button class="brutal-btn transport-btn transport-btn-play" id="btn-play" title="Play / Pause">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="6 4 20 12 6 20 6 4"></polygon>
+              </svg>
+            </button>
+            <button class="brutal-btn transport-btn" id="btn-stop" title="Stop Playback (■)">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="5" y="5" width="14" height="14"></rect>
+              </svg>
+            </button>
+            <button class="brutal-btn transport-btn" id="btn-next" title="Next Track (▶▶|)">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"></line>
+              </svg>
+            </button>
+            <button class="brutal-btn transport-btn" id="btn-speed" title="Cycle Playback Speed">1.0X</button>
+            <button class="brutal-btn transport-btn" id="btn-shuffle" title="Toggle Shuffle Queue">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 3 21 8"></polyline>
+                <line x1="4" y1="20" x2="21" y2="3"></line>
+                <polyline points="21 16 21 21 16 21"></polyline>
+                <line x1="15" y1="15" x2="21" y2="21"></line>
+                <line x1="4" y1="4" x2="9" y2="9"></line>
+              </svg>
+            </button>
+            <button class="brutal-btn transport-btn active" id="btn-repeat" title="Toggle Repeat Mode">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              </svg>
+              <span class="repeat-one-badge" style="display: none;">1</span>
+            </button>
+          </div>
+
+          <!-- RIGHT: MASTER GAIN & MUTE -->
+          <div class="bottom-volume-group">
+            <div class="bottom-volume-slider-box">
+              <div class="bottom-volume-label-row">
+                <span class="gain-heading">MASTER GAIN</span>
+                <span id="volume-val">85%</span>
+              </div>
+              <input type="range" class="brutal-slider bottom-volume-slider" id="volume-slider" min="0" max="100" value="85" title="Master Gain Volume" />
+            </div>
+            <button class="brutal-btn transport-btn btn-mute-icon" id="btn-mute" title="Mute Audio">
+              <svg class="btn-svg icon-unmuted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+              <svg class="btn-svg icon-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+              </svg>
+            </button>
+            <button class="brutal-btn brutal-btn-gold" id="btn-toggle-settings" title="Open Settings & Workspace Matrix">
+              <span>⚙</span>
+              <span>SETTINGS</span>
+            </button>
+          </div>
+        </div>
+      </footer>
+
+      <!-- OPENABLE SETTINGS DRAWER MENU (ANCHORED TO PLAYBAR) -->
+      <div class="settings-drawer-overlay" id="settings-drawer-overlay"></div>
+      <aside class="settings-drawer" id="settings-drawer" aria-hidden="true">
+        <div class="drawer-header">
+          <div class="drawer-title">
+            <span style="color: var(--accent-gold);">⚙</span>
+            <span>SYSTEM CONFIG &amp; WORKSPACE MATRIX</span>
+          </div>
+          <button class="brutal-btn brutal-btn-red" id="btn-close-settings" title="Close Settings Menu" style="padding: 2px 8px;">✕</button>
+        </div>
+
+        <div class="drawer-body">
+          <!-- SECTION 1: WORKSPACE VIEWS [1], [2], [3], [4] -->
+          <div class="drawer-section">
+            <div class="drawer-section-label">// WORKSPACE VIEW MATRIX //</div>
+            <nav class="settings-tab-nav" aria-label="Deck Views">
+              <button class="tab-btn active" data-tab="tab-panel-playlist">[1] PLAYLIST &amp; QUEUE</button>
+              <button class="tab-btn" data-tab="tab-panel-lyrics">[2] LYRICS / SUBTITLES</button>
+              <button class="tab-btn" data-tab="tab-panel-extended">[3] EXTENDED TRACK INFO</button>
+              <button class="tab-btn" data-tab="tab-panel-eq">[4] 5-BAND EQUALIZER</button>
+            </nav>
+          </div>
+
+          <!-- SECTION 2: AUDIO MATRIX & A-B LOOP -->
+          <div class="drawer-section">
+            <div class="drawer-section-label">// AUDIO MATRIX &amp; LOOP //</div>
+            <div class="drawer-matrix-grid">
+              <div class="control-item">
+                <label>
+                  <span>STEREO PAN</span>
+                  <span id="pan-val">CENTER</span>
+                </label>
+                <input type="range" class="brutal-slider" id="pan-slider" min="-100" max="100" value="0" />
+              </div>
+              <div class="ab-loop-cluster">
+                <span class="ab-label">A-B LOOP: <span id="loop-status" style="color: #666;">OFF</span></span>
+                <div style="display: flex; gap: 4px;">
+                  <button class="brutal-btn" id="btn-loop-a" style="padding: 4px 8px; font-size: 10px;">SET A</button>
+                  <button class="brutal-btn" id="btn-loop-b" style="padding: 4px 8px; font-size: 10px;">SET B</button>
+                  <button class="brutal-btn brutal-btn-red" id="btn-loop-clear" style="padding: 4px 8px; font-size: 10px;">CLR</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: PLAYLIST MANIFEST & CACHE CONTROLS -->
+          <div class="drawer-section">
+            <div class="drawer-section-label">// PLAYLIST MANIFEST &amp; CACHE //</div>
+            <div class="drawer-actions-grid">
+              <button class="brutal-btn brutal-btn-yellow" id="btn-open-json-modal" title="Load playlist manifest via JSON or URL">
+                <span>[+] LOAD .JSON</span>
+              </button>
+              <button class="brutal-btn brutal-btn-green" id="btn-open-import-modal" title="Import local audio, covers, and lyrics files">
+                <span>[▲] IMPORT FILES</span>
+              </button>
+              <button class="brutal-btn" id="btn-export-json" title="Export current library to JSON">
+                <span>[▼] EXPORT .JSON</span>
+              </button>
+              <button class="brutal-btn brutal-btn-red" id="btn-clear-cache" title="Reset all cached tracks">
+                <span>[X] CLEAR CACHE</span>
+              </button>
+              <span class="spec-badge spec-badge-yellow" id="cache-status">CACHE: READY</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- GLOBAL DRAG & DROP OVERLAY -->
+      <div class="global-drag-overlay" id="global-drag-overlay">
+        <div class="drag-overlay-box">
+          <div class="drag-overlay-icon">⤓</div>
+          <div class="drag-overlay-text">DROP AUDIO, COVERS, OR LYRICS ANYWHERE TO IMPORT</div>
+          <div class="drag-overlay-sub">Automatic ID3 metadata extraction &amp; persistent IndexedDB caching</div>
+        </div>
+      </div>
 
       <!-- MODAL: LOAD VIA JSON MANIFEST -->
       <div class="brutal-modal-overlay" id="modal-json">
