@@ -237,7 +237,7 @@ async function loadInitialTracks() {
     // Auto-select first track
     const first = playlist.getCurrentTrack();
     if (first) {
-      loadTrackIntoDeck(first, false);
+      await loadTrackIntoDeck(first, false);
     }
   } catch (err) {
     console.error('Error loading initial tracks:', err);
@@ -767,20 +767,36 @@ function renderPlaylist() {
     // Row click: play track or toggle play/pause if already active
     row.addEventListener('click', async (e) => {
       if (e.target.closest('.track-actions')) return;
-      if (current && current.id === track.id) {
+
+      const activeTrack = playlist.getCurrentTrack();
+      const isAlreadyCurrent = activeTrack && activeTrack.id === track.id;
+
+      if (isAlreadyCurrent) {
         if (!audioEngine.audio.paused) {
           audioEngine.pause();
+          setPlaybackUiState(false);
         } else {
-          try {
-            await audioEngine.play();
-          } catch (err) {
-            console.warn('Playback error:', err);
+          // If paused midway through, resume playback
+          if (audioEngine.audio.currentTime > 0 && audioEngine.audio.src) {
+            try {
+              await audioEngine.play();
+              setPlaybackUiState(true);
+              return;
+            } catch (err) {
+              console.warn('Resume error, reloading into deck:', err);
+            }
           }
+          // If never started or failed to resume, load into deck and play
+          await loadTrackIntoDeck(track, true);
         }
         return;
       }
+
+      // Track is not current: switch to this track and start playing
       const t = playlist.playTrackById(track.id);
-      if (t) loadTrackIntoDeck(t, true);
+      if (t) {
+        await loadTrackIntoDeck(t, true);
+      }
     });
 
     // Favorite toggle
@@ -828,7 +844,7 @@ function renderPlaylist() {
 function renderPlaylistHighlight() {
   const current = playlist.getCurrentTrack();
   if (!current) return;
-  const isAudioPlaying = !audioEngine.audio.paused && audioEngine.audio.currentTime > 0;
+  const isAudioPlaying = !audioEngine.audio.paused;
   const rows = dom.trackListEl.querySelectorAll('.track-row');
   rows.forEach((r) => {
     const isThis = r.dataset.id === current.id;
