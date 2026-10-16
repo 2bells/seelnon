@@ -166,6 +166,32 @@ export class AudioEngine {
     }
     this.audio.src = src;
     this.audio.load();
+
+    return new Promise((resolve) => {
+      if (this.audio.readyState >= 1 && Number.isFinite(this.audio.duration) && this.audio.duration > 0) {
+        resolve({ duration: this.audio.duration });
+        return;
+      }
+      const onMeta = () => {
+        cleanup();
+        resolve({ duration: this.audio.duration || 0 });
+      };
+      const onErr = () => {
+        cleanup();
+        resolve({ duration: 0 });
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve({ duration: this.audio.duration || 0 });
+      }, 1500);
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.audio.removeEventListener('loadedmetadata', onMeta);
+        this.audio.removeEventListener('error', onErr);
+      };
+      this.audio.addEventListener('loadedmetadata', onMeta);
+      this.audio.addEventListener('error', onErr);
+    });
   }
 
   async play() {
@@ -187,7 +213,8 @@ export class AudioEngine {
 
   seek(seconds) {
     if (!isNaN(seconds) && isFinite(seconds)) {
-      this.audio.currentTime = Math.max(0, Math.min(seconds, this.audio.duration || seconds));
+      const dur = (Number.isFinite(this.audio.duration) && this.audio.duration > 0) ? this.audio.duration : seconds;
+      this.audio.currentTime = Math.max(0, Math.min(seconds, dur));
     }
   }
 

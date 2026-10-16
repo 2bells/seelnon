@@ -200,7 +200,6 @@
                 <span class="bottom-time-cluster">
                   <span id="current-time-display">00:00</span> / <span id="duration-display">00:00</span>
                 </span>
-                <span class="tape-counter bottom-tape-counter" id="tape-counter">00:00:00</span>
               </div>
             </div>
           </div>
@@ -286,63 +285,129 @@
       <aside class="settings-drawer" id="settings-drawer" aria-hidden="true">
         <div class="drawer-header">
           <div class="drawer-title">
-            <span style="color: var(--accent-gold);">⚙</span>
-            <span>SYSTEM CONFIG &amp; WORKSPACE MATRIX</span>
+            <button class="brutal-btn" id="btn-settings-back" title="Back to Settings Matrix" style="display: none; padding: 2px 8px; font-size: 11px; margin-right: 4px;">◀ BACK</button>
+            <span id="settings-header-icon" style="color: var(--accent-gold);">⚙</span>
+            <span id="settings-header-title">SYSTEM CONFIG &amp; WORKSPACE MATRIX</span>
           </div>
           <button class="brutal-btn brutal-btn-red" id="btn-close-settings" title="Close Settings Menu" style="padding: 2px 8px;">✕</button>
         </div>
 
         <div class="drawer-body">
-          <!-- SECTION 1: WORKSPACE VIEWS [1], [2], [3], [4] -->
-          <div class="drawer-section">
-            <div class="drawer-section-label">// WORKSPACE VIEW MATRIX //</div>
-            <nav class="settings-tab-nav" aria-label="Deck Views">
-              <button class="tab-btn active" data-tab="tab-panel-playlist">[1] PLAYLIST &amp; QUEUE</button>
-              <button class="tab-btn" data-tab="tab-panel-lyrics">[2] LYRICS / SUBTITLES</button>
-              <button class="tab-btn" data-tab="tab-panel-extended">[3] EXTENDED TRACK INFO</button>
-              <button class="tab-btn" data-tab="tab-panel-eq">[4] 5-BAND EQUALIZER</button>
-            </nav>
-          </div>
+          <!-- VIEW 1: WORKSPACE VIEW MATRIX & AUDIO CONTROLS -->
+          <div class="drawer-view" id="settings-view-main">
+            <!-- SECTION 1: WORKSPACE VIEWS [1], [2], [3], [4] -->
+            <div class="drawer-section">
+              <div class="drawer-section-label">// WORKSPACE VIEW MATRIX //</div>
+              <nav class="settings-tab-nav" aria-label="Deck Views">
+                <button class="tab-btn active" data-tab="tab-panel-playlist">[1] PLAYLIST &amp; QUEUE</button>
+                <button class="tab-btn" data-tab="tab-panel-lyrics">[2] LYRICS / SUBTITLES</button>
+                <button class="tab-btn" data-tab="tab-panel-extended">[3] EXTENDED TRACK INFO</button>
+                <button class="tab-btn" data-tab="tab-panel-eq">[4] 5-BAND EQUALIZER</button>
+              </nav>
+            </div>
 
-          <!-- SECTION 2: AUDIO MATRIX & A-B LOOP -->
-          <div class="drawer-section">
-            <div class="drawer-section-label">// AUDIO MATRIX &amp; LOOP //</div>
-            <div class="drawer-matrix-grid">
-              <div class="control-item">
-                <label>
-                  <span>STEREO PAN</span>
-                  <span id="pan-val">CENTER</span>
-                </label>
-                <input type="range" class="brutal-slider" id="pan-slider" min="-100" max="100" value="0" />
-              </div>
-              <div class="ab-loop-cluster">
-                <span class="ab-label">A-B LOOP: <span id="loop-status" style="color: #666;">OFF</span></span>
-                <div style="display: flex; gap: 4px;">
-                  <button class="brutal-btn" id="btn-loop-a" style="padding: 4px 8px; font-size: 10px;">SET A</button>
-                  <button class="brutal-btn" id="btn-loop-b" style="padding: 4px 8px; font-size: 10px;">SET B</button>
-                  <button class="brutal-btn brutal-btn-red" id="btn-loop-clear" style="padding: 4px 8px; font-size: 10px;">CLR</button>
+            <!-- SECTION 2: AUDIO MATRIX & A-B LOOP -->
+            <div class="drawer-section">
+              <div class="drawer-section-label">// AUDIO MATRIX &amp; LOOP //</div>
+              <div class="drawer-matrix-grid">
+                <div class="control-item">
+                  <label>
+                    <span>STEREO PAN</span>
+                    <span id="pan-val">CENTER</span>
+                  </label>
+                  <input type="range" class="brutal-slider" id="pan-slider" min="-100" max="100" value="0" />
                 </div>
+                <div class="ab-loop-cluster">
+                  <span class="ab-label">A-B LOOP: <span id="loop-status" style="color: #666;">OFF</span></span>
+                  <div style="display: flex; gap: 4px;">
+                    <button class="brutal-btn" id="btn-loop-a" style="padding: 4px 8px; font-size: 10px;">SET A</button>
+                    <button class="brutal-btn" id="btn-loop-b" style="padding: 4px 8px; font-size: 10px;">SET B</button>
+                    <button class="brutal-btn brutal-btn-red" id="btn-loop-clear" style="padding: 4px 8px; font-size: 10px;">CLR</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 3: PLAYLIST MANIFEST & CACHE CONTROLS -->
+            <div class="drawer-section">
+              <div class="drawer-section-label">// PLAYLIST MANIFEST &amp; CACHE //</div>
+              <div class="drawer-actions-grid">
+                <button class="brutal-btn brutal-btn-yellow" id="btn-open-json-modal" title="Load playlist manifest via JSON or URL">
+                  <span>[+] LOAD .JSON</span>
+                </button>
+                <button class="brutal-btn brutal-btn-green" id="btn-open-import-modal" title="Upload and cache local audio files">
+                  <span>[▲] IMPORT FILES</span>
+                </button>
+                <button class="brutal-btn" id="btn-export-json" title="Export current library to JSON">
+                  <span>[▼] EXPORT .JSON</span>
+                </button>
+                <button class="brutal-btn brutal-btn-red" id="btn-clear-cache" title="Reset all cached tracks">
+                  <span>[X] CLEAR CACHE</span>
+                </button>
+                <span class="spec-badge spec-badge-yellow" id="cache-status">CACHE: READY</span>
               </div>
             </div>
           </div>
 
-          <!-- SECTION 3: PLAYLIST MANIFEST & CACHE CONTROLS -->
-          <div class="drawer-section">
-            <div class="drawer-section-label">// PLAYLIST MANIFEST &amp; CACHE //</div>
-            <div class="drawer-actions-grid">
-              <button class="brutal-btn brutal-btn-yellow" id="btn-open-json-modal" title="Load playlist manifest via JSON or URL">
-                <span>[+] LOAD .JSON</span>
-              </button>
-              <button class="brutal-btn brutal-btn-green" id="btn-open-import-modal" title="Import local audio, covers, and lyrics files">
-                <span>[▲] IMPORT FILES</span>
-              </button>
-              <button class="brutal-btn" id="btn-export-json" title="Export current library to JSON">
-                <span>[▼] EXPORT .JSON</span>
-              </button>
-              <button class="brutal-btn brutal-btn-red" id="btn-clear-cache" title="Reset all cached tracks">
-                <span>[X] CLEAR CACHE</span>
-              </button>
-              <span class="spec-badge spec-badge-yellow" id="cache-status">CACHE: READY</span>
+          <!-- VIEW 2: LOCAL FILES IMPORT / UPLOAD DIRECTLY IN SETTINGS -->
+          <div class="drawer-view" id="settings-view-import" style="display: none;">
+            <p class="settings-view-desc">
+              Drop or select audio files (MP3, WAV, FLAC, OGG, M4A), companion cover images (JPG, PNG, WEBP), and subtitle/lyrics files (LRC, SRT, VTT).
+            </p>
+
+            <div class="dropzone" id="main-dropzone">
+              <div class="dropzone-icon">⤓</div>
+              <div class="dropzone-label">DRAG &amp; DROP FILES OR CLICK TO BROWSE</div>
+              <div class="dropzone-sub">
+                Automatically parses binary ID3v1/ID3v2 tags, extracts embedded APIC artwork, pairs companion lyrics (.lrc/.srt), and caches into IndexedDB.
+              </div>
+              <input type="file" id="file-picker-input" multiple accept="audio/*,image/*,.lrc,.srt,.vtt,.json" style="display: none;" />
+            </div>
+
+            <div class="protocol-card">
+              <div class="protocol-card-header">// COMPANION PAIRING PROTOCOL //</div>
+              <div class="protocol-card-body">
+                • Dropping <code>song.mp3</code> and <code>song.jpg</code> or <code>song.lrc</code> automatically binds them together.<br>
+                • Files named <code>cover.jpg</code> or <code>album.png</code> apply as batch cover artwork.<br>
+                • Audio Blobs are cached in browser IndexedDB so they remain playable across restarts.
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW 3: LOAD VIA JSON MANIFEST DIRECTLY IN SETTINGS -->
+          <div class="drawer-view" id="settings-view-json" style="display: none;">
+            <p class="settings-view-desc">
+              Load playlists via standard JavaScript <code>fetch()</code> from any remote URL or local JSON manifest file. Fully static and local-friendly.
+            </p>
+
+            <!-- Option 1: URL Fetch -->
+            <div class="json-card">
+              <label class="json-card-label">1. FETCH REMOTE JSON VIA URL:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="url" class="brutal-input" id="json-url-input" placeholder="https://example.com/playlist.json" />
+                <button class="brutal-btn brutal-btn-yellow" id="btn-fetch-json-url" style="white-space: nowrap;">FETCH</button>
+              </div>
+            </div>
+
+            <!-- Option 2: Upload File -->
+            <div class="json-card">
+              <label class="json-card-label">2. UPLOAD LOCAL .JSON PLAYLIST FILE:</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="file" class="brutal-input brutal-file-input" id="json-file-input" accept=".json,application/json" />
+              </div>
+            </div>
+
+            <!-- Option 3: Raw JSON Paste -->
+            <div class="json-card">
+              <label class="json-card-label">3. PASTE RAW PLAYLIST JSON:</label>
+              <textarea class="brutal-input" id="json-paste-area" rows="4" placeholder='[ { "title": "Track Name", "artist": "Artist", "audioUrl": "...", "bpm": 128 } ]'></textarea>
+              <button class="brutal-btn brutal-btn-cyan" id="btn-apply-json-paste">PARSE &amp; IMPORT</button>
+            </div>
+
+            <!-- Option 4: Reload built-in demo -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-color);">
+              <span style="font-size: 10px; color: var(--text-muted);">Need sample data?</span>
+              <button class="brutal-btn" id="btn-load-demo-json" style="font-size: 10px; padding: 4px 8px;">RELOAD DEMO PRESET</button>
             </div>
           </div>
         </div>
@@ -354,78 +419,6 @@
           <div class="drag-overlay-icon">⤓</div>
           <div class="drag-overlay-text">DROP AUDIO, COVERS, OR LYRICS ANYWHERE TO IMPORT</div>
           <div class="drag-overlay-sub">Automatic ID3 metadata extraction &amp; persistent IndexedDB caching</div>
-        </div>
-      </div>
-
-      <!-- MODAL: LOAD VIA JSON MANIFEST -->
-      <div class="brutal-modal-overlay" id="modal-json">
-        <div class="brutal-modal">
-          <div class="modal-header">
-            <span class="modal-title">[+] LOAD PLAYLIST MANIFEST (.JSON)</span>
-            <button class="brutal-btn brutal-btn-red" id="btn-close-json-modal" style="padding: 2px 8px;">✕</button>
-          </div>
-
-          <p style="font-size: 11px; color: #444;">
-            Load playlists via standard JavaScript <code>fetch()</code> from any remote URL or local JSON manifest file. Perfect for static setups with no server-side Vite blobs.
-          </p>
-
-          <!-- Option 1: URL Fetch -->
-          <div style="display: flex; flex-direction: column; gap: 6px; border: 2px solid #000; padding: 10px; background: #fafafa;">
-            <label style="font-weight: 800; font-size: 11px;">1. FETCH REMOTE JSON VIA URL:</label>
-            <div style="display: flex; gap: 6px;">
-              <input type="url" class="brutal-input" id="json-url-input" placeholder="https://example.com/playlist.json" />
-              <button class="brutal-btn brutal-btn-yellow" id="btn-fetch-json-url">FETCH</button>
-            </div>
-          </div>
-
-          <!-- Option 2: Upload File -->
-          <div style="display: flex; flex-direction: column; gap: 6px; border: 2px solid #000; padding: 10px; background: #fafafa;">
-            <label style="font-weight: 800; font-size: 11px;">2. UPLOAD LOCAL .JSON PLAYLIST FILE:</label>
-            <input type="file" class="brutal-input" id="json-file-input" accept=".json,application/json" />
-          </div>
-
-          <!-- Option 3: Raw JSON Paste -->
-          <div style="display: flex; flex-direction: column; gap: 6px; border: 2px solid #000; padding: 10px; background: #fafafa;">
-            <label style="font-weight: 800; font-size: 11px;">3. PASTE RAW PLAYLIST JSON:</label>
-            <textarea class="brutal-input" id="json-paste-area" rows="4" placeholder='[ { "title": "Track Name", "artist": "Artist", "audioUrl": "...", "bpm": 128 } ]'></textarea>
-            <button class="brutal-btn brutal-btn-cyan" id="btn-apply-json-paste">PARSE & IMPORT</button>
-          </div>
-
-          <!-- Option 4: Reload built-in demo -->
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #ddd;">
-            <span style="font-size: 10px; color: #666;">Need sample data?</span>
-            <button class="brutal-btn" id="btn-load-demo-json">RELOAD BRUTALIST DEMO PRESET</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- MODAL: IMPORT LOCAL FILES & DRAG-AND-DROP -->
-      <div class="brutal-modal-overlay" id="modal-import">
-        <div class="brutal-modal">
-          <div class="modal-header">
-            <span class="modal-title">[▲] IMPORT LOCAL FILES INTO CACHE</span>
-            <button class="brutal-btn brutal-btn-red" id="btn-close-import-modal" style="padding: 2px 8px;">✕</button>
-          </div>
-
-          <p style="font-size: 11px; color: #444;">
-            Drop or select audio files (MP3, WAV, FLAC, OGG, M4A), companion cover images (JPG, PNG, WEBP), and subtitle/lyrics files (LRC, SRT, VTT).
-          </p>
-
-          <div class="dropzone" id="main-dropzone">
-            <div class="dropzone-icon">⤓</div>
-            <div class="dropzone-label">DRAG & DROP FILES OR CLICK TO BROWSE</div>
-            <div class="dropzone-sub">
-              Automatically parses binary ID3v1/ID3v2 tags, extracts embedded APIC artwork, pairs companion lyrics (.lrc/.srt) by filename, and stores files persistently in IndexedDB cache.
-            </div>
-            <input type="file" id="file-picker-input" multiple accept="audio/*,image/*,.lrc,.srt,.vtt,.json" style="display: none;" />
-          </div>
-
-          <div style="background: #f0f0f0; border: 1px dashed #000; padding: 10px; font-size: 11px; line-height: 1.5;">
-            <strong>Companion Pairing Protocol:</strong><br>
-            • If you drop <code>song.mp3</code> and <code>song.jpg</code> or <code>song.lrc</code>, they will be automatically bound together.<br>
-            • Files named <code>cover.jpg</code> or <code>album.png</code> apply as covers to audio in the batch.<br>
-            • Audio Blobs are cached in browser IndexedDB so they remain playable across restarts!
-          </div>
         </div>
       </div>
 

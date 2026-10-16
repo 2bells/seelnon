@@ -114,9 +114,7 @@ function initDomElements() {
   dom.btnExportJson = document.getElementById('btn-export-json');
   dom.btnClearCache = document.getElementById('btn-clear-cache');
 
-  // JSON Modal
-  dom.modalJson = document.getElementById('modal-json');
-  dom.btnCloseJsonModal = document.getElementById('btn-close-json-modal');
+  // JSON Options (Inside Settings)
   dom.jsonUrlInput = document.getElementById('json-url-input');
   dom.btnFetchJsonUrl = document.getElementById('btn-fetch-json-url');
   dom.jsonFileInput = document.getElementById('json-file-input');
@@ -124,17 +122,21 @@ function initDomElements() {
   dom.btnApplyJsonPaste = document.getElementById('btn-apply-json-paste');
   dom.btnLoadDemoJson = document.getElementById('btn-load-demo-json');
 
-  // Import Modal
-  dom.modalImport = document.getElementById('modal-import');
-  dom.btnCloseImportModal = document.getElementById('btn-close-import-modal');
+  // Import Options (Inside Settings)
   dom.dropzone = document.getElementById('main-dropzone');
   dom.filePickerInput = document.getElementById('file-picker-input');
 
-  // Settings Drawer (Playbar Anchored)
+  // Settings Drawer & Views
   dom.btnToggleSettings = document.getElementById('btn-toggle-settings');
   dom.btnCloseSettings = document.getElementById('btn-close-settings');
+  dom.btnSettingsBack = document.getElementById('btn-settings-back');
+  dom.settingsHeaderTitle = document.getElementById('settings-header-title');
+  dom.settingsHeaderIcon = document.getElementById('settings-header-icon');
   dom.settingsDrawer = document.getElementById('settings-drawer');
   dom.settingsOverlay = document.getElementById('settings-drawer-overlay');
+  dom.settingsViewMain = document.getElementById('settings-view-main');
+  dom.settingsViewImport = document.getElementById('settings-view-import');
+  dom.settingsViewJson = document.getElementById('settings-view-json');
   dom.globalDragOverlay = document.getElementById('global-drag-overlay');
 
   // Toast
@@ -306,7 +308,19 @@ async function loadTrackIntoDeck(track, autoPlay = true) {
   // Load into AudioEngine
   if (track.audioUrl) {
     try {
-      await audioEngine.load(track.audioUrl);
+      const loadRes = await audioEngine.load(track.audioUrl);
+      if (loadRes && Number.isFinite(loadRes.duration) && loadRes.duration > 0) {
+        if (!track.duration || Math.abs(track.duration - loadRes.duration) > 1) {
+          track.duration = loadRes.duration;
+          dom.durationDisplay.textContent = formatTime(loadRes.duration);
+          saveTrack(track);
+          const row = dom.trackListEl.querySelector(`.track-row[data-id="${track.id}"]`);
+          if (row) {
+            const durEl = row.querySelector('.track-duration');
+            if (durEl) durEl.textContent = formatTime(loadRes.duration);
+          }
+        }
+      }
       if (autoPlay) {
         await audioEngine.play();
         setPlaybackUiState(true);
@@ -346,19 +360,26 @@ function bindPlayerEvents() {
   });
 
   audioEngine.on('timeupdate', ({ currentTime, duration }) => {
-    // Update seek bar
-    const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
+    const track = playlist.getCurrentTrack();
+    const validDuration = (Number.isFinite(duration) && duration > 0) ? duration : (track?.duration || 0);
+    const pct = validDuration > 0 ? (currentTime / validDuration) * 100 : 0;
     if (!dom.seekSlider.matches(':active')) {
       dom.seekSlider.value = pct;
     }
     dom.seekSlider.style.setProperty('--seek-percent', `${pct}%`);
     dom.currentTimeDisplay.textContent = formatTime(currentTime);
-    dom.durationDisplay.textContent = formatTime(duration);
+    if (validDuration > 0) {
+      dom.durationDisplay.textContent = formatTime(validDuration);
+    }
 
-    // Update tape counter
-    if (dom.tapeCounter) {
-      const frames = Math.floor((currentTime % 1) * 30);
-      dom.tapeCounter.textContent = `${formatTime(currentTime)}:${frames.toString().padStart(2, '0')}`;
+    if (track && Number.isFinite(duration) && duration > 0 && (!track.duration || Math.abs(track.duration - duration) > 1)) {
+      track.duration = duration;
+      saveTrack(track);
+      const row = dom.trackListEl.querySelector(`.track-row[data-id="${track.id}"]`);
+      if (row) {
+        const durEl = row.querySelector('.track-duration');
+        if (durEl) durEl.textContent = formatTime(duration);
+      }
     }
 
     // Synchronize lyrics teleprompter
@@ -366,11 +387,18 @@ function bindPlayerEvents() {
   });
 
   audioEngine.on('loadedmetadata', ({ duration }) => {
-    dom.durationDisplay.textContent = formatTime(duration);
-    const curr = playlist.getCurrentTrack();
-    if (curr && (!curr.duration || curr.duration === 0)) {
-      curr.duration = duration;
-      saveTrack(curr);
+    if (Number.isFinite(duration) && duration > 0) {
+      dom.durationDisplay.textContent = formatTime(duration);
+      const curr = playlist.getCurrentTrack();
+      if (curr && (!curr.duration || Math.abs(curr.duration - duration) > 1)) {
+        curr.duration = duration;
+        saveTrack(curr);
+        const row = dom.trackListEl.querySelector(`.track-row[data-id="${curr.id}"]`);
+        if (row) {
+          const durEl = row.querySelector('.track-duration');
+          if (durEl) durEl.textContent = formatTime(duration);
+        }
+      }
     }
   });
 
@@ -382,14 +410,24 @@ function bindPlayerEvents() {
 
 function setPlaybackUiState(isPlaying) {
   if (isPlaying) {
-    dom.btnPlay.textContent = '❚❚';
+    dom.btnPlay.innerHTML = `
+      <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+      </svg>`;
     dom.btnPlay.classList.add('brutal-btn-gold');
+    dom.btnPlay.title = 'Pause Playback';
     if (dom.tapeHub) dom.tapeHub.classList.add('spinning');
   } else {
-    dom.btnPlay.textContent = '▶';
+    dom.btnPlay.innerHTML = `
+      <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="6 4 20 12 6 20 6 4"></polygon>
+      </svg>`;
     dom.btnPlay.classList.remove('brutal-btn-gold');
+    dom.btnPlay.title = 'Play Audio';
     if (dom.tapeHub) dom.tapeHub.classList.remove('spinning');
   }
+  renderPlaylistHighlight();
 }
 
 /**
@@ -700,16 +738,18 @@ function renderPlaylist() {
   }
 
   tracks.forEach((track, index) => {
-    const isPlaying = current && current.id === track.id;
+    const isCurrent = current && current.id === track.id;
+    const isAudioPlaying = isCurrent && !audioEngine.audio.paused;
     const row = document.createElement('div');
-    row.className = `track-row ${isPlaying ? 'playing' : ''}`;
+    row.className = `track-row ${isCurrent ? 'playing' : ''}`;
     row.dataset.id = track.id;
 
     // Mini cover image or fallback
     const coverSrc = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"><rect width="30" height="30" fill="%23222"/></svg>';
+    const numDisplay = isCurrent ? (isAudioPlaying ? '❚❚' : '▶') : String(index + 1).padStart(2, '0');
 
     row.innerHTML = `
-      <div class="track-num">${isPlaying ? '▶' : String(index + 1).padStart(2, '0')}</div>
+      <div class="track-num">${numDisplay}</div>
       <img class="track-cover-mini" src="${coverSrc}" alt="" />
       <div class="track-info-col">
         <span class="track-meta-title">${escapeHtml(track.title)}</span>
@@ -724,9 +764,21 @@ function renderPlaylist() {
       </div>
     `;
 
-    // Row click: play track
-    row.addEventListener('click', (e) => {
+    // Row click: play track or toggle play/pause if already active
+    row.addEventListener('click', async (e) => {
       if (e.target.closest('.track-actions')) return;
+      if (current && current.id === track.id) {
+        if (!audioEngine.audio.paused) {
+          audioEngine.pause();
+        } else {
+          try {
+            await audioEngine.play();
+          } catch (err) {
+            console.warn('Playback error:', err);
+          }
+        }
+        return;
+      }
       const t = playlist.playTrackById(track.id);
       if (t) loadTrackIntoDeck(t, true);
     });
@@ -776,13 +828,21 @@ function renderPlaylist() {
 function renderPlaylistHighlight() {
   const current = playlist.getCurrentTrack();
   if (!current) return;
+  const isAudioPlaying = !audioEngine.audio.paused && audioEngine.audio.currentTime > 0;
   const rows = dom.trackListEl.querySelectorAll('.track-row');
   rows.forEach((r) => {
     const isThis = r.dataset.id === current.id;
     r.classList.toggle('playing', isThis);
     const numEl = r.querySelector('.track-num');
     if (numEl) {
-      if (isThis) numEl.textContent = '▶';
+      if (isThis) {
+        numEl.textContent = isAudioPlaying ? '❚❚' : '▶';
+        numEl.title = isAudioPlaying ? 'Playing (click to pause)' : 'Paused (click to play)';
+      } else {
+        const idx = playlist.queue.findIndex((t) => t.id === r.dataset.id);
+        numEl.textContent = idx >= 0 ? String(idx + 1).padStart(2, '0') : '--';
+        numEl.title = '';
+      }
     }
   });
 }
@@ -920,116 +980,136 @@ function bindEqualizer() {
 }
 
 /**
- * Modals & Import Handlers
+ * Modals & Import Handlers (Integrated inside Settings Drawer)
  */
 function bindModalsAndImports() {
-  // Modal Open / Close
-  dom.btnOpenJsonModal.addEventListener('click', () => {
-    dom.modalJson.classList.add('open');
-  });
+  // Settings Drawer Sub-views Navigation
+  const switchSettingsView = (viewName) => {
+    if (dom.settingsViewMain) dom.settingsViewMain.style.display = viewName === 'main' ? 'flex' : 'none';
+    if (dom.settingsViewImport) dom.settingsViewImport.style.display = viewName === 'import' ? 'flex' : 'none';
+    if (dom.settingsViewJson) dom.settingsViewJson.style.display = viewName === 'json' ? 'flex' : 'none';
 
-  dom.btnCloseJsonModal.addEventListener('click', () => {
-    dom.modalJson.classList.remove('open');
-  });
+    if (dom.btnSettingsBack) {
+      dom.btnSettingsBack.style.display = viewName === 'main' ? 'none' : 'inline-block';
+    }
 
-  dom.btnOpenImportModal.addEventListener('click', () => {
-    dom.modalImport.classList.add('open');
-  });
+    if (dom.settingsHeaderTitle) {
+      if (viewName === 'import') {
+        dom.settingsHeaderTitle.textContent = 'IMPORT LOCAL AUDIO FILES';
+        if (dom.settingsHeaderIcon) dom.settingsHeaderIcon.textContent = '▲';
+      } else if (viewName === 'json') {
+        dom.settingsHeaderTitle.textContent = 'LOAD PLAYLIST MANIFEST (.JSON)';
+        if (dom.settingsHeaderIcon) dom.settingsHeaderIcon.textContent = '+';
+      } else {
+        dom.settingsHeaderTitle.textContent = 'SYSTEM CONFIG & WORKSPACE MATRIX';
+        if (dom.settingsHeaderIcon) dom.settingsHeaderIcon.textContent = '⚙';
+      }
+    }
+  };
 
-  dom.btnCloseImportModal.addEventListener('click', () => {
-    dom.modalImport.classList.remove('open');
-  });
+  if (dom.btnOpenJsonModal) {
+    dom.btnOpenJsonModal.addEventListener('click', () => {
+      switchSettingsView('json');
+    });
+  }
 
-  // Close modals on background click
-  window.addEventListener('click', (e) => {
-    if (e.target === dom.modalJson) dom.modalJson.classList.remove('open');
-    if (e.target === dom.modalImport) dom.modalImport.classList.remove('open');
-  });
+  if (dom.btnOpenImportModal) {
+    dom.btnOpenImportModal.addEventListener('click', () => {
+      switchSettingsView('import');
+    });
+  }
+
+  if (dom.btnSettingsBack) {
+    dom.btnSettingsBack.addEventListener('click', () => {
+      switchSettingsView('main');
+    });
+  }
 
   // --- JSON LOADING OPTIONS ---
 
   // 1. Fetch JSON via URL (Standard fetch, static and local friendly)
-  dom.btnFetchJsonUrl.addEventListener('click', async () => {
-    const url = dom.jsonUrlInput.value.trim();
-    if (!url) return alert('ENTER A VALID JSON URL');
+  if (dom.btnFetchJsonUrl && dom.jsonUrlInput) {
+    dom.btnFetchJsonUrl.addEventListener('click', async () => {
+      const url = dom.jsonUrlInput.value.trim();
+      if (!url) return showToast('ENTER A VALID JSON URL');
 
-    try {
-      showToast(`FETCHING ${url}...`);
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`HTTP error ${resp.status}`);
-      const data = await resp.json();
-      const tracks = playlist.importFromJson(data);
-      playlist.addTracks(tracks);
-      await saveTracks(tracks);
-      updateCacheStatusBadge();
-      renderPlaylist();
-      updateSubFilters();
-      dom.modalJson.classList.remove('open');
-      showToast(`IMPORTED ${tracks.length} TRACKS FROM REMOTE JSON`);
-    } catch (err) {
-      alert(`FAILED TO FETCH JSON: ${err.message}`);
-    }
-  });
+      try {
+        showToast(`FETCHING ${url}...`);
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP error ${resp.status}`);
+        const data = await resp.json();
+        const tracks = playlist.importFromJson(data);
+        playlist.addTracks(tracks);
+        await saveTracks(tracks);
+        updateCacheStatusBadge();
+        renderPlaylist();
+        updateSubFilters();
+        switchSettingsView('main');
+        showToast(`IMPORTED ${tracks.length} TRACKS FROM REMOTE JSON`);
+      } catch (err) {
+        showToast(`FAILED TO FETCH JSON: ${err.message}`);
+      }
+    });
+  }
 
   // 2. Load JSON File from Disk
-  dom.jsonFileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  if (dom.jsonFileInput) {
+    dom.jsonFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      const tracks = playlist.importFromJson(data);
-      playlist.addTracks(tracks);
-      await saveTracks(tracks);
-      updateCacheStatusBadge();
-      renderPlaylist();
-      updateSubFilters();
-      dom.modalJson.classList.remove('open');
-      showToast(`LOADED ${tracks.length} TRACKS FROM ${file.name}`);
-    } catch (err) {
-      alert(`ERROR PARSING JSON FILE: ${err.message}`);
-    }
-  });
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const tracks = playlist.importFromJson(data);
+        playlist.addTracks(tracks);
+        await saveTracks(tracks);
+        updateCacheStatusBadge();
+        renderPlaylist();
+        updateSubFilters();
+        switchSettingsView('main');
+        showToast(`LOADED ${tracks.length} TRACKS FROM ${file.name}`);
+      } catch (err) {
+        showToast(`ERROR PARSING JSON FILE: ${err.message}`);
+      }
+    });
+  }
 
   // 3. Paste Raw JSON
-  dom.btnApplyJsonPaste.addEventListener('click', async () => {
-    const text = dom.jsonPasteArea.value.trim();
-    if (!text) return alert('PASTE JSON FIRST');
+  if (dom.btnApplyJsonPaste && dom.jsonPasteArea) {
+    dom.btnApplyJsonPaste.addEventListener('click', async () => {
+      const text = dom.jsonPasteArea.value.trim();
+      if (!text) return showToast('PASTE JSON FIRST');
 
-    try {
-      const data = JSON.parse(text);
-      const tracks = playlist.importFromJson(data);
-      playlist.addTracks(tracks);
-      await saveTracks(tracks);
+      try {
+        const data = JSON.parse(text);
+        const tracks = playlist.importFromJson(data);
+        playlist.addTracks(tracks);
+        await saveTracks(tracks);
+        updateCacheStatusBadge();
+        renderPlaylist();
+        updateSubFilters();
+        switchSettingsView('main');
+        showToast(`IMPORTED ${tracks.length} TRACKS FROM PASTED JSON`);
+      } catch (err) {
+        showToast(`MALFORMED JSON: ${err.message}`);
+      }
+    });
+  }
+
+  // 4. Load Demo JSON
+  if (dom.btnLoadDemoJson) {
+    dom.btnLoadDemoJson.addEventListener('click', async () => {
+      const demos = [...SERVER_DEMO_TRACKS];
+      playlist.addTracks(demos);
+      await saveTracks(demos);
       updateCacheStatusBadge();
       renderPlaylist();
       updateSubFilters();
-      dom.modalJson.classList.remove('open');
-      showToast(`IMPORTED ${tracks.length} TRACKS FROM PASTED JSON`);
-    } catch (err) {
-      alert(`MALFORMED JSON: ${err.message}`);
-    }
-  });
-
-  // 4. Load Demo JSON
-  dom.btnLoadDemoJson.addEventListener('click', async () => {
-    const demos = [...DEFAULT_DEMO_TRACKS];
-    for (const d of demos) {
-      if (d.synthType) {
-        const synth = await renderSynthAudio(d.synthType, d.duration);
-        d.audioBlob = synth.blob;
-        d.audioUrl = synth.url;
-      }
-    }
-    playlist.addTracks(demos);
-    await saveTracks(demos);
-    updateCacheStatusBadge();
-    renderPlaylist();
-    updateSubFilters();
-    dom.modalJson.classList.remove('open');
-    showToast('BRUTALIST DEMO MANIFEST RELOADED');
-  });
+      switchSettingsView('main');
+      showToast('SERVER DEMO MANIFEST RELOADED');
+    });
+  }
 
   // --- SETTINGS DRAWER (ANCHORED TO PLAYBAR) ---
   if (dom.btnToggleSettings && dom.settingsDrawer) {
@@ -1038,6 +1118,7 @@ function bindModalsAndImports() {
       if (dom.settingsOverlay) dom.settingsOverlay.classList.remove('open');
       dom.settingsDrawer.setAttribute('aria-hidden', 'true');
       dom.btnToggleSettings.classList.remove('active');
+      switchSettingsView('main');
     };
 
     const toggleSettingsDrawer = () => {
@@ -1243,6 +1324,32 @@ async function processImportedFiles(files) {
 
       const audioUrl = URL.createObjectURL(aFile);
 
+      // Probe actual audio duration via lightweight audio element
+      let probedDuration = 0;
+      try {
+        probedDuration = await new Promise((resolve) => {
+          const probe = new Audio();
+          probe.preload = 'metadata';
+          const to = setTimeout(() => {
+            probe.src = '';
+            resolve(0);
+          }, 800);
+          probe.onloadedmetadata = () => {
+            clearTimeout(to);
+            const d = probe.duration;
+            probe.src = '';
+            resolve(Number.isFinite(d) && d > 0 ? d : 0);
+          };
+          probe.onerror = () => {
+            clearTimeout(to);
+            resolve(0);
+          };
+          probe.src = audioUrl;
+        });
+      } catch (e) {
+        probedDuration = 0;
+      }
+
       const trackObj = {
         id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         title: meta.title,
@@ -1252,7 +1359,7 @@ async function processImportedFiles(files) {
         genre: meta.genre,
         trackNumber: meta.trackNumber,
         bpm: meta.bpm,
-        duration: 0, // Will be updated on loadedmetadata
+        duration: probedDuration,
         audioUrl,
         audioBlob: aFile, // Persist blob into IndexedDB!
         coverUrl,
@@ -1279,6 +1386,15 @@ async function processImportedFiles(files) {
     updateCacheStatusBadge();
     renderPlaylist();
     updateSubFilters();
+
+    // Switch view back to main settings view
+    if (dom.settingsViewImport && dom.settingsViewImport.style.display !== 'none') {
+      if (dom.settingsViewMain) dom.settingsViewMain.style.display = 'flex';
+      if (dom.settingsViewImport) dom.settingsViewImport.style.display = 'none';
+      if (dom.btnSettingsBack) dom.btnSettingsBack.style.display = 'none';
+      if (dom.settingsHeaderTitle) dom.settingsHeaderTitle.textContent = 'SYSTEM CONFIG & WORKSPACE MATRIX';
+      if (dom.settingsHeaderIcon) dom.settingsHeaderIcon.textContent = '⚙';
+    }
 
     // If nothing currently playing, play the first imported track
     if (!audioEngine.audio.src || audioEngine.audio.paused) {

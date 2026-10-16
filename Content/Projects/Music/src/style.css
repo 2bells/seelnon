@@ -961,6 +961,88 @@ body::before {
   padding: 4px;
 }
 
+.drawer-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-view-desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.protocol-card {
+  background: var(--surface);
+  border: 1px dashed var(--border-color);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.protocol-card-header {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--accent-gold);
+}
+
+.protocol-card-body {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+.protocol-card-body code {
+  color: var(--accent-gold);
+  background: var(--bg);
+  padding: 1px 4px;
+  border: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+}
+
+.json-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  background: var(--surface);
+}
+
+.json-card-label {
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--accent-gold);
+}
+
+.brutal-file-input {
+  color: var(--text-main);
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  padding: 6px;
+  cursor: pointer;
+}
+
+.brutal-file-input::file-selector-button {
+  background: var(--accent-gold);
+  color: var(--text-inverse);
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 8px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.brutal-file-input::file-selector-button:hover {
+  background: var(--accent-gold-bright);
+}
+
 /* =========================================================
    GLOBAL DRAG-AND-DROP BACKDROP OVERLAY
    ========================================================= */
